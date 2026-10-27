@@ -1,0 +1,105 @@
+# 資料模型與可攜格式 v1 草案
+
+狀態：待實作的契約；此文件不是已存在的 DB schema。正式 v1 發佈前可修訂，但一旦有真實使用者資料就必須用 migration／版本判斷處理。
+
+## 1. 分開筆記、媒體與練習配方
+
+| 實體 | 核心欄位 | 不變條件 |
+| --- | --- | --- |
+| Library | id、schemaVersion、createdAt | 本機資料集，不是雲端帳號 |
+| Video | id、title、durationMs、teacher、danceStyle、recordedDate、revision | 影片的筆記主體；時間以實際 metadata 為準 |
+| MediaAsset | id、videoId?、kind、storageKind、state、byteLength、mimeType、originalName?、durationMs、fingerprint? | kind 為 reference／take／vs；位置僅本機可解讀 |
+| Marker | id、videoId、startMs、endMs?、title、note、moveId?、revision | 0≤start；區間 end>start；已知長度時不超出影片 |
+| PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt | 影片與錄影各自可保存，不把 VS 當唯一原件 |
+| ComparisonRecipe | id、takeId、offsetMs、referenceMirror、selfMirror、layout、audioSource、revision | 時間公式見錄影規格；不等於已產生影片 |
+| ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
+| Move（P1） | id、name、danceStyle、status | 一個動作可由多個 marker 指向 |
+
+不建立 users、subscriptions、share_tokens 或同步 outbox；本期沒有對應服務。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
+
+ID 為隨機 UUID，與檔名、路徑、內容 hash 分離。reference 指向錯誤影片比找不到影片更危險，因此不得只憑同檔名自動連結。
+
+## 2. 媒體狀態
+
+`session-only → copying → ready`；錯誤可為 `missing`、`unsupported`、`interrupted`、`failed`。相機 `recording` 與匯出 `exporting` 是工作中狀態，不可當成可播放檔案。
+
+刪除有三個不同操作：「移除此裝置的媒體副本」「刪除此筆記及其標記」「刪除本次 take／VS 輸出」。顯示影響與確認；不去刪除使用者原相簿檔案，不把備份檔一起清除。前兩者需保留重連／獨立刪筆記的選擇。
+
+所有關聯由本機儲存層檢查，IndexedDB 不會自動替應用維護外鍵。marker 寫入與索引更新一個短交易；媒體大檔先 staging 再 finalize metadata。重新開啟時掃描工作中記錄，要求使用者處理中斷項。
+
+## 3. JSON 備份
+
+副檔名 `.dance-stamp.json`，UTF-8。示例使用合成 UUID／名稱，空陣列是合法的第一版資料。媒體 bytes 不內嵌、不用 base64 膨脹檔案。
+
+```json
+{
+  "format": "dance-stamp",
+  "schemaVersion": 1,
+  "kind": "backup",
+  "exportedAt": "2026-10-27T08:00:00Z",
+  "sourceLibraryId": "10000000-0000-4000-8000-000000000001",
+  "videos": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "title": "Salsa shine 練習範例",
+      "durationMs": 60000,
+      "revision": 1
+    }
+  ],
+  "assets": [
+    {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "videoId": "20000000-0000-4000-8000-000000000001",
+      "kind": "reference",
+      "byteLength": 12000000,
+      "mimeType": "video/mp4",
+      "durationMs": 60000,
+      "originalName": "synthetic-shine.mp4",
+      "mediaIncluded": false
+    }
+  ],
+  "markers": [
+    {
+      "id": "40000000-0000-4000-8000-000000000001",
+      "videoId": "20000000-0000-4000-8000-000000000001",
+      "startMs": 10000,
+      "endMs": 25000,
+      "title": "腳步八拍",
+      "note": "先慢速練，再錄影比較",
+      "revision": 1
+    }
+  ],
+  "takes": [],
+  "recipes": [],
+  "exports": [],
+  "moves": []
+}
+```
+
+完整備份保留所有筆記與配方，但排除裝置路徑、file handles、object URLs、相機 deviceId、暫存 chunks 與權限資訊。還原後所有媒體先是 missing，逐一重新連結。匯出摘要必須寫「此檔僅含筆記／配方，不含影片」，另列需保存的示範原片、自拍原片、VS 輸出；所有媒體可用一般檔案方式另存。
+
+P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 可以還原就宣稱影片也已備份。未完成的 take 可記錄失敗狀態，但不輸出不可用的內部暫存位置。
+
+## 4. 匯入與衝突
+
+流程固定為：讀檔大小檢查 → JSON parse → schema／版本／型別／時間範圍檢查 → 關聯完整性 → 預覽新增與衝突 → 使用者選擇 → 單一可回滾 metadata transaction → 重連媒體。
+
+初期驗證護欄：JSON ≤10 MiB，最多 10,000 筆 marker／take／recipe 等各類記錄，單筆 note ≤20,000 字元，有限且安全的整數時間與 revision。這些是拒絕超大／惡意輸入的起始值，不是「付費後可解除」的額度；需隨效能實測修訂並公開。
+
+不支援的新 major schema 必須停止，不猜欄位寫入；缺欄位、重複 ID、孤兒關聯、負時間、無限數、巨大字串、`__proto__` 等危險結構須拒絕或由白名單正規化。純文字呈現內容，不執行 HTML、不自動開啟外連。
+
+同 sourceLibraryId 且相同 ID／相同 canonical 內容：跳過，重複匯入不產生副本。相同 ID 但內容不同：預設保留本機，提供「另存衝突副本」；副本重新配置 ID 並重寫關聯，不能只改 marker ID 卻讓 take 仍指錯影片。不同來源 library 預設作為新資料集匯入，以匯入對照表保持再匯入冪等。不作自動雙向同步，也不以牆鐘時間決定誰比較新。
+
+正常編輯以 revision 做樂觀檢查。另一分頁已更新時提示衝突，保留草稿；禁止靜默覆寫。
+
+## 5. 重新連結媒體
+
+檔名、長度、位元組大小只作候選提示；不能證明兩個檔案相同。使用者預覽首段及標記位置後明確確認。若要自動精確配對，必須有完整內容 hash 並在 worker 分塊處理／可取消；抽樣 hash 只能快速篩選，不是完整身分驗證。P0 可先採候選＋人工確認，不必為大型原片阻塞整個 UI 計算 hash。
+
+影片被裁切、轉碼或通訊軟體壓縮後可能不同，需重新確認時間對齊；超出新片長的 marker 顯示待修復，不靜默截斷。take、recipe、export 的重連規則相同；匯出影片不能代替自拍原片來重建可編輯配方。
+
+## 6. 分享格式（P1）
+
+`kind=share` 使用相同 schema，但只包含勾選的 Video／Marker 及必要描述，預設去除 note 正文、老師、原始檔名、拍攝日期與無關 take。分享前有內容預覽，使用者可主動加入欄位。接收後以新 ID 與來源識別保存，不默認信任對方 ID。
+
+傳送途徑由使用者選檔案分享、AirDrop 或既有通訊工具；軟體不代替使用者發布。時間連結可在自己的資料庫定位 marker，卻不是存取遠端手機影片的授權。分享出去的 JSON／VS 檔案可被複製，不能撤銷；敏感內容在送出前處理。
