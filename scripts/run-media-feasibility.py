@@ -1,0 +1,76 @@
+"""用途：循序執行 #3 錄影矩陣，保留每段原片／VS。所在層：驗收工具。關聯：media-feasibility.js。"""
+import argparse
+import json
+import re
+import subprocess
+import time
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--cli', required=True)
+parser.add_argument('--url', default='http://127.0.0.1:42833')
+parser.add_argument('--session', default='dance-issue3')
+parser.add_argument('--mode', choices=['smoke', 'matrix', 'stability', 'webm', 'alignment', 'performance'], default='smoke')
+parser.add_argument('--label', default='', help='不同版本的證據名稱，不覆寫上一輪')
+parser.add_argument('--rate', type=float, choices=[0.5, 0.75, 1], default=1, help='smoke／performance 的速度')
+args = parser.parse_args()
+if args.label and not re.fullmatch('[a-z0-9-]+', args.label):
+    parser.error('證據標籤只接受小寫英數與連字號。')
+root = Path(__file__).resolve().parents[1]
+code = (root / 'tests/browser/media-feasibility.js').read_text()
+folder = root / 'output/media-feasibility'
+build = re.search(r'dance-stamp-web-([a-f0-9]{16})', (root / 'dist/web/sw.js').read_text()).group(1)
+git_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+
+def invoke(options):
+    # 以 argv 傳遞完整程式，不能把測試文字插入 shell 造成意外命令展開。
+    expression = f'async (page) => await ({code})(page, {json.dumps(options)})'
+    result = subprocess.run([args.cli, '--session', args.session, '--raw', 'run-code', expression],
+                            cwd=root, text=True, capture_output=True, timeout=45)
+    if result.returncode:
+        raise RuntimeError(result.stderr + result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(result.stdout) from error
+
+cases = ([(15, args.rate)] if args.mode in ['smoke', 'webm'] else [(60, args.rate)] if args.mode == 'performance' else [(15, 1), (15, 0.75)] if args.mode == 'alignment' else
+         [(seconds, rate) for rate in [0.5, 0.75, 1] for seconds in [15, 30, 60]] if args.mode == 'matrix' else [(60, 1)] * 10)
+for index, (seconds, rate) in enumerate(cases, 1):
+    name = f'{args.mode}-{args.label + "-" if args.label else ""}{index:02d}-{rate}x-{seconds}s'
+    destination = folder / f'{name}.json'
+    if destination.exists():
+        raise RuntimeError(f'拒絕覆寫既有證據：{destination.name}')
+    options = {'baseUrl': args.url, 'seconds': seconds, 'rate': rate, 'name': name, 'forceWebM': args.mode == 'webm'}
+    if args.mode == 'alignment':
+        options.update(offset=-0.2 if index == 1 else 0.2, referenceMirror=index == 1, selfMirror=index == 2)
+    print(f'{name}: capture started', flush=True)
+    started = time.monotonic()
+    record = {'name': name, 'seconds': seconds, 'rate': rate, 'label': args.label, 'staticBuild': build, 'gitHead': git_head,
+              'startedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+    try:
+        invoke({**options, 'phase': 'start'})
+        for phase in ['capture-status', 'export-status']:
+            deadline = time.monotonic() + seconds + 35
+            while True:
+                status = invoke({**options, 'phase': phase})
+                if status['ready']:
+                    break
+                if time.monotonic() > deadline:
+                    raise RuntimeError(f'{phase} 逾時：{status}')
+                time.sleep(2)
+            if phase == 'capture-status':
+                # 從下載原片前就計時，完整涵蓋按匯出、讀回與儲存；作為偏保守的耗時上界。
+                export_started = time.monotonic()
+                record.update(invoke({**options, 'phase': 'export'}))
+                print(f'{name}: capture finished, export started', flush=True)
+            else:
+                record['exportReadyUpperBoundMs'] = round((time.monotonic() - export_started) * 1000)
+        record.update(invoke({**options, 'phase': 'save'}))
+        record['elapsedSeconds'] = round(time.monotonic() - started, 3)
+        destination.write_text(json.dumps(record, indent=2))
+        print(f'{name}: saved raw take and VS, storage={record["storage"]}', flush=True)
+    except Exception as error:
+        record['error'] = str(error)
+        destination.write_text(json.dumps(record, indent=2))
+        raise

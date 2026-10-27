@@ -39,3 +39,30 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
+
+## #3 長錄影與逐幀成檔量測
+
+新增工具只使用 Python 標準函式庫、既有 FFmpeg 與 Playwright CLI，不新增產品依賴。先建置，再建立不循環的合成相機與逐幀時間碼；不覆寫既有證據。
+
+```sh
+bun run build
+python3 scripts/make-sync-fixtures.py
+python3 scripts/check-media-analyzer.py
+DANCE_STAMP_PORT=42833 bun --no-env-file scripts/serve-web.ts
+```
+
+另開終端，以自己已安裝的 CLI 開新隔離 session。若使用 Codex skill 的 wrapper，將其路徑傳入 `--cli`；不自動安裝 CLI／瀏覽器。
+
+```sh
+playwright-cli --session dance-issue3 open http://127.0.0.1:42833 --config output/media-feasibility/browser.json
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode matrix
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode stability
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode webm
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode alignment
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode performance
+python3 scripts/analyze-media.py output/media-feasibility/matrix-01-0.5x-15s.json
+```
+
+matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料庫連續十次 1× 的 60 秒 capture→export；webm 只略過 MP4 候選，仍由原生編碼器實際試錄與回讀；alignment 用正／負 200ms 校正及兩側獨立鏡像重跑 15 秒成檔；performance 另外量測 60 秒從原片下載前到 VS 讀回／保存完成的保守耗時上界。每段都下載原片／VS，依對應 JSON 執行分析器，產物只留 ignored output。分析器閾值不通過時以非零狀態退出並保留結果，不能把成功成檔當成所有品質門檻通過。完整解碼與二進位時間碼不代表實體相機光學時鐘、手機／Safari 相容性或 G2 已完成。
+
+手機需可信 HTTPS，準備與人工操作見 [手機清單](PHONE_MEDIA_CHECK.md)；精確測試版本、數據及決策見 [#3 證據](evidence/issue-3-media-feasibility.md)。
