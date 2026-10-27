@@ -52,3 +52,9 @@
 - 暫停前關閉本次測試瀏覽器與本聊天 4175 服務；不動其他工作的 4173。合成原片在 ignored `output/media-probe/captures-final/`，不進 Git。暫存 log 非必要來源；重現腳本已進版控。
 - 續作先核對此分支與草稿 PR、執行原本檢查，再獨立完整解碼本輪 VS 並確認音訊。Bun 需 1.4.4；目前可用執行檔在舊 worktree 的 ignored `output/tooling/bun-1.4.4/bun-darwin-aarch64/bun`，新機依鎖檔與專案安裝說明準備。
 - 後續 #10 已由人類確認新增「比較已有影片」正式 P0，兩支影片匯入不必等 #9 真機門檻；它與邊播邊錄皆須完成，不能用現有自拍測試入口算完成。先重讀最新 #1／#10 及規劃 PR #32（尚未合併），避免把兩個流程互相取代。iPhone 仍依使用者要求暫不處理。
+
+## 2026-10-28 使用者返回，接續 #9
+
+使用者明確要求從 #9 接著做，維持 Web 優先，iPhone 暫不處理。本回合補完桌面合成資料的原生離頁恢復與產品之外的磁碟檔重播；未更動靜態版本 `b52e552869eb154c`。原生 pagehide 在來源 8.376 秒時釋放相機，取回 6.730733 秒已落盤部分，舊自拍保留且新片仍標 interrupted。最終單一 VS 為 1280×720 H.264／AAC、15.000200 秒，FFmpeg 全片解碼與 Chrome 原生檔案播放器完整重播通過。
+
+新增 `capture-navigation.js` 的兩階段原生離頁驗收、`download-playback.js`，並補強既有 self-failure／media-probe 的保存與診斷等待。操作順序與結果見 MEDIA_PROBE.md 及 #9 證據；不能把 async predicate 的 Promise 或 CLI 退出碼當成通過。#33 仍為草稿，真實相機／LED、真正背景／鎖屏／來電、G1／G6、Safari、獨立人工 review 等仍未完成，#9 不結案；也沒有合併或發布。
