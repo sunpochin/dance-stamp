@@ -11,7 +11,7 @@
 接續既有 [#3](https://github.com/sunpochin/dance-stamp/issues/3)，依其前置條件核對授權工作，再做最小原生 Web 媒體試驗。
 先讓選片、相機、錄影、校正與成檔走通，再依證據固定 Svelte／Vite 等選型；不搶先完成 #4 全套畫面。
 缺設備時完成可做的測試並記錄缺口；只有可重現失敗與限時修正結果才能觸發 [#16](https://github.com/sunpochin/dance-stamp/issues/16)。
-本次 harness 匯入沒有執行 #3，也沒有關閉任何產品功能 issue。
+使用者後續指定先做桌面 Web，暫不處理 iPhone。因此先交付桌面預覽與實測證據；iPhone、完整 G1–G7 及其他未完成子任務保持開啟，不以預覽交付完成 #1。
 
 ## 每件任務
 
@@ -42,7 +42,7 @@
 
 不重抄同步誤差或效能數字；數值以 [錄影比較](../RECORD_COMPARE.md) 為準。
 Playwright／假相機可驗證事件與畫面，不能證明 iPhone 的編碼、音訊路由或相簿保存成功。
-目前 `bun run check` 只驗證 harness；應用建置、typecheck、lint、E2E 由 #4 實作後接入同一品質入口。
+目前 `bun run check` 包含 harness、純資料／時間測試、TypeScript checkJs、Biome lint 與原生 Web 建置；瀏覽器回歸依 Web 說明執行，完整真機矩陣仍獨立追蹤。
 
 ## Review 與發布
 
