@@ -103,3 +103,11 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 `kind=share` 使用相同 schema，但只包含勾選的 Video／Marker 及必要描述，預設去除 note 正文、老師、原始檔名、拍攝日期與無關 take。分享前有內容預覽，使用者可主動加入欄位。接收後以新 ID 與來源識別保存，不默認信任對方 ID。
 
 傳送途徑由使用者選檔案分享、AirDrop 或既有通訊工具；軟體不代替使用者發布。時間連結可在自己的資料庫定位 marker，卻不是存取遠端手機影片的授權。分享出去的 JSON／VS 檔案可被複製，不能撤銷；敏感內容在送出前處理。
+
+## 7. 桌面 Web v1 實作狀態（#5）
+
+目前採原生 IndexedDB，metadata 快照內仍分 videos／assets／markers／takes／recipes／exports，media 與 chunks 獨立 stores。全庫 revision 在同一 readwrite transaction 比較，metadata 與一個媒體 Blob 原子 finalize，失敗全數回滾。輸入仍依本文件 v1 白名單，不包含內部 state、storageKind 或 object URL。
+
+新增內部 state／storageKind 為向後相容選填欄位；重開依實際媒體 key 推導 ready／missing／interrupted。recording 不因新分頁開啟而變更，恢復須取得同一 take 的 Web Lock。初始 0→1 migration 已有成功、失敗、回滾與重試證據，未知升級拒絕而非猜測轉換。
+
+縮短來源檔不改 canonical duration 或既有 marker；超界時間必須由使用者編輯修復。同名檔與不同檔名均不自動綁定。完整備份的衝突副本選項仍由 #12 另做。

@@ -18,6 +18,8 @@ playwright-cli --session dance-check open http://127.0.0.1:4173 --config output/
 playwright-cli --session dance-check run-code "$(cat tests/browser/media-probe.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/workspace.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/edges.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/storage.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/relink.js)"
 ```
 
 分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線，以及 20 次循環／晚到權限釋放／入口白名單。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
