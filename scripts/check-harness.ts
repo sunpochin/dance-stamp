@@ -57,9 +57,10 @@ for (const path of [resolve(root, 'AGENTS.md'), resolve(root, 'README.md'), reso
     check(existsSync(resolve(dirname(path), decodeURIComponent(link))), `失效文件連結：${path.slice(root.length + 1)} → ${link}`)
   }
 }
-const workflow = Bun.YAML.parse(read('docs/ai/workflows/harness-ci.yml')) as { permissions: Record<string, string> }
+// 驗證 GitHub 實際執行的檔案，避免只檢查文件範本而漏掉正式設定的權限變更。
+const workflow = Bun.YAML.parse(read('.github/workflows/harness-ci.yml')) as { permissions: Record<string, string> }
 check(workflow.permissions?.contents === 'read' && Object.keys(workflow.permissions).length === 1, 'CI 只能讀取內容')
-check(!read('docs/ai/workflows/harness-ci.yml').includes('secrets.'), 'Harness CI 不需要秘密')
+check(!read('.github/workflows/harness-ci.yml').includes('secrets.'), 'Harness CI 不需要秘密')
 for (const path of ['.claude/settings.json', '.codex/hooks.json']) {
   const config = JSON.parse(read(path)) as { hooks: { PreToolUse: Array<{ hooks: Array<{ command: string }> }> } }
   const commands = config.hooks.PreToolUse.flatMap(group => group.hooks.map(hook => hook.command))

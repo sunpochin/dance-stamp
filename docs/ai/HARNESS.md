@@ -26,6 +26,7 @@ mission-control 的雲端 schema 只保留來源連結，沒有複製或執行 S
 | 共用工作方法 | `skills/` 與相對連結入口 |
 | 破壞性命令提示／阻擋 | 來源 destructive guard 與必要 parser；Claude／Codex hooks 設定 |
 | 可重現自查 | `bun run check`、`bun run test:unit` |
+| 遠端品質檢查 | [Harness CI](../../.github/workflows/harness-ci.yml)，執行相同的 `bun run check` |
 | 提交檢查與禁止直接推 main | `.githooks/pre-commit`、`.githooks/pre-push` |
 | 公開前檢查 | `scripts/check-public.ts`，攔截本機副本、憑證與非範例個人識別 |
 | 交付與真機證據 | issue／PR 範本及 `docs/agents/` |
@@ -51,11 +52,13 @@ Claude／Codex 的 hook 檔已提供，CLI 的代表性輸入有測試；是否�
 不把設定檔存在當作所有 AI 工具都已攔截。平台權限與使用者安全邊界持續適用。
 來源 parser 不是完整 shell 安全隔離，無法分析藏在任意程式內的命令。
 
-## CI 範本與尚未啟用的整合
+## GitHub Actions CI
 
-[CI 範本](workflows/harness-ci.yml) 已準備好，只有 contents:read、無 secrets、無部署。
-目前 GitHub 登入權限缺少 workflow scope，不能寫入 `.github/workflows/`；因此本次交付不宣稱遠端 CI 已啟用或通過。
-擁有者可在 GitHub 網頁把這份範本加入 `.github/workflows/harness-ci.yml`，或更新工具的 workflow 權限後再啟用；本次不要求提供 token，也不改帳號權限。
+[正式設定](../../.github/workflows/harness-ci.yml) 在 PR 開啟／更新，以及 main 更新時自動執行。
+它安裝固定版本的 Bun，再執行 `bun run check`；只有 `contents: read`，無 secrets、無部署。
+原文件範本已移到正式位置，檢查程式直接驗證該檔案，避免兩份設定不同步。
+每次結果在 GitHub 的 Actions 或 PR Checks 查看；成功只代表該版本的工具檢查通過。
+新 PR 的成功不代表 main 已執行，合併後需另看 main 的 push 執行紀錄。
 
 ## 刻意未啟用
 
@@ -77,7 +80,7 @@ Claude／Codex 的 hook 檔已提供，CLI 的代表性輸入有測試；是否�
 
 使用者已確認保留 PolyForm Noncommercial，只公開原始碼。採用三層策略：
 
-1. 公開產品需要的規則、skills、Git 防護、必要測試、PR 流程與待啟用 CI 範本。
+1. 公開產品需要的規則、skills、Git 防護、必要測試、PR 流程與 CI 設定。
 2. 公開有明確用途的通用工具及其來源授權；目前保留命令防護與 reviewlatch 依賴，新的通用工具再按需求整理。
 3. 完整家健錄原始 harness、照護規則、內部事故紀錄與未整理流程只留本機參考。這是產品範圍選擇，不宣稱所有來源檔案都是機密；後續可經針對性清理再獨立公開。
 

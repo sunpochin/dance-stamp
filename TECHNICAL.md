@@ -112,10 +112,10 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 - [匯入清單](docs/ai/harness-import.json)：逐檔 Git blob、處理方式與 SHA-256。
 - [證據範本](docs/agents/acceptance-template.md)：產品驗收依 commit／裝置留記錄。
 
-決策：完整上游參考只留本機且不進 Git；公開可追溯的清單、適配規則、skills、破壞性命令防護、Git hooks 與公開內容掃描。唯讀 CI 範本已備妥，但帳號缺少 workflow 權限，尚未啟用。Bun 1.4.4 執行工具與隔離測試；目前沒有第三方套件依賴，產品框架版本留給 #3/#4 的證據決定。
+決策：完整上游參考只留本機且不進 Git；公開可追溯的清單、適配規則、skills、破壞性命令防護、Git hooks 與公開內容掃描。CI 位於 `.github/workflows/harness-ci.yml`，PR 與 main 更新時使用 Bun 1.4.4 執行相同的 `bun run check`。只有 `contents: read`，不使用 secrets 或部署；目前沒有第三方套件依賴，產品框架版本留給 #3/#4 的證據決定。
 
 排除直接套整個家健錄：會把照護授權、三語要求、資料庫、staging／production、付費審查與自動部署假設混進本機免費工具。也不重寫複雜 shell parser；沿用來源 destructive guard 及其必要依賴、負向回歸。來源 parser 的限制與工具端 hook 是否自動載入必須明說，Git native hooks 是另一層獨立防線。
 
 `bun run check` 驗證指紋、入口、文件與工具測試，沒有代替 app build/lint/typecheck 或 G1–G7。#4 建立產品骨架時需把相應品質門檻接入，不保留無用的 placeholder build。來源副本不在測試掃描入口內，不會啟動來源 CI、任務控制或 secrets。
 
-使用者確認公開原始碼並保留非商用授權。為避免把歷史照護文件的真人／營運脈絡帶入公開 repo，拒絕整包上游原文公開；保留本機完整副本、公開必要通用工具與 MIT notices。CI 權限缺口不透過移除安全檢查解決：相同 check 在本機 Git hook 執行，範本待擁有者另行啟用。
+使用者確認公開原始碼並保留非商用授權。為避免把歷史照護文件的真人／營運脈絡帶入公開 repo，拒絕整包上游原文公開；保留本機完整副本、公開必要通用工具與 MIT notices。使用者補上 workflow 權限後，將原範本移到正式位置，避免維護兩份會漂移的設定；不另建遠端專用檢查或加入自動部署。PR 的 CI 執行成功與合併後 main 的執行結果分開記錄。
