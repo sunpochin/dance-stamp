@@ -9,9 +9,12 @@ export function event(target, name, signal, timeoutMs = 15_000) {
       error ? reject(error) : resolve(value);
     };
     const success = value => finish(null, value);
-    const failure = () => finish(new Error('媒體無法解碼或裝置發生錯誤。'));
+    const failure = () => {
+      const code = target.error?.code;
+      finish(new Error(code === 4 ? '此瀏覽器無法播放這個影片格式，可改選 H.264 MP4。' : code === 3 ? '影片解碼失敗，可能內容損壞或編碼不相容。' : '媒體無法解碼或裝置發生錯誤。'));
+    };
     const aborted = () => finish(new DOMException('操作已停止', 'AbortError'));
-    const timer = setTimeout(() => finish(new Error(`等待 ${name} 逾時，請重試或換合成測片。`)), timeoutMs);
+    const timer = setTimeout(() => finish(new Error('等待影片準備逾時，請重新選片或重試。')), timeoutMs);
     target.addEventListener(name, success, { once: true });
     target.addEventListener('error', failure, { once: true });
     signal?.addEventListener('abort', aborted, { once: true });
@@ -19,18 +22,28 @@ export function event(target, name, signal, timeoutMs = 15_000) {
   });
 }
 
+/** @param {EventTarget} target @param {string} name @param {() => void | Promise<unknown>} action @param {AbortSignal} [signal] @param {number} [timeoutMs] */
+export async function mediaAction(target, name, action, signal, timeoutMs = 15_000) {
+  const waiting = new AbortController();
+  const cancel = () => waiting.abort(signal?.reason);
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
+  // 啟動失敗與事件等待必須共用清理，否則 play 拒絕或 setter 拋錯會留下逾時與監聽。
+  const pending = event(target, name, waiting.signal, timeoutMs);
+  try { await Promise.all([pending, Promise.resolve().then(() => { waiting.signal.throwIfAborted(); return action(); })]); }
+  finally { waiting.abort(); signal?.removeEventListener('abort', cancel); }
+}
+
 export async function seek(video, seconds, signal) {
+  if (!Number.isFinite(seconds) || seconds < 0) throw new Error('跳轉時間不正確。');
+  if (video.readyState < 1) throw new Error('影片尚未準備好，請先重新選片。');
+  signal?.throwIfAborted();
   if (Math.abs(video.currentTime - seconds) < 0.001 && video.readyState >= 2) return;
-  const pending = event(video, 'seeked', signal);
-  video.currentTime = seconds;
-  await pending;
+  await mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, signal);
 }
 
 export async function load(video, url, signal) {
-  const pending = event(video, 'loadeddata', signal);
-  video.src = url;
-  video.load();
-  await pending;
+  await mediaAction(video, 'loadeddata', () => { video.src = url; video.load(); }, signal);
   if (!video.videoWidth || !video.videoHeight) throw new Error('選取的檔案沒有可解碼的視訊。');
   // Chromium 的即時 WebM 可能沒有 duration；實際 seek 尾端，不能拿 chunks 數猜長度。
   if (!Number.isFinite(video.duration)) await seek(video, 1e9, signal);
