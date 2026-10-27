@@ -44,3 +44,19 @@ test('錄影與輸出必須指向正確種類的媒體與配方', () => {
   data.assets[0].kind = 'reference'
   expect(() => validateBackup(data)).toThrow()
 })
+test('既有雙片與分支配方共用原片，v1 備份保留關聯且不含媒體位置', () => {
+  const data = sample(), referenceId = crypto.randomUUID(), selfId = crypto.randomUUID()
+  data.assets.push({ id: referenceId, videoId: data.videos[0].id, kind: 'reference', byteLength: 100, mimeType: 'video/mp4', durationMs: 60000 })
+  data.assets.push({ id: selfId, kind: 'take', byteLength: 100, mimeType: 'video/mp4', durationMs: 60000, state: 'session-only', storageKind: 'session' })
+  for (const referenceStartMs of [12000, 13000]) {
+    const takeId = crypto.randomUUID()
+    data.takes.push({ id: takeId, referenceVideoId: data.videos[0].id, cameraAssetId: selfId, referenceStartMs, referenceEndMs: 32000, rate: 1, state: 'ready', createdAt: new Date().toISOString() })
+    data.recipes.push({ id: crypto.randomUUID(), takeId, offsetMs: 4000, referenceMirror: true, selfMirror: false, layout: 'side-by-side', audioSource: 'reference', revision: 1 })
+  }
+  const restored = parseBackup(JSON.stringify(data))
+  expect(restored.takes.map(t => t.cameraAssetId)).toEqual([selfId, selfId])
+  expect(restored.takes.map(t => t.referenceStartMs)).toEqual([12000, 13000])
+  expect(restored.recipes.every(r => r.offsetMs === 4000 && r.referenceMirror && !r.selfMirror)).toBe(true)
+  expect(restored.assets[1]).not.toHaveProperty('storageKind')
+  expect(mergeBackup(data, restored).takes).toEqual(data.takes)
+})

@@ -6,6 +6,7 @@
 ```sh
 bun --no-env-file scripts/make-media-fixtures.ts
 bun --no-env-file scripts/make-player-fixtures.ts
+bun --no-env-file scripts/make-comparison-fixtures.ts
 bun run check
 bun run dev
 ```
@@ -16,20 +17,39 @@ bun run dev
 
 ```sh
 playwright-cli --session dance-check open http://127.0.0.1:4173 --config output/media-probe/browser.json
-playwright-cli --session dance-check run-code "$(cat tests/browser/media-probe.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/media-persistence.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/self-failure.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/workspace.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/edges.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/storage.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/relink.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/player.js)"
-playwright-cli --session dance-check run-code "$(cat tests/browser/review-recovery.js)"
+playwright-cli --session dance-check run-code --filename tests/browser/media-probe.js
+playwright-cli --session dance-check run-code --filename tests/browser/media-persistence.js
+playwright-cli --session dance-check run-code --filename tests/browser/self-failure.js
+playwright-cli --session dance-check run-code --filename tests/browser/workspace.js
+playwright-cli --session dance-check run-code --filename tests/browser/edges.js
+playwright-cli --session dance-check run-code --filename tests/browser/storage.js
+playwright-cli --session dance-check run-code --filename tests/browser/relink.js
+playwright-cli --session dance-check run-code --filename tests/browser/player.js
+playwright-cli --session dance-check run-code --filename tests/browser/review-recovery.js
+playwright-cli --session dance-check run-code --filename tests/browser/existing-comparison.js
+playwright-cli --session dance-check run-code --filename tests/browser/comparison-recovery.js
+playwright-cli --session dance-check run-code --filename tests/browser/comparison-capture-fallback.js
+playwright-cli --session dance-check run-code --filename tests/browser/comparison-appearance.js
+playwright-cli --session dance-check run-code --filename tests/browser/comparison-save-failure.js
 playwright-cli --session dance-markers open http://127.0.0.1:4173 --config output/media-probe/browser.json
-playwright-cli --session dance-markers run-code "$(cat tests/browser/markers.js)"
+playwright-cli --session dance-markers run-code --filename tests/browser/markers.js
 ```
 
 分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線、20 次循環／晚到權限釋放／入口白名單，以及合成後練習音訊恢復、換片前保護標記草稿、取消後清除編輯、自拍替換失敗／取消後配方與輸出仍可保存。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
+
+`existing-comparison` 至 `comparison-appearance` 四組驗證既有雙片不用相機、選起點／鏡像／暫停拖曳／成檔、備份在全新 context 還原、兩側重連、明確保存、quota 原子回滾、真實分頁衝突，以及影格 callback／stream 清理。`comparison-recovery.js` 需先由 `existing-comparison.js` 下載備份；四種鏡像組合另以合成色條像素確認。
+
+`comparison-save-failure.js` 另在三個乾淨 context 注入比較設定的 metadata quota、seek 失敗及真實雙分頁 revision 衝突；不重載、不再改設定就下載備份與原片。故障解除後可保存副本、重試匯出及換片，真實 revision 衝突仍拒絕寫入並保留較新資料。
+
+完整既有雙片矩陣另開乾淨 session，保持前景；需約 15 分鐘。`output/comparison/` 已有同名下載時先自行保留到其他 ignored 目錄，避免混用舊成檔：
+
+```sh
+playwright-cli --session dance-matrix open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-matrix run-code --filename tests/browser/comparison-matrix.js
+python3 scripts/analyze-comparison.py
+```
+
+矩陣涵蓋 0.5／0.75／1× 與 15／30／60 秒、十次 60 秒、無音軌來源及雙鏡像，共 20 份下載。每次選片／校正／匯出且禁用相機，輸出名稱包含比例與時長。分析工具只用 Python 標準庫及本機 FFmpeg；讀成檔兩側影格碼、起點、VFR 時間與 660／880Hz 聲源，完整解碼並依 [RECORD_COMPARE.md](RECORD_COMPARE.md) 原門檻檢查同步、漂移、fps、凍結及聲音。不以 JS drift 或平均 fps 單獨宣告成檔通過。最終實測見[既有影片證據](evidence/existing-comparison.md)。
 
 獨立解碼下載檔（實際是 WebM 時使用真實副檔名）：
 
@@ -100,3 +120,11 @@ playwright-cli --session dance-file open about:blank --headed --config output/me
 playwright-cli --session dance-file goto "file://$PWD/output/media-probe/dance-vs.mp4"
 playwright-cli --session dance-file run-code "async page => { const play = $(cat tests/browser/download-playback.js); return play(page, page.url()); }"
 ```
+
+### 錄影與既有雙片整合
+
+`capture-comparison.js` 在新的合成相機 session 依序錄影、匯出、換成外部雙片、再次匯出並重開原錄影，核對一個共用 AudioContext、相機只在明確操作時請求、原片／筆記／舊 VS 完整保留。先用本文件的測片工具備妥 `output/media-probe/` 與 `output/comparison/`，再以 CLI 的 `run-code --filename tests/browser/capture-comparison.js` 執行。錄影／離頁回歸要保護「已保存」的外部合成基準時，先明確按保存副本，不假設選片會自動落盤。
+
+`download-playback.js` 第三參數可傳等待上限，例如 60 秒下載檔傳 `90_000`；預設仍為 25 秒，所有情況都必須真的到 ended 且無解碼錯誤，不能用延長等待取代重播。整合版另跑原本雙片完整矩陣；分析仍檢查原有同步／fps／凍結／聲源門檻，再加嚴格影格時間與真正首末影格。各版本證據見 [#9 整合證據](evidence/issue-9-comparison-integration.md)，不把不同 head 結果混在一起。
+
+`existing-no-camera.js` 在相機 API 完全不存在的隔離頁跑完整選片／預覽／匯出；`comparison-keyboard.js` 補鍵盤移焦、播放／暫停與原生數字微調保存，窄版截圖留 ignored output。兩者都透過相同的 CLI `run-code --filename` 入口，不改產品資料或降低門檻。

@@ -1,7 +1,8 @@
 /* 檔案用途：重現 PR #26 的音訊、換片筆記與自拍替換恢復。所在層：合成資料瀏覽器回歸。主要關聯：main.js、MEDIA_PROBE.md。 */
 async (page) => {
   const origin = new URL(page.url()).origin, checks = {};
-  const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
+  // 比較設定改用保存佇列；必須等 aria-busy 結束才檢查新 revision，避免只等按鈕便讀到舊資料。
+  const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   const library = () => page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
   await page.addInitScript(() => {
     const NativeAudioContext = window.AudioContext;
