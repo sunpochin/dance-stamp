@@ -1,4 +1,4 @@
-# 檔案用途：驗證 harness，避免把工具檢查誤當產品驗收。
+# 檔案用途：PR 與 main 更新時驗證 harness，讓遠端沿用本機檢查並保留結果。
 # 所在層：GitHub Actions；主要關聯：package.json、docs/ai/HARNESS.md。
 name: Harness CI
 on:
