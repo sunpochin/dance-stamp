@@ -1,7 +1,7 @@
 <!-- 檔案用途：記錄既有雙片流程與實際下載檔的桌面證據。所在層：媒體驗收。主要關聯：RECORD_COMPARE.md、MEDIA_PROBE.md、#10／#11／#12。 -->
 # 既有影片比較：桌面實測
 
-日期：2026-10-28，Asia/Taipei。基線 main `1d8ed7fe50ae556b2db1f161b50c4544cfe955bc`；受測程式靜態建置內容 `308d306aac09e1bf`，完整提交及 CI 綁定見本功能 PR。macOS 27.0.1、Chrome 156.0.0.0、Bun 1.4.4、FFmpeg 8.1.2。本次使用全新隔離 Chrome、本機 HTTP 與合成素材；未使用真人、私人課程或第三方音樂，產物留在 ignored `output/`。
+日期：2026-10-28，Asia/Taipei。基線 main `1d8ed7fe50ae556b2db1f161b50c4544cfe955bc`；首輪 20 檔矩陣綁定提交 `6f2d50b08d469ea6ed7863af741c3c7fe15401a3`、靜態建置內容 `308d306aac09e1bf`；審查後的修正與補驗見下節，最新提交及 CI 見本功能 PR。macOS 27.0.1、Chrome 156.0.0.0、Bun 1.4.4、FFmpeg 8.1.2。本次使用全新隔離 Chrome、本機 HTTP 與合成素材；未使用真人、私人課程或第三方音樂，產物留在 ignored `output/`。
 
 ## 可操作結果
 
@@ -37,7 +37,7 @@
 
 `bun run check`：316 tests、421 expects、0 fail；harness／公開內容掃描、checkJs、Biome 及建置通過。原生 Git hook 於提交時再驗證。
 
-最終程式的 13 組瀏覽器回歸全部通過：既有 media-probe、media-persistence、self-failure、workspace、edges、storage、relink、player、review-recovery，以及 existing-comparison、comparison-recovery、comparison-capture-fallback、comparison-appearance。
+首輪提交的 13 組瀏覽器回歸全部通過：既有 media-probe、media-persistence、self-failure、workspace、edges、storage、relink、player、review-recovery，以及 existing-comparison、comparison-recovery、comparison-capture-fallback、comparison-appearance。
 
 - 不開相機、老師 12／自己 4 秒起點、不可變舊區間、共同暫停／拖曳、空交集阻擋、壞檔保留原片及舊 VS；offset 編輯後直接點播放不會被 blur 保存吃掉。
 - JSON 在全新 context 還原、重匯冪等、未知版本整份拒絕、兩側人工確認重連、明確保存副本後重開。
@@ -47,6 +47,24 @@
 - 原有合成相機 15 秒 capture→export、取消與資源釋放仍通過。
 
 本機原始紀錄：`output/comparison/accepted-matrix.log`、`accepted-analysis.jsonl`、`environment.json`、13 份 `accepted-*.log`；下載檔 `vs-*.mp4`。重現方法見 [MEDIA_PROBE.md](../MEDIA_PROBE.md)。這些是合成驗收資料，不隨 Git 上傳。
+
+## 審查後：設定保存失敗的恢復
+
+PR #35 的 P1 意見指出：單次設定保存／seek 拒絕後，rejected 佇列會擋住所有 `operation`，連不需寫入的備份也不能執行。先在首輪版本以真正 metadata put 模擬 quota，證明備份下載逾時；修正後靜態內容為 `9396010483a03587`。僅將「等待佇列結束」與「回報單次錯誤」分開，繪製、同步、音訊及編碼程式未改；不繞過實際交易或 revision 檢查。
+
+新增 `comparison-save-failure.js` 的三個乾淨 context 均通過：metadata quota、seek 拋錯、真實雙分頁 revision 衝突。失敗後不重載、不再修改設定，即可下載 JSON 和兩側原片，保留 File URL 與目前輸入。quota／seek 故障解除後可保存副本、重新匯出及換片；真正版本衝突仍拒絕寫入、不覆寫較新資料。
+
+修正版重跑 `bun run check`：316 tests、421 expects、checkJs、Biome、公開掃描、建置通過。另重跑七組受影響回歸：existing-comparison、comparison-recovery、self-failure、review-recovery、media-probe、comparison-capture-fallback、comparison-appearance 全通過；加上新失敗測試共八組。禁用相機的比較測試與假相機錄影測試使用隔離 session，避免 init script 互相影響。
+
+修正版另從原矩陣取三個代表案例，實際下載後使用同一獨立分析工具，結果如下；首輪 20 檔的數據仍只歸屬前述 `6f2d50b`，沒有冒充修正版重新完成全部矩陣。
+
+| r／輸出秒數 | 完整匯出 ms | 平均 fps | 最長重複畫面 ms | 三點最大絕對差 ms | 新增漂移絕對值 ms |
+| --- | --- | --- | --- | --- | --- |
+| 1／15 | 15,081 | 30.04 | 78.57 | 33.33 | 33.33 |
+| 0.75／30 | 30,100 | 30.02 | 100.63 | 0 | 0 |
+| 0.5／60 | 60,100 | 30.03 | 112.97 | 33.33 | 33.33 |
+
+三檔均 1280×720 MP4，首格、長度、聲源及完整解碼通過原門檻。本機證據為 `review-save-before.log`、`review-save-after.log`、七份 `review-save-*.log`、`review-save-matrix.log`、`review-save-analysis.jsonl`，下載另存 `output/comparison/review-save/`；未覆寫首輪 20 檔。
 
 ## 結論邊界
 

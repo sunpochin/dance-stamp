@@ -767,11 +767,14 @@ function changeComparison(change) {
   // blur 先於按鈕 click；保存時若停用按鈕，使用者剛按的播放／匯出就會被吃掉。
   // 以同一佇列保存，媒體操作進來時等待佇列，既不漏點擊也不讓 revision 互撞。
   $('compare').setAttribute('aria-busy', 'true'); status('正在保存比較設定…');
-  comparisonSave = comparisonSave.catch(() => {}).then(async () => {
+  const saving = comparisonSave.then(async () => {
     await saveCurrentRecipe(value);
     if (version === comparisonSaveVersion && !active) await align(value, 0);
   });
-  comparisonSave.then(() => {
+  // 佇列只代表前次工作已結束；單次錯誤另行回報，不能阻擋備份、另存或恢復。
+  // 匯出／預覽仍會重新保存目前配方，實際 quota／revision 檢查沒有被略過。
+  comparisonSave = saving.catch(() => {});
+  saving.then(() => {
     if (version !== comparisonSaveVersion) return;
     $('compare').setAttribute('aria-busy', 'false'); updateIntersection();
     if (!active) status('比較設定已保存；原片與舊輸出仍保留。');
