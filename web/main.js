@@ -1,5 +1,5 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
-import { comparison, positions, contain } from './timeline.js';
+import { comparison, positions, contain, validateMarkerRange } from './timeline.js';
 import { mediaAction, seek, load, record, extension } from './recorder.js';
 import { validateBackup, parseBackup, mergeBackup } from './library.js';
 import { readLibrary, writeLibrary, readMedia, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
@@ -26,6 +26,7 @@ const diagnostics = { stage: 'idle', camera: null, capture: null, export: null }
 /** @type {import('./types').LibraryState} */
 let state;
 let ready, currentVideoId, currentReferenceFile, pendingLinkId, pendingTakeId, activeTakeId, markerEditingId;
+let markerVideoId;
 let looping = false, practiceController, practiceFrame, practiceToken = 0;
 
 function status(message) { $('status').textContent = message; }
@@ -208,6 +209,7 @@ async function chooseFile(input, video, key, signal) {
   } finally { input.value = ''; }
 }
 $('reference-file').addEventListener('change', () => operation(async signal => {
+  if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
   if (takeBlob && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
   releaseCamera();
   const selected = await chooseFile($('reference-file'), reference, 'reference', signal);
@@ -388,7 +390,7 @@ window.addEventListener('pagehide', () => {
   stop(); audio?.close();
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear();
 });
-window.addEventListener('beforeunload', e => { if (active) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden) { e.preventDefault(); e.returnValue = ''; } });
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
 function requireCurrentVideo() { const video = currentVideo(); if (!video) throw new Error('影片筆記已失聯，請重新開啟。'); return video; }
@@ -410,7 +412,7 @@ function renderLibrary() {
   $('markers').replaceChildren(); $('takes').replaceChildren();
   for (const marker of state.data.markers.filter(m => m.videoId === currentVideoId).sort((a, b) => a.startMs - b.startMs)) {
     const li = document.createElement('li'), text = document.createElement('p');
-    text.textContent = `${(marker.startMs / 1000).toFixed(2)}s${marker.endMs === undefined ? '' : `–${(marker.endMs / 1000).toFixed(2)}s`} · ${marker.title}\n${marker.note}`;
+    text.textContent = `${(marker.startMs / 1000).toFixed(3)}s${marker.endMs === undefined ? '' : `–${(marker.endMs / 1000).toFixed(3)}s`} · ${marker.title}\n${marker.note}`;
     li.append(text);
     const outside = referenceDurationMs > 0 && (marker.endMs ?? marker.startMs) > referenceDurationMs;
     if (outside) text.append(document.createTextNode('（超出目前影片，請編輯修復）'));
@@ -418,10 +420,11 @@ function renderLibrary() {
       if (!referenceDurationMs || (marker.endMs ?? marker.startMs) > referenceDurationMs) throw new Error('請先重連足夠長度的示範，或修復超界標記。');
       await seek(reference, marker.startMs / 1000, signal);
       if (!selfDurationMs && marker.endMs !== undefined) { $('start').value = String(marker.startMs / 1000); $('end').value = String(marker.endMs / 1000); }
-      status('已跳到標記。區間標記也會設為下一次練習片段。');
+      status(marker.endMs === undefined ? '已跳到標記。' : selfDurationMs ? '已跳到標記；已有自拍，錄影片段維持原設定。' : '已跳到標記，並將區間設為下一次練習片段。');
     });
     jump.disabled = outside;
     li.append(jump, button('編輯', async () => editMarker(marker)), button('刪除標記', async () => {
+      if (keepMarkerDraft()) return;
       if (!confirm('確定刪除這個標記？其他筆記與影片不受影響。')) return;
       await saveData(data => { data.markers = data.markers.filter(m => m.id !== marker.id); });
     }));
@@ -513,6 +516,7 @@ $('confirm-take').addEventListener('click', () => operation(async signal => {
   });
 }));
 $('open-library').addEventListener('click', () => operation(async signal => {
+  if (keepMarkerDraft()) return;
   const id = $('library').value, video = state.data.videos.find(v => v.id === id); if (!video) throw new Error('請先選一份影片筆記。');
   releaseCamera(); reference.pause(); currentVideoId = id; pendingLinkId = null; pendingTakeId = null; $('confirm-take').hidden = true; selfDurationMs = 0; activeTakeId = null; takeBlob = null;
   $('video-title').value = video.title; $('confirm-link').hidden = true; clearMarkerEditor();
@@ -557,24 +561,39 @@ $('save-title').addEventListener('click', () => operation(async () => {
 }));
 function clearMarkerEditor() {
   // 換片不能沿用舊標記 ID，否則存檔會把原筆記移到另一支影片。
-  markerEditingId = null; $('marker-form').reset(); $('marker-form').hidden = true;
+  markerEditingId = null; markerVideoId = null; $('marker-form').reset(); $('marker-form').hidden = true;
 }
-function editMarker(marker) {
+function keepMarkerDraft() {
+  if ($('marker-form').hidden) return false;
+  // 不讓換片或另一個編輯入口靜默吃掉草稿；使用者可明確保存或取消。
+  status('這份標記尚未保存，請先儲存或取消編輯。'); return true;
+}
+function editMarker(marker, clickedMs = Math.round(reference.currentTime * 1000)) {
+  if (keepMarkerDraft()) return;
   markerEditingId = marker?.id;
-  $('marker-start').value = String((marker?.startMs ?? Math.round(reference.currentTime * 1000)) / 1000);
+  markerVideoId = currentVideoId;
+  $('marker-start').value = String((marker?.startMs ?? clickedMs) / 1000);
   $('marker-end').value = marker?.endMs === undefined ? '' : String(marker.endMs / 1000);
   $('marker-title').value = marker?.title || ''; $('marker-note').value = marker?.note || '';
   $('marker-form').hidden = false; $('marker-title').focus();
 }
-$('mark').addEventListener('click', () => { if (!active && referenceDurationMs) editMarker(); });
+$('mark').addEventListener('click', () => {
+  // 在點擊事件內先取時間；後續打字、非同步保存或播放進度不能改寫它。
+  const clickedMs = Math.round(reference.currentTime * 1000);
+  if (!active && referenceDurationMs) editMarker(undefined, clickedMs);
+});
 $('cancel-marker').addEventListener('click', clearMarkerEditor);
 $('marker-form').addEventListener('submit', e => {
   e.preventDefault(); operation(async () => {
-    requireCurrentVideo();
+    const video = requireCurrentVideo();
+    if (markerVideoId !== video.id) throw new Error('這份草稿不屬於目前影片，請取消後重新開啟編輯。');
+    if (!$('marker-start').value.trim()) throw new Error('請填寫標記起點。');
     const startMs = Math.round(Number($('marker-start').value) * 1000), endMs = $('marker-end').value === '' ? undefined : Math.round(Number($('marker-end').value) * 1000);
-    if (referenceDurationMs && (endMs ?? startMs) > referenceDurationMs) throw new Error('標記超出目前連結的影片長度。');
+    validateMarkerRange(startMs, endMs, Math.min(video.durationMs, referenceDurationMs || video.durationMs));
+    const title = $('marker-title').value.trim(); if (!title) throw new Error('請填寫標記標題。');
+    status('正在保存時間標記…');
     /** @type {import('./types').Marker} */
-    const row = { id: markerEditingId || crypto.randomUUID(), videoId: currentVideoId, startMs, ...(endMs === undefined ? {} : { endMs }), title: $('marker-title').value.trim(), note: $('marker-note').value, revision: 1 };
+    const row = { id: markerEditingId || crypto.randomUUID(), videoId: markerVideoId, startMs, ...(endMs === undefined ? {} : { endMs }), title, note: $('marker-note').value, revision: 1 };
     await saveData(data => {
       const index = data.markers.findIndex(m => m.id === row.id);
       // 即使殘留編輯事件晚到，也不允許跨影片更新既有標記。
