@@ -6,11 +6,9 @@ labels: ''
 assignees: ''
 ---
 <!-- 檔案用途：防止任務靜默擴大。所在層：GitHub issue。主要關聯：docs/ROADMAP.md。 -->
-## Issue 標題（設備特定問題才填）
+## Issue 標題
 
-- 特定設備問題：`[廠商 型號] 簡短問題描述`
-- 廠商或型號尚待確認：`[廠商／型號待確認] 簡短問題描述`，確認後更新標題。
-- 跨裝置或一般功能任務維持通用標題；測試設備列在下方內容。
+AI 開票使用 `[AI: 廠商 / 模型] 原本的標題`；資訊無法確認時標記待確認，確認後更新。詳見 [開發工作流程](https://github.com/sunpochin/dance-stamp/blob/main/docs/agents/workflow.md)。
 
 ## 使用者結果
 
