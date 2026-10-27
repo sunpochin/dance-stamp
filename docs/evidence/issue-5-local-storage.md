@@ -16,3 +16,7 @@
 補驗：media-persistence.js 在實際合成自拍之後重開頁面、重新連結示範、取回保存的原 Blob，take 與 recipe 內容／offset 不變，自拍重新解碼成功。
 
 交付期間 main 已合併 #27 的 P1 分享規劃（87006f2）；本分支保留該規劃並把 #5 實作節放在其後，沒有實作 P1 或覆蓋另一份工作。
+
+## 同步已審主分支
+
+main `9e99ae6` 合併後，保留 PR #26 的音訊與編輯恢復修正並整合本票。受測靜態內容 `a0067f7e11a97883`；同一 Bun 1.4.4 check 的 311 tests、型別、lint、掃描、建置通過；全新隔離 Chrome 重跑 review-recovery（11 項）、storage 及 relink 全通過。這次沒有修改儲存設計或合併到 main。
