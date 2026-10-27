@@ -39,14 +39,17 @@ async (page) => {
   });
   assert(transactions.conflict && transactions.preserved, '舊 revision 覆蓋資料');
   const rollback = await page.evaluate(async () => {
-    const { readLibrary, writeLibrary } = await import('/storage.js');
+    const { readLibrary, writeLibrary, readMedia } = await import('/storage.js');
     const before = await readLibrary(), original = IDBObjectStore.prototype.put;
+    const mediaId = before.data.assets.find(a => a.kind === 'reference' && a.videoId === document.getElementById('library').value).id;
+    const blob = await readMedia(mediaId);
+    if (!blob) throw new Error('quota 測試缺少已保存的合成副本');
     let rejected = false;
     IDBObjectStore.prototype.put = function(...args) {
       if (this.name === 'media') throw new DOMException('synthetic quota', 'QuotaExceededError');
       return original.apply(this, args);
     };
-    try { await writeLibrary({ ...before.data, exportedAt: '2026-10-01T00:00:00Z' }, before.revision, { id: 'synthetic-only', blob: new Blob(['synthetic']) }); }
+    try { await writeLibrary({ ...before.data, exportedAt: '2026-10-01T00:00:00Z' }, before.revision, { id: mediaId, blob }); }
     catch { rejected = true; }
     finally { IDBObjectStore.prototype.put = original; }
     const after = await readLibrary();

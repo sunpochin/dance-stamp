@@ -5,6 +5,7 @@
 
 ```sh
 bun --no-env-file scripts/make-media-fixtures.ts
+bun --no-env-file scripts/make-player-fixtures.ts
 bun run check
 bun run dev
 ```
@@ -16,8 +17,13 @@ bun run dev
 ```sh
 playwright-cli --session dance-check open http://127.0.0.1:4173 --config output/media-probe/browser.json
 playwright-cli --session dance-check run-code "$(cat tests/browser/media-probe.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/media-persistence.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/self-failure.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/workspace.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/edges.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/storage.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/relink.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/player.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/review-recovery.js)"
 ```
 

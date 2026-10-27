@@ -117,3 +117,11 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 時間連結只能在已匯入且完成影片配對的本機資料中定位 marker，不能授權讀取寄件者手機或雲端影片；第一版不讀取雲端分享連結來串流播放。筆記檔的欄位篩選不會替另傳的影片去除畫面、聲音或內嵌資訊，傳送前須自行確認內容與檔名。分享出去的 JSON／影片檔案可被複製；即使停止雲端連結分享，也不能撤回已下載副本。
 
 第一版不做自建影片儲存、雲端分享 token、供應商 API／OAuth 串接、自動雙向同步、自動發社群或已下載檔案的遠端撤銷。後續若要加入雲端直連，需另行規劃與授權，不是完成 #18 的前提。目前為規劃；各裝置的存檔、傳送與接收匯入能力仍依 [ACCEPTANCE.md](ACCEPTANCE.md) 實測。
+
+## 7. 桌面 Web v1 實作狀態（#5）
+
+目前採原生 IndexedDB，metadata 快照內仍分 videos／assets／markers／takes／recipes／exports，media 與 chunks 獨立 stores。全庫 revision 在同一 readwrite transaction 比較，metadata 與一個媒體 Blob 原子 finalize，失敗全數回滾。輸入仍依本文件 v1 白名單，不包含內部 state、storageKind 或 object URL。
+
+新增內部 state／storageKind 為向後相容選填欄位；重開依實際媒體 key 推導 ready／missing／interrupted。recording 不因新分頁開啟而變更，恢復須取得同一 take 的 Web Lock。初始 0→1 migration 已有成功、失敗、回滾與重試證據，未知升級拒絕而非猜測轉換。
+
+縮短來源檔不改 canonical duration 或既有 marker；超界時間必須由使用者編輯修復。同名檔與不同檔名均不自動綁定。完整備份的衝突副本選項仍由 #12 另做。

@@ -21,3 +21,5 @@ JSON 備份只有筆記、媒體清單與配方，**不含影片**。匯入先�
 已測 Chrome 合成資料流程，不等於真實相機、Safari 或 G1–G7 全部通過。完整速度／時長矩陣、真實輸出同步、十次長錄影、完整資料管理、quota／migration 矩陣、5 人易用性、獨立 review 及發布仍待完成。現有檢查包含 Web 全模組的 TypeScript checkJs、獨立 Service Worker 型別環境、Biome lint、建置與邏輯測試。
 
 接手見[交接紀錄](HANDOFF.md)，重現測試見[驗證說明](MEDIA_PROBE.md)，結果見[證據](evidence/web-preview.md)。
+
+播放器補驗：桌面 Chrome 156 已實播 H.264 靜音／直向／旋轉／VFR、H.264 MOV 及改名的有效 MP4。錯誤檔不取代原片與筆記，重新選同一檔案也能重試。HEVC／HDR、Safari 與手機仍未驗證，見 [#6 證據](evidence/issue-6-local-player.md)。

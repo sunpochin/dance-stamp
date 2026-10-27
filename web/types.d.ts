@@ -61,7 +61,7 @@ export interface Elements {
   "diagnostics": HTMLPreElement;
 }
 export interface Video { id: string; title: string; durationMs: number; revision: number }
-export interface Asset { id: string; videoId?: string; kind: 'reference' | 'take' | 'vs'; byteLength: number; mimeType: string; durationMs?: number; mediaIncluded?: boolean }
+export interface Asset { id: string; videoId?: string; kind: 'reference' | 'take' | 'vs'; byteLength: number; mimeType: string; durationMs?: number; mediaIncluded?: boolean; state?: 'session-only' | 'copying' | 'ready' | 'missing' | 'interrupted' | 'failed'; storageKind?: 'session' | 'indexeddb' | 'external' }
 export interface Marker { id: string; videoId: string; startMs: number; endMs?: number; title: string; note: string; revision: number }
 export interface Take { id: string; referenceVideoId: string; cameraAssetId: string; referenceStartMs: number; referenceEndMs: number; rate: number; state: 'recording' | 'ready' | 'interrupted' | 'failed'; createdAt: string }
 export interface Recipe { id: string; takeId: string; offsetMs: number; referenceMirror: boolean; selfMirror: boolean; layout: 'side-by-side'; audioSource: 'reference'; revision: number }
