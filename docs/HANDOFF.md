@@ -58,3 +58,5 @@
 使用者明確要求從 #9 接著做，維持 Web 優先，iPhone 暫不處理。本回合補完桌面合成資料的原生離頁恢復與產品之外的磁碟檔重播；未更動靜態版本 `b52e552869eb154c`。原生 pagehide 在來源 8.376 秒時釋放相機，取回 6.730733 秒已落盤部分，舊自拍保留且新片仍標 interrupted。最終單一 VS 為 1280×720 H.264／AAC、15.000200 秒，FFmpeg 全片解碼與 Chrome 原生檔案播放器完整重播通過。
 
 新增 `capture-navigation.js` 的兩階段原生離頁驗收、`download-playback.js`，並補強既有 self-failure／media-probe 的保存與診斷等待。操作順序與結果見 MEDIA_PROBE.md 及 #9 證據；不能把 async predicate 的 Promise 或 CLI 退出碼當成通過。#33 仍為草稿，真實相機／LED、真正背景／鎖屏／來電、G1／G6、Safari、獨立人工 review 等仍未完成，#9 不結案；也沒有合併或發布。
+
+後續核對遠端：規劃 PR #32 已由另一次使用者授權合併至 main `1d8ed7f`。此分支同步該八份正式規格，保留 #9 程式與受測靜態版本；不是重新授權合併產品 PR。#10 以這份已確認規格接續，仍不啟動 iPhone 工作。
