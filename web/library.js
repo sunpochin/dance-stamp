@@ -1,4 +1,5 @@
 /* 檔案用途：本機筆記與 v1 備份的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
+import { validateMarkerRange } from './timeline.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
 export function newLibrary() {
@@ -41,8 +42,8 @@ export function validateBackup(input) {
     out.assets.push({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}), mediaIncluded: false });
   }
   for (const m of input.markers) {
-    check(maps.videos.has(m.videoId) && integer(m.startMs) && m.startMs <= maps.videos.get(m.videoId).durationMs);
-    check(m.endMs === undefined || (integer(m.endMs) && m.endMs > m.startMs && m.endMs <= maps.videos.get(m.videoId).durationMs));
+    check(maps.videos.has(m.videoId));
+    validateMarkerRange(m.startMs, m.endMs, maps.videos.get(m.videoId).durationMs);
     check(text(m.title) && text(m.note, 20_000) && integer(m.revision) && m.revision > 0);
     out.markers.push({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs !== undefined ? { endMs: m.endMs } : {}), title: m.title, note: m.note, revision: m.revision });
   }

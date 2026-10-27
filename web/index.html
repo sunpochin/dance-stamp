@@ -40,6 +40,7 @@
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
     <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
+    <p id="pitch-status" class="hint" role="status"></p>
     <canvas id="practice-canvas" width="960" height="540" hidden aria-label="鏡像練習畫面"></canvas>
     <div class="actions"><button type="button" id="set-a">當下設為 A</button><button type="button" id="set-b">當下設為 B</button><button type="button" id="loop">開始 A–B 循環</button><button type="button" id="mark">標記當下時間</button></div>
     <p id="loop-status" class="hint">A–B 使用上方片段起訖；練習不限制影片長度，錄影最多 60 秒。</p>
