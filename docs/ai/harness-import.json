@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "repository": "sunpochin/jia-jian-log",
+  "ref": "staging",
+  "commit": "fefc821045cc92df25101ce1554fb6c80e4e0093",
+  "date": "2026-10-27",
+  "files": [
+    {
+      "source": "scripts/destructive-guard.ts",
+      "destination": "scripts/destructive-guard.ts",
+      "sha256": "37e5590c01802d743436544cecfb000bd13f9c5316add4bb46c4f02de574aab6",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "325de3eb38f2597181e8e20445553cd59b3889bc"
+    },
+    {
+      "source": "scripts/destructiveGuard.ts",
+      "destination": "scripts/destructiveGuard.ts",
+      "sha256": "7357235f579a7be5a36632cd72427fee9ff03dbfa540045dd2755952739ab9ee",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "e5d95d2251d12bcb0b03c774789fb8563d0be59f"
+    },
+    {
+      "source": "scripts/mergeGuard.ts",
+      "destination": "scripts/mergeGuard.ts",
+      "sha256": "4cc6de95cf2615e0d89390de1fd3271b11afbefddc175f47f84e4fd8e4d5fd35",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "fe3d95cc77af7b8c6fa9d91febb3e9e1a2b80f91"
+    },
+    {
+      "source": "scripts/shellWords.ts",
+      "destination": "scripts/shellWords.ts",
+      "sha256": "aa8620a9eb0d9b32b07de2cd26e85bf9d17af42b5dd279fa3e060873c764e569",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "d6f6392de05522d32f8b536fed3343ba064e6809"
+    },
+    {
+      "source": "scripts/codexReviewGate.ts",
+      "destination": "scripts/codexReviewGate.ts",
+      "sha256": "560ab8926546cce8d078223c1ac3c5985bf1d72a68c2b0bcbcbccc078cf50c9c",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "bba5a6a5b7a68ad184920637e25a5be182a21f28"
+    },
+    {
+      "source": "tests/unit/destructiveGuard.test.ts",
+      "destination": "tests/unit/destructiveGuard.test.ts",
+      "sha256": "e0b1c3192c6e3eda29e7cb3d04506255d5cb6461d75183a1bded4cbbe73c9a35",
+      "treatment": "adapted-active",
+      "reason": "Assert only the destructive hook is active; Dance Stamp does not enable the upstream bot merge policy.",
+      "distribution": "public",
+      "blob": "69125fa69a4a80f676881db84bfcf4743ba61b7b"
+    },
+    {
+      "source": "vendor/reviewlatch/LICENSE",
+      "destination": "vendor/reviewlatch/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "43e4e96fa21f343cc57d5cb010c8e563a312ea9f"
+    },
+    {
+      "source": "vendor/reviewlatch/package.json",
+      "destination": "vendor/reviewlatch/package.json",
+      "sha256": "06dee2d5f58e01fe4e5586829db6efb1781f587cda5b10a01c1dce98c13bb94e",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "4d3ae56fb59fdf66660c4989fe556cd70c313f3f"
+    },
+    {
+      "source": "vendor/reviewlatch/manifest.json",
+      "destination": "vendor/reviewlatch/manifest.json",
+      "sha256": "60f5255115ead32a8c03f9828d00a4eeade6c2b7324c73b60d63d105d36e08e8",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "e98abea0d0861f1107b8a0e3dbeb86650a986075"
+    },
+    {
+      "source": "vendor/reviewlatch/NOTICE.md",
+      "destination": "vendor/reviewlatch/NOTICE.md",
+      "sha256": "12ec804cc17d03abf6d197ce0e47812a48c0eba67f84577581845df1329bda39",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "2c4db62c4c889d42c284358a47e42ed7d02007d9"
+    },
+    {
+      "source": "vendor/reviewlatch/src/readiness.ts",
+      "destination": "vendor/reviewlatch/src/readiness.ts",
+      "sha256": "917a6c72197ccd24667ffb070aeee427396f5713bb05ea8aacc71780aaf4725a",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "52c4df71b6e2ad76fcaf4b83203cb6fd58d6af53"
+    },
+    {
+      "source": "vendor/reviewlatch/src/gate.ts",
+      "destination": "vendor/reviewlatch/src/gate.ts",
+      "sha256": "5f86bed7ec364c4ad01792b39e1ca994c1d5531ab95a42ed8b8764814df0f8bd",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "0fc2cc357d15d3a1a54ea51521379dee510a540f"
+    },
+    {
+      "source": "vendor/reviewlatch/src/model.ts",
+      "destination": "vendor/reviewlatch/src/model.ts",
+      "sha256": "1f26765c93d5e92f38503b06bfd7f7f95c3561d7e103cb70ec19017a60e03ffb",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "a9f8cdad8d6649b0f715d7a95b21e29d77748452"
+    },
+    {
+      "source": "vendor/reviewlatch/src/policy.ts",
+      "destination": "vendor/reviewlatch/src/policy.ts",
+      "sha256": "3f08b1d76a40c763c79df5293ce8cc044c386a7279cde03f3e5292548e80780f",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "0afb13c99359a96fbd574638735679b6c37ef41c"
+    },
+    {
+      "source": "vendor/reviewlatch/src/checks.ts",
+      "destination": "vendor/reviewlatch/src/checks.ts",
+      "sha256": "87b917ef17ce41d269f8c23e96ad44f6772e8b169a975d35445e277b4bc2594e",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "288a26992981a7d2d2a41d6d630d8cd2ae3ecdde"
+    },
+    {
+      "source": ".claude/hooks/destructive-guard.sh",
+      "destination": ".claude/hooks/destructive-guard.sh",
+      "sha256": "df0b5a47e4927fa329d9d1bb2fdc8032bef6e1b0a4cd29106b0cbedb499b5744",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "ec5383c6f4496e7fcab96f832f77f3a0f57d084d"
+    },
+    {
+      "source": ".codex/hooks/destructive-guard.sh",
+      "destination": ".codex/hooks/destructive-guard.sh",
+      "sha256": "df0b5a47e4927fa329d9d1bb2fdc8032bef6e1b0a4cd29106b0cbedb499b5744",
+      "treatment": "active-copy",
+      "distribution": "public",
+      "blob": "ec5383c6f4496e7fcab96f832f77f3a0f57d084d"
+    }
+  ],
+  "localReferenceCount": 503
+}
