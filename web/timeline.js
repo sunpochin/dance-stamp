@@ -1,4 +1,14 @@
 /* 檔案用途：驗證 M0 比較配方與共同時間。所在層：純媒體邏輯。主要關聯：RECORD_COMPARE.md、main.js。 */
+/** @param {number} startMs @param {number | undefined} endMs @param {number} durationMs */
+export function validateMarkerRange(startMs, endMs, durationMs) {
+  // 表單與備份共用毫秒邊界，避免重連或匯入後出現另一套合法區間。
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0
+    || !Number.isSafeInteger(startMs) || startMs < 0
+    || (endMs !== undefined && (!Number.isSafeInteger(endMs) || endMs < 0))) throw new Error('標記時間必須是非負整數毫秒。');
+  if (endMs !== undefined && endMs <= startMs) throw new Error('標記終點必須晚於起點，不會自動交換。');
+  if ((endMs ?? startMs) > durationMs) throw new Error('標記超出影片長度。');
+}
+
 export function comparison(recipe) {
   const { startMs, endMs, rate, offsetMs, selfDurationMs } = recipe;
   if (![startMs, endMs, offsetMs, selfDurationMs].every(Number.isSafeInteger)
@@ -12,6 +22,13 @@ export function comparison(recipe) {
   const upperMs = Math.min(practiceMs, selfDurationMs - offsetMs);
   if (upperMs <= lowerMs) throw new Error('兩支影片沒有可比較的共同區間。');
   return { lowerMs, upperMs, durationMs: upperMs - lowerMs };
+}
+
+export function captureDuration({ startMs, endMs, rate }) {
+  const { durationMs } = comparison({ startMs, endMs, rate, offsetMs: 0, selfDurationMs: 60_000 });
+  // 下限只約束新錄影；既有短片與中斷原片仍可保留、播放及比較。
+  if (durationMs < 15_000) throw new Error('請調整片段或速度，讓實際錄影時間介於 15 到 60 秒。');
+  return durationMs;
 }
 
 export function positions(recipe, elapsedMs) {

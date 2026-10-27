@@ -1,8 +1,28 @@
 /* 檔案用途：本機筆記與 v1 備份的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
+import { validateMarkerRange, comparison } from './timeline.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
 export function newLibrary() {
   return { format: 'dance-stamp', schemaVersion: 1, kind: 'backup', exportedAt: new Date().toISOString(), sourceLibraryId: crypto.randomUUID(), videos: [], assets: [], markers: [], takes: [], recipes: [], exports: [], moves: [] };
+}
+/** @param {import('./types').Library} data @param {{reference: import('./types').PairMedia, self: import('./types').PairMedia}} sources @param {import('./types').Comparison} value */
+export function addExternalPair(data, sources, value) {
+  comparison(value);
+  const left = sources.reference, right = sources.self;
+  if (!left.file.size || !right.file.size || !Number.isSafeInteger(left.durationMs) || value.endMs > left.durationMs || value.selfDurationMs !== right.durationMs) throw new Error('兩片尚未完成驗證，沒有建立配對。');
+  const existingVideo = left.videoId && data.videos.find(v => v.id === left.videoId);
+  if (left.videoId && (!existingVideo || value.endMs > existingVideo.durationMs || !data.assets.some(a => a.videoId === left.videoId && a.kind === 'reference'))) throw new Error('老師筆記已失聯或區間超界。');
+  if (right.assetId && !data.assets.some(a => a.id === right.assetId && a.kind === 'take')) throw new Error('自己的原片記錄已失聯。');
+  const videoId = existingVideo ? existingVideo.id : crypto.randomUUID(), assetId = right.assetId || crypto.randomUUID(), takeId = crypto.randomUUID();
+  if (!existingVideo) {
+    data.videos.push({ id: videoId, title: `比較影片 ${data.videos.length + 1}`, durationMs: left.durationMs, revision: 1 });
+    data.assets.push({ id: crypto.randomUUID(), videoId, kind: 'reference', byteLength: left.file.size, mimeType: left.file.type, durationMs: left.durationMs, state: 'session-only', storageKind: 'session' });
+  }
+  if (!right.assetId) data.assets.push({ id: assetId, kind: 'take', byteLength: right.file.size, mimeType: right.file.type, durationMs: right.durationMs, state: 'session-only', storageKind: 'session' });
+  // 外部影片直接建立可用配對，不假裝正在錄影，也不把原片暗中複製進資料庫。
+  data.takes.push({ id: takeId, referenceVideoId: videoId, cameraAssetId: assetId, referenceStartMs: value.startMs, referenceEndMs: value.endMs, rate: value.rate, state: 'ready', createdAt: new Date().toISOString() });
+  data.recipes.push({ id: crypto.randomUUID(), takeId, offsetMs: value.offsetMs, referenceMirror: value.referenceMirror, selfMirror: value.selfMirror, layout: 'side-by-side', audioSource: 'reference', revision: 1 });
+  return { videoId, takeId };
 }
 function check(ok, message = '備份格式不正確，沒有匯入任何資料。') { if (!ok) throw new Error(message); }
 const id = value => typeof value === 'string' && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value);
@@ -41,8 +61,8 @@ export function validateBackup(input) {
     out.assets.push({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}), mediaIncluded: false });
   }
   for (const m of input.markers) {
-    check(maps.videos.has(m.videoId) && integer(m.startMs) && m.startMs <= maps.videos.get(m.videoId).durationMs);
-    check(m.endMs === undefined || (integer(m.endMs) && m.endMs > m.startMs && m.endMs <= maps.videos.get(m.videoId).durationMs));
+    check(maps.videos.has(m.videoId));
+    validateMarkerRange(m.startMs, m.endMs, maps.videos.get(m.videoId).durationMs);
     check(text(m.title) && text(m.note, 20_000) && integer(m.revision) && m.revision > 0);
     out.markers.push({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs !== undefined ? { endMs: m.endMs } : {}), title: m.title, note: m.note, revision: m.revision });
   }
@@ -51,7 +71,16 @@ export function validateBackup(input) {
     check(integer(t.referenceStartMs) && integer(t.referenceEndMs) && t.referenceEndMs > t.referenceStartMs && t.referenceEndMs <= maps.videos.get(t.referenceVideoId).durationMs);
     check([0.5, 0.75, 1].includes(t.rate) && (t.referenceEndMs - t.referenceStartMs) / t.rate <= 60_000);
     check(['ready', 'interrupted', 'failed', 'recording'].includes(t.state) && text(t.createdAt) && Number.isFinite(Date.parse(t.createdAt)));
-    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt });
+    let captureTiming;
+    if (t.captureTiming !== undefined) {
+      check(t.captureTiming && typeof t.captureTiming === 'object' && integer(t.captureTiming.recorderRequestedMs));
+      const timing = t.captureTiming;
+      for (const key of ['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs']) check(timing[key] === undefined || integer(timing[key]));
+      check(timing.referenceAtPlayMs === undefined || timing.referenceAtPlayMs <= maps.videos.get(t.referenceVideoId).durationMs);
+      // 單調時間只供觀測，不推導影格同步；白名單排除裝置與原始錯誤資訊。
+      captureTiming = { recorderRequestedMs: timing.recorderRequestedMs, ...Object.fromEntries(['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs'].filter(key => timing[key] !== undefined).map(key => [key, timing[key]])) };
+    }
+    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt, ...(captureTiming ? { captureTiming } : {}) });
   }
   for (const r of input.recipes) {
     check(maps.takes.has(r.takeId) && Number.isSafeInteger(r.offsetMs) && typeof r.referenceMirror === 'boolean' && typeof r.selfMirror === 'boolean');

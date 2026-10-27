@@ -10,7 +10,7 @@
 | Video | id、title、durationMs、teacher、danceStyle、recordedDate、revision | 影片的筆記主體；時間以實際 metadata 為準 |
 | MediaAsset | id、videoId?、kind、storageKind、state、byteLength、mimeType、originalName?、durationMs、fingerprint? | kind 為 reference／take／vs；位置僅本機可解讀 |
 | Marker | id、videoId、startMs、endMs?、title、note、moveId?、revision | 0≤start；區間 end>start；已知長度時不超出影片 |
-| PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt | 影片與錄影各自可保存，不把 VS 當唯一原件 |
+| PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt、captureTiming? | 影片與錄影各自可保存，不把 VS 當唯一原件 |
 | ComparisonRecipe | id、takeId、offsetMs、referenceMirror、selfMirror、layout、audioSource、revision | 時間公式見錄影規格；不等於已產生影片 |
 | ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
 | Move（P1） | id、name、danceStyle、status | 一個動作可由多個 marker 指向 |
@@ -19,9 +19,11 @@
 
 ID 為隨機 UUID，與檔名、路徑、內容 hash 分離。reference 指向錯誤影片比找不到影片更危險，因此不得只憑同檔名自動連結。
 
+PracticeTake 可選 `captureTiming`（#9，v1 向後相容）：`recorderRequestedMs` 必填，`recorderStartedMs`、`referencePlayResolvedMs`、`referenceAtPlayMs` 可缺。皆為非負安全整數毫秒；最後一項不能超過來源影片長度。前三項使用同一次頁面生命週期的 performance 單調時鐘，最後一項是來源媒體位置；不能當 UTC、跨 take 排序依據或 G2 同步證明，也不假設非同步 start 與 play Promise 必定誰先到。匯出／匯入只保留這四欄，不帶 deviceId、裝置 label 或原始錯誤；舊資料沒有此欄仍可讀取，外部原片匯入不偽造觀測值。
+
 ## 2. 媒體狀態
 
-### 既有影片比較的資料決策（2026-10-28，待實作／驗收）
+### 既有影片比較的資料決策（2026-10-28，桌面實作／完整驗收待完成）
 
 沿用上表關聯：老師片為 Video／reference asset，自己的外部原片為 take asset；PracticeTake 是比較用的練習紀錄，不必由本工具的相機產生。既有欄位 `cameraAssetId` 在此指自己的原片，為相容舊備份保留名稱，不據此推斷有相機授權或拍攝時間。外部選片的 `createdAt` 是建立紀錄時間，不冒充檔案拍攝日期。
 
@@ -30,6 +32,8 @@ ID 為隨機 UUID，與檔名、路徑、內容 hash 分離。reference 指向�
 兩個外部 File 預設僅當次可用，明確選擇保存副本才複製；與工具內錄影必須保存新產生原片的流程分開。外部匯入不經 `recording`／相機 chunks 恢復；解碼、使用者確認、關聯驗證成功後才建立可用配對。換片失敗或取消保留原配對、筆記及輸出，多分頁／quota 衝突不部分寫入。
 
 JSON 備份包含兩個 asset 的描述、take 與 recipe，不含影片 bytes；缺片時逐側預覽、確認重連，不靠同名自動綁定。#10 負責建立與重開配對，#12 驗證匯出／還原。此設計不新增交換欄位或提高 schemaVersion；實作若發現需要改格式，先定義向後相容與 migration，不能直接讓既有 v1 備份失效。現有自拍載入程式不代表此完整資料流程已通過驗收。
+
+#10 桌面實作沿用 v1：`addExternalPair` 只建立已確認的描述與 ready take／recipe；副本需另外明確選擇。原片 File 不寫入 metadata、不含檔名／路徑／mtime，缺片只保留描述及原配方。新時間映射建立新 take，offset／鏡像使用原 recipe revision；既有 `captureTiming` 仍只屬於原錄影，外部比較不產生此欄。交易取消使用同一 IndexedDB transaction 回滾，版本衝突不部分覆寫。實測範圍見 [#10 證據](evidence/issue-10-existing-comparison.md)，備份的衝突副本與完整還原仍由 #12 追蹤。
 
 ### 共用狀態與清理
 

@@ -17,9 +17,12 @@ async (page) => {
   }
   await page.getByLabel('自拍偏移（秒）', { exact: true }).fill('0.05');
   await page.getByLabel('自拍偏移（秒）', { exact: true }).press('Tab');
-  await page.waitForFunction(async id => {
+  // 操作結束後再讀實際資料；不能把非同步 predicate 的 Promise 當成保存成功。
+  await page.waitForFunction(() => !document.getElementById('controls').disabled);
+  const saved = await page.evaluate(async id => {
     const { data } = await (await import('/storage.js')).readLibrary();
     return data.recipes.find(r => r.takeId === id).offsetMs === 50;
   }, takeId);
+  assert(saved, '舊自拍的校正沒有保存到原配方');
   return { failedSelfReplacementPreservesDecodedMedia: true, comparisonStillUsable: true, recipeStillBoundAndSaved: true };
 }

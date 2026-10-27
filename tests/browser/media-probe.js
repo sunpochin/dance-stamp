@@ -30,7 +30,10 @@ async (page) => {
   const takeHref = await page.locator('#take-download').getAttribute('href');
   await page.getByRole('button', { name: '輸出單一 VS 影片', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('output-download').hidden, null, { timeout: 30_000 });
+  // 下載連結會早於落盤／診斷報告出現；等操作完成才讀結果，避免把舊的 null 當成新證據。
+  await page.waitForFunction(() => !document.getElementById('controls').disabled);
   const result = JSON.parse(await page.locator('#diagnostics').textContent());
+  assert(result.export?.bytes > 0 && result.export?.decodedDurationMs > 0, '匯出沒有完成成檔與解碼紀錄');
   const saved = page.waitForEvent('download');
   await page.locator('#output-download').click();
   const download = await saved;
