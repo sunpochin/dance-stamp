@@ -107,7 +107,7 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 ## 9. AI harness 與開發流程
 
 - [AI 協作憲法](AGENTS.md)：唯一規則來源；工具入口保持薄轉接。
-- [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR → 明確核准後發布。
+- [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR；單一設備問題標題註明廠商與型號，跨裝置票維持通用 → 明確核准後發布。
 - [Harness 說明](docs/ai/HARNESS.md)：來源版本、本機完整參考副本、公開啟用及未啟用範圍。
 - [匯入清單](docs/ai/harness-import.json)：逐檔 Git blob、處理方式與 SHA-256。
 - [證據範本](docs/agents/acceptance-template.md)：產品驗收依 commit／裝置留記錄。
