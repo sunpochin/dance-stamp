@@ -4,9 +4,13 @@
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
-    "check": "bun --no-env-file scripts/check-harness.ts && bun --no-env-file scripts/check-public.ts && bun run test:unit",
+    "check": "bun --no-env-file scripts/check-harness.ts && bun --no-env-file scripts/check-public.ts && bun run test:unit && bun run build",
     "check:source": "bun --no-env-file scripts/check-harness.ts --include-local-reference",
     "test:unit": "bun --no-env-file test --isolate ./tests/unit",
-    "hooks:install": "bun --no-env-file scripts/install-hooks.ts"
-  }
+    "hooks:install": "bun --no-env-file scripts/install-hooks.ts",
+    "probe": "bun run dev",
+    "build": "bun --no-env-file scripts/build-web.ts",
+    "dev": "bun run build && bun --no-env-file scripts/serve-web.ts"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0"
 }

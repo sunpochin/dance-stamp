@@ -1,0 +1,21 @@
+/* 檔案用途：原型的觸控與錯誤狀態版面。所在層：Web 樣式。主要關聯：index.html、ACCEPTANCE.md。 */
+:root { font-family: system-ui, sans-serif; color: #f4f2ee; background: #141c20; line-height: 1.6; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; } main { max-width: 1040px; margin: auto; padding: 32px max(20px, env(safe-area-inset-right)) 40px max(20px, env(safe-area-inset-left)); }
+h1 { font-size: clamp(2rem, 6vw, 3.3rem); line-height: 1.22; letter-spacing: -.04em; margin: 16px 0; }
+h2 { font-size: 1rem; font-weight: 500; } p { color: #c5ced0; } .eyebrow { color: #b9f2c8; font-size: .8rem; letter-spacing: .15em; }
+.notice { border-left: 3px solid #dfbb72; padding-left: 12px; color: #ead4a8; }
+fieldset, section { margin: 24px 0; border: 1px solid #455258; border-radius: 12px; padding: 20px; min-width: 0; } legend { color: #b9f2c8; padding: 0 8px; }
+label { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; } input, select, textarea, button, a[download] { font: inherit; border: 1px solid #718087; border-radius: 7px; background: #253238; color: inherit; padding: 10px 14px; min-height: 46px; }
+input[type=file] { max-width: 100%; } input[type=range] { width: 100%; padding: 0; } button, a[download], summary { cursor: pointer; } button:disabled { opacity: .45; cursor: default; }
+button:hover:enabled, a[download]:hover { border-color: #b9f2c8; } :focus-visible { outline: 3px solid #b9f2c8; outline-offset: 3px; } .primary { background: #b9f2c8; color: #11251b; border-color: #b9f2c8; font-weight: 650; }
+.stop { color: #ffcfb9; border-color: #b08572; flex-shrink: 0; } .settings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; } .settings input { width: 100%; }
+.mirrors, .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; } .mirrors label { flex-direction: row; align-items: center; min-height: 44px; } .mirrors input { min-height: 24px; width: 24px; }
+.hint, footer { font-size: .88rem; color: #b6c1c5; } .players { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; border: 0; padding: 0; } .players > div { min-width: 0; }
+video { width: 100%; max-height: 480px; background: #000; border-radius: 8px; } .players video { height: 300px; object-fit: contain; } .mirror { transform: scaleX(-1); }
+canvas { width: 100%; background: #090c0e; border-radius: 8px; } progress { width: 100%; accent-color: #b9f2c8; } details { margin: 18px 0; } summary { padding: 10px 0; min-height: 44px; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+/* 停止鍵固定在可見範圍，手機捲動時不必先找回錄影控制。 */
+.statusbar { position: sticky; top: 0; z-index: 2; background: #141c20f5; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #455258; } .statusbar p { margin: 0; }
+[hidden] { display: none !important; } footer { margin-top: 30px; }
+#markers, #takes { list-style: none; padding: 0; } #markers li, #takes li { padding: 14px 0; border-bottom: 1px solid #455258; white-space: pre-wrap; overflow-wrap: anywhere; } #marker-form { border: 1px solid #718087; padding: 14px; border-radius: 8px; } textarea { resize: vertical; width: 100%; } .file-label { max-width: 320px; } #practice-canvas { margin: 14px 0; }
+@media (max-width: 600px) { .settings { grid-template-columns: 1fr 1fr; } main { padding-top: 20px; } fieldset, section { padding: 14px; } .players { gap: 10px; } .players video { height: 230px; } .statusbar { font-size: .86rem; } }

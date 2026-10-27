@@ -174,3 +174,6 @@ __pycache__/
 /vendor/jia-jian-log-harness/source/
 
 /vendor/jia-jian-log-harness/source-manifest.local.json
+
+# 瀏覽器回歸只留本機，避免測片與快照進公開提交。
+/.playwright-cli/

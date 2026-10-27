@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- 檔案用途：M0 邊播邊錄與成檔試驗。所在層：獨立 Web 原型。主要關聯：main.js、docs/MEDIA_PROBE.md。 -->
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Dance Stamp · 練舞工作台</title>
+  <link rel="icon" href="data:,"><link rel="stylesheet" href="/style.css">
+  <script type="module" src="/main.js"></script>
+</head>
+<body><main>
+  <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看一段，跳一段。<br>把進步放在一起。</h1>
+    <p>用時間筆記記住腳步，放慢練習，再錄下自己比較。影片不會上傳。</p>
+    <p class="notice">桌面 Web 預覽版。筆記及完成的自拍保存在此瀏覽器；請定期備份。手機支援另行驗證。</p>
+  </header>
+  <div class="statusbar"><p id="status" role="status" aria-live="polite">先選一支本機示範影片。</p><button id="stop" class="stop">停止／取消</button></div>
+  <section id="library-panel"><h2>我的練舞影片</h2><p id="storage-status" role="status">正在開啟本機筆記…</p>
+    <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
+    <div class="actions"><button id="open-library">開啟筆記／重連影片</button><button id="backup">下載筆記備份</button><label class="file-label">還原筆記<input id="restore" type="file" accept=".json,application/json"></label></div>
+    <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
+  </section>
+  <fieldset id="controls"><legend>01 · 準備片段</legend>
+    <label>示範影片<input id="reference-file" type="file" accept="video/*"></label>
+    <div class="settings">
+      <label>開始（秒）<input id="start" type="number" min="0" value="0" step="0.001"></label>
+      <label>結束（秒）<input id="end" type="number" min="0" value="15" step="0.001"></label>
+      <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
+      <label>倒數<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label>
+    </div>
+    <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範鏡像</label><label><input id="self-mirror" type="checkbox">自拍輸出鏡像</label><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
+    <div class="actions"><button id="camera" disabled>開啟前相機</button><button id="capture" disabled>倒數並錄下我</button><button id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
+    <p class="hint">不使用麥克風。相機只在你點按時開啟，每次最多 60 秒。重錄前請先下載上一段。</p>
+    <details><summary>已有自拍原片？</summary><label>載入自拍測片<input id="self-file" type="file" accept="video/*"></label><button id="confirm-take" hidden>已預覽，確認連結自拍</button><p>可重連另存的自拍，或用合成測片驗證輸出。</p></details>
+  </fieldset>
+  <section class="players" aria-label="示範與自拍">
+    <div><h2>示範</h2><video id="reference" controls playsinline preload="metadata"></video></div>
+    <div><h2>我</h2><video id="self" controls playsinline muted preload="metadata"></video><video id="preview" playsinline muted hidden></video></div>
+  </section>
+  <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
+    <label>影片標題<input id="video-title" maxlength="500"></label><button id="save-title">儲存標題</button>
+    <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
+    <canvas id="practice-canvas" width="960" height="540" hidden aria-label="鏡像練習畫面"></canvas>
+    <div class="actions"><button id="set-a">當下設為 A</button><button id="set-b">當下設為 B</button><button id="loop">開始 A–B 循環</button><button id="mark">標記當下時間</button></div>
+    <p id="loop-status" class="hint">A–B 使用上方片段起訖；練習不限制影片長度，錄影最多 60 秒。</p>
+    <form id="marker-form" hidden><label>標記標題<input id="marker-title" maxlength="500" required></label><div class="settings"><label>起點（秒）<input id="marker-start" type="number" min="0" step="0.001" required></label><label>終點（可留空）<input id="marker-end" type="number" min="0" step="0.001"></label></div><label>筆記<textarea id="marker-note" maxlength="20000" rows="3"></textarea></label><button type="submit">儲存標記</button><button id="cancel-marker" type="button">取消編輯</button></form>
+    <ul id="markers"></ul>
+    <div class="actions"><button id="copy-reference">保存示範副本到此瀏覽器</button><button id="remove-copy">移除本機示範副本</button></div>
+    <p class="hint">示範預設只在本次開啟。副本初期限 200 MiB；瀏覽器可能清除資料，仍需自行備份。</p>
+    <h2>自拍與比較配方</h2><ul id="takes"></ul>
+  </fieldset>
+  <fieldset id="compare" disabled><legend>02 · 對齊，再合成</legend>
+    <label>自拍偏移（秒）<input id="offset" type="number" value="0" step="0.01"></label>
+    <p class="hint">正值略過自拍開頭；負值略過示範開頭。只輸出兩段都有畫面的區間。</p>
+    <label>共同時間線<input id="scrub" type="range" min="0" max="1" value="0" step="0.01"></label>
+    <p id="intersection">載入自拍後顯示共同長度。</p>
+    <div class="actions"><button id="play">一起預覽</button><button id="export" class="primary">輸出單一 VS 影片</button></div>
+  </fieldset>
+  <section aria-label="合成結果"><h2>03 · 保存這次練習</h2>
+    <canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas>
+    <progress id="progress" max="1" value="0" aria-label="合成進度"></progress>
+    <div class="actions"><a id="take-download" hidden>下載自拍原片</a><a id="output-download" hidden>下載 VS 影片</a><button id="share" disabled>系統分享 VS</button></div>
+    <video id="output" controls playsinline hidden></video>
+    <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對左右、聲音與鏡像。取消不會刪除原片。</p>
+  </section>
+  <details><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
+  <footer>免費 · 非商用 · 影片留在裝置</footer>
+</main></body></html>
