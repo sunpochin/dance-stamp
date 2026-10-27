@@ -212,6 +212,7 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
   releaseCamera();
   const selected = await chooseFile($('reference-file'), reference, 'reference', signal);
   if (!selected) return;
+  clearMarkerEditor();
   referenceDurationMs = selected.duration;
   $('start').value = '0'; $('end').value = String(Math.min(15, selected.duration / 1000));
   $('offset').value = '0';
@@ -237,6 +238,7 @@ $('self-file').addEventListener('change', () => operation(async signal => {
   releaseCamera();
   const selected = await chooseFile($('self-file'), self, 'self', signal);
   if (!selected) return;
+  // 新檔解碼成功才解除舊 take；失敗或取消時舊影片與配方必須一起保留。
   activeTakeId = null;
   selfDurationMs = selected.duration; takeBlob = selected.file;
   download('take-download', takeBlob, 'dance-self');
@@ -513,7 +515,7 @@ $('confirm-take').addEventListener('click', () => operation(async signal => {
 $('open-library').addEventListener('click', () => operation(async signal => {
   const id = $('library').value, video = state.data.videos.find(v => v.id === id); if (!video) throw new Error('請先選一份影片筆記。');
   releaseCamera(); reference.pause(); currentVideoId = id; pendingLinkId = null; pendingTakeId = null; $('confirm-take').hidden = true; selfDurationMs = 0; activeTakeId = null; takeBlob = null;
-  $('video-title').value = video.title; $('confirm-link').hidden = true; $('marker-form').hidden = true;
+  $('video-title').value = video.title; $('confirm-link').hidden = true; clearMarkerEditor();
   const asset = state.data.assets.find(a => a.videoId === id && a.kind === 'reference');
   const blob = asset && await readMedia(asset.id);
   referenceDurationMs = 0; currentReferenceFile = null;
@@ -553,6 +555,10 @@ $('save-title').addEventListener('click', () => operation(async () => {
   const title = $('video-title').value.trim(); if (!title) throw new Error('請填寫影片標題。');
   await saveData(data => { const video = data.videos.find(v => v.id === currentVideoId); video.title = title; video.revision++; }); status('標題已保存。');
 }));
+function clearMarkerEditor() {
+  // 換片不能沿用舊標記 ID，否則存檔會把原筆記移到另一支影片。
+  markerEditingId = null; $('marker-form').reset(); $('marker-form').hidden = true;
+}
 function editMarker(marker) {
   markerEditingId = marker?.id;
   $('marker-start').value = String((marker?.startMs ?? Math.round(reference.currentTime * 1000)) / 1000);
@@ -561,15 +567,21 @@ function editMarker(marker) {
   $('marker-form').hidden = false; $('marker-title').focus();
 }
 $('mark').addEventListener('click', () => { if (!active && referenceDurationMs) editMarker(); });
-$('cancel-marker').addEventListener('click', () => { $('marker-form').hidden = true; });
+$('cancel-marker').addEventListener('click', clearMarkerEditor);
 $('marker-form').addEventListener('submit', e => {
   e.preventDefault(); operation(async () => {
+    requireCurrentVideo();
     const startMs = Math.round(Number($('marker-start').value) * 1000), endMs = $('marker-end').value === '' ? undefined : Math.round(Number($('marker-end').value) * 1000);
     if (referenceDurationMs && (endMs ?? startMs) > referenceDurationMs) throw new Error('標記超出目前連結的影片長度。');
     /** @type {import('./types').Marker} */
     const row = { id: markerEditingId || crypto.randomUUID(), videoId: currentVideoId, startMs, ...(endMs === undefined ? {} : { endMs }), title: $('marker-title').value.trim(), note: $('marker-note').value, revision: 1 };
-    await saveData(data => { const index = data.markers.findIndex(m => m.id === row.id); if (index < 0) data.markers.push(row); else { row.revision = data.markers[index].revision + 1; data.markers[index] = row; } });
-    $('marker-form').hidden = true; status('時間標記已保存；點「跳到這裡」即可回看。');
+    await saveData(data => {
+      const index = data.markers.findIndex(m => m.id === row.id);
+      // 即使殘留編輯事件晚到，也不允許跨影片更新既有標記。
+      if (markerEditingId && data.markers[index]?.videoId !== row.videoId) throw new Error('這份標記已不屬於目前影片，請重新開啟編輯。');
+      if (index < 0) data.markers.push(row); else { row.revision = data.markers[index].revision + 1; data.markers[index] = row; }
+    });
+    clearMarkerEditor(); status('時間標記已保存；點「跳到這裡」即可回看。');
   });
 });
 $('backup').addEventListener('click', () => operation(async () => {
@@ -628,7 +640,18 @@ for (const video of [reference, self, output]) video.addEventListener('error', (
   if (active) return;
   stop(); status('播放中斷，這個影片內容或格式無法繼續解碼。筆記與原片保留，可重新選片。');
 });
-reference.addEventListener('play', watchPractice);
+reference.addEventListener('play', async () => {
+  if (active) return;
+  try {
+    // 接過 Web Audio 的 video 不會自動回到原生出聲路徑；一般播放與循環都需恢復同一 context。
+    if (audio) await prepareAudio();
+    if (!active && !reference.paused) watchPractice();
+  } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); reference.pause(); status(error.message); }
+});
+reference.addEventListener('pause', () => {
+  // 練習暫停也要釋放音訊運算；合成中的暫停由 operation 統一清理。
+  if (!active && audio?.state === 'running') audio.suspend().catch(() => {});
+});
 reference.addEventListener('ended', async () => { if (looping && !active) { try { await seek(reference, practiceRange().a); await reference.play(); } catch { stopPractice(); } } });
 for (const id of /** @type {const} */ (['offset', 'reference-mirror', 'self-mirror'])) $(id).addEventListener('change', () => { if (!active && activeTakeId) operation(saveCurrentRecipe); });
 ready = (async () => {

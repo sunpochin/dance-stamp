@@ -19,3 +19,7 @@
 media-probe.js 的合成相機→15 秒帶音訊單一 VS 與取消釋放通過；self-failure.js 證明自拍壞檔／空檔不影響原比較，調整 offset 後配方仍可保存。JS 時間差不是 G2 成檔同步證據。完整相機、G1–G7、手機與獨立 review 仍不在本票結論內。
 
 先跑 scripts/make-media-fixtures.ts，再跑 scripts/make-player-fixtures.ts；新測片工具已在空目錄完整重製成功，既有檔案會拒絕覆寫。CLI 方法見 MEDIA_PROBE.md，精確提交與 CI 見本票 PR。
+
+## 同步已審主分支
+
+整合 main `9e99ae6` 與 #5 最新同步，保留播放錯誤提示與已審音訊恢復，沒有重複註冊 play handler。受測靜態內容 `9fd3c39cd617733a`；314 tests、型別、lint、建置、掃描通過；全新 Chrome 的 review-recovery 11 項及完整 player 格式／方向／失敗恢復／十次換片矩陣全部通過。此票尚待獨立審查與授權合併。

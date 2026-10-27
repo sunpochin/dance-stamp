@@ -24,9 +24,10 @@ playwright-cli --session dance-check run-code "$(cat tests/browser/edges.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/storage.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/relink.js)"
 playwright-cli --session dance-check run-code "$(cat tests/browser/player.js)"
+playwright-cli --session dance-check run-code "$(cat tests/browser/review-recovery.js)"
 ```
 
-分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線，以及 20 次循環／晚到權限釋放／入口白名單。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
+分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線、20 次循環／晚到權限釋放／入口白名單，以及合成後練習音訊恢復、換片清除標記編輯、自拍替換失敗／取消後配方與輸出仍可保存。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
 
 獨立解碼下載檔（實際是 WebM 時使用真實副檔名）：
 
