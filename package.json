@@ -1,0 +1,12 @@
+{
+  "name": "dance-stamp",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "check": "bun --no-env-file scripts/check-harness.ts && bun --no-env-file scripts/check-public.ts && bun run test:unit",
+    "check:source": "bun --no-env-file scripts/check-harness.ts --include-local-reference",
+    "test:unit": "bun --no-env-file test --isolate ./tests/unit",
+    "hooks:install": "bun --no-env-file scripts/install-hooks.ts"
+  }
+}

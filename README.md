@@ -1,3 +1,4 @@
+<!-- 檔案用途：產品及開發入口。所在層：根文件。主要關聯：AGENTS.md、TECHNICAL.md。 -->
 # Dance Stamp
 
 把練舞影片變成可以標記、重播、錄下自己並比較的練習筆記。
@@ -30,10 +31,10 @@
 
 ## 授權
 
-本分支將 [LICENSE](LICENSE) 改為 **PolyForm Noncommercial 1.0.0**。合併前，預設分支仍以其當時的 LICENSE 為準。
+本專案採用 [LICENSE](LICENSE) 的 **PolyForm Noncommercial 1.0.0**；匯入 harness 與第三方程式的原授權另列於 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 這是 **source-available（原始碼公開）**，不是 OSI 定義的 open source。可依授權條件進行非商用的使用、修改與分享；教育及公益等允許用途以授權原文為準。歷史上已按 GPLv3 授出的權利不會被追溯撤回。第三方依賴、影片、音樂各自保留原授權。詳細轉換說明見[授權文件](docs/LICENSING_AND_COST.md)。
 
 ## 參與方式
 
-先從[路線圖](docs/ROADMAP.md)的可行性驗證開始。這個 repo 尚無安裝、建置或測試指令；建立應用骨架時必須補齊，不能把規劃中的測試寫成已通過。回報問題請提供合成或自有權利的短片，勿把私人課程影片直接貼到公開 issue。
+先從[路線圖](docs/ROADMAP.md)的可行性驗證開始。已提供 AI harness：先讀 [AGENTS.md](AGENTS.md) 與[工具說明](docs/ai/HARNESS.md)，使用 Bun 1.4.4 執行 `bun run check`，並以 `bun run hooks:install` 安裝此 clone 的 Git 防護。產品 app、建置與真機測試仍待實作；不能把 harness 通過寫成產品完成。回報問題請提供合成或自有權利的短片，勿把私人課程影片直接貼到公開 issue。

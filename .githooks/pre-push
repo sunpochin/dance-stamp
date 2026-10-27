@@ -1,0 +1,12 @@
+#!/bin/sh
+# 檔案用途：阻止直接更新整合分支。所在層：Git hook。主要關聯：AGENTS.md。
+set -eu
+# 判斷遠端 ref 而非本機分支名，才能擋住 HEAD:main 與刪除 main。
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/staging)
+      echo "請推送任務分支並開 PR，不可直接更新 main/staging。" >&2
+      exit 1
+      ;;
+  esac
+done

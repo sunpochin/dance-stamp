@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/sunpochin/reviewlatch",
+  "commit": "66f226777412aac92e0d81474210b62778826abc",
+  "version": "0.2.0",
+  "files": {
+    "LICENSE": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+    "NOTICE.md": "12ec804cc17d03abf6d197ce0e47812a48c0eba67f84577581845df1329bda39",
+    "package.json": "06dee2d5f58e01fe4e5586829db6efb1781f587cda5b10a01c1dce98c13bb94e",
+    "src/checks.ts": "87b917ef17ce41d269f8c23e96ad44f6772e8b169a975d35445e277b4bc2594e",
+    "src/readiness.ts": "917a6c72197ccd24667ffb070aeee427396f5713bb05ea8aacc71780aaf4725a",
+    "src/gate.ts": "5f86bed7ec364c4ad01792b39e1ca994c1d5531ab95a42ed8b8764814df0f8bd",
+    "src/model.ts": "1f26765c93d5e92f38503b06bfd7f7f95c3561d7e103cb70ec19017a60e03ffb",
+    "src/policy.ts": "3f08b1d76a40c763c79df5293ce8cc044c386a7279cde03f3e5292548e80780f"
+  }
+}

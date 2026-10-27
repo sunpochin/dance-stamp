@@ -147,3 +147,30 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# 本機秘密、私人媒體與工具暫存不得隨開發規則公開。
+.env*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+node_modules/
+.worktrees/
+.claude/worktrees/
+.codex/environments/
+.serena/cache/
+.serena/memories/
+/.serena/
+.code-review-graph/
+__pycache__/
+*.pyc
+/private-media/
+/output/
+/test-results/
+/playwright-report/
+# 完整舊專案副本只供本機參考，不把照護與營運脈絡重新公開。
+/vendor/jia-jian-log-harness/source/
+
+/vendor/jia-jian-log-harness/source-manifest.local.json

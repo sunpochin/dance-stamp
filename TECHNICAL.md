@@ -1,6 +1,7 @@
+<!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-狀態：2026-10-27 規劃版，沒有應用程式或測試結果。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
+狀態：2026-10-27；產品仍在規劃階段，已加入可執行的 AI harness。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
 ## 1. 架構結論
 
@@ -102,3 +103,19 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 ## 8. 品質門檻與文件維護
 
 建立程式時補型別檢查、lint、domain／migration／匯入測試與瀏覽器整合測試；相機與編碼必須另做真機。改架構須同步此文件並寫被排除方案；容易踩坑的時間映射、資源釋放、儲存順序在程式中用繁體中文說明原因。所有變更經新分支、檢查差異、單一任務提交並推送，不直接推 main。實際測試結果另記錄，不能靠文件存在宣告完成。
+
+## 9. AI harness 與開發流程
+
+- [AI 協作憲法](AGENTS.md)：唯一規則來源；工具入口保持薄轉接。
+- [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR → 明確核准後發布。
+- [Harness 說明](docs/ai/HARNESS.md)：來源版本、本機完整參考副本、公開啟用及未啟用範圍。
+- [匯入清單](docs/ai/harness-import.json)：逐檔 Git blob、處理方式與 SHA-256。
+- [證據範本](docs/agents/acceptance-template.md)：產品驗收依 commit／裝置留記錄。
+
+決策：完整上游參考只留本機且不進 Git；公開可追溯的清單、適配規則、skills、破壞性命令防護、Git hooks 與公開內容掃描。唯讀 CI 範本已備妥，但帳號缺少 workflow 權限，尚未啟用。Bun 1.4.4 執行工具與隔離測試；目前沒有第三方套件依賴，產品框架版本留給 #3/#4 的證據決定。
+
+排除直接套整個家健錄：會把照護授權、三語要求、資料庫、staging／production、付費審查與自動部署假設混進本機免費工具。也不重寫複雜 shell parser；沿用來源 destructive guard 及其必要依賴、負向回歸。來源 parser 的限制與工具端 hook 是否自動載入必須明說，Git native hooks 是另一層獨立防線。
+
+`bun run check` 驗證指紋、入口、文件與工具測試，沒有代替 app build/lint/typecheck 或 G1–G7。#4 建立產品骨架時需把相應品質門檻接入，不保留無用的 placeholder build。來源副本不在測試掃描入口內，不會啟動來源 CI、任務控制或 secrets。
+
+使用者確認公開原始碼並保留非商用授權。為避免把歷史照護文件的真人／營運脈絡帶入公開 repo，拒絕整包上游原文公開；保留本機完整副本、公開必要通用工具與 MIT notices。CI 權限缺口不透過移除安全檢查解決：相同 check 在本機 Git hook 執行，範本待擁有者另行啟用。

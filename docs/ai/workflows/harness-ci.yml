@@ -1,0 +1,25 @@
+# 檔案用途：驗證 harness，避免把工具檢查誤當產品驗收。
+# 所在層：GitHub Actions；主要關聯：package.json、docs/ai/HARNESS.md。
+name: Harness CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: harness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+      # 不需要安裝上游產品套件，也不執行參考副本的任何 workflow。
+      - run: bun run check
