@@ -21,6 +21,18 @@ ID 為隨機 UUID，與檔名、路徑、內容 hash 分離。reference 指向�
 
 ## 2. 媒體狀態
 
+### 既有影片比較的資料決策（2026-10-28，待實作／驗收）
+
+沿用上表關聯：老師片為 Video／reference asset，自己的外部原片為 take asset；PracticeTake 是比較用的練習紀錄，不必由本工具的相機產生。既有欄位 `cameraAssetId` 在此指自己的原片，為相容舊備份保留名稱，不據此推斷有相機授權或拍攝時間。外部選片的 `createdAt` 是建立紀錄時間，不冒充檔案拍攝日期。
+
+老師起訖、r 與自己的起點沿用 `referenceStartMs`／`referenceEndMs`／`rate`／`offsetMs`；時間定義只以 [RECORD_COMPARE.md](RECORD_COMPARE.md) 為準。新增配對時明確設定 r，不能繼承上一個 take 的慢速值；後續改動老師區間或 r 需建立新 take／recipe 並保留舊資料，避免舊輸出仍指向被悄悄改寫的時間映射。offset／鏡像改動則沿用 recipe revision。
+
+兩個外部 File 預設僅當次可用，明確選擇保存副本才複製；與工具內錄影必須保存新產生原片的流程分開。外部匯入不經 `recording`／相機 chunks 恢復；解碼、使用者確認、關聯驗證成功後才建立可用配對。換片失敗或取消保留原配對、筆記及輸出，多分頁／quota 衝突不部分寫入。
+
+JSON 備份包含兩個 asset 的描述、take 與 recipe，不含影片 bytes；缺片時逐側預覽、確認重連，不靠同名自動綁定。#10 負責建立與重開配對，#12 驗證匯出／還原。此設計不新增交換欄位或提高 schemaVersion；實作若發現需要改格式，先定義向後相容與 migration，不能直接讓既有 v1 備份失效。現有自拍載入程式不代表此完整資料流程已通過驗收。
+
+### 共用狀態與清理
+
 `session-only → copying → ready`；錯誤可為 `missing`、`unsupported`、`interrupted`、`failed`。相機 `recording` 與匯出 `exporting` 是工作中狀態，不可當成可播放檔案。
 
 刪除有三個不同操作：「移除此裝置的媒體副本」「刪除此筆記及其標記」「刪除本次 take／VS 輸出」。顯示影響與確認；不去刪除使用者原相簿檔案，不把備份檔一起清除。前兩者需保留重連／獨立刪筆記的選擇。
