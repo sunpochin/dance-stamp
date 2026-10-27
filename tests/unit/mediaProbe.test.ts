@@ -1,0 +1,36 @@
+/* 檔案用途：攔截錯誤時間裁切、容器與等比 fit。所在層：M0 邏輯回歸。主要關聯：prototypes/media/、RECORD_COMPARE.md。 */
+import { describe, expect, test } from 'bun:test'
+import { comparison, positions, contain } from '../../web/timeline.js'
+import { extension } from '../../web/recorder.js'
+
+const slow = { startMs: 10_000, endMs: 25_000, rate: 0.5, offsetMs: 200, selfDurationMs: 30_000 }
+describe('M0 共同比較區間', () => {
+  test('正偏移裁掉自拍開頭，慢速保持來源映射', () => {
+    expect(comparison(slow)).toEqual({ lowerMs: 0, upperMs: 29_800, durationMs: 29_800 })
+    expect(positions(slow, 10_000)).toEqual({ referenceMs: 15_000, selfMs: 10_200 })
+  })
+  test('負偏移同步裁掉來源畫面與音訊，尾端只保留交集', () => {
+    const value = { ...slow, offsetMs: -500, selfDurationMs: 20_000 }
+    expect(comparison(value)).toEqual({ lowerMs: 500, upperMs: 20_500, durationMs: 20_000 })
+    expect(positions(value, 0)).toEqual({ referenceMs: 10_250, selfMs: 0 })
+    expect(positions(value, 20_000)).toEqual({ referenceMs: 20_250, selfMs: 20_000 })
+  })
+  test('0.75 倍速及正負邊界', () => {
+    expect(comparison({ ...slow, rate: 0.75, offsetMs: 0 }).durationMs).toBe(20_000)
+    for (const offsetMs of [-30_000, 30_000]) expect(() => comparison({ ...slow, offsetMs })).toThrow('共同區間')
+    expect(() => positions(slow, -1)).toThrow()
+    expect(() => positions(slow, 29_801)).toThrow()
+  })
+  test('拒絕空值、非整數、超長與不允許速度', () => {
+    for (const patch of [{ startMs: -1 }, { endMs: 0 }, { rate: 0 }, { rate: 2 }, { offsetMs: NaN }, { offsetMs: 0.5 }, { selfDurationMs: Infinity }, { endMs: 41_000 }]) {
+      expect(() => comparison({ ...slow, ...patch })).toThrow()
+    }
+  })
+})
+test('全身等比 fit，不裁腳；容器不靠改名偽裝', () => {
+  expect(contain(720, 1280, 640, 672)).toEqual({ width: 378, height: 672, x: 131, y: 0 })
+  expect(() => contain(0, 0, 640, 672)).toThrow()
+  expect(extension('video/mp4;codecs=avc1')).toBe('mp4')
+  expect(extension('video/webm')).toBe('webm')
+  expect(() => extension('video/unknown')).toThrow()
+})

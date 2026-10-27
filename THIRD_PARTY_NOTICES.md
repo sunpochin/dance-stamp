@@ -8,3 +8,10 @@
 - 完整參考副本中的 archify、UI skills、上游 THIRD_PARTY_NOTICES 等只在本機保存，未公開、未啟用、未重新授權，也不表示本專案安裝了其依賴。
 
 不能因本產品非商用而撤銷上游 MIT 或其他原授權的權利。私人課程影片、音樂與真人素材未隨工具匯入。
+
+## Web 開發工具（#4）
+
+- TypeScript 7.0.2 與對應平台 `@typescript/typescript-*` 7.0.2：Apache-2.0。來源 https://github.com/microsoft/TypeScript 。
+- Biome 2.6.3 與對應平台 `@biomejs/cli-*` 2.6.3：MIT OR Apache-2.0。來源 https://github.com/biomejs/biome 。
+
+精確解析與完整性見 bun.lock；只安裝目前平台的工具，不進瀏覽器產物。原包保留授權，本產品的非商用條件不取代它們的條款。
