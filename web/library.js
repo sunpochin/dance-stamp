@@ -1,4 +1,5 @@
 /* 檔案用途：本機筆記與 v1 備份的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
+import { validateMarkerRange } from './timeline.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
 export function newLibrary() {
@@ -41,8 +42,8 @@ export function validateBackup(input) {
     out.assets.push({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}), mediaIncluded: false });
   }
   for (const m of input.markers) {
-    check(maps.videos.has(m.videoId) && integer(m.startMs) && m.startMs <= maps.videos.get(m.videoId).durationMs);
-    check(m.endMs === undefined || (integer(m.endMs) && m.endMs > m.startMs && m.endMs <= maps.videos.get(m.videoId).durationMs));
+    check(maps.videos.has(m.videoId));
+    validateMarkerRange(m.startMs, m.endMs, maps.videos.get(m.videoId).durationMs);
     check(text(m.title) && text(m.note, 20_000) && integer(m.revision) && m.revision > 0);
     out.markers.push({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs !== undefined ? { endMs: m.endMs } : {}), title: m.title, note: m.note, revision: m.revision });
   }
@@ -51,7 +52,16 @@ export function validateBackup(input) {
     check(integer(t.referenceStartMs) && integer(t.referenceEndMs) && t.referenceEndMs > t.referenceStartMs && t.referenceEndMs <= maps.videos.get(t.referenceVideoId).durationMs);
     check([0.5, 0.75, 1].includes(t.rate) && (t.referenceEndMs - t.referenceStartMs) / t.rate <= 60_000);
     check(['ready', 'interrupted', 'failed', 'recording'].includes(t.state) && text(t.createdAt) && Number.isFinite(Date.parse(t.createdAt)));
-    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt });
+    let captureTiming;
+    if (t.captureTiming !== undefined) {
+      check(t.captureTiming && typeof t.captureTiming === 'object' && integer(t.captureTiming.recorderRequestedMs));
+      const timing = t.captureTiming;
+      for (const key of ['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs']) check(timing[key] === undefined || integer(timing[key]));
+      check(timing.referenceAtPlayMs === undefined || timing.referenceAtPlayMs <= maps.videos.get(t.referenceVideoId).durationMs);
+      // 單調時間只供觀測，不推導影格同步；白名單排除裝置與原始錯誤資訊。
+      captureTiming = { recorderRequestedMs: timing.recorderRequestedMs, ...Object.fromEntries(['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs'].filter(key => timing[key] !== undefined).map(key => [key, timing[key]])) };
+    }
+    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt, ...(captureTiming ? { captureTiming } : {}) });
   }
   for (const r of input.recipes) {
     check(maps.takes.has(r.takeId) && Number.isSafeInteger(r.offsetMs) && typeof r.referenceMirror === 'boolean' && typeof r.selfMirror === 'boolean');

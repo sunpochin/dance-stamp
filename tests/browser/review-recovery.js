@@ -18,6 +18,9 @@ async (page) => {
   await page.getByRole('button', { name: '編輯', exact: true }).click(); await idle();
   await page.locator('#marker-title').fill('未儲存草稿');
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
+  checks.markerDraftPreserved = await page.locator('#marker-title').inputValue() === '未儲存草稿';
+  await page.locator('#cancel-marker').click();
+  await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
   checks.markerEditorCleared = await page.locator('#marker-form').evaluate(form => form.hidden && !form.elements.namedItem('marker-title')?.value);
   checks.originalMarkerPreserved = (await library()).markers.some(m => m.videoId === firstVideoId && m.title === '合成原片筆記');
   await page.locator('#end').fill('1.5');

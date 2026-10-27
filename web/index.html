@@ -26,20 +26,22 @@
       <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
       <label>倒數<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label>
     </div>
+    <label>相機方向<select id="camera-facing"><option value="user">前鏡頭／桌面相機</option><option value="environment">後鏡頭（裝置需支援）</option></select></label>
     <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範鏡像</label><label><input id="self-mirror" type="checkbox">自拍輸出鏡像</label><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
-    <div class="actions"><button type="button" id="camera" disabled>開啟前相機</button><button type="button" id="capture" disabled>倒數並錄下我</button><button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
-    <p class="hint">不使用麥克風。相機只在你點按時開啟，每次最多 60 秒。重錄前請先下載上一段。</p>
-    <details><summary>已有自拍原片？</summary><label>載入自拍測片<input id="self-file" type="file" accept="video/*"></label><button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button><p>可重連另存的自拍，或用合成測片驗證輸出。</p></details>
+    <div class="actions"><button type="button" id="camera" disabled>開啟前相機</button><button type="button" id="capture" disabled>倒數並錄下我</button><button type="button" id="new-take" disabled>準備下一段錄影</button><button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
+    <p class="hint">不使用麥克風。相機只在你點按時開啟，實際錄影 15–60 秒。請把全身與腳步留在取景框內；重錄前先下載上一段。</p>
+    <details><summary>已有自拍原片？</summary><label>載入自拍原片<input id="self-file" type="file" accept="video/*"></label><button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button><p>選取另存的自拍，預覽後重新連回原有筆記。</p></details>
   </fieldset>
   <section class="players" aria-label="示範與自拍">
     <div><h2>示範</h2>
 <!-- biome-ignore lint/a11y/useMediaCaption: 來源是使用者本機影片，不能憑空附上假字幕；本版不處理字幕生成。 -->
 <video id="reference" controls playsinline preload="metadata"></video></div>
-    <div><h2>我</h2><video id="self" controls playsinline muted preload="metadata"></video><video id="preview" playsinline muted hidden></video></div>
+    <div><h2>我</h2><video id="self" controls playsinline muted preload="metadata"></video><div id="preview-frame" class="preview-frame" hidden><video id="preview" playsinline muted hidden></video><div class="body-guide" aria-hidden="true"></div></div></div>
   </section>
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
     <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
+    <p id="pitch-status" class="hint" role="status"></p>
     <canvas id="practice-canvas" width="960" height="540" hidden aria-label="鏡像練習畫面"></canvas>
     <div class="actions"><button type="button" id="set-a">當下設為 A</button><button type="button" id="set-b">當下設為 B</button><button type="button" id="loop">開始 A–B 循環</button><button type="button" id="mark">標記當下時間</button></div>
     <p id="loop-status" class="hint">A–B 使用上方片段起訖；練習不限制影片長度，錄影最多 60 秒。</p>

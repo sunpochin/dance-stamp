@@ -11,7 +11,7 @@ async (page) => {
   await page.getByLabel('筆記', { exact: true }).fill('<img src=x onerror=alert(1)> 純文字');
   await page.getByRole('button', { name: '儲存標記', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('markers').textContent.includes('合成腳步'));
-  assert((await page.locator('#markers').textContent()).includes('2.00s'), '輸入筆記改變了標記時刻');
+  assert((await page.locator('#markers').textContent()).includes('2.000s'), '輸入筆記改變了標記時刻');
   assert(await page.locator('#markers img').count() === 0, '筆記被當成 HTML');
   const storedId = await page.locator('#library').inputValue();
   await page.reload();
