@@ -1,0 +1,92 @@
+# P0 專項：邊播邊錄、對齊與 VS 影片
+
+狀態：設計與驗證計畫，不是已通過的相容性聲明。產品要求來自使用者提供的 Threads 貼文與 SyncMirror Player 參考頁；不仿製其程式、品牌或介面素材。
+
+## 1. P0 完成定義
+
+同一裝置上，使用者播放自己的示範片段並同時錄下自己，錄完可校正兩側時間與鏡像，最後取得一個**左右畫面合成、帶示範音訊、能離開本網站再播放的影片檔**。只有兩支影片同時播放、截圖、外連剪片工具或要求手動拼接，都不算完成。
+
+初期驗收範圍：Salsa shine；單次 15／30／60 秒；示範錄影速度 0.5×、0.75×、1×；前景操作；建議輸出 1280×720、目標 30fps、全身等比 fit。解析度／fps 是請求及品質目標，不是所有手機硬體保證。不得因 Web 困難把這項偷偷降為 P1。
+
+## 2. 最小完整使用流程
+
+1. 選本機示範片段 A–B，指定練習速度。慢速後的實際時長不得超過本期 take 長度；可縮短片段。
+2. 點「錄下我」，才要求相機權限。前鏡頭預設；先顯示取景、全身框線及獨立鏡像設定。麥克風預設關閉。
+3. 點開始，3／5／10 秒倒數；相機先 ready，示範 seek 到 A 且音訊系統完成啟動後才倒數。拒絕權限／相機被占用時可重試。
+4. 錄製開始後記下可觀測的單調時間與示範顯示時間，示範播到 B 或使用者停止。先後次序需用實測校正，不能把 JavaScript 同時呼叫當成同一影格啟動。
+5. 完成自拍原片儲存與播放驗證，進比較頁。重錄要先保留／捨棄上一個 take，不靜默覆蓋。
+6. 共同時間線播放、手動 offset、兩側鏡像。確認全身、方向、時間後再合成。
+7. 匯出期間保持前景，進度可取消；完成後下載／系統分享保存，並重新開啟驗證。保存功能失敗要保留原片與配方供重試。
+
+錄影不跨 A–B 重複回捲；每段是一個 take。練習循環可一直開，但「錄影模式」先固定區間、速度與方向，降低時間映射複雜度。八拍倒數、連續多 take 與錄音混音列 P1，沒有把手動改速度的變動時間線藏進 P0。
+
+## 3. Web 實作候選
+
+### 3.1 擷取自拍
+
+`getUserMedia` 取得相機，預覽使用 `playsinline` 並靜音。用 MediaRecorder 保存自拍視訊；預設不錄環境聲，避免喇叭聲再次被收進輸出形成回音。來源音訊在示範影片內，匯出時從示範取得。
+
+只使用 HTTPS／受信任 localhost。相機需要使用者授權；音訊啟動及播放可能需要手勢，流程不能靠自動播放假設。[相機 API](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)。
+
+錄影 chunks 依序落盤，計算時長不能使用「chunk 數 × timeslice」；事件間隔不保證準時。錄影中切背景、鎖屏、來電、攝影機被接管、旋轉導致尺寸變更，都要標記中斷並停止／完成可用資料，不在背景偷偷繼續。[dataavailable](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/dataavailable_event)。
+
+### 3.2 比較與合成
+
+保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
+
+預設用來源影片音訊，透過 Web Audio 的 MediaElementSource → MediaStreamDestination 加入輸出 stream；源音訊到喇叭與輸出路徑分開控制，自拍音軌不混入。AudioContext 必須處理手勢恢復、暫停、音訊路由變動，測試慢速時音高及時間是否跟畫面一致。[來源節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource)、[輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
+
+先偵測並試錄 MIME／codec 組合，再選裝置真正可工作的格式。`isTypeSupported()` 回 true 仍可能因資源失敗，最後要讀回輸出檔驗證。優先測 MP4/H.264/AAC；無此組合時測 WebM 路徑，副檔名必須反映真實容器，且另測在接收者裝置的播放。不能靠改檔名、付費雲端轉碼或強迫所有人安裝同一播放器過關。[編碼偵測](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/isTypeSupported_static)。
+
+來源只接受使用者提供的本機檔案，避免跨來源 canvas 汙染與網站下載授權問題。輸出前預估原片＋自拍＋合成＋暫存的磁碟空間，chunks 落盤／完成 Blob 的記憶體峰值也要實測。不要把 60 秒所有中間結果重複讀進 ArrayBuffer。
+
+第一候選是前景即時合成，匯出約需跑過一次片段；這是簡化工程的明示取捨，不承諾瞬間完成。WebCodecs／原生編碼可作後續比較，但未實測前不承諾高解析、背景匯出或無限片長。
+
+## 4. 時間與鏡像契約
+
+所有持久化時間用整數毫秒；下列公式用秒說明。令：
+
+- A、B：示範來源片段起訖。
+- r：錄影時固定的示範播放速度，0.5／0.75／1。
+- t：練習經過時間，以示範開始為基準。
+- δ：自拍 offset，正值代表自拍原片需要略過開頭 δ 秒才能對齊。
+- D：自拍原片的實際長度。
+
+映射：**示範時間 = A + r × t；自拍時間 = t + δ。** 合法交集是 `L=max(0,-δ)` 到 `U=min((B-A)/r,D-δ)`；若 U≤L，禁止合成。輸出 u=0 對應 t=L。來源音訊也從 A+rL 開始，不能只移畫面不移聲音。
+
+例：示範 A=10、B=25 秒、r=0.5，實際跟跳 30 秒；自拍 δ=0.2 時，略過自拍前 0.2 秒。輸出保持這次練習速度；第一版不自動把慢速 take 加速回原曲。若自拍尾端不足，只合成交集並先顯示長度縮短，不能偷偷補黑格。
+
+共同 scrub 後等待兩側 seeked 再播放；以前景主時鐘控制，觀察偏差才修正，不在每個畫面硬 seek。起始延遲可手動校正，60 秒內逐步累積的漂移不能只靠固定 offset 假裝修好，須修排程或改平台。
+
+分開保存 `referenceMirror`、`selfMirror`、`previewMirror` 與取景方向；預覽像鏡子不代表原始自拍檔已翻轉。合成必須讀同一份配方，不再次隱含翻轉。用左右有 L/R 標記的合成測片核對畫面與控制文字。
+
+## 5. 先做的可行性試驗與決策門檻
+
+先以最小 Web 原型，不等完整 UI／資料庫。用自製時間碼、閃光與提示音素材；再用自有權利的實拍腳步片。至少測：桌面 Chrome/Safari、實體 iPhone Safari 與加入主畫面模式、Android Chrome 作次要比較。記錄型號、OS、瀏覽器版本、輸入 codec、輸出 MIME、鏡頭與音訊輸出裝置。
+
+| Gate | 目標（待測，非既有數據） |
+| --- | --- |
+| G1 同時擷取 | 15／30／60 秒播放＋錄影均成功；不黑屏、不互相停止；權限釋放 |
+| G2 同步 | 校正後開頭／中段／結尾誤差各 ≤100ms；60 秒新增漂移 ≤100ms |
+| G3 品質 | 720p 目標、編碼輸出平均 ≥24fps；不得出現超過 250ms 的非預期凍結；慢速造成的合理重複影格不算掉幀 |
+| G4 成檔 | 一個可獨立播放檔案，左右畫面、正確鏡像、來源聲音、沒有重複音訊 |
+| G5 保存 | iPhone 上能實際儲存並重新開啟；選定分享目的端的相容性記入支援表 |
+| G6 穩定性 | 同一受測組合連續 10 次 60 秒 capture→export 不當機、無靜默遺失；保留原片 |
+| G7 效能 | 60 秒合成目標 ≤90 秒；記錄熱、電池、記憶體壓力與空間失敗，無法測量的項目註記 |
+
+以錄製時間碼／閃光畫面與輸出逐點比對量測同步，不只截取 JS console 的預定時間。第一次失敗給一輪有時間上限的修正／降負載實驗，建議總計 3–5 工程日；數字是估算而非保證。測不到真機時結果為「未驗證」，不是「Web 不行」。
+
+決策：
+
+1. **iPhone Web 與桌面核心 gates 通過**：採 Web P0，公布實測範圍。Android 問題排在 iOS 後處理。
+2. **桌面通過、iPhone Web 有可重現阻礙且修正仍失敗**：保留 Web 筆記／桌面比較；啟動 iOS 原生 P0。手機完整流程仍是未完成，不能標記整體 P0 done。
+3. **僅缺匯出路徑**：比較短片本機替代與原生合成，不能直接把合成改選用。不得只為測試通過導入收費後端。
+4. **iOS 也沒有完整驗收證據**：繼續列為阻擋，不先投資 Android 或大量 P1。
+
+## 6. iOS 備援
+
+觸發後才建立 SwiftUI + AVFoundation 小型實作。以 AVPlayer 播放、AVCaptureSession／適當 writer 記錄自拍、AVComposition／video composition 管理時間映射與兩側變換、export session 輸出。此為 API 路徑提案，不表示已解決相機與音訊 session 互動；同樣須驗證來電、藍牙路由、旋轉、前後鏡頭、HEVC 與慢速音訊。[Apple AVFoundation](https://developer.apple.com/av-foundation/)。
+
+沿用 [DATA_FORMAT.md](DATA_FORMAT.md) 的配方與 JSON，媒體使用 iOS 本機檔案儲存。可比較原生 app 與 Capacitor 原生模組成本，但不能把包 WebView 當作原生錄影完成。Android 原生待 iOS gate 通過後另開需求，不在本期承諾雙平台同時上架。
+
+iOS 的源碼、測試與使用免費，公開商店分發仍可能有年費；免費發佈限制見[費用文件](LICENSING_AND_COST.md)。本次不申購、不部署、不註冊開發者方案。
