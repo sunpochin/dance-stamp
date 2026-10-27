@@ -118,8 +118,26 @@ export function record(stream, onChunk = () => {}, onStart = () => {}) {
   };
 }
 
+/** @param {Blob} file */
+export async function normalizedVideo(file) {
+  if (!file.size) throw new Error('這是空檔案，請重新選取。');
+  // 只讀固定小段檔頭補正下載容器；不讀完整原片、不轉碼，也不以此取代實際播放驗證。
+  const bytes = new Uint8Array(await file.slice(0, 4096).arrayBuffer()), header = String.fromCharCode(...bytes);
+  const declared = file.type.split(';')[0];
+  let mime = header.slice(4, 8) === 'ftyp' ? header.slice(8, 12) === 'qt  ' ? 'video/quicktime' : 'video/mp4' : '';
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    if (header.includes('\x42\x82\x84webm')) mime = 'video/webm';
+    else if (header.includes('\x42\x82\x88matroska')) mime = 'video/x-matroska';
+  }
+  mime ||= ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'].includes(declared) ? declared : '';
+  if (!mime) throw new Error('無法確認影片容器，請改選 H.264 MP4／MOV 或受測 WebM；原片未修改。');
+  return declared === mime ? file : new Blob([file], { type: mime });
+}
+
 export function extension(mimeType) {
   if (mimeType.startsWith('video/mp4')) return 'mp4';
   if (mimeType.startsWith('video/webm')) return 'webm';
+  if (mimeType.startsWith('video/quicktime')) return 'mov';
+  if (mimeType.startsWith('video/x-matroska')) return 'mkv';
   throw new Error('未知輸出容器，無法提供正確副檔名。');
 }

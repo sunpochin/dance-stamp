@@ -1,5 +1,29 @@
 /* 檔案用途：固定資料契約與 DOM 控制型別。所在層：Web 靜態型別。主要關聯：index.html、library.js、main.js。 */
 export interface Elements {
+  "media-inventory": HTMLDetailsElement;
+  "media-summary": HTMLParagraphElement;
+  "inventory-controls": HTMLFieldSetElement;
+  "refresh-media": HTMLButtonElement;
+  "media-items": HTMLUListElement;
+  "import-dialog": HTMLDialogElement;
+  "import-title": HTMLHeadingElement;
+  "import-controls": HTMLFieldSetElement;
+  "import-summary": HTMLParagraphElement;
+  "import-media": HTMLParagraphElement;
+  "import-confirm": HTMLButtonElement;
+  "import-cancel": HTMLButtonElement;
+  "media-dialog": HTMLDialogElement;
+  "media-title": HTMLHeadingElement;
+  "relink-controls": HTMLFieldSetElement;
+  "relink-file": HTMLInputElement;
+  "relink-file-label": HTMLSpanElement;
+  "relink-preview": HTMLVideoElement;
+  "relink-summary": HTMLParagraphElement;
+  "relink-checked": HTMLInputElement;
+  "relink-save": HTMLInputElement;
+  "relink-confirm": HTMLButtonElement;
+  "relink-cancel": HTMLButtonElement;
+
   "status": HTMLParagraphElement;
   "stop": HTMLButtonElement;
   "existing-mode": HTMLButtonElement;

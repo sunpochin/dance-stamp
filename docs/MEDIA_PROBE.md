@@ -128,3 +128,9 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 `download-playback.js` 第三參數可傳等待上限，例如 60 秒下載檔傳 `90_000`；預設仍為 25 秒，所有情況都必須真的到 ended 且無解碼錯誤，不能用延長等待取代重播。整合版另跑原本雙片完整矩陣；分析仍檢查原有同步／fps／凍結／聲源門檻，再加嚴格影格時間與真正首末影格。各版本證據見 [#9 整合證據](evidence/issue-9-comparison-integration.md)，不把不同 head 結果混在一起。
 
 `existing-no-camera.js` 在相機 API 完全不存在的隔離頁跑完整選片／預覽／匯出；`comparison-keyboard.js` 補鍵盤移焦、播放／暫停與原生數字微調保存，窄版截圖留 ignored output。兩者都透過相同的 CLI `run-code --filename` 入口，不改產品資料或降低門檻。
+
+### #12 備份與缺片恢復
+
+先備妥既有 `output/media-probe/`、`output/comparison/` 合成測片。新隔離 session 依序執行 `backup-conflicts.js`、`backup-recovery.js`、`backup-keyboard.js`；第一支會實際下載 JSON 與單一 VS，第二支用該檔在全新 context 還原並重連 reference／take／VS，不清除既有資料。三支均用既有 CLI `run-code --filename tests/browser/…js`，檢查真正的 `### Result`，不能只看退出碼。
+
+驗收包含預覽不寫入、重匯與來源隔離、quota、metadata put 中取消、真實雙分頁衝突、危險輸入、同名裁切片拒絕、明確副本、重開與鍵盤／窄版。產物在 ignored output。`backup12-generated-vs.mp4` 與 `backup12-restored-vs.mp4` 應有相同 SHA256，再以 FFmpeg 完整解碼，並用 `download-playback.js` 在產品外完整重播。這驗證原始 bytes 被帶走／恢復，不把 JSON 冒充影片備份；結果見 [#12 證據](evidence/issue-12-backup-recovery.md)。

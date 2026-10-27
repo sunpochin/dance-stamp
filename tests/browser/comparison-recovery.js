@@ -13,11 +13,15 @@ async (page) => {
     await restored.goto(origin); await idle();
     assert((await library()).takes.length === 0, '還原環境不是空白資料集');
     await restored.locator('#restore').setInputFiles('output/media-probe/existing-backup.json'); await idle();
+    // 新入口先預覽；明確確認才可核對原子匯入與重匯結果。
+    await restored.locator('#import-dialog').waitFor({ state: 'visible' }); await restored.locator('#import-confirm').click(); await idle();
     const before = await library();
     const take = before.takes.find(t => t.referenceStartMs === 12000 && t.referenceEndMs === 17000 && before.recipes.some(r => r.takeId === t.id && r.offsetMs === 4000));
     assert(take, 'JSON 未還原雙片配方');
     assert(await restored.evaluate(async id => !(await (await import('/storage.js')).readMedia(id)), take.cameraAssetId), 'JSON 夾帶原片');
     await restored.locator('#restore').setInputFiles('output/media-probe/existing-backup.json'); await idle();
+    // 新入口先預覽；明確確認才可核對原子匯入與重匯結果。
+    await restored.locator('#import-dialog').waitFor({ state: 'visible' }); await restored.locator('#import-confirm').click(); await idle();
     assert((await library()).takes.length === before.takes.length, '重匯產生重複配方');
     await restored.locator('#restore').setInputFiles({ name: 'synthetic-future.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...before, schemaVersion: 99 })) }); await idle();
     assert((await library()).takes.length === before.takes.length, '未知版本部分寫入');

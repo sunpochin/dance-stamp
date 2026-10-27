@@ -22,3 +22,6 @@ canvas { width: 100%; background: #090c0e; border-radius: 8px; } progress { widt
 /* 取景框只蓋在預覽，不混進原片或輸出，也不遮住控制文字與點擊。 */
 .preview-frame { position: relative; } .body-guide { position: absolute; inset: 8% 25% 10%; border: 2px dashed #b9f2c8; border-radius: 30% 30% 8% 8%; pointer-events: none; }
 @media (max-width: 600px) { .settings { grid-template-columns: 1fr 1fr; } main { padding-top: 20px; } fieldset, section { padding: 14px; } .players { gap: 10px; } .players video { height: 230px; } .statusbar { font-size: .86rem; } }
+
+/* 原生 modal 保留鍵盤焦點；長預覽在框內捲動，取消始終可操作。 */
+dialog { overflow-wrap: anywhere; width: min(820px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid #718087; border-radius: 12px; background: #141c20; color: inherit; padding: 20px; } dialog::backdrop { background: #000b; } #relink-preview { height: 220px; object-fit: contain; background: #000; } .check-label { flex-direction: row; align-items: center; } .check-label input { width: 24px; min-height: 24px; } #media-items { padding-left: 20px; } #media-items li { margin: 12px 0; overflow-wrap: anywhere; } #media-items button { margin: 6px 6px 0 0; }

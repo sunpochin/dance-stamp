@@ -68,3 +68,9 @@
 本聊天新建專屬 `dance-stamp-issue-9-integration` clone，從同步 main `1d8ed7f` 建 `codex/issue-9-comparison-integration`，包含 #33 `f77a8bf` 及 #35 `9935b06` 的完整歷史。錄影 stop／chunks／中斷與循環 owner 保留，外部 take 仍 session-only。使用獨立 4177 預覽與資料；#9 的 4175、原型 4176 及其他聊天 4173 均不覆寫。靜態版本 `0daa65c36a468383` 的測試及精確限制見 `evidence/issue-9-comparison-integration.md`；其他 head 的數據不自動算整合版通過。後續仍先 Web，不啟動 iPhone、合併或發布。
 
 整合版最終 323 tests／479 expects／0 fail、22 組 browser 函式通過。20 檔矩陣與無相機 API 檔共 21 份逐格／音訊分析通過，最大差距及新增漂移各 66.667ms、最長重複畫面 133.77ms；十次 60 秒完整輸出 60,052–60,086ms。七份代表檔在產品外完整重播，真正離頁可取回 6.726467 秒已落盤原片且保留 interrupted。原型／整合的合成媒體全部留 ignored output，不進 Git。後續 Web 缺口為 #12 的衝突另存副本與完整媒體清單；全 P0、人工 review、實體相機／背景與裝置驗收仍保持未完成。
+
+## 2026-10-28 #12 備份續作
+
+使用本聊天新建的 `dance-stamp-issue-12-backup` clone，分支 `codex/issue-12-backup-conflicts`，從同步 main `1d8ed7f` 接續 #36 `2145f42`；4177 整合預覽不改，#12 使用獨立 4178 與測試資料。新增匯入預覽／衝突閉包副本、跨來源穩定 ID、實際媒體保存清單與三類缺片人工重連，v1 JSON 不含媒體，副本須明確保存。規則／取捨見 TECHNICAL.md 第 18 節，證據見 `evidence/issue-12-backup-recovery.md`。精確提交／PR、原有檢查及最終回歸由本聊天交付綁定；沒有合併或發布，iPhone 仍暫緩。
+
+#12 受測靜態內容 `cf115ed1d23085b6`：333 tests／540 expects、24 組 browser 函式通過。全新 context 使用實際 JSON 下載還原，逐側連結三類媒體；quota／metadata 交易中取消／真實雙分頁衝突均保留原資料。還原後下載的 VS 與原檔 SHA256 一致，完整解碼及產品外重播通過；原有兩份錄影路徑 VS 也獨立播畢。後續接 #13 的離線、容量與更新安全，仍不合併／發布，裝置驗收與人工審查分開。

@@ -1,8 +1,8 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
 import { comparison, positions, contain, validateMarkerRange, captureDuration } from './timeline.js';
-import { mediaAction, seek, load, record, extension, cameraError } from './recorder.js';
-import { validateBackup, parseBackup, mergeBackup } from './library.js';
-import { readLibrary, writeLibrary, readMedia, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
+import { event, normalizedVideo, mediaAction, seek, load, record, extension, cameraError } from './recorder.js';
+import { validateBackup, parseBackup, planBackupImport, mediaInventory, videoLabels } from './library.js';
+import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -23,6 +23,7 @@ let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
+let importDraft, relinkDraft, inventoryToken = 0;
 let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comparisonSaveVersion = 0;
 /** @type {import('./types').Diagnostics} */
 const diagnostics = { stage: 'idle', camera: null, capture: null, export: null };
@@ -41,15 +42,16 @@ function urlFor(key, blob) {
   if (previous) URL.revokeObjectURL(previous);
   return url;
 }
+/** @param {Blob} blob @param {string} prefix @param {boolean} [output] */
+function mediaFilename(blob, prefix, output = false) {
+  const originalSuffix = blob instanceof File ? blob.name.match(/\.(mp4|mov|webm|mkv|m4v)$/i)?.[1]?.toLowerCase() : undefined;
+  // 原片下載沿用真實容器；未知格式保留 bytes 為 bin，不冒充轉碼。
+  const suffix = output ? extension(blob.type) : originalSuffix || (blob.type.includes('quicktime') ? 'mov' : blob.type.startsWith('video/mp4') ? 'mp4' : blob.type.startsWith('video/webm') ? 'webm' : blob.type.includes('matroska') ? 'mkv' : 'bin');
+  return `${prefix}.${suffix}`;
+}
 /** @param {'reference-download' | 'take-download' | 'output-download'} id @param {Blob} blob @param {string} prefix */
 function download(id, blob, prefix) {
-  const link = $(id);
-  link.href = urlFor(id, blob);
-  const originalSuffix = blob instanceof File ? blob.name.match(/\.(mp4|mov|webm|mkv|m4v)$/i)?.[1]?.toLowerCase() : undefined;
-  // 原片可能沒有 MIME 或使用其他可解碼容器；下載原件不能冒充轉碼，也不能因此擋住選片。
-  const suffix = id === 'output-download' ? extension(blob.type) : originalSuffix || (blob.type.includes('quicktime') ? 'mov' : blob.type.startsWith('video/mp4') ? 'mp4' : blob.type.startsWith('video/webm') ? 'webm' : 'bin');
-  link.download = `${prefix}.${suffix}`;
-  link.hidden = false;
+  const link = $(id); link.href = urlFor(id, blob); link.download = mediaFilename(blob, prefix, id === 'output-download'); link.hidden = false;
 }
 function releaseCamera() {
   cameraWatch?.abort(); cameraWatch = null;
@@ -63,11 +65,14 @@ function releaseCamera() {
 }
 function stop() {
   active?.abort();
+  closeImportDialog(); closeMediaDialog();
   reference.pause(); self.pause();
   releaseCamera();
   stopPractice();
 }
 function updateControls() {
+  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls'])) $(id).disabled = !!active;
+  $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
   $('capture').disabled = !camera;
@@ -86,6 +91,7 @@ async function operation(task) {
   if (active) return;
   const controller = new AbortController();
   active = controller;
+  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls'])) $(id).disabled = true;
   $('existing-mode').disabled = true;
   for (const id of /** @type {const} */ (['reference-start', 'reference-end', 'self-start'])) $(id).disabled = true;
   stopPractice();
@@ -254,8 +260,9 @@ async function loadCandidate(file, video, key, signal, beforeCommit = async _sel
 }
 async function chooseFile(input, video, key, signal, beforeCommit = async _selection => {}) {
   try {
-    const file = input.files?.[0];
-    return file ? { file, duration: await loadCandidate(file, video, key, signal, beforeCommit) } : null;
+    const selected = input.files?.[0]; if (!selected) return null;
+    const file = await normalizedVideo(selected);
+    return { file, duration: await loadCandidate(file, video, key, signal, beforeCommit) };
   } finally { input.value = ''; }
 }
 $('existing-mode').addEventListener('click', () => {
@@ -517,24 +524,96 @@ window.addEventListener('pagehide', e => {
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
 window.addEventListener('pageshow', e => { if (e.persisted) status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); });
-window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
 function requireCurrentVideo() { const video = currentVideo(); if (!video) throw new Error('影片筆記已失聯，請重新開啟。'); return video; }
-async function saveData(change, mediaChange) {
+async function saveData(change, mediaChange, signal) {
   const next = structuredClone(state.data); change(next); validateBackup(next);
-  state = await writeLibrary(next, state.revision, mediaChange);
+  state = await writeLibrary(next, state.revision, mediaChange, signal);
   $('storage-status').textContent = '已保存在此瀏覽器。JSON 備份及影片請另行下載。';
   renderLibrary();
+}
+
+function linkedMime(previous, file) {
+  // 相同容器保留備份已有的 codec 描述；File.type 沒有 codec 不能當成已驗證它變了。
+  return previous.split(';')[0] === file.type.split(';')[0] ? previous : file.type;
+}
+function closeImportDialog(abort = true) {
+  if (!importDraft && !$('import-dialog').open) return;
+  if (abort) active?.abort(); importDraft = null; $('import-dialog').close();
+  if (abort) status('已取消匯入，原資料保留。');
+}
+function closeMediaDialog(abort = true) {
+  if (!relinkDraft && !$('media-dialog').open) return;
+  if (abort) active?.abort(); relinkDraft = null;
+  const video = $('relink-preview'); video.pause(); video.removeAttribute('src'); video.load();
+  const url = urls.get('relink-preview'); if (url) URL.revokeObjectURL(url); urls.delete('relink-preview');
+  $('relink-file').value = ''; $('media-dialog').close();
+  if (abort) status('已取消重連，原資料與比較畫面保留。');
+}
+function sessionFile(id) {
+  if (sessionMedia.has(id)) return sessionMedia.get(id);
+  if (currentVideoId && currentReferenceFile && state.data.assets.some(a => a.id === id && a.kind === 'reference' && a.videoId === currentVideoId)) return currentReferenceFile;
+  if (!pendingTakeId && takeBlob && state.data.takes.some(t => t.id === activeTakeId && t.cameraAssetId === id)) return takeBlob;
+}
+async function getAvailableMedia(id) { return sessionFile(id) || await readMedia(id); }
+async function refreshMediaInventory() {
+  if (!state) return;
+  const token = ++inventoryToken, data = state.data;
+  const keys = await readMediaKeys();
+  if (token !== inventoryToken || data !== state.data) return;
+  const stored = new Set(keys.filter(key => typeof key === 'string')), session = new Set(data.assets.filter(a => sessionFile(a.id)).map(a => a.id));
+  const rows = mediaInventory(data, stored, session), labels = { reference: '示範', take: '自己原片', vs: 'VS' };
+  $('media-summary').textContent = 'JSON 不含影片。共 ' + rows.length + ' 份描述：本機副本 ' + rows.filter(r => r.availability === 'stored').length + '、本次連結 ' + rows.filter(r => r.availability === 'session').length + '、缺片 ' + rows.filter(r => r.availability === 'missing').length + '。本機副本仍須另行備份，瀏覽器可能清除資料。';
+  $('media-items').replaceChildren();
+  for (const row of rows) {
+    const li = document.createElement('li'); li.dataset.assetId = row.asset.id; li.dataset.availability = row.availability;
+    const statusText = row.availability === 'stored' ? '已存瀏覽器副本' : row.availability === 'session' ? '本次已連結，未存瀏覽器副本' : '缺片，需要另選原檔';
+    li.append(document.createTextNode(labels[row.asset.kind] + ' · ' + row.owner + ' · ' + statusText + (row.interrupted ? '（錄影／中斷片段，需檢查完整性）' : '') + '。描述大小 ' + (row.asset.byteLength / 1048576).toFixed(2) + ' MiB。 '));
+    if (row.availability === 'missing') li.append(button('選片並預覽重連', () => openMediaRelink(row.asset.id, row.owner)));
+    else {
+      li.append(button('另存影片檔', async () => {
+        const original = await getAvailableMedia(row.asset.id); if (!original) throw new Error('原片已不在，請重新檢查清單並選片。');
+        // 保留救援下載；無法識別容器時仍可帶走原始 bytes，不改成假的 MP4。
+        const blob = await normalizedVideo(original).catch(() => original), link = document.createElement('a');
+        link.href = urlFor('inventory:' + row.asset.id, blob); link.download = mediaFilename(blob, 'dance-' + row.asset.kind); link.click();
+        status('已交給瀏覽器另存影片；請確認下載完成，JSON 本身不含影片。');
+      }));
+      if (row.availability === 'session') li.append(button('保存瀏覽器副本', async signal => {
+        const blob = await getAvailableMedia(row.asset.id); if (!blob) throw new Error('原片已不在，請重新連結。');
+        if (blob.size > 200 * 1024 * 1024) throw new Error('副本初期限 200 MiB；仍可另存影片檔。');
+        await saveData(data => {
+          const asset = data.assets.find(a => a.id === row.asset.id); if (!asset) throw new Error('媒體描述已失聯。');
+          Object.assign(asset, { byteLength: blob.size, mimeType: linkedMime(asset.mimeType, blob), state: 'ready', storageKind: 'indexeddb' });
+        }, { id: row.asset.id, blob }, signal);
+        status('已保存副本，仍請另存影片與 JSON。');
+      }));
+    }
+    $('media-items').append(li);
+  }
+}
+async function openMediaRelink(assetId, owner) {
+  if (await getAvailableMedia(assetId)) { await refreshMediaInventory(); status('這支影片已可用，原比較畫面保留。'); return; }
+  const asset = state.data.assets.find(a => a.id === assetId); if (!asset) throw new Error('媒體描述已失聯，原資料保留。');
+  releaseCamera(); closeMediaDialog(false);
+  relinkDraft = { assetId, revision: state.revision, candidate: null };
+  $('media-title').textContent = ({ reference: '示範', take: '自己原片', vs: 'VS' })[asset.kind] + ' · ' + owner;
+  $('relink-file-label').textContent = asset.kind === 'vs' ? '已合成的單一 VS（不取代比較原片）' : '未合成的' + (asset.kind === 'reference' ? '老師原片' : '自己原片') + '（請勿用 VS 代替）';
+  $('relink-checked').checked = false; $('relink-save').checked = false; $('relink-file').value = '';
+  $('relink-summary').textContent = '請選片並預覽。備份描述 ' + (asset.byteLength / 1048576).toFixed(2) + ' MiB' + (asset.durationMs ? '、' + (asset.durationMs / 1000).toFixed(3) + ' 秒' : '') + '；本期預設只在這次連結。';
+  $('media-dialog').showModal(); $('relink-file').focus();
 }
 function button(text, action) {
   const el = document.createElement('button'); el.type = 'button'; el.textContent = text;
   el.addEventListener('click', () => operation(action)); return el;
 }
 function renderLibrary() {
+  refreshMediaInventory().catch(() => { $('media-summary').textContent = '暫時無法檢查媒體，原資料保留；仍可下載 JSON。'; });
   const selected = $('library').value;
   $('library').replaceChildren(new Option('選擇影片筆記', ''));
-  for (const video of state.data.videos) $('library').add(new Option(video.title, video.id));
+  const names = videoLabels(state.data.videos);
+  for (const video of state.data.videos) $('library').add(new Option(names.get(video.id), video.id));
   $('library').value = currentVideoId || pendingLinkId || selected;
   $('markers').replaceChildren(); $('takes').replaceChildren();
   for (const marker of state.data.markers.filter(m => m.videoId === currentVideoId).sort((a, b) => a.startMs - b.startMs)) {
@@ -567,7 +646,7 @@ function renderLibrary() {
     for (const artifact of state.data.exports.filter(e => state.data.recipes.some(r => r.id === e.recipeId && r.takeId === take.id))) {
       const savedRecipe = state.data.recipes.find(r => r.id === artifact.recipeId);
       li.append(button(artifact.recipeRevision === savedRecipe?.revision ? '下載已存 VS' : '下載舊版 VS（設定已變更）', async () => {
-        const blob = await readMedia(artifact.assetId); if (!blob) throw new Error('找不到這個 VS，請用另存的影片或原片重新合成。');
+        const blob = await getAvailableMedia(artifact.assetId); if (!blob) throw new Error('找不到這個 VS，請用另存的影片或原片重新合成。');
         outputBlob = blob; outputRecipe = undefined; download('output-download', blob, 'dance-vs');
         $('output-status').textContent = '已取回當時保存的 VS；影片對應其原本的比較設定。';
         output.src = urls.get('output-download'); output.hidden = false; $('share').disabled = false;
@@ -782,17 +861,72 @@ $('marker-form').addEventListener('submit', e => {
   });
 });
 $('backup').addEventListener('click', () => operation(async () => {
+  $('media-inventory').open = true;
   const data = validateBackup(state.data); data.exportedAt = new Date().toISOString();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = urlFor('backup', blob); a.download = 'notes.dance-stamp.json'; a.click();
   status('筆記與配方備份已下載，不含影片。請另存示範、自拍與 VS。');
 }));
-$('restore').addEventListener('change', () => operation(async () => {
+$('restore').addEventListener('change', () => operation(async signal => {
   const file = $('restore').files?.[0]; $('restore').value = ''; if (!file) return;
   if (file.size > 10 * 1024 * 1024) throw new Error('備份超過 10 MiB。');
-  const incoming = parseBackup(await file.text()), next = mergeBackup(state.data, incoming);
-  if (!confirm(`匯入預覽：${incoming.videos.length} 份影片筆記、${incoming.markers.length} 個標記、${incoming.takes.length} 次自拍。JSON 不含影片，匯入後需重新連結。確定繼續？`)) return;
-  state = await writeLibrary(next, state.revision); renderLibrary(); status('筆記已原子匯入；同一備份重匯不產生重複資料。請重連影片。');
+  releaseCamera();
+  const revision = state.revision, incoming = parseBackup(await file.text());
+  const plan = await planBackupImport(state.data, incoming, signal); signal.throwIfAborted();
+  importDraft = { plan, revision };
+  $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
+  const count = kind => incoming.assets.filter(a => a.kind === kind).length;
+  $('import-media').textContent = `JSON 不含影片：示範 ${count('reference')}、自己 ${count('take')}、VS ${count('vs')} 份描述。確認後請核對保存清單，缺片須另外選取並預覽確認。`;
+  $('import-media').textContent += ' 備份影片：' + incoming.videos.slice(0, 10).map(v => v.title).join('、') + (incoming.videos.length > 10 ? `等 ${incoming.videos.length} 份。` : '。');
+  $('import-confirm').textContent = !plan.added ? '完成，沒有新資料' : plan.conflicts.length ? '另存衝突副本' : '確認匯入';
+  $('import-dialog').showModal(); $('import-cancel').focus();
+}));
+$('import-confirm').addEventListener('click', () => operation(async signal => {
+  const draft = importDraft; if (!draft) return;
+  if (state.revision !== draft.revision) throw new Error('預覽後資料已改變，請取消後重新選擇備份。');
+  if (draft.plan.added) { state = await writeLibrary(draft.plan.data, draft.revision, undefined, signal); renderLibrary(); }
+  closeImportDialog(false); $('media-inventory').open = true;
+  status(draft.plan.added ? '筆記與配方已原子匯入，原資料保留。請另存或重新連結清單中的影片。' : '這份備份內容已在本機，沒有新增或覆寫資料。');
+}));
+$('import-cancel').addEventListener('click', () => closeImportDialog());
+$('import-dialog').addEventListener('cancel', e => { e.preventDefault(); closeImportDialog(); });
+$('refresh-media').addEventListener('click', () => operation(refreshMediaInventory));
+$('relink-cancel').addEventListener('click', () => closeMediaDialog());
+$('media-dialog').addEventListener('cancel', e => { e.preventDefault(); closeMediaDialog(); });
+$('relink-checked').addEventListener('change', updateControls);
+$('relink-file').addEventListener('change', () => operation(async signal => {
+  const selected = $('relink-file').files?.[0]; $('relink-file').value = ''; if (!selected || !relinkDraft) return;
+  const old = relinkDraft.candidate, video = $('relink-preview');
+  try {
+    const file = await normalizedVideo(selected), durationMs = await loadCandidate(file, video, 'relink-preview', signal);
+    await mediaAction(video, 'timeupdate', () => video.play(), signal);
+    while (video.currentTime <= 0 && !video.ended) await event(video, 'timeupdate', signal);
+    video.pause(); await seek(video, 0, signal); signal.throwIfAborted();
+    if (!relinkDraft) throw new DOMException('已取消', 'AbortError');
+    $('relink-checked').checked = false;
+    const asset = state.data.assets.find(a => a.id === relinkDraft.assetId);
+    if (!asset) throw new Error('媒體描述已失聯，沒有變更原資料。');
+    // 比較原片必須涵蓋已存 B；裁切候選可以預覽，但不能悄悄綁成完整老師原片。
+    const blocked = asset.kind === 'reference' && state.data.takes.some(t => t.referenceVideoId === asset.videoId && t.referenceEndMs > durationMs);
+    relinkDraft.candidate = { file, durationMs, blocked };
+    const mismatch = asset.byteLength !== file.size || asset.durationMs && asset.durationMs !== durationMs;
+    $('relink-summary').textContent = `候選 ${(durationMs / 1000).toFixed(3)} 秒、${(file.size / 1048576).toFixed(2)} MiB。${blocked ? '原片短於既有比較結尾，不能連結；請改選完整老師原片。' : mismatch ? '與備份描述不同：請核對是否裁切／轉碼；舊時間與配方保留，超界處需修復。' : '請核對內容與標記位置，不能只憑檔名判斷。'}`;
+  } catch (error) { if (old && $('media-dialog').open) await loadCandidate(old.file, video, 'relink-preview').catch(() => {}); throw error; }
+  finally { video.pause(); }
+}));
+$('relink-confirm').addEventListener('click', () => operation(async signal => {
+  const draft = relinkDraft, candidate = draft?.candidate;
+  if (!draft || !candidate || candidate.blocked || !$('relink-checked').checked) throw new Error('請先選片、實播預覽並確認。');
+  if (state.revision !== draft.revision || await getAvailableMedia(draft.assetId)) throw new Error('此片資料已改變，原片保留；請取消後重新檢查清單。');
+  const copy = $('relink-save').checked;
+  if (copy && candidate.file.size > 200 * 1024 * 1024) throw new Error('副本初期限 200 MiB；取消勾選仍可只在本次連結。');
+  await saveData(data => {
+    const asset = data.assets.find(a => a.id === draft.assetId); if (!asset) throw new Error('媒體描述已失聯，原資料保留。');
+    Object.assign(asset, { byteLength: candidate.file.size, mimeType: linkedMime(asset.mimeType, candidate.file), durationMs: candidate.durationMs, state: copy ? 'ready' : 'session-only', storageKind: copy ? 'indexeddb' : 'session' });
+    if (asset.kind === 'vs') for (const artifact of data.exports.filter(e => e.assetId === asset.id)) artifact.mimeType = linkedMime(artifact.mimeType, candidate.file);
+  }, copy ? { id: draft.assetId, blob: candidate.file } : undefined, signal);
+  sessionMedia.set(draft.assetId, candidate.file); closeMediaDialog(false); await refreshMediaInventory();
+  status('影片已確認連結，原比較畫面與配方保留。可另存影片，或從對應筆記開啟。');
 }));
 function clearPracticeWatch() {
   practiceToken++;
