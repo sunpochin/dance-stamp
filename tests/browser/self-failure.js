@@ -8,7 +8,7 @@ async (page) => {
     const { data } = await (await import('/storage.js')).readLibrary();
     return data.takes.find(t => t.referenceVideoId === document.getElementById('library').value && t.state === 'ready').id;
   });
-  await page.getByText('已有自拍原片？', { exact: true }).click();
+  // 正式入口已直接顯示；不再依賴原本收在測片選單內的控制。
   for (const file of ['empty/reference.mp4', 'player/corrupt.mp4']) {
     await page.locator('#self-file').setInputFiles(`output/media-probe/${file}`);
     await page.waitForFunction(() => !document.getElementById('controls').disabled);

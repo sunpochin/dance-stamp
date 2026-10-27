@@ -2,6 +2,15 @@
 export interface Elements {
   "status": HTMLParagraphElement;
   "stop": HTMLButtonElement;
+  "existing-mode": HTMLButtonElement;
+  "pause-comparison": HTMLButtonElement;
+  "reference-start": HTMLButtonElement;
+  "reference-end": HTMLButtonElement;
+  "self-start": HTMLButtonElement;
+  "copy-self": HTMLButtonElement;
+  "reference-download": HTMLAnchorElement;
+  "audio-status": HTMLParagraphElement;
+  "offset-controls": HTMLFieldSetElement;
   "library-panel": HTMLElement;
   "storage-status": HTMLParagraphElement;
   "library": HTMLSelectElement;
@@ -58,6 +67,7 @@ export interface Elements {
   "output-download": HTMLAnchorElement;
   "share": HTMLButtonElement;
   "output": HTMLVideoElement;
+  "output-status": HTMLParagraphElement;
   "diagnostics": HTMLPreElement;
 }
 export interface Video { id: string; title: string; durationMs: number; revision: number }
@@ -70,5 +80,5 @@ export interface Library { format: string; schemaVersion: number; kind: string; 
 export interface LibraryState { revision: number; data: Library }
 export interface Comparison { startMs: number; endMs: number; rate: number; offsetMs: number; selfDurationMs: number; referenceMirror: boolean; selfMirror: boolean }
 export interface CaptureInfo { recorderStartedMs?: number; referencePlayResolvedMs?: number; referenceAtPlayMs?: number; rate?: number; interrupted?: boolean; mime?: string; durationMs?: number }
-export interface ExportInfo { elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
+export interface ExportInfo { maxRenderGapMs: number; elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
 export interface Diagnostics { stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }
