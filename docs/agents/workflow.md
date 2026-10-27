@@ -42,7 +42,7 @@
 
 不重抄同步誤差或效能數字；數值以 [錄影比較](../RECORD_COMPARE.md) 為準。
 Playwright／假相機可驗證事件與畫面，不能證明 iPhone 的編碼、音訊路由或相簿保存成功。
-目前 `bun run check` 包含 harness、純資料／時間測試與原生 Web 語法建置；瀏覽器回歸依 Web 說明執行。TypeScript／lint 架構與完整真機矩陣仍由 #4 及後續驗收追蹤。
+目前 `bun run check` 包含 harness、純資料／時間測試、TypeScript checkJs、Biome lint 與原生 Web 建置；瀏覽器回歸依 Web 說明執行，完整真機矩陣仍獨立追蹤。
 
 ## Review 與發布
 

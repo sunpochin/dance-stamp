@@ -38,6 +38,8 @@
 | [#18](https://github.com/sunpochin/dance-stamp/issues/18) | M4／P1 | 選定筆記與影片檔的可攜分享流程 | [#12](https://github.com/sunpochin/dance-stamp/issues/12)、[#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 | [#19](https://github.com/sunpochin/dance-stamp/issues/19) | M4／P1 | Salsa 八拍、手動 BPM 與錄影倒數 | [#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 
+#18 第一版限於檔案匯出／匯入與影片重新連結：選定筆記檔與影片分開，使用者自行透過 Google Drive、Dropbox、iCloud Drive 或 AirDrop 分享。不提供自己的影片儲存服務，不做雲端 API／OAuth 直連、同步或連結串流；未使用雲端仍可交換本機檔案。依賴仍為 #12、#15，維持 M4／P1；更新規劃不代表功能或真機驗收完成。完整流程見 [DATA_FORMAT.md](DATA_FORMAT.md#6-分享格式p1)，驗收見 [ACCEPTANCE.md](ACCEPTANCE.md#8-p1-檔案分享18)。
+
 前 14 個常規 P0 任務粗估合計 **26.5–46 工程日**，再保留整合、設備與不可預期問題的緩衝；約 6–12 個全職工作週只是排程起點。M0 結果出來後重估，不用這個數字保證交期。iOS 備援另估 10–20 日起，App Store 分發準備／審核、等設備與外部測試者時間未包含；不能把 Web 與 iOS 的重疊工作機械相加。P1 尚未估算。
 
 ## 3. 依賴圖與平台切換
@@ -93,4 +95,4 @@ Web 全數通過時 #16 保持條件式候選，不是必需執行的 P0 子任�
 
 ## 6. 暫不排程
 
-雲端影片託管、帳號／同步、公開社群、付款、AI 舞蹈評分、自動下載社群影片、手錶控制、雙平台原生同時上架。提出這些新需求時先確認是否仍符合免費與非商用方向，再建立獨立規劃。
+自建雲端影片託管、帳號／同步、供應商 API／OAuth 直連、公開社群、付款、AI 舞蹈評分、自動下載社群影片、手錶控制、雙平台原生同時上架。使用者自行用個人雲端傳檔屬於 #18，不代表排入服務串接。提出這些新需求時先確認是否仍符合免費與非商用方向，再建立獨立規劃。
