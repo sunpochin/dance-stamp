@@ -134,3 +134,14 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 先備妥既有 `output/media-probe/`、`output/comparison/` 合成測片。新隔離 session 依序執行 `backup-conflicts.js`、`backup-recovery.js`、`backup-keyboard.js`；第一支會實際下載 JSON 與單一 VS，第二支用該檔在全新 context 還原並重連 reference／take／VS，不清除既有資料。三支均用既有 CLI `run-code --filename tests/browser/…js`，檢查真正的 `### Result`，不能只看退出碼。
 
 驗收包含預覽不寫入、重匯與來源隔離、quota、metadata put 中取消、真實雙分頁衝突、危險輸入、同名裁切片拒絕、明確副本、重開與鍵盤／窄版。產物在 ignored output。`backup12-generated-vs.mp4` 與 `backup12-restored-vs.mp4` 應有相同 SHA256，再以 FFmpeg 完整解碼，並用 `download-playback.js` 在產品外完整重播。這驗證原始 bytes 被帶走／恢復，不把 JSON 冒充影片備份；結果見 [#12 證據](evidence/issue-12-backup-recovery.md)。
+
+
+### #13 離線、容量、更新與個別刪除
+
+使用新的隔離 session，先在線執行 `offline-storage.js`，驗證兩支明確保存的原片、筆記與真實 VS 在 browser context 斷網後重開；包括 persist 模擬允許／拒絕／例外、真實 media 交易的 quota／abort／取消、快取缺檔及修復。`deletion.js` 獨立驗證取消、鍵盤、窄版、原片共用、真實兩分頁鎖／revision、原生交易 abort、分段清理及缺片 pending 狀態。
+
+另一個隔離合成相機 session 依序執行 `offline-ready.js`、原有 `capture-comparison.js`；前者真正設定 browser context offline，後者在斷網狀態完成原生錄影、兩種輸入的 VS、保存與重開。這不是手機飛航模式或硬體相機證據。
+
+更新專用主機：`bun --no-env-file tests/browser/serve-update.ts`（僅本機 4180，請勿部署）。開啟該 origin 的新隔離合成相機 session，執行 `offline-update.js`。測試控制入口只在此測試主機，產品 `serve-web.ts` 沒有它；以相同 manifest 的新 worker 身分及一份錯誤雜湊模擬完整／損壞更新，實際觀察 install、waiting、activate、原頁 controller 與資料，沒有偽造生命週期事件。
+
+以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。

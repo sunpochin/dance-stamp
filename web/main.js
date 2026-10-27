@@ -1,7 +1,8 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
 import { comparison, positions, contain, validateMarkerRange, captureDuration } from './timeline.js';
 import { event, normalizedVideo, mediaAction, seek, load, record, extension, cameraError } from './recorder.js';
-import { validateBackup, parseBackup, planBackupImport, mediaInventory, videoLabels } from './library.js';
+import { validateBackup, parseBackup, planBackupImport, mediaInventory, videoLabels, planDeletion } from './library.js';
+import { startOffline } from './offline.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
@@ -23,7 +24,7 @@ let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
-let importDraft, relinkDraft, inventoryToken = 0;
+let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
 let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comparisonSaveVersion = 0;
 /** @type {import('./types').Diagnostics} */
 const diagnostics = { stage: 'idle', camera: null, capture: null, export: null };
@@ -65,13 +66,13 @@ function releaseCamera() {
 }
 function stop() {
   active?.abort();
-  closeImportDialog(); closeMediaDialog();
+  closeImportDialog(); closeMediaDialog(); closeDeleteDialog();
   reference.pause(); self.pause();
   releaseCamera();
   stopPractice();
 }
 function updateControls() {
-  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls'])) $(id).disabled = !!active;
+  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
   $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
@@ -91,7 +92,7 @@ async function operation(task) {
   if (active) return;
   const controller = new AbortController();
   active = controller;
-  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls'])) $(id).disabled = true;
+  for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
   $('existing-mode').disabled = true;
   for (const id of /** @type {const} */ (['reference-start', 'reference-end', 'self-start'])) $(id).disabled = true;
   stopPractice();
@@ -490,7 +491,7 @@ $('export').addEventListener('click', () => operation(async signal => {
     try { diagnostics.export.decodedDurationMs = await load(validationVideo, temporary, signal); }
     finally { validationVideo.removeAttribute('src'); validationVideo.load(); URL.revokeObjectURL(temporary); }
     abortIfNeeded(signal);
-    outputBlob = blob; outputRecipe = recipeSignature(value); download('output-download', blob, 'dance-vs');
+    outputBlob = blob; outputAssetId = null; outputRecipe = recipeSignature(value); download('output-download', blob, 'dance-vs');
     $('output-status').textContent = '這支 VS 對應目前的比較設定。';
     output.pause(); output.src = urls.get('output-download'); output.hidden = false;
     $('share').disabled = false;
@@ -524,7 +525,7 @@ window.addEventListener('pagehide', e => {
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
 window.addEventListener('pageshow', e => { if (e.persisted) status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); });
-window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
 function requireCurrentVideo() { const video = currentVideo(); if (!video) throw new Error('影片筆記已失聯，請重新開啟。'); return video; }
@@ -589,6 +590,7 @@ async function refreshMediaInventory() {
         }, { id: row.asset.id, blob }, signal);
         status('已保存副本，仍請另存影片與 JSON。');
       }));
+      if (row.availability === 'stored') li.append(button('移除此瀏覽器副本…', () => showDelete('copy', row.asset.id)));
     }
     $('media-items').append(li);
   }
@@ -608,6 +610,64 @@ function button(text, action) {
   const el = document.createElement('button'); el.type = 'button'; el.textContent = text;
   el.addEventListener('click', () => operation(action)); return el;
 }
+function closeDeleteDialog(abort = true) {
+  if (!deleteDraft && !$('delete-dialog').open) return;
+  if (abort) active?.abort(); deleteDraft = null; $('delete-dialog').close();
+}
+async function showDelete(kind, id) {
+  if (keepMarkerDraft()) return;
+  const plan = planDeletion(state.data, kind, id), keys = new Set(await readMediaKeys());
+  deleteDraft = { plan, revision: state.revision };
+  const names = { copy: '只移除此瀏覽器副本', take: '刪除此練習影片與比較', export: '刪除此 VS 輸出', video: '刪除整份影片筆記' };
+  // 按 ID 各查一次，避免大型備份的三層關聯搜尋卡住刪除預覽。
+  const artifact = kind === 'export' ? state.data.exports.find(e => e.id === id) : undefined;
+  const relatedRecipe = artifact && state.data.recipes.find(r => r.id === artifact.recipeId);
+  const targetTake = state.data.takes.find(t => t.id === (kind === 'take' ? id : relatedRecipe?.takeId));
+  const videoId = kind === 'video' ? id : targetTake?.referenceVideoId || state.data.assets.find(a => a.id === id)?.videoId;
+  const owner = state.data.videos.find(v => v.id === videoId)?.title;
+  $('delete-title').textContent = names[kind] + (owner ? ` · ${owner}` : '');
+  const c = plan.counts;
+  $('delete-summary').textContent = `將移除：影片筆記 ${c.videos}、標記 ${c.markers}、練習影片 ${c.takes}、配方 ${c.recipes}、VS 輸出 ${c.exports}；本機影片副本 ${plan.mediaIds.filter(id => keys.has(id)).length} 份。${kind === 'copy' ? '保留筆記、配方與媒體描述；本次已開啟的影片可繼續使用，下次需要重連。' : '共用原片仍有其他練習使用時保留；移除的練習同時清理其殘留錄影片段。'}`;
+  releaseCamera(); $('delete-dialog').showModal(); $('delete-cancel').focus();
+}
+function clearDeletedPlayer(id, keys) {
+  const video = $(id); video.pause(); video.removeAttribute('src'); video.load();
+  for (const key of keys) { const url = urls.get(key); if (url) URL.revokeObjectURL(url); urls.delete(key); }
+}
+$('delete-video').addEventListener('click', () => operation(() => showDelete('video', $('library').value)));
+$('delete-cancel').addEventListener('click', () => { closeDeleteDialog(); status('已取消移除，原資料保留。'); });
+$('delete-dialog').addEventListener('cancel', () => { closeDeleteDialog(); status('已取消移除，原資料保留。'); });
+$('delete-confirm').addEventListener('click', () => operation(async signal => {
+  const draft = deleteDraft; if (!draft) return;
+  if (draft.revision !== state.revision) throw new Error('預覽後資料已改變，請取消並重新檢查。');
+  const { plan } = draft, retained = plan.kind === 'copy' ? await getAvailableMedia(plan.id) : null;
+  const remove = async index => {
+    // 先取得所有受影響 take 的鎖，避免別頁仍錄製／恢復時刪掉來源或分段。
+    if (index < plan.locks.length) return withTakeLock(plan.locks[index], () => remove(index + 1));
+    state = await writeLibrary(plan.data, draft.revision, plan.kind === 'copy' ? { id: plan.id } : undefined, signal, plan.kind === 'copy' ? undefined : plan);
+  };
+  await remove(0);
+  if (retained) sessionMedia.set(plan.id, retained);
+  for (const id of plan.mediaIds) if (plan.kind !== 'copy') {
+    sessionMedia.delete(id);
+    const key = `inventory:${id}`, url = urls.get(key); if (url) URL.revokeObjectURL(url); urls.delete(key);
+  }
+  if (currentVideoId && !state.data.videos.some(v => v.id === currentVideoId)) {
+    clearDeletedPlayer('reference', ['reference', 'reference-download']); $('reference-download').hidden = true;
+    currentVideoId = null; pendingLinkId = null; referenceDurationMs = 0; currentReferenceFile = null; $('confirm-link').hidden = true;
+    clearMarkerEditor(); $('video-title').value = '';
+  }
+  if ((activeTakeId && !state.data.takes.some(t => t.id === activeTakeId)) || (pendingTakeId && !state.data.takes.some(t => t.id === pendingTakeId))) {
+    clearDeletedPlayer('self', ['self', 'take-download']); $('take-download').hidden = true;
+    activeTakeId = null; pendingTakeId = null; takeBlob = null; selfDurationMs = 0; $('confirm-take').hidden = true;
+  }
+  if (outputAssetId && !state.data.assets.some(a => a.id === outputAssetId)) {
+    clearDeletedPlayer('output', ['output-download']); $('output-download').hidden = true; output.hidden = true;
+    outputAssetId = null; outputBlob = null; outputRecipe = undefined; $('share').disabled = true; $('output-status').textContent = '此 VS 已移除，仍可用保留的原片重新合成。';
+  }
+  closeDeleteDialog(false); renderLibrary();
+  status('指定的本站資料已移除；原始檔、原相簿與其他筆記保留。');
+}));
 function renderLibrary() {
   refreshMediaInventory().catch(() => { $('media-summary').textContent = '暫時無法檢查媒體，原資料保留；仍可下載 JSON。'; });
   const selected = $('library').value;
@@ -642,16 +702,17 @@ function renderLibrary() {
     const mediaState = sessionMedia.has(take.cameraAssetId) && asset?.state !== 'ready' ? 'session-only' : asset?.state;
     const label = take.state === 'failed' ? '未錄成；可重新錄製' : take.state === 'interrupted' ? mediaState === 'ready' ? '中斷片段已保存' : '中斷待恢復' : mediaState === 'missing' ? '原片待重連' : take.state === 'ready' ? mediaState === 'session-only' ? '當次開啟，原片請另存' : '已保存' : '可能錄製中／待恢復';
     li.append(document.createTextNode(`${take.rate}× · ${((take.referenceEndMs - take.referenceStartMs) / take.rate / 1000).toFixed(1)} 秒 · ${label} `));
-    li.append(button('開啟自拍／恢復', signal => openTake(take, signal)));
+    li.append(button('開啟自拍／恢復', signal => openTake(take, signal)), button('刪除此練習與比較…', () => showDelete('take', take.id)));
     for (const artifact of state.data.exports.filter(e => state.data.recipes.some(r => r.id === e.recipeId && r.takeId === take.id))) {
       const savedRecipe = state.data.recipes.find(r => r.id === artifact.recipeId);
       li.append(button(artifact.recipeRevision === savedRecipe?.revision ? '下載已存 VS' : '下載舊版 VS（設定已變更）', async () => {
         const blob = await getAvailableMedia(artifact.assetId); if (!blob) throw new Error('找不到這個 VS，請用另存的影片或原片重新合成。');
-        outputBlob = blob; outputRecipe = undefined; download('output-download', blob, 'dance-vs');
+        outputBlob = blob; outputAssetId = artifact.assetId; outputRecipe = undefined; download('output-download', blob, 'dance-vs');
         $('output-status').textContent = '已取回當時保存的 VS；影片對應其原本的比較設定。';
         output.src = urls.get('output-download'); output.hidden = false; $('share').disabled = false;
         status('已取回保存的 VS，可用下方連結下載。');
       }));
+      li.append(button('刪除此 VS 輸出…', () => showDelete('export', artifact.id)));
     }
     $('takes').append(li);
   }
@@ -724,6 +785,7 @@ async function persistExport(blob, durationMs) {
     data.assets.push({ id: assetId, kind: 'vs', byteLength: blob.size, mimeType: blob.type, durationMs, mediaIncluded: false, state: 'ready', storageKind: 'indexeddb' });
     data.exports.push({ id: crypto.randomUUID(), recipeId: row.id, recipeRevision: row.revision, assetId, mimeType: blob.type, state: 'ready', createdAt: new Date().toISOString() });
   }, { id: assetId, blob });
+  outputAssetId = assetId;
 }
 function openTake(take, signal) { return withTakeLock(take.id, () => openTakeUnlocked(take, signal)); }
 async function openTakeUnlocked(take, signal) {
@@ -798,19 +860,19 @@ $('confirm-link').addEventListener('click', () => operation(async () => {
   $('video-title').value = requireCurrentVideo().title; renderLibrary();
   status(referenceDurationMs < requireCurrentVideo().durationMs ? '影片已連結；此檔較短，超界標記保留並需要修復。' : '影片已連結，筆記與配方保持原有時間。');
 }));
-$('copy-reference').addEventListener('click', () => operation(async () => {
+$('copy-reference').addEventListener('click', () => operation(async signal => {
   if (!currentReferenceFile) throw new Error('請先連結示範影片。');
   if (currentReferenceFile.size > 200 * 1024 * 1024) throw new Error('副本初期限制 200 MiB；仍可選片練習並保存筆記。');
   const asset = state.data.assets.find(a => a.videoId === currentVideoId && a.kind === 'reference');
   if (!asset) throw new Error('示範媒體記錄不存在，請重新連結。');
   status('正在保存示範副本，失敗時筆記仍會保留。');
-  await saveData(data => { const savedAsset = data.assets.find(a => a.id === asset.id); if (savedAsset) Object.assign(savedAsset, { state: 'ready', storageKind: 'indexeddb', byteLength: currentReferenceFile.size, mimeType: currentReferenceFile.type, durationMs: referenceDurationMs }); }, { id: asset.id, blob: currentReferenceFile }); status('已保存本機示範副本；瀏覽器仍可能清除資料，請自行備份。');
+  // 停止也要取消副本交易，不能只停播放器後仍在背景寫入。
+  await saveData(data => { const savedAsset = data.assets.find(a => a.id === asset.id); if (savedAsset) Object.assign(savedAsset, { state: 'ready', storageKind: 'indexeddb', byteLength: currentReferenceFile.size, mimeType: currentReferenceFile.type, durationMs: referenceDurationMs }); }, { id: asset.id, blob: currentReferenceFile }, signal); status('已保存本機示範副本；瀏覽器仍可能清除資料，請自行備份。');
 }));
 $('remove-copy').addEventListener('click', () => operation(async () => {
-  if (!confirm('只移除此瀏覽器的示範副本？筆記、自拍與原始檔不會刪除。')) return;
   const asset = state.data.assets.find(a => a.videoId === currentVideoId && a.kind === 'reference');
   if (!asset) throw new Error('示範媒體記錄不存在，請重新連結。');
-  await saveData(data => { const savedAsset = data.assets.find(a => a.id === asset.id); if (savedAsset) Object.assign(savedAsset, { state: 'missing', storageKind: 'external' }); }, { id: asset.id }); status('本機示範副本已移除，筆記保留。下次可重新選片。');
+  await showDelete('copy', asset.id);
 }));
 $('save-title').addEventListener('click', () => operation(async () => {
   const title = $('video-title').value.trim(); if (!title) throw new Error('請填寫影片標題。');
@@ -1085,14 +1147,14 @@ for (const [id, target, video] of /** @type {const} */ ([['reference-start', 'st
 for (const el of $('offset-controls').querySelectorAll('button')) el.addEventListener('click', () => changeComparison(() => {
   $('offset').value = String((Math.round(Number($('offset').value) * 1000) + Number(el.dataset.offset)) / 1000);
 }));
-$('copy-self').addEventListener('click', () => operation(async () => {
+$('copy-self').addEventListener('click', () => operation(async signal => {
   const take = state.data.takes.find(t => t.id === activeTakeId), blob = takeBlob;
   if (!take || !blob) throw new Error('請先選取並連結我的影片。');
   if (blob.size > 200 * 1024 * 1024) throw new Error('副本初期限制 200 MiB；仍可當次比較，原片請自行保存。');
   await saveData(data => {
     const asset = data.assets.find(a => a.id === take.cameraAssetId);
     Object.assign(asset, { state: 'ready', storageKind: 'indexeddb', byteLength: blob.size, mimeType: blob.type, durationMs: selfDurationMs });
-  }, { id: take.cameraAssetId, blob });
+  }, { id: take.cameraAssetId, blob }, signal);
   status('已保存我的影片副本；JSON 仍不含影片，請另行下載備份。');
 }));
 function updateAudioStatus() {
@@ -1106,6 +1168,7 @@ ready = (async () => {
   // 不自動改寫其他分頁可能仍在錄製的 take；恢復操作會先取得該 take 的互斥鎖。
   renderLibrary(); $('storage-status').textContent = `此瀏覽器有 ${state.data.videos.length} 份影片筆記。`;
   applyPracticeSettings(); updateControls();
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { $('storage-status').textContent += ' 離線資源未備妥，請保持本機伺服器開啟。'; });
+  // 能力檢查獨立於筆記開啟；離線服務或 persist 失敗不能讓既有資料無法使用。
+  startOffline({ offline: $('offline-status'), capacity: $('capacity-status'), persistence: $('persistence-status'), updates: $('update-status'), refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
 })().catch(error => { $('storage-status').textContent = `本機儲存無法開啟：${error.message} 沒有重置或刪除舊資料。`; throw error; });
 ready.catch(() => {}); report();

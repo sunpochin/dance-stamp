@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dir, '../dist/web')
 const paths = new Map([
   ['/', 'index.html'], ['/style.css', 'style.css'], ['/main.js', 'main.js'],
-  ['/timeline.js', 'timeline.js'], ['/recorder.js', 'recorder.js'], ['/library.js', 'library.js'], ['/storage.js', 'storage.js'], ['/sw.js', 'sw.js'], ['/LICENSE', 'LICENSE'], ['/THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.md'],
+  ['/timeline.js', 'timeline.js'], ['/recorder.js', 'recorder.js'], ['/library.js', 'library.js'], ['/storage.js', 'storage.js'], ['/offline.js', 'offline.js'], ['/sw.js', 'sw.js'], ['/LICENSE', 'LICENSE'], ['/THIRD_PARTY_NOTICES.md', 'THIRD_PARTY_NOTICES.md'],
 ])
 const server = Bun.serve({
   hostname: '127.0.0.1', port: 4173,

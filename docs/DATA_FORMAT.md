@@ -149,3 +149,9 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 媒體保存清單分示範、自己原片與 VS，依實際 media key／已確認本次 File 顯示已存副本、本次連結或缺片。備份按鈕會打開清單，JSON 只含描述；三類影片都要自行另存。缺片逐側先實播、再確認，預設只在本次連結；勾選才保存副本。老師候選不足已存比較 B 時不可確認；不改短舊時間。取消、quota、跨分頁版本衝突不破壞舊配對。VS 重連不取代比較用的兩支原片。
 
 相同原檔重連保留已有 codec 描述；較短／轉碼候選顯示差異，原筆記與配方不靜默改寫。同名筆記以畫面序號區分而不改標題。此為 Web 實作，裝置／瀏覽器與正式驗收仍分開記錄，見 [#12 證據](evidence/issue-12-backup-recovery.md)。
+
+## 9. #13 本機副本與個別刪除
+
+不新增 schema。副本移除只改本機狀態並移除 media key；可攜描述與配方保留，重開由實際 key 判斷 missing，可按第 8 節重連。本次已開啟 File 不等於仍有持久副本。
+
+刪除單一 VS 保留 recipe／take；刪 take 包含其 recipes、exports；刪整份影片筆記包含標記及下游。只有完全失去引用的 asset／Blob 才清理，共用原片保留；chunks 以 cameraAssetId 清理。計數預覽後明確確認，metadata／media／chunks 同一交易、全庫 revision 及 take 鎖保護，取消或失敗不部分刪除。原始檔與相簿不在此交易內，App 不會刪除。詳見 TECHNICAL.md 第 19 節及 [#13 證據](evidence/issue-13-offline-storage.md)。
