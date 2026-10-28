@@ -1,7 +1,7 @@
 /* 檔案用途：驗證衝突副本、跨來源隔離與完整關聯。所在層：備份純資料驗收。主要關聯：web/library.js、DATA_FORMAT.md。 */
 import { expect, test } from 'bun:test'
 import { normalizedVideo, extension } from '../../web/recorder.js'
-import { newLibrary, planBackupImport, validateBackup, mediaInventory, videoLabels } from '../../web/library.js'
+import { newLibrary, planBackupImport, validateBackup, mediaInventory, videoLabels, tables } from '../../web/library.js'
 function graph() {
   const data = newLibrary(), videoId = crypto.randomUUID(), referenceId = crypto.randomUUID(), selfId = crypto.randomUUID(), vsId = crypto.randomUUID(), takeId = crypto.randomUUID(), recipeId = crypto.randomUUID()
   data.videos.push({ id: videoId, title: '合成課程', durationMs: 90000, revision: 1 })
@@ -12,7 +12,7 @@ function graph() {
   data.exports.push({ id: crypto.randomUUID(), recipeId, recipeRevision: 1, assetId: vsId, mimeType: 'video/mp4', state: 'ready', createdAt: '2026-10-28T00:00:01Z' })
   return data
 }
-test('空資料集還原保留 v1 身分與缺片狀態；原庫及重匯均不覆寫', async () => {
+test('空資料集還原保留來源身分與缺片狀態；原庫及重匯均不覆寫', async () => {
   const data = graph(), incoming = validateBackup(data), initial = await planBackupImport(newLibrary(), incoming)
   expect(initial.data.sourceLibraryId).toBe(data.sourceLibraryId)
   expect(initial.data.takes).toEqual(data.takes)
@@ -21,6 +21,35 @@ test('空資料集還原保留 v1 身分與缺片狀態；原庫及重匯均不�
   expect(repeated.added).toBe(0)
   expect(repeated.data.assets[0].state).toBe('ready')
   expect(repeated.data.recipes).toEqual(data.recipes)
+})
+test('完整 v1 備份升 v2 並可重匯；舊備份衝突仍保留本機分類、動作、拍點及媒體狀態', async () => {
+  // 明確固定舊格式，避免 newLibrary 升版後讓相容測試其實只測到新版。
+  const legacy = graph(); legacy.schemaVersion = 1
+  const legacyBefore = structuredClone(legacy), normalized = validateBackup(legacy)
+  const restored = await planBackupImport(newLibrary(), legacy)
+  expect(restored.data.schemaVersion).toBe(2)
+  expect(restored.data.sourceLibraryId).toBe(legacy.sourceLibraryId)
+  for (const table of tables.filter(t => t !== 'assets')) expect(restored.data[table]).toEqual(normalized[table])
+  expect(validateBackup(restored.data).assets).toEqual(normalized.assets)
+  expect(restored.data.assets.every(a => a.state === 'missing')).toBe(true)
+  expect((await planBackupImport(restored.data, legacy)).added).toBe(0)
+
+  const local = structuredClone(legacy); local.schemaVersion = 2
+  const moveId = crypto.randomUUID(), grid = { bpm: 120, firstBeatMs: 350, countInBeats: 4 }
+  Object.assign(local.videos[0], { teacher: '合成老師', danceStyle: 'Salsa', recordedDate: '2026-10-29', beatGrid: grid })
+  local.takes[0].beatGrid = { ...grid, bpm: 124 }
+  local.moves.push({ id: moveId, name: '合成腳步', danceStyle: 'Salsa', status: 'practicing', revision: 1 })
+  local.markers[0].moveId = moveId
+  const before = structuredClone(local), plan = await planBackupImport(local, legacy)
+  for (const table of tables) expect(plan.data[table].slice(0, local[table].length)).toEqual(before[table])
+  expect(plan.data.markers[1]).not.toHaveProperty('moveId')
+  expect(plan.data.takes[1].referenceVideoId).toBe(plan.data.videos[1].id)
+  expect(plan.data.recipes[1].takeId).toBe(plan.data.takes[1].id)
+  expect(plan.data.assets.find(a => a.id === plan.data.exports[1].assetId)?.state).toBe('missing')
+  expect((await planBackupImport(plan.data, legacy)).added).toBe(0)
+  expect((await planBackupImport(plan.data, normalized)).added).toBe(0)
+  expect(local).toEqual(before)
+  expect(legacy).toEqual(legacyBefore)
 })
 test('影片衝突重寫完整下游；新 VS 不擅自沿用本機舊輸出', async () => {
   const local = graph(), before = structuredClone(local), incoming = validateBackup(local)

@@ -4,12 +4,14 @@
 最新可及性決策見第 20 節，下載包與發布準備見第 21 節；前面標記原型階段的限制保留歷史版本歸屬。
 分類、動作庫、練習歷史與 v1→v2 相容決策見第 26 節。
 
+Safari 有界本機音訊候選的格式與資源取捨見第 33 節；這不是整體 Safari／P0 通過聲明。
+
 選定筆記分享的原始設計見第 27 節；整合格式取捨另記。
 
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
-#3 的真正 macOS Safari 同步／私人視窗副本失敗與原生對照見 [Safari 歷史證據](docs/evidence/issue-3-safari-feasibility.md)，受測為 `2f1ec6b3335cd790`；七個未通過候選已還原。P0 `22c187ea10e457c2` 與 P1 整合 `db129e273cf0039b` 的 Safari 均尚未驗證，一般設定檔初始化仍待使用者同意；不能把舊版失敗或 Chrome 通過延伸成新版 Safari 結論。
+#3 的早期 macOS Safari 同步／私人副本失敗見[歷史證據](docs/evidence/issue-3-safari-feasibility.md)，各原生結果保持來源歸屬。一般新視窗不需改 Profiles，保存／關窗取回對照見第31節；有界音訊候選見第33節，與資料保護整合見第34節。Safari 完整品質及私人儲存仍未過，目前原生續測等待 Mac 解鎖，無須另選設定。
 
 ## 1. 架構結論
 
@@ -244,6 +246,8 @@ IndexedDB 明確實作 0→1 migration；未知路徑拒絕、交易回滾並保
 
 2026-10-28 尾塊互斥修正：原生編碼 error 或候選原片讀回失敗，仍須在 take 鎖內等待已排入的 chunks 交易結束；相機先釋放，工作狀態持續忙碌。只在外層 finally 等待雖能保住本頁資料，卻已交出跨分頁鎖，會讓另一頁用未收齊的片段開始恢復。沿用既有 queue／Web Locks，不另建計時 lease 或固定延遲；成功路徑仍先落盤再原子 finalize，失敗保留 interrupted 與原 chunks。`capture-drain.js` 用真正 IndexedDB 未提交交易及另一分頁取得鎖的結果驗證，沒有用等待秒數猜測寫入完成。
 
+2026-10-29：在已合併 #54 的 main `918d8d7` 有界稽核 #9，未重現需修改 runtime 的資料保留缺陷；補編碼器先自行停止、owner 後續重複 stop 的純事件回歸，涵蓋前塊／尾塊保留、error 不冒充成功、空片拒絕及完成後不再落盤。既有 queue／鎖／交易與恢復入口不變，不另建恢復狀態機。覆蓋、版本歸屬與未驗證條件見 [#9 證據](docs/evidence/issue-9-capture-recovery.md#2026-10-29整合-main-的有界覆蓋稽核)；mock 不代替原生 IndexedDB、瀏覽器或硬體驗收。
+
 ## 17. #9 錄影與 #35 既有雙片整合
 
 兩個功能分支都從 main `1d8ed7f` 延伸：#33 `f77a8bf` 包含標記、循環及錄影恢復，#35 `9935b06` 包含正式雙片入口與實際影格通知／手動擷取。整合保留雙方提交及單一入口，不把未審查的功能直接推到 main；另外實驗的雙片 dialog 原型只保存在獨立分支，不引入第二套 UI 或 schema。
@@ -278,9 +282,11 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 快取讀取／開啟失敗或補存遭 quota 拒絕時，仍可提供通過當前 manifest 雜湊的在線回應；實際未補存便維持離線不完整。排除把 Cache API 異常直接變成網路失敗，因為低空間時仍需在線開啟工作台及取出資料；也排除未驗證的 network-first fallback，避免混入新版模組。安裝候選仍要求整批保存成功，任何錯誤都拒絕該候選；此降級只用於既有 worker 的讀取，不放寬更新門檻。針對性重現與限制見 [#13 快取故障證據](docs/evidence/issue-13-cache-failure.md)。
 
+2026-10-29 [有界更新稽核](docs/evidence/issue-13-update-audit.md)補上「第一份已存，第二份才遇網路／HTTP／雜湊／quota 失敗」的候選回滾，以及 install 與 activate 的清理邊界純邏輯回歸；未重現需改 runtime 的 P0 缺陷。既有真正 SW 更新函式只開一個受控制產品頁，handler 單元測試不代替生命週期驗收。後續 `offline-multi-tab.js` 用兩個真正舊控制頁補缺：第一頁關閉後，第二頁可保存同一筆記，第三個新導航也仍用舊 active；剩餘舊頁關閉後才換版，完整資料／revision 與無關 cache 保留。測試沿用原 worker／主機及產品表單，實際版本回覆與 waiting 文字共同作屏障，不以固定等待、直接觸發 activate 或結果欄位名稱當證據；媒體 API 明確禁用，精確提交／結果見交付 PR。
+
 容量只顯示 navigator.storage.estimate 的估計 usage／quota／差額，不冒充裝置剩餘空間或寫入保證；缺值與例外顯示未知。持久保存僅點按才請求，分別回報允許、拒絕與失敗；手動清除不受保護。拒絕仍能使用，媒體副本與 JSON 仍應另存。估計可能變動，不以估計值繞過實際交易結果；quota、取消與中斷依同一原子寫入回滾。原片兩個保存入口也傳遞取消訊號。介面語義依 [WHATWG Storage](https://storage.spec.whatwg.org/)，不是本機容量保證。
 
-2026-10-29 補上 [Chromium 原生配額拒絕證據](docs/evidence/issue-13-native-quota.md)：512 KiB origin override、真正交易 quota abort、舊 JSON／revision／Blob 完整相等、解除限制後同資料重試及同 profile 新程序重開。只新增儲存層 QA，runtime 仍為 `db129e273cf0039b`；不把函式測試延伸成 UI、真實低磁碟或裝置驗收。
+2026-10-29 的[原生配額獨立重跑收據](docs/evidence/issue-13-native-quota-repeat.md)補上另一個新 profile 的完整 bytes／JSON 指紋：真正 quota abort、舊資料原子保留、同候選重試及同 profile 新程序重開。該次 runtime 為 `db129e273cf0039b`；目前沿用 main 已有的配額工具，不另維護第二份，也不承接最新 Safari runtime 或 UI／真實低磁碟／裝置驗收。
 
 個別刪除先由純資料 planDeletion 計算關聯及計數，原生 modal 預設取消焦點；確認前不寫入。副本只移除該 media Blob，保留描述、筆記及配方，本次已載入 File 可繼續使用，重開則缺片。單一 VS 只移除該輸出與無人引用的 asset；刪 take 包含其 recipes／exports；整份影片筆記包含所屬標記、take 及下游。原相簿／原始檔從不刪除。仍被其他 take 或輸出共用的媒體保留。
 
@@ -310,6 +316,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 包內操作單及支援表明示需 Bun、尚無公開發行與真人／裝置缺口。公開 GitHub Pages 盤點無法排除同 origin 其他來源，因此本輪使用專用 localhost；專用 pages.dev 只作待核准的託管候選，不先建立資源。比較與回復取捨見 [發布準備](docs/RELEASE.md)，實際包與本機流程證據另記，不把 CI 或來源中繼資料寫成發布、隔離或真人驗收完成。
 
 2026-10-28 補查發現 Bun.write 也會沿最外層 archive／checksum 的符號或硬連結覆寫另一端，因此在任何打包寫入前先逐一 lstat 兩個輸出；既有路徑只能是單一連結的一般檔案，懸空連結、目錄及其他類型一律拒絕。不能只查壓縮檔，否則 checksum 到最後才拒絕時，舊 archive 已被改寫；也不自動移除異常路徑。完整 CLI 回歸覆蓋兩個輸出各四種異常與正常重建，確認合成 sentinel 與另一份舊產物不變。這是本機既存路徑的預檢，不宣稱抵禦其他本機程式同時競態改寫輸出；應使用本聊天專用目錄。
+
+2026-10-29 補查 #15：打包時拒絕連結仍不足以保護啟動後的 HTTP 讀檔。以獨立合成包重現，把合法 `main.js` 換成指向包外 sentinel 的符號連結，舊主機回 200 並傳回 sentinel 原文。主機現在每次 GET／HEAD 都用 lstat 核對包根目錄到白名單檔案：中間層須為真正目錄，末端須為單一連結的一般檔案，異常及缺檔統一 404。這也涵蓋明確啟用的既有測片路徑，不新增路由。排除只在啟動時查一次、只查末端及 realpath 後直接服務包外 bytes；前者漏掉後續誤換連結，後兩者漏掉父目錄邊界。保留 Bun.file 的傳輸方式與原標頭，不改媒體／SW bytes；此預檢仍不是對同時惡意改檔的本機程式之隔離保證。實際 HTTP 回歸見 `tests/unit/serveWeb.test.ts`，版本證據見 [#15 紀錄](docs/evidence/issue-15-web-package.md)。
 
 ## 22. #3 首輪成檔量測與手機測試入口
 
@@ -439,3 +447,74 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 `notes-scale.js` 在獨立效能鎖與無媒體 API 的環境量測原生 IndexedDB 及真正 DOM 搜尋；每種資料 100／1000／5000 筆，最大 JSON 5,200,234 bytes，空白重建最多約 664ms、唯一命中約 30ms。搜尋前後 revision／內容指紋不變。這是本機一次量測，非低階手機、全部格式上限或持續負載承諾；沒有憑空建立新的速度門檻。暫不引入持久化索引、分頁架構或搜尋服務，保留單份原資料與目前掃描方式。
 
 本次合入 P0 的後續文件並新增可重現驗證，不再改產品 runtime；最終乾淨包應與受測 587689d 的 15 份執行資源逐檔相同，來源 head 與 archive 校驗在 PR／release.json 另記，避免文件自我引用形成無窮重建。
+
+
+## 31. 原 #58 Safari 環境對照（歷史版本界線）
+
+普通新視窗與獨立 loopback origin 已能完成一般模式對照，不需要初始化 Profiles。新增僅供手動診斷的 `safari-storage-probe`，完全不讀產品 DB；用原生文字及 8 KiB 記憶體 Blob 分開定位私人模式錯誤，排除以清庫、檔案 materialize 或新增外部服務作為未驗證修復。每步 timeout 只界定診斷等待，不聲稱產品交易回滾。當前匿名證據沿用下載包文件白名單，離線閱讀支援限制時仍可開啟；診斷程式不進產品包。
+
+一般模式當前候選真的產生並保存 MP4，關窗取回的兩支原片與 VS 均逐 byte 相同；原 v5 卻拒絕實際凍結 351.667ms、聲畫及完整長度，因此不擴大 Safari 支援承諾。保留目前 runtime 與原品質護欄，不重試已失敗的共用音訊時鐘／可見性假設、不把 JS drift 當成成檔驗收。完整版本及限制見[當前 Safari 證據](docs/evidence/issue-3-safari-current.md)。
+
+後續以各秒不同頻率確認MediaElementSource原生對照確實缺來源0提示音，且後續音延遲360–450ms。已解碼BufferSource的1×／0.5×音訊對照保留首音，獨立新origin、有頁面執行識別且controller=none的15秒完整VS原型亦通過原v5，聲畫最大差73.333ms。這只是私有小檔原型：全檔解碼的長片記憶體、完整格式與取消恢復尚未工程化，正式runtime不變；排除直接照搬無界ArrayBuffer/PCM、固定補延遲及以HTTP雜湊代替實際執行版本。先前同輪無執行識別的兩份完整VS不歸因新路徑，詳見同一證據文件。
+
+
+## 32. 原 #58 P0 可靠性修正交付
+
+從 main `918d8d7` 整合 #55 `2372aa4`、#56 `6227ec9`、#57 `2f5998b`，再納入 #59 `99e62f1`、#60 `fe82329` 的停止順序與部分更新回歸，形成可一起檢查與打包的候選。Safari 當前證據、明確 v1 完整備份回歸與主機每次讀檔的連結拒絕各保留來源；不把各 PR 的測試次數相加為整合通過。整合後重跑原 check／hooks 與裸包 HTTP 邊界，精確 head／檔案數／校驗由交付 PR 與 release.json 綁定。
+
+下載包白名單保留目前 Safari 證據，並帶入 #12／#15 的新匿名說明及 #13 更新證據界線；診斷工具不進產品 runtime。Web 的十份程式／畫面／樣式資源與 `db129e273cf0039b` 受測版保持相同，主機程式則有新的路徑防護，不能將舊 HTTP 成功直接移記為新版。本輪不改媒體配方、音訊來源、schema、支援範圍或品質門檻；未合併 main 或發布。
+
+額外 G7 單輪量測綁 `2372aa4`，完整 60 秒合成上界 63,987ms、v5 通過；約一秒取樣的自有程序樹 RSS 最高 1,379,808 KiB，非精確 footprint／瞬時峰值／無洩漏或低記憶體壓力證明。AC 電源、熱警告查詢沒有實際溫度／電池數據。不能併入舊 24 組或當成整合新 head 的媒體量測，詳見 [#3 G7 紀錄](https://github.com/sunpochin/dance-stamp/issues/3)。
+
+後續整合 #61 `d763d5f` 的真正部分安裝／SIGKILL／同profile離線重開回歸，保留來源提交與實際worker／測試SHA；此證據使用已提交合成筆記與不可播放sentinel，不能承接媒體品質或寫入交易中斷。裸包白名單加入[強制中斷證據](docs/evidence/issue-13-forced-install.md)，使MEDIA_PROBE內連結在離線解壓包也能閱讀；只增加文件，不把需要自有程序控制的測試工具塞入產品runtime，也不重用舊42檔校驗。最終包檔數／SHA仍由提交後release.json與PR綁定。
+
+`verify-native-quota.ts` 補真正Chromium配額拒絕，而非再注入put例外；替換及新增交易均須trusted abort／QuotaExceededError、原生全庫／Blob完整保留，解除限制後同資料重試及同profile重開。31秒空間快取前置不能冒充拒絕證據，capture事件亦避免Promise先結束而漏收原生收據；原失敗輪保留。這項只新增工具與[匿名證據](docs/evidence/issue-13-native-quota.md)，不修改產品儲存行為，不宣稱UI／低磁碟／裝置通過；證據沿既有下載包白名單提供。
+
+## 33. #3／#11 Safari 有界本機音訊候選
+
+目前不是可合併的 Safari P0 完成證據：1×／0.75× 的 15 秒成檔通過；1×／30 秒仍觸發 250ms 畫面同步護欄，0.5×／15 秒仍被原 v5 的覆蓋／漂移檢查拒絕。音訊提示音已完整，但不能用它取代畫面與完整矩陣驗收。
+
+原生 Safari 的 `MediaElementSource` 冷啟動曾遺失有身分的來源零秒聲音；AudioBufferSource 的小型原生對照能保留它。故 WebKit 比較合成改用 `local-audio.js`，練習及比較預覽直接播放同一老師片，不永久綁元素來源。Chrome 保持原 MediaElementSource 聲路，沒有縮短其長片、無音軌或 WebM 支援，也沒有新增必要服務或套件。其他 WebKit 瀏覽器僅套保守路徑，是否通過仍按裝置證據；iPhone 暫緩。
+
+有界解碼只讀 Blob 小段，跳過視訊 mdat。一般非 fragmented MP4、單一自包含 AAC-LC（8–48kHz／1–2 聲道／1024-sample frame）為來源範圍；支援 stco／co64、固定或逐包 stsz、stsc／stts、v0／v1 的單一正常 edit，或前置空 edit＋正常 edit。拒絕多音軌、HE-AAC／SBR／PCE、加密、外部資料參照、特殊 edit rate、音訊 ctts、碎片化及不一致表格；MOV v1/v2 sample entry 與 WebM 尚未加入 Safari 相容解碼。無音軌的一般 MP4 明確輸出無聲；不能把有音軌的解碼失敗當無音軌。
+
+| 應用配置／讀取預算 | 上限及拒絕點 |
+| --- | --- |
+| 單份 moov | 8 MiB，讀取前檢查；不整檔 ArrayBuffer |
+| 音訊索引 | 250,000 包，typed arrays 約 4.77 MiB；表格一致性驗證後才取片段 |
+| 每包 AAC／同批 | 16 KiB／8 包，flush 後再送下一批；不堆積全部壓縮資料 |
+| PCM | 來源交集最多 60 秒、48kHz、雙聲道 float32，最多 23,040,000 bytes（約 21.98 MiB） |
+| 解碼暫存 | 每聲道最多 1024 frames；每個 AudioData 立即 close；所選片段含兩包前置最多 2,900 包 |
+| 結構／等待 | 最多 4096 個頂層 box／16 tracks；原生支援查詢、flush、錄影 start 各最多 10 秒 |
+
+這些是應用可限制的配置與工作量，並非瀏覽器／作業系統總 footprint 保證；原片 Blob、兩側視訊解碼、Canvas、錄影器與輸出 chunks 沿用既有成本。長來源不是整支 PCM 解碼，但超過索引預算仍安全拒絕；Safari 不能藉此宣稱支援所有長片。選取／練習／原片下載仍可用，失敗保留資料且不默默回退壞聲路。
+
+片段從 `positions(value,0)` 的 A+rL 取至 `comparison(value).durationMs*r`，AAC 以 edit list 與原封包時間戳定位；兩包前置僅恢復重疊窗，輸出固定 PCM 片段不含額外來源。fresh Destination／BufferSource 每輪建立；真正 recorder start 後留 10ms 排程前置，再啟播既有雙片時間線。這是排程前置，沒有減去裝置延遲、修改 offset、裁首尾或放寬門檻。自然變調率 r 與原配方一致。
+
+取消／背景／錯誤會關閉 AudioDecoder queue，所有 AudioData 用 finally close，停止及斷開 BufferSource、清空 buffer 引用、停止目的端與輸出 tracks。每輪重新讀目前老師片，不留跨來源 PCM cache；舊原片、配方及前次 VS 沿用既有保護。解碼前置亦在匯出 try/finally 內，不能準備失敗後漏清理。
+
+排除整檔 decodeAudioData＋僅信 video.duration 的方案：容器資訊不足以限制 native 解碼配置，且長片會配置全部 PCM。也排除 ffmpeg.wasm、雲端轉碼、換輸出副檔名及固定裝置補償：代價大或不能處理已知來源問題。採 [WebCodecs AAC 封包／設定契約](https://w3c.github.io/webcodecs/aac_codec_registration.html)與原生 AudioDecoder，依 [WebKit 的實作說明](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/)先檢查支援，實際能力仍以完整下載檔驗證。
+
+單元、瀏覽器與版本綁定的原生結果見 [Safari 音訊候選證據](docs/evidence/issue-3-bounded-audio.md)。需要 Claude Code 或使用者獨立審查；#1／#3／#11 與未測 gates 保留，不合併或發布。
+
+審查續修保留兩個不同時間邊界：MP4 正常 edit 的呈現起點與 AAC 封包解碼起點。前置空 edit 期間保持零 PCM；提早解碼的封包仍供重疊窗暖機，但不得複製進正常 edit 之前的靜音。排除只平移所有封包而忽略 edit 下界的方案，因為它會把已丟棄的來源聲音洩入空白。
+
+BufferSource 的 AudioContext 時鐘不會等待 `video.play()` 或視訊短暫停滯，因此有音訊的相容匯出逐次比較實際音訊起點後的經過時間與既有老師時間線；沿用 RECORD_COMPARE 的 G2 限制，超標先拒絕，且在片尾成功判定之前檢查。音訊 context 未運作也拒絕，前次 VS 與原片保留。一般預覽、無聲來源與 Chrome 元素音訊仍走原時間線。選擇拒絕已失同步的輸出，暫不增加另一套速率控制、硬 seek 或固定延遲補償；這項防護不宣稱修好了原生 Safari 的短片覆蓋或長片品質，完整矩陣仍待重驗。
+
+原 v5 逐格追查進一步確認 eb8f10d 的三份原生15秒片最早老師碼1／自己碼0，0.5×片的實際視訊跨度少108.333ms，即使容器時長與來源末格看似正確仍不完整。下一步核對第一次擷取與啟播／停止時鐘，詳見上述證據的逐格追查節；尚未把假說改成產品排程，也不修改來源邊界或分析門檻來取得通過。
+
+Safari 候選的相對驗證連結也必須能離線讀取，因此下載包明列加入其匿名證據文件；程式模組仍只沿用 `webFiles`。包內指南及媒體規格的本機證據連結另由單元從實際 Markdown 推導並核對白名單，避免只測清單自身而漏掉新增文件。排除遞迴打包所有文件或 output 的方案，保留公開內容與明列路徑邊界。下載指南同步移除已完成的一般視窗設定等待；這不擴大支援，與 PR #58 的修補整合另見第34節；不代替原生品質、人工審查或發布核准。
+
+13976bb／adbe8eb1d6acfd09另完成自己的Chrome headless原24組合成錄影→匯出回歸，原v5全通過，48份下載均完整解碼並留指紋；最大聲畫差88.333ms、最長完整匯出上界64,003ms。十輪保留同一資料庫並逐輪導航，沒有改排程或品質門檻。這補足新候選的Chrome完整回歸，不延伸為Safari、無重載常駐資源或實體驗收；來源、範圍與數據見上述證據。
+
+## 34. #1 Safari 候選與可靠性修補整合
+
+從同步 main `918d8d7aa814533823522e3d4e0ab18df75cb212` 建立獨立候選，保留 #58 `2d313027c28ebc1d4f7cfd03177fbb8141fd7d23` 與 #62 `13976bb83e259be699f7c822cc125850e776f81e` 的完整提交／來源歸屬；交付前再納入 #62 新增的文件提交 `676ba501914f278ab1aa0d2c40990f9a0bff23ae`，不覆蓋較新證據。主機逐次拒絕連結、完整備份、編碼器停止、部分更新／強制終止及原生 quota 回歸全部保留；`local-audio.js` 仍由同一 `webFiles` 提供給建置、主機、SW 與下載包。空 edit 靜音與獨立音訊時鐘的100ms拒絕不變，不另設時間線、不改 G2／G3／v5 或資料格式。
+
+衝突只合併指南及明列打包依賴，排除只選單邊來源覆蓋另一邊及遞迴收集 output。打包回歸從所有隨包操作指南推導本機匿名證據連結，另核對新模組確實由共用資源表進入下載包；不維護第二張 runtime 清單。免費主機資料仍屬2026-10-28查核，未藉文件整合宣稱重新查價。
+
+14份建置資源以 #62 的提交內容及主回歸 state.json 指紋逐 byte／SHA256 核對，只有相同資源的原證據可保留其受測來源；主機防護另跑既有 HTTP 回歸。來源 SHA、整合 head、實際測試 head 與未完成 gates 分開記錄於[整合證據](docs/evidence/p0-safari-reliability-integration.md)及交付 PR，不能把未完成的主24組寫成通過。合成矩陣不代替 Safari、真人、實體／跨裝置或獨立審查，iPhone 暫緩；未合併、發布或關票。
+
+整合後新增音訊模組使 SW manifest 從11份增為12份，故排除僅由相同storage原碼承接舊更新測試的做法。主聊天在乾淨9d483e0以未修改工具重跑真正部分安裝／SIGKILL／同profile離線重啟，原生cache、舊殼、已提交筆記與完整sentinel保留；精確來源與限制見上述整合證據。沒有改動更新策略、清除殘留cache或把不可播放sentinel當成媒體品質通過。
+
+審查續修讓強制中斷與原生配額兩支 QA 工具共用平台適用的暫存位置：macOS 保留既有 `/private/tmp`，Linux 使用 `os.tmpdir()`。不建立不存在的 macOS 目錄，也不改成每輪各自的鎖；前者讓 Linux 在瀏覽器啟動前失敗，後者會失去跨工具互斥。原子取得、nonce 所有權與只清理自有程序的規則不變；產品 runtime 與資料格式未改。

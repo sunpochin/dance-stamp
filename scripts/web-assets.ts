@@ -1,6 +1,6 @@
 /* 檔案用途：共用靜態白名單與回應政策，避免下載包和本機主機漂移。所在層：建置工具。主要關聯：build-web.ts、serve-web.ts、package-web.ts。 */
-// 拍點模組沿用同一白名單，建置、離線快取及下載包才不會漏掉依賴。
-export const webFiles = ['index.html', 'style.css', 'main.js', 'timeline.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js']
+// 拍點與有界音訊都沿用同一白名單，建置、離線快取及下載包才不會漏掉依賴。
+export const webFiles = ['index.html', 'style.css', 'main.js', 'timeline.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js']
 export const notices = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 export const webPaths = new Map([...webFiles, ...notices].map(file => [file === 'index.html' ? '/' : `/${file}`, file]))
 export const webHeaders = {

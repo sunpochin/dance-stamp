@@ -1,6 +1,8 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
+2026-10-29：#58 資料／主機保護與 #62 Safari 有界音訊的本次整合、14份執行資源核對及驗證界線見[整合證據](evidence/p0-safari-reliability-integration.md)。下方歷史媒體數據保持原受測來源，不移記為整合 head 新測。
+
 核心不用 FFmpeg 或 Playwright 套件；兩者只供開發測試。使用本機 FFmpeg（lavfi、libx264、AAC）與 Bun 1.4.4：
 
 ```sh
@@ -60,7 +62,7 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
-真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原，一般專用設定檔需先經使用者同意初始化。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
+真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原。後續已直接用一般新視窗完成目前候選對照，不需初始化 Profiles，見[當前 Safari 證據](evidence/issue-3-safari-current.md)。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
 
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
@@ -208,6 +210,34 @@ done
 以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。
 
 `offline-cache-failure.js` 另建乾淨 context，實際破壞一份公開 cache，再於真正 worker 注入 Cache.put quota、CacheStorage.open 與 Cache.match 例外。沿用本機白名單主機及 CLI `run-code --filename tests/browser/offline-cache-failure.js`；可用專用 port，無須相機設定。每種故障都要在線重開工作台、顯示離線不完整，合成筆記與 sentinel Blob 不變；解除故障後實際補存，再斷網重開。單元回歸另驗錯誤版本仍回 503、斷網缺檔失敗及安裝 quota 仍拒絕候選。這些注入不代替真實磁碟低空間；[版本證據](evidence/issue-13-cache-failure.md)獨立於先前大檔與真機矩陣。
+
+#### Chromium原生配額拒絕
+
+`verify-native-quota.ts` 以自有persistent Chromium與動態loopback主機，只載入產品儲存模組，驗替換／新增副本的原生QuotaExceededError、交易abort、完整資料保留、解除限制後重試及同profile正常重開。傳入已安裝工具，不安裝新的產品依賴：
+
+```sh
+bun run build
+bun --no-env-file scripts/verify-native-quota.ts "$playwright_core_index_mjs" "$chromium_executable"
+```
+
+工具原子取得共用媒體鎖，使用固定約11MiB不可播放合成Blob，不填滿硬碟。每次縮限先排除既有可用空間快取，再以真正trusted abort／QuotaExceededError判定，不能只看CDP或estimate；capture listener不改寫put或事件。失敗也解除自有override、關閉已知自有程序／主機並保留raw；未確認程序退出便不釋放自己的鎖。這是儲存函式證據，不是UI或真實低磁碟驗收；版本、失敗基線與限制見[原生配額證據](evidence/issue-13-native-quota.md)。
+
+#### 部分安裝時強制結束瀏覽器
+
+`forced-install-restart.ts` 是需程序控制的獨立 Bun 工具，使用既有 Playwright core 連到自己啟動的 Chromium；不新增產品依賴，不經 CLI 正常 close 來冒充強制終止。先用 Bun 1.4.4 建置，傳入已安裝瀏覽器與 Playwright core 的完整路徑：
+
+```sh
+bun run build
+bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable" "$playwright_core_index_mjs"
+```
+
+僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 與 persistent profile、自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+
+先經產品儲存交易保存筆記與 Blob，核對原生 IDB 與完整舊 cache。候選使用真實產品 worker 原碼、新版本及對應的新 HTML／CSS 雜湊；主機保持第二份 CSS 回應未完成。必須同時看到候選原生 cache 已有不同於舊版的 HTML、尚無其餘資源、registration.installing 為 installing、舊 active／controller 仍完整，才保存 barrier／PID／群組 provenance 並送出 SIGKILL。這裡沒有 Cache mock、throw 注入、skipWaiting、手動 activate 或資料庫重建。
+
+確認該自有程序群組全數退出，再以同一 profile 新程序啟動；在導航前設定隔離 context offline。核對頁面由 SW 回應、舊 HTML 全 bytes 雜湊、舊版完整狀態，且未快取的網路 probe 失敗、主機零收到重開請求。筆記全內容、ID、revision、原生 metadata／media keys 與 Blob 每一 byte／SHA256 都須相同。原始日誌、成功／失敗證據及 profile 保留本機，finally 只停止自有程序／主機並釋放 nonce 相同的自有鎖；失敗不可刪除後當同一輪通過。這不代替實際磁碟損毀、斷電、低空間、影片播放品質、Safari 或手機驗收。
+
+2026-10-29 的整合續測以乾淨 `9d483e0`／`adbe8eb1d6acfd09` 重跑原工具：新增音訊模組後舊 cache 12／12完整，候選僅1／12份且真正CSS回應未完成時SIGKILL；同profile新程序離線取回舊殼、已提交筆記及sentinel完整bytes。原db129e的11份歷史輪另保留，詳見[新增manifest重跑](evidence/issue-13-forced-install.md#整合候選新增音訊模組後的重跑)。這不改變上列限制。
 
 #### 20／100／200 MiB 保存矩陣
 
@@ -372,4 +402,26 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 這是一次本機樣本與完整渲染上界，包含兩個影格，非持續壓力／低階手機／所有表同時達格式上限的承諾；不因此修改產品品質門檻或引入搜尋服務。
 
-上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、當前 Safari、手機及發布主機仍未驗證；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
+上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、手機及發布主機仍未驗證；當前 Safari 短片與保存的分開結果見[續測證據](evidence/issue-3-safari-current.md)；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
+
+
+## 當前 Safari 的一般／私人模式續測（2026-10-28）
+
+乾淨 `85b1ba6`／`db129e273cf0039b`、真正 Safari 27.0.1：一般視窗的 15 秒既有雙片真的成檔、保存及關窗取回，三份媒體下載指紋均相同；原 v5 全檔分析仍拒絕 351.667ms 老師停格、1006.667ms 最大提示音配對差及 15.340 秒容器覆蓋。這不是 capture／光學或 Safari P0 通過。私人模式匯出被護欄拒絕，副本保存持續等待；獨立原生 8 KiB Blob 對照在私人模式 UnknownError、一般模式完整往返通過。普通新視窗不需初始化 Profiles；未修改日常設定。
+
+[完整版本、合成來源、數據與接手步驟](evidence/issue-3-safari-current.md)。`tests/browser/safari-storage-probe/serve.ts` 提供可重現的最小原生頁，只綁 loopback、不讀產品資料；其 timeout 不冒充產品已恢復。短片已失敗，暫不擴跑 Safari 九組／十輪矩陣，不改原護欄或宣稱手機失敗。
+
+後續不同頻率的原生對照已分辨來源第一聲缺失及後續延遲；已解碼音訊的1×／0.5×對照和一份15秒完整VS原型通過。完整VS另核對原生頁面執行識別與controller=none，排除舊SW供應舊程式；同輪先前兩份無此證明的結果不歸因新候選。這仍是私有小檔可行性，正式runtime／Safari支援未改，長來源記憶體、取消及完整矩陣待工程化，見[原型範圍與原v5數據](evidence/issue-3-safari-current.md#可辨來源秒碼與已解碼音訊的原型2026-10-29)。
+
+
+## 更新分頁數的證據邊界（2026-10-29 補查）
+
+前述原生 `offline-update.js` 在自己的新 context 只有一個受控制產品頁；欄位 `activatesOnlyAfterAllOldTabsClose` 只證明該受測頁關閉後啟用，不能延伸為已驗證另一個舊產品分頁仍開著的情境。#60 補部分安裝回滾及 install／activate 刪除邊界單元測試，沒有把 handler 成功當作真實多頁 lifecycle。後續以獨立 `offline-multi-tab.js` 補真正雙舊頁：關掉第一頁後，第二頁保存同一筆記、第三頁新導航仍使用舊版；剩餘舊頁全部關閉後才啟用候選，完整資料／revision 與無關 cache 保留，媒體 API 呼叫0。詳見[當前更新稽核](evidence/issue-13-update-audit.md)；精確提交與提交後執行結果由交付 PR 綁定。舊媒體與 lifecycle 結果保留原版本，不能憑欄位名稱或本次整合自動提高證據範圍。
+
+## Safari候選分支的Chrome原24組回歸（2026-10-29）
+
+乾淨來源13976bb／靜態adbe8eb1d6acfd09，實際Chrome156.0.8078.49 headless、合成相機、原腳本與原v5全部通過：matrix9、stability10、webm1、alignment2、recovery1、performance1。各raw綁定同一head且sourceDirty=false，沒有UA覆寫；14份Web資源與c211c94相同。
+
+最大聲畫差88.333ms、最大配方差48.911ms、新增漂移絕對值42.511ms、最長重複畫面70.966ms、最低平均29.943fps、最長完整匯出上界64,003ms。48份實際下載全片解碼並保留bytes／SHA256；逐例已保存媒體可讀、missing=0。這輪下載指紋沒有與每份IndexedDB Blob做全bytes比對；相關儲存證據維持原受測版本歸屬。
+
+依本文件既有隔離合成環境，以原 `run-media-feasibility.py` 加 `--analyze`，依序執行六模式、label=candidate-13976bb；重跑請用新label保留原證據。十輪同context／資料庫、逐輪導航，常駐無重載／實體資源仍待驗。完整版本、恢復負向控制與限制見[候選證據](evidence/issue-3-bounded-audio.md)。自有瀏覽器／主機／nonce鎖已清理，未合併或發布，Safari原生與人工／裝置gates保持開啟。

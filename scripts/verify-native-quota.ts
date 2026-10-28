@@ -3,6 +3,7 @@ import { deepStrictEqual, ok } from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webHeaders, webPaths } from './web-assets'
 
@@ -13,10 +14,17 @@ const { chromium } = await import(pathToFileURL(resolve(modulePath)).href)
 const root = resolve(import.meta.dir, '..'), output = resolve(root, 'output/native-quota')
 mkdirSync(output, { recursive: true })
 const run = mkdtempSync(resolve(output, 'run-')), profile = resolve(run, 'profile')
-const lockPath = '/private/tmp/dance-stamp-p0-media-test.lock', nonce = randomUUID()
+// 兩支儲存工具須使用同一個平台暫存目錄，才能互斥，不能各建一份測試鎖。
+const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 const report: any = { startedAt: new Date().toISOString(), scope: 'product storage functions; no product UI or playable media', run, profile }
 const save = () => writeFileSync(resolve(run, 'result.json'), JSON.stringify(report, null, 2) + '\n')
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
+// 原生 Promise 卡住也是失敗；工具逾時只進清理，不能偽稱資料已回滾。
+const observe = async <T>(work: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout>
+  try { return await Promise.race([work, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('原生儲存觀察逾時；回滾未驗證')), 20_000) })]) }
+  finally { clearTimeout(timer!) }
+}
 let locked = false, server: ReturnType<typeof Bun.serve> | undefined, context: any, cdp: any, origin: string
 const closeOwnedBrowser = async () => {
   // CDP 僅列出自己啟動的瀏覽器程序；關閉後只查這些 PID，不掃描或終止其他程序。
@@ -45,7 +53,7 @@ try {
   // 原子取得且只釋放同 nonce 的鎖；既有檔案即拒絕，不猜測或刪除其他測試的鎖。
   writeFileSync(lockPath, JSON.stringify({ nonce, pid: process.pid, task: 'issue-13-native-quota' }), { flag: 'wx' })
   locked = true
-  report.source = { head: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), testSha256: hash(readFileSync(import.meta.path)), storageSha256: hash(readFileSync(resolve(root, 'dist/web/storage.js'))) }
+  report.source = { head: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), trackedChanges: !!Bun.spawnSync(['git', 'status', '--porcelain', '--untracked-files=no'], { cwd: root }).stdout.toString().trim(), testSha256: hash(readFileSync(import.meta.path)), storageSha256: hash(readFileSync(resolve(root, 'dist/web/storage.js'))) }
   deepStrictEqual(readFileSync(resolve(root, 'dist/web/storage.js')), readFileSync(resolve(root, 'web/storage.js')), '受測儲存模組必須與來源逐 byte 相同')
   report.staticVersion = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([a-f0-9]{16})'/)?.[1]
   ok(report.staticVersion, '先執行 bun run build')
@@ -105,18 +113,12 @@ try {
       { name: 'add', data: addition, media: { id: ids.newAsset, blob: makeBlob(4194363, 103) } },
     ] }
     const db = await storage.openStore(); (window as any).originalDatabase = db; (window as any).nativeEvents = []
-    const observe = event => {
+    // capture 先記原生事件；避免產品的 abort handler 拒絕 Promise 後，觀察已早於 DB 的 bubble listener。
+    // 不包裝 put、不 throw、不 abort、不 preventDefault 或偽造事件。
+    for (const type of ['error', 'abort', 'versionchange']) db.addEventListener(type, event => {
       const target = event.target as IDBRequest | IDBTransaction
-      ;(window as any).nativeEvents.push({ type: event.type, trusted: event.isTrusted, target: target instanceof IDBRequest ? 'IDBRequest' : target instanceof IDBTransaction ? 'IDBTransaction' : 'IDBDatabase', error: target.error && { name: target.error.name, message: target.error.message }, store: target instanceof IDBRequest ? (target.source as IDBObjectStore)?.name : undefined, mode: target instanceof IDBTransaction ? target.mode : target.transaction?.mode })
-    }
-    // abort／complete 須直接監聽交易；只委派原生 transaction 原參數再掛監聽，不包裝 put、不 throw、abort 或 preventDefault。
-    const nativeTransaction = db.transaction
-    db.transaction = function(...args) {
-      const tx = nativeTransaction.apply(this, args)
-      if (tx.mode === 'readwrite') for (const type of ['error', 'abort', 'complete']) tx.addEventListener(type, observe)
-      return tx
-    }
-    db.addEventListener('versionchange', observe)
+      ;(window as any).nativeEvents.push({ type, trusted: event.isTrusted, target: target instanceof IDBRequest ? 'IDBRequest' : target instanceof IDBTransaction ? 'IDBTransaction' : 'IDBDatabase', error: target.error && { name: target.error.name, message: target.error.message }, store: target instanceof IDBRequest ? (target.source as IDBObjectStore)?.name : undefined, mode: target instanceof IDBTransaction ? target.mode : target.transaction?.mode })
+    }, { capture: true })
     return { ids, initialRevision: saved.revision, syntheticBlobBytes: 3 * 1048613 + 4194341 + 4194363 + 257 }
   })
   report.seed = seed
@@ -159,25 +161,26 @@ try {
     const quotaRestricted = await cdp.send('Storage.getUsageAndQuota', { origin })
     const estimateRestricted = await page.evaluate(async () => await navigator.storage.estimate())
     ok(quotaRestricted.overrideActive && quotaRestricted.quota === quotaSize, 'CDP override 未實際啟用')
-    // Chromium 會暫存可寫餘額約 30 秒；立即寫入可能沿用舊授權，不能據此宣稱已測到配額拒絕。
-    const restrictionStarted = performance.now(), quotaCacheWaitMs = 31_000
-    await Bun.sleep(quotaCacheWaitMs)
-    const quotaAtAttempt = await cdp.send('Storage.getUsageAndQuota', { origin })
-    ok(quotaAtAttempt.overrideActive && quotaAtAttempt.quota === quotaSize)
-    const result = await page.evaluate(async index => {
+    // Chromium 可暫存先前核准的空間30秒；立即縮限不等於下一筆已重新詢問配額。
+    // https://chromium.googlesource.com/chromium/src/+/c0811f657d5ae8c42a9fb827e7e36e7e58a16bab/content/browser/indexed_db/instance/bucket_context.h
+    // 等待只排除這個工具前置，仍須後續 trusted quota error／abort 才能判定成功。
+    report.quotaCacheBarrierMs = 31_000; save()
+    await Bun.sleep(report.quotaCacheBarrierMs)
+    const quotaAfterBarrier = await cdp.send('Storage.getUsageAndQuota', { origin })
+    ok(quotaAfterBarrier.overrideActive && quotaAfterBarrier.quota === quotaSize)
+    const result = await observe(page.evaluate(async index => {
       const storage = await import('/storage.js'), candidate = (window as any).quotaFixture.candidates[index], saved = await storage.readLibrary()
       ;(window as any).nativeEvents.length = 0
       let reply
       try { await storage.writeLibrary(candidate.data, saved.revision, candidate.media); reply = { resolved: true } }
       catch (error) { reply = { resolved: false, name: error.name, message: error.message } }
       return { name: candidate.name, reply, events: [...(window as any).nativeEvents] }
-    }, index)
-    report.failures.push({ ...result, quotaBefore, quotaRestricted, estimateRestricted, quotaAtAttempt, quotaCacheWaitMs, restrictionElapsedMs: performance.now() - restrictionStarted }); save()
-    const afterRefusal = await snapshot('after-' + result.name + '-refusal')
+    }, index))
+    report.failures.push({ ...result, quotaBefore, quotaRestricted, estimateRestricted, quotaAfterBarrier }); save()
     ok(!result.reply.resolved && result.reply.name === 'QuotaExceededError', '產品必須收到原生容量拒絕')
     ok(result.events.some(e => e.trusted && ['IDBRequest', 'IDBTransaction'].includes(e.target) && e.error?.name === 'QuotaExceededError'), '缺少真正 native quota error/abort')
     ok(result.events.some(e => e.type === 'abort' && e.trusted && e.target === 'IDBTransaction'), '缺少真正原生交易 abort')
-    deepStrictEqual(afterRefusal, baseline, '拒絕後原生 keys／JSON／每個 Blob byte 不同')
+    deepStrictEqual(await snapshot('after-' + result.name + '-refusal'), baseline, '拒絕後原生 keys／JSON／每個 Blob byte 不同')
     // 等待後再查原生 stores，避免只在 Promise 拒絕瞬間觀察、漏掉延遲提交。
     await Bun.sleep(1000)
     deepStrictEqual(await snapshot('after-' + result.name + '-settled'), baseline)
@@ -195,7 +198,7 @@ try {
       return { name: candidate.name, revision: result.revision, rawMatchesCandidate: JSON.stringify(raw) === JSON.stringify({ revision: result.revision, data: candidate.data }), everyByteMatchesCandidate: actual.length === expected.length && actual.every((b, i) => b === expected[i]), events: [...(window as any).nativeEvents] }
     }, index)
     report.retries.push({ ...retry, quotaReleased })
-    ok(retry.rawMatchesCandidate && retry.everyByteMatchesCandidate && retry.events.length === 1 && retry.events[0].type === 'complete' && retry.events[0].trusted && retry.revision === seed.initialRevision + index + 1, '同樣資料無法完整重試')
+    ok(retry.rawMatchesCandidate && retry.everyByteMatchesCandidate && retry.events.length === 0 && retry.revision === seed.initialRevision + index + 1, '同樣資料無法完整重試')
     const after = await snapshot('after-' + retry.name + '-retry')
     for (const name of ['metadata', 'chunks']) deepStrictEqual(after.stores.find(s => s.name === name).keys, baseline.stores.find(s => s.name === name).keys)
     deepStrictEqual(after.stores.find(s => s.name === 'chunks'), baseline.stores.find(s => s.name === 'chunks'))
