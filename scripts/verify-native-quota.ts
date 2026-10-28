@@ -3,6 +3,7 @@ import { deepStrictEqual, ok } from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webHeaders, webPaths } from './web-assets'
 
@@ -13,7 +14,8 @@ const { chromium } = await import(pathToFileURL(resolve(modulePath)).href)
 const root = resolve(import.meta.dir, '..'), output = resolve(root, 'output/native-quota')
 mkdirSync(output, { recursive: true })
 const run = mkdtempSync(resolve(output, 'run-')), profile = resolve(run, 'profile')
-const lockPath = '/private/tmp/dance-stamp-p0-media-test.lock', nonce = randomUUID()
+// 兩支儲存工具須使用同一個平台暫存目錄，才能互斥，不能各建一份測試鎖。
+const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 const report: any = { startedAt: new Date().toISOString(), scope: 'product storage functions; no product UI or playable media', run, profile }
 const save = () => writeFileSync(resolve(run, 'result.json'), JSON.stringify(report, null, 2) + '\n')
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')

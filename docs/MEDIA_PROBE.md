@@ -231,7 +231,7 @@ bun run build
 bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable" "$playwright_core_index_mjs"
 ```
 
-僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 與 persistent profile、自有動態 loopback 主機，並原子取得共用 `/private/tmp/dance-stamp-p0-media-test.lock`；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 與 persistent profile、自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
 
 先經產品儲存交易保存筆記與 Blob，核對原生 IDB 與完整舊 cache。候選使用真實產品 worker 原碼、新版本及對應的新 HTML／CSS 雜湊；主機保持第二份 CSS 回應未完成。必須同時看到候選原生 cache 已有不同於舊版的 HTML、尚無其餘資源、registration.installing 為 installing、舊 active／controller 仍完整，才保存 barrier／PID／群組 provenance 並送出 SIGKILL。這裡沒有 Cache mock、throw 注入、skipWaiting、手動 activate 或資料庫重建。
 

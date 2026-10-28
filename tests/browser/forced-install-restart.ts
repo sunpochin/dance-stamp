@@ -4,6 +4,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, unlinkSync, rmdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webPaths, webHeaders } from '../../scripts/web-assets'
 
@@ -29,7 +30,8 @@ candidateFiles.set('/', Buffer.from(`${oldFiles.get('/')}\n<!-- synthetic candid
 candidateFiles.set('/style.css', Buffer.from(`${oldFiles.get('/style.css')}\n/* synthetic candidate ${nonce} */\n`))
 const candidateManifest = Object.fromEntries(Object.keys(manifest).map(path => [path, hash(candidateFiles.get(path)!)]))
 candidateFiles.set('/sw.js', Buffer.from(source.replace(`'${oldVersion}'`, `'${candidateVersion}'`).replace(JSON.stringify(manifest), JSON.stringify(candidateManifest))))
-const lock = '/private/tmp/dance-stamp-p0-media-test.lock', ownerFile = join(lock, 'owner.json')
+// macOS 沿用既有共用鎖；Linux 改用系統暫存目錄，避免不存在的 /private/tmp 阻止測試。
+const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), ownerFile = join(lock, 'owner.json')
 const evidence: any = { status: 'running', nonce, run, profile, oldVersion, candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), startedAt: new Date().toISOString(), events: [] }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
 const event = (type: string, detail: any = {}) => { evidence.events.push({ at: new Date().toISOString(), type, ...detail }); save() }
