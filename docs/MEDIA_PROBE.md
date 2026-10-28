@@ -73,13 +73,25 @@ playwright-cli --session dance-practice open http://127.0.0.1:4173 --headed --co
 playwright-cli --session dance-practice run-code "$(cat tests/browser/practice.js)"
 playwright-cli --session dance-fallback open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
 playwright-cli --session dance-fallback run-code "$(cat tests/browser/practice-fallback.js)"
-playwright-cli --session dance-background open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
-playwright-cli --session dance-background run-code "$(cat tests/browser/practice-background.js)"
 ```
 
-前兩支驗證六組 20 次循環、呈現影格邊界、速度／鏡像、取消／失敗與 callback 清理，以及缺 API 時的 RAF／音高提示。合成 visibility 只驗證 handler。第三支必須真的 hidden，不通過不能以合成事件代替；main 的原生背景 gate 仍未通過，詳見 [#8 證據](evidence/issue-8-practice-loop.md)。新測試以頁面 origin 為入口，可配合不與其他程序衝突的本機埠。
+前兩支驗證六組 20 次循環、呈現影格邊界、速度／鏡像、取消／失敗與 callback 清理，以及缺 API 時的 RAF／音高提示。合成 visibility 只驗證 handler。`practice-background.js` 必須取得真正 hidden、停止、回前景不自播與明確重啟；另量產品 callback 及 trusted 原生事件，詳見 [#8 證據](evidence/issue-8-practice-loop.md)。測試以頁面 origin 為入口，可配合不與其他程序衝突的本機埠。
 
-背景補查前先確認桌面已解鎖且專用測試視窗可見。一般工具連線的 focus emulation 可能使兩個分頁都回報 visible；只有 headed 不足以排除。以獨立新 profile 的原生 Chrome 在連線時設定 `connectOverCDP(endpoint, { noDefaults: true })`、沿用現有 default context 的方法，曾在 PR #40 候選取得 trusted 背景／前景事件；main 仍未通過，精確版本與限制見同一份證據。這不是新增已驗證的啟動入口；需要保留原嚴格函式、核對實際 `### Result`、補 callback 清理證據，並只清理自己建立的頁面／程序。勿接管日常 profile，或在 Mac 鎖定時反覆重啟猜測。
+真正背景驗收前先解鎖桌面，讓專用視窗可見。一般工具的 focus emulation 可能使兩個分頁都回報 visible，只有 headed 不足以排除；改用全新原生 Chrome profile，連線時設定 `noDefaults: true` 並使用現有 default context。先讓本機產品主機運行，在終端 A 執行：
+
+```sh
+bun --no-env-file scripts/launch-native-browser.ts
+```
+
+預設使用 macOS 已安裝的 Google Chrome；其他位置可傳入可執行檔路徑，未驗證其他作業系統。工具產生的設定、端點與 profile 路徑只留 ignored output，不公開。終端 B 使用新 session（本輪 CLI 0.1.22／core 1.64.0-alpha-1790635538000）：
+
+```sh
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native open http://127.0.0.1:4173 --config output/native-controller.json
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native run-code --filename output/native-background-run.js
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native close
+```
+
+檢查真正的 `### Result` 且沒有 `### Error`，再回終端 A 按 Ctrl+C，只停止本工具建立的 Chrome。每輪重跑都重新啟動工具／新 profile，不接管日常瀏覽器。runner 沿用同一份嚴格函式並回報受測靜態／Chrome 版本；callback 觀察只涵蓋此桌面原生影格路徑，RAF 降級另跑上面的測試。main `2f1ec6b3335cd790` 已於解鎖後通過，鎖定期間與 PR #40 的歷史結果分開記錄，未宣稱其他裝置通過。
 
 `practice` 的跳轉重疊以當下原生 `seeking` 屬性計數；取消後晚到的 `seeked` 不等於瀏覽器仍在跳轉，零重疊門檻不變。`practice-range-change.js` 驗證循環中把 A 往後移會在一秒內重新定位，逆序 A/B 則停止。以同一份 browser.json 開乾淨 session，再執行 `playwright-cli --session dance-range run-code --filename tests/browser/practice-range-change.js`。
 

@@ -3,9 +3,9 @@
 
 ## 2026-10-28 #8 原生背景補查
 
-PR #31 已合併；本輪來源為 main `e9e154a`、靜態 `2f1ec6b3335cd790`。PR #40 獨立包的 `5bc414f1b847bf47` 曾以專用原生 Chrome、連線時 `noDefaults: true` 及現有 default context 執行未改動的嚴格函式，收到 trusted 背景／前景事件並通過；main 重跑尚未通過，兩個版本不能混用。補查工具確認 Mac 目前鎖定，已請使用者手動解鎖；尚未成功重現的啟動工具保留 ignored output，產品與原嚴格測試維持原樣。詳見 [版本證據與接手步驟](evidence/issue-8-practice-loop.md)。
+PR #31 已合併；本輪來源為 main `e9e154a`、靜態 `2f1ec6b3335cd790`。使用者解鎖 Mac 後，Chrome 156.0.8078.49 已通過真正背景／前景及明確重啟；補強後觀察到 trusted 事件、背景 callback=0、回前景 500ms 不自播、重新播放從 A＝1 秒且同時最多一個 callback。提供專用原生 Chrome 啟動工具，操作見 MEDIA_PROBE.md。產品 bytes 未變，PR #40 的一次歷史成功與解鎖前逾時分版本保留。詳見 [證據與重現步驟](evidence/issue-8-practice-loop.md)。
 
-下一步是桌面解鎖後在同一受測版本補原生背景／明確重啟與 callback 清理，再更新 #8 驗收。iPhone 仍暫緩；#8／#1、人工審查與發布保持未完成。完成的 Web 交付依使用者偏好採一般 PR；先前「草稿」用語是歷史狀態，當前以遠端 PR 為準。
+此結果完成 #8 的受測桌面背景 gate，待人工審查；不代替 Safari、相機、鎖屏／來電或整體 G1–G7。iPhone 仍暫緩；#1 與發布保持未完成。完成的 Web 交付依使用者偏好採一般 PR；先前「草稿」用語是歷史狀態，當前以遠端 PR 為準。
 
 ## 先前交接
 
