@@ -84,11 +84,13 @@
 | Blob 來源、MP4 | 5.100000s | 凍結 503.334ms，拒絕 |
 | Blob ＋兩側影格回呼 | 5.100000s | 凍結 516.667ms，拒絕 |
 | Blob ＋不透明 Canvas | 5.096666s | 凍結 511.667ms，拒絕 |
-| Blob ＋WebM（VP8／Opus） | 未取得 format.duration | 可解碼，但既有分析器以 KeyError 中止，品質未驗證 |
+| Blob ＋WebM（VP8／Opus） | 未取得 format.duration | 既有分析器以 KeyError 中止；後續逐格分析確認兩側凍結 509ms，G3 失敗 |
 | 只錄 Canvas 視訊、MP4 | 3.995000s | 5 秒牆鐘未涵蓋完整成檔長度，未通過 |
 | 只錄音訊、MP4 | 5.057333s | AAC 可解碼，沒有視訊，不能驗收 VS |
 
 MP4 的預設與指定 MIME 都回報 `avc1.42000a,mp4a.40.2`，ffprobe 實際為 1280×720 H.264 Constrained Baseline level 31／AAC；未證明指定 codecs 是產品失敗原因。Blob／HTTP、影格回呼、不透明 Canvas 各自都不能單獨解釋原版立即停滯。全檔解碼使用 `-enc_time_base:v 1:90000 -fps_mode:v passthrough`，避免預設 null muxer 的時間基準四捨五入產生重複 DTS 警訊；並未改輸入時間戳或裁去開頭。能解碼、能產生檔案與符合媒體門檻分開判斷。
+
+WebM 的後續離線分析不補造容器長度：直接以 ffprobe 的每格 PTS 配對 FFmpeg 解出的 149 格，PTS 由 0 至 4.994 秒嚴格前進。兩側影格碼在 PTS 0–0.474 秒均為 360，到 0.509 秒才變成 361，因此重複畫面至下一格為 509ms。兩側同步誤差最大只有 33.333ms，仍無法掩蓋 G3 凍結失敗。音訊末包 PTS／duration=5.013／0.002 秒，視訊末包為 4.994／0.016 秒；這些是封包邊界，不當作已取得 format.duration 或完成全部 G2／G4。這輪不是成功的 WebM 替代路徑。
 
 ## 一般 Safari 設定檔的具體前置條件
 
