@@ -24,7 +24,8 @@ test('重匯冪等；衝突拒絕且保留本機', () => {
 })
 test('未來版本、孤兒、重複 ID、危險鍵與非法區間不寫入', () => {
   for (const change of [
-    d => { d.schemaVersion = 2 },
+    // v2 已支援動作；未知 major 仍必須拒絕，不能把升版當成取消版本保護。
+    d => { d.schemaVersion = 3 },
     d => { d.markers[0].videoId = crypto.randomUUID() },
     d => { d.markers.push(d.markers[0]) },
     d => { d.markers[0].endMs = 1000 },

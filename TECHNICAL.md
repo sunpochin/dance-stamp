@@ -2,6 +2,8 @@
 # 技術設計與決策
 
 最新可及性決策見第 20 節，下載包與發布準備見第 21 節；前面標記原型階段的限制保留歷史版本歸屬。
+分類、動作庫、練習歷史與 v1→v2 相容決策見第 26 節。
+
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
@@ -349,3 +351,17 @@ P0 整合靜態 `59fa4aa5134d6cbe` 的 0.5×／15 秒在 headless 與有視窗 C
 最小修正於共用 `align` 設定比較音訊自然變調，故比較預覽、scrub 後續播放與 VS 使用同一行為；`operation` 原有 finally 恢復一般練習的音高保持。缺 API 時不建立假屬性。介面及開始指南明示聲音會隨比較速度變調；仍只輸出老師聲源，不改配方、音訊路徑、schema 或既有同步門檻。[preservesPitch 語義](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/preservesPitch)。
 
 排除硬填 100ms 音訊延遲（不同裝置及路徑不固定）、縮短合法交集／略過首尾、放寬分析器、引入轉碼套件，以及保留無效的提前換速實驗。新回歸真正下載三速度輸出，另解碼驗自然頻率、老師聲源與失敗／取消後的原播放設定；完整候選媒體與裝置 gates 仍須分別驗證。
+
+## 26. #17 分類、動作庫與練習歷史（桌面候選）
+
+依 2026-10-28 當次授權在獨立分支實作 P1；不改動 #15、P0、人工／真機與發布門檻。沿用原生 Web、同一 metadata revision／IndexedDB 交易、既有重連及比較入口。Video 增加選填 teacher／danceStyle／recordedDate；Move 以 id、name、danceStyle、status、revision 保存，Marker 選填 moveId，一個動作可連多支影片的標記。狀態只有 wanted／practicing／learned，由人明確保存；take 次數與播放器事件不更改狀態。
+
+搜尋直接掃描有筆數上限的本機白名單資料，NFKC 正規化、不分大小寫；關鍵字空白分詞採 AND，與舞風、老師、日期起迄及手動狀態共同篩選。老師與日期限定課程，舞風可匹配課程或所連動作；未填日期的課程不符合日期篩選。沒有另建全文索引、遠端搜尋或分類服務，避免第二份資料同步／migration；大量資料互動效能尚未量測。
+
+歷史從所列 Marker 與既有 PracticeTake 老師區間相交計算：區間採半開邊界，點標記在 take 起點內、結尾外，同 take 去重並依 createdAt 新到舊。createdAt 只是練習紀錄建立時間，不宣稱相機拍攝日期。編輯／解除 marker 關聯會改變歷史視圖，原 take／recipe 不改；此語義在 UI 明示。排除額外 take→marker 外鍵及另一套播放器；從動作開片段、比較配方都重用既有載入、seek、take lock 與原片缺檔重連，缺片仍可讀標記和配方摘要。
+
+交換與本機 metadata schema 提升為 v2，避免舊版 v1 白名單靜默丟掉新增資料。v2 能讀 v1，舊 ID、revision、筆記、take、配方及媒體不搬動；讀取只在記憶體升版，第一次成功編輯才在原子交易寫 v2。IndexedDB 結構仍為 version 1 的 metadata／media／chunks，沒有新增 store 或大檔 migration。交易取消、quota、多分頁衝突或未知格式必須保留舊資料；舊程式會拒絕 v2，不能宣稱支援降版。回復舊程式前需保留升版前用舊版匯出的 v1 備份及分開另存的影片，在另一個資料環境還原；不能覆蓋現有 v2 庫或清庫修復。新版本匯出的備份為 v2，不提供會丟資料的 v1 另存。
+
+衝突副本沿用既有穩定 ID 政策，加入 marker.moveId 依賴閉包／重寫，先配置 Move 副本 ID 再配置 Marker。不同來源、同動作 ID 的狀態衝突及再匯入皆保留本機，動作副本只帶入對應 marker，不覆寫既有配方。移除動作由既有刪除預覽／取消焦點處理，只刪 Move 並解除 marker.moveId、增加 marker revision；不刪標記、take、配方、原片、VS 或 chunks。單純解除關聯同樣不碰媒體。
+
+本候選驗證與限制見 [#17 證據](docs/evidence/issue-17-moves.md)。不擴成 #18 分享輸出、#19 拍點、AI 學會判斷、帳號或雲端，也不將尚未合併的其他 P1 schema 當前置。
