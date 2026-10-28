@@ -10,6 +10,8 @@
     "hooks:install": "bun --no-env-file scripts/install-hooks.ts",
     "probe": "bun run dev",
     "build": "bun --no-env-file scripts/build-web.ts",
+    "package:web": "bun run build && bun --no-env-file scripts/package-web.ts",
+    "check:package": "bun --no-env-file scripts/package-web.ts --check",
     "dev": "bun run build && bun --no-env-file scripts/serve-web.ts",
     "typecheck": "tsc --project tsconfig.json && tsc --project tsconfig.sw.json",
     "lint": "biome lint web --error-on-warnings"

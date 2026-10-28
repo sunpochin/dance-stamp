@@ -110,3 +110,23 @@ PR #31 已合併；本輪來源為 main `e9e154a`、靜態 `2f1ec6b3335cd790`。
 六份明確保存的雙片副本在完整關閉瀏覽器、暫移合成原檔後，使用同一專用 profile 重開、真正斷網，仍可開啟、播放及下載；metadata／標記／配方與完整 Blob／磁碟下載 SHA256 一致。超限雙片可當次播放，保存拒絕且不改資料，重開誠實顯示缺片。六份下載完整解碼，200 MiB 代表檔在產品外完整播完 65 秒。合成檔以 free atom 控制 bytes，只證明容量邊界，不等同高碼率或長片效能；詳見 [版本證據](evidence/issue-13-media-size.md) 及 MEDIA_PROBE.md。
 
 測試 profile 已關閉，暫移的合成原檔已還原並核對雜湊。本輪未合併／發布，iPhone 暫緩，完整裝置／真人與人工審查不以此測試代替。
+
+## 2026-10-28 #14 Web 可及性續作
+
+本聊天專用 `dance-stamp-issue-14-accessibility`／`codex/issue-14-web-accessibility` 已整合 main `e9e154a` 的前置審查修正；相對 main 僅本票 13 檔。保留循環重新定位、中斷原片保存同意與可選備份校正副本。修正停用／重繪後焦點、長訊息遮焦、320px／放大文字溢出，補播放器名稱、busy 與診斷分類；取捨見 TECHNICAL.md 第 20 節，證據在 `evidence/issue-14-web-accessibility.md`。
+
+使用者要求完成的 Web PR 使用一般 PR，已將 #31／#33／#36／#37／#38 轉為 Ready for review；狀態轉換未改程式或驗收門檻。後續前置 PR 已在遠端 main，由本聊天核對並保留，沒有代為合併。本票一般 PR #39 更新後的精確 head／CI 以該 PR 為準；真人／真機待驗寫在說明，不一律保留 Draft。
+
+最終靜態內容 `0382343a0a0f73ff`：342 tests／599 expects、18 組受影響 browser 函式、公開掃描 161 檔通過。前一輪 main `80604e7` 的 `47eb899dd15552b9` 為完整 33 組通過，分別記錄，不冒充最終版全套。最終四份代表 VS 來源時間嚴格遞增，全片高精度解碼數與原始影格一致；產品外全數播畢、有音訊解碼且 dropped=0。十組 viewport／文字尺寸、44px 主要目標、焦點及可及性樹通過。
+
+五人匿名空表在 `WEB_USABILITY_CHECK.md`，對齊 #1 三項任務；真人、讀屏實聽及裝置結果未驗證，iPhone 暫緩。下一張 #15 先準備可審查發布包、來源／同 origin 邊界及回復方案；合併與發布需要使用者明確授權。#13 的 4179 保留，本票預覽 4181；沒有搬移或重置舊 origin 的使用者資料。本次專用 4180 更新測試主機已關閉，隔離測試視窗已關閉。
+
+## 2026-10-28 #15 獨立桌面包續作
+
+本聊天專用 `dance-stamp-issue-15-release`／`codex/issue-15-web-package` 從同步 main `e9e154a` 建分支，承接仍待審查的 #39 `7bb96a6`。#14 的 4181 與 #13 的 4179 都保留。沒有代為合併 PR、部署或新增服務。
+
+新增白名單打包、每檔／整包校驗、來源與 dirty 記錄、讀回驗證、獨立本機主機及 START_HERE。CI 只驗包，不上傳。靜態 `5bc414f1b847bf47` 的八份 HTML／CSS／JS 與 #39 相同；新版本只由共用回應政策參與 SW 版本而來。免費主機與公開 origin 盤點見 RELEASE.md，因不能確認共用 github.io 全部可信，本輪使用專用 localhost，pages.dev 只是待核准候選。
+
+真正壓縮檔解到 repo 外，在沒有 Git／node_modules／安裝套件的情況下啟動，35 檔原生校驗與故意損壞拒絕、21 個 HTTP 檢查及九組 browser 流程通過。四份代表 VS 全片獨立解碼與產品外有音訊完整重播通過，備份前後 VS bytes 相同。詳細範圍、歷史版本與限制見 `evidence/issue-15-web-package.md`；最終精確 head、乾淨來源 archive SHA256 與 CI 由交付 PR 綁定。
+
+下載包是桌面候選，還需 Bun 執行 localhost，尚無公開下載站或正式 beta。繼續前核對一般 PR #39 與本票 PR 的獨立 review；再按 #1／#3／#14／#15 逐項補真人／裝置、完整媒體 gates 及發布決策，不能因打包成功關掉總覽。iPhone 仍暫緩，不啟動 P1 或 iOS 備援。合併、發布及實際主機來源核准仍由使用者決定。

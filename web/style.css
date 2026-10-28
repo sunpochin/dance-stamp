@@ -1,7 +1,10 @@
 /* 檔案用途：原型的觸控與錯誤狀態版面。所在層：Web 樣式。主要關聯：index.html、ACCEPTANCE.md。 */
 :root { font-family: system-ui, sans-serif; color: #f4f2ee; background: #141c20; line-height: 1.6; color-scheme: dark; }
+/* 長狀態仍可捲讀，鍵盤跳轉需留出停止列高度，避免焦點被 sticky 列完全遮住。 */
+html { scroll-padding-block-start: calc(min(30dvh, 10rem) + 88px + env(safe-area-inset-top)); scroll-padding-block-end: 12px; }
 * { box-sizing: border-box; }
-body { margin: 0; } main { max-width: 1040px; margin: auto; padding: 32px max(20px, env(safe-area-inset-right)) 40px max(20px, env(safe-area-inset-left)); }
+/* 放大後的版本碼與錯誤字串也能換行，不能把文字畫到頁面外。 */
+body { margin: 0; overflow-wrap: anywhere; } main { max-width: 1040px; margin: auto; padding: 32px max(20px, env(safe-area-inset-right)) 40px max(20px, env(safe-area-inset-left)); }
 h1 { font-size: clamp(2rem, 6vw, 3.3rem); line-height: 1.22; letter-spacing: -.04em; margin: 16px 0; }
 h2 { font-size: 1rem; font-weight: 500; } p { color: #c5ced0; } .eyebrow { color: #b9f2c8; font-size: .8rem; letter-spacing: .15em; }
 .notice { border-left: 3px solid #dfbb72; padding-left: 12px; color: #ead4a8; }
@@ -9,19 +12,26 @@ fieldset, section { margin: 24px 0; border: 1px solid #455258; border-radius: 12
 label { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; } input, select, textarea, button, a[download] { font: inherit; border: 1px solid #718087; border-radius: 7px; background: #253238; color: inherit; padding: 10px 14px; min-height: 46px; }
 input[type=file] { max-width: 100%; } input[type=range] { width: 100%; padding: 0; } button, a[download], summary { cursor: pointer; } button:disabled { opacity: .45; cursor: default; }
 button:hover:enabled, a[download]:hover { border-color: #b9f2c8; } :focus-visible { outline: 3px solid #b9f2c8; outline-offset: 3px; } .primary { background: #b9f2c8; color: #11251b; border-color: #b9f2c8; font-weight: 650; }
-.stop { color: #ffcfb9; border-color: #b08572; flex-shrink: 0; } .settings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; } .settings input { width: 100%; }
+.stop { color: #ffcfb9; border-color: #b08572; flex-shrink: 0; min-height: 56px; font-weight: 650; white-space: nowrap; } .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 14px; } .settings label { min-width: 0; } .settings input, .settings select { width: 100%; min-width: 0; }
 .mirrors, .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; } .mirrors label { flex-direction: row; align-items: center; min-height: 44px; } .mirrors input { min-height: 24px; width: 24px; }
 .hint, footer { font-size: .88rem; color: #b6c1c5; } .players { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; border: 0; padding: 0; } .players > div { min-width: 0; }
 video { width: 100%; max-height: 480px; background: #000; border-radius: 8px; } .players video { height: 300px; object-fit: contain; } .mirror { transform: scaleX(-1); }
 canvas { width: 100%; background: #090c0e; border-radius: 8px; } progress { width: 100%; accent-color: #b9f2c8; } details { margin: 18px 0; } summary { padding: 10px 0; min-height: 44px; } pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 /* 停止鍵固定在可見範圍，手機捲動時不必先找回錄影控制。 */
-.statusbar { position: sticky; top: 0; z-index: 2; background: #141c20f5; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #455258; } .statusbar p { margin: 0; }
+.statusbar { position: sticky; top: 0; z-index: 2; background: #141c20f5; display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: max(8px, env(safe-area-inset-top)) 0 8px; border-bottom: 1px solid #455258; } .statusbar p { margin: 0; min-width: 0; overflow-wrap: anywhere; max-height: min(6lh, 30dvh); overflow: auto; }
+.status-actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+/* label 一併可點，讓 checkbox 保持原生外觀也有足夠觸控範圍。 */
+.check-label { min-height: 44px; }
+/* 原生檔案欄位有固有寬度；flex 子項需能縮小，320px 版面才不會被還原欄撐開。 */
+.file-label { max-width: min(320px, 100%); min-width: 0; }
+.skip-link { position: absolute; left: max(20px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); z-index: 4; padding: 12px 16px; min-height: 44px; background: #b9f2c8; color: #11251b; border-radius: 7px; transform: translateY(-200%); }
+.skip-link:focus { transform: none; }
 /* biome-ignore lint/complexity/noImportantStyles: hidden 必須蓋過 actions 等 display，避免隱藏的下載與控制被樣式重新顯示。 */
 [hidden] { display: none !important; } footer { margin-top: 30px; }
-#markers, #takes { list-style: none; padding: 0; } #markers li, #takes li { padding: 14px 0; border-bottom: 1px solid #455258; white-space: pre-wrap; overflow-wrap: anywhere; } #marker-form { border: 1px solid #718087; padding: 14px; border-radius: 8px; } textarea { resize: vertical; width: 100%; } .file-label { max-width: 320px; } #practice-canvas { margin: 14px 0; }
+#markers, #takes { list-style: none; padding: 0; } #markers li, #takes li { padding: 14px 0; border-bottom: 1px solid #455258; white-space: pre-wrap; overflow-wrap: anywhere; } #marker-form { border: 1px solid #718087; padding: 14px; border-radius: 8px; } textarea { resize: vertical; width: 100%; } #practice-canvas { margin: 14px 0; }
 /* 取景框只蓋在預覽，不混進原片或輸出，也不遮住控制文字與點擊。 */
 .preview-frame { position: relative; } .body-guide { position: absolute; inset: 8% 25% 10%; border: 2px dashed #b9f2c8; border-radius: 30% 30% 8% 8%; pointer-events: none; }
-@media (max-width: 600px) { .settings { grid-template-columns: 1fr 1fr; } main { padding-top: 20px; } fieldset, section { padding: 14px; } .players { gap: 10px; } .players video { height: 230px; } .statusbar { font-size: .86rem; } }
+@media (max-width: 600px) { main { padding-top: 20px; } fieldset, section { padding: 14px; } .players { gap: 10px; } .players video { height: 230px; } .statusbar { font-size: .86rem; } }
 
 /* 原生 modal 保留鍵盤焦點；長預覽在框內捲動，取消始終可操作。 */
 dialog { overflow-wrap: anywhere; width: min(820px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid #718087; border-radius: 12px; background: #141c20; color: inherit; padding: 20px; } dialog::backdrop { background: #000b; } #relink-preview { height: 220px; object-fit: contain; background: #000; } .check-label { flex-direction: row; align-items: center; } .check-label input { width: 24px; min-height: 24px; } #media-items { padding-left: 20px; } #media-items li { margin: 12px 0; overflow-wrap: anywhere; } #media-items button { margin: 6px 6px 0 0; }

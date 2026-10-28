@@ -1,7 +1,7 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-最新桌面離線／容量／更新與個別刪除決策見第 19 節；前面標記原型階段的限制保留歷史版本歸屬。
+最新可及性決策見第 20 節，下載包與發布準備見第 21 節；前面標記原型階段的限制保留歷史版本歸屬。
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
@@ -275,3 +275,26 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 刪除先按固定 ID 順序取得所有受影響 take 的原生鎖，再以全庫 revision 核對；另一頁錄製／恢復或預覽後更新會拒絕。metadata、無關聯的 media 及 chunks 在同一原生交易提交，取消或 abort 全數回滾；chunks 按 cameraAssetId 清理，不是 take.id，共用原片未失去所有引用時不清分段。UI 及下載 URL 僅在成功後清理；等待缺片重連的 take 被刪除時也釋放 pending 狀態，下一次選片可新建配對。
 
 排除自動啟用新版、強制 reload、清庫修復及只刪 metadata 後另清媒體：都可能中斷工作或留下半份關聯。也不新增另一份媒體後端、永久儲存宣稱、雲端備份或服務依賴。桌面真實 SW／IndexedDB 與瀏覽器斷網證據見 [#13 驗證](docs/evidence/issue-13-offline-storage.md)；瀏覽器斷網不等同手機飛航模式，iPhone、Safari、真實相機與全 P0 仍分開驗收。
+
+
+## 20. #14 Web 可及性與觀察測試準備
+
+先修正桌面可重現問題，不用版面漂亮替代 P0 驗收：鍵盤按保存後，fieldset 暫停用會把焦點丟到 BODY；編輯既有標記時在停用中 focus 也不生效。操作結束後才恢復原控制或明確下一步；列表以本機 record／action key 尋回重繪後的控制，媒體清單的非同步重繪同樣保留焦點。若使用者已移到停止鍵等處，不搶回；原生 modal 開啟／關閉分別前往適當控制與返回開啟處，不新增自製 focus trap。key 僅在 DOM，不進 JSON 或網路。
+
+長狀態原先可佔去橫向小畫面大半高度，遮住已取得的鍵盤焦點。現在保留完整文字與原生捲動、限制可見高度，預留 scroll padding；停止／暫停分列，停止至少 56px，重連 checkbox 以整列 label 提供 44px 可點範圍。欄位按 rem 自動換欄，原生檔案選取的 flex 項可縮小，長 token 可換行，不用橫向裁切掩蓋內容。維持 contain 與獨立鏡像，不更動時間映射、繪製或編碼。已補跳到主要控制的原生連結、播放器可讀名稱、共同時間線單位／描述、禮貌且完整的狀態訊息；busy 只在工作控制區，狀態不包在 busy 內，不逐影格宣告進度。
+
+依 [W3C 焦點不可被遮蔽](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)、[狀態訊息](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)及[44px 目標](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html)選擇上述修正；44px 是本專案原要求，不宣稱已通過全部 WCAG。可捲動狀態在受測 Chrome 使用原生鍵盤行為，不為靜態段落新增多餘 Tab stop，也不關閉 lint 規則；[Chrome 原生可捲動焦點](https://developer.chrome.com/blog/keyboard-focusable-scrollers)仍須按實際瀏覽器驗證，未測 Safari 不算通過。
+
+原生錯誤可能含檔名／裝置資訊，diagnostics.lastError 只記 cancelled／storage-full／operation-failed 分類；詳細錯誤留在本機狀態，不自動送出。相機設定仍只保留必要尺寸、frameRate、facingMode，不帶 label／deviceId／groupId。沒有新增追蹤、外部服務或依賴。
+
+[五人 Web 觀察操作單](docs/WEB_USABILITY_CHECK.md)依 #1 現行三項任務，預留匿名空表並明示尚未執行，不造人數或結果。人工提示、實體觸控、讀屏實聽、相機／音訊及裝置保存與自動化各自記錄；iPhone 暫緩，#14 不因工具檢查關閉。
+
+## 21. #15 獨立下載包與來源邊界
+
+沿用未編譯改寫的靜態 Web bytes，以 Bun 原生 Archive 打包，既有本機主機隨包提供，不新增壓縮、HTTP 框架或 runtime 依賴。白名單與回應標頭抽到同一個 web-assets.ts，建置、主機及打包共用；靜態 `_headers` 由同一來源產出。政策也參與建置版本，避免離線頁繼續使用舊標頭的 cache。沒有改動媒體演算法、資料格式或時序門檻。
+
+先拒絕未知檔／目錄、符號及硬連結才讀檔，再做公開內容掃描；建置寫入前也共用這個檢查，避免先沿輸出連結覆寫其他檔案。每檔雜湊、來源 commit／dirty 與整包雜湊分開記錄，壓縮後讀回核對。排除遞迴壓縮 checkout、只掃副檔名、先刪可疑檔再打包及自動 CI 發布，避免把私人資料帶走或繞過發布決策。雜湊不作簽章或來源可信證明；下載包不附使用者資料。
+
+包內操作單及支援表明示需 Bun、尚無公開發行與真人／裝置缺口。公開 GitHub Pages 盤點無法排除同 origin 其他來源，因此本輪使用專用 localhost；專用 pages.dev 只作待核准的託管候選，不先建立資源。比較與回復取捨見 [發布準備](docs/RELEASE.md)，實際包與本機流程證據另記，不把 CI 或來源中繼資料寫成發布、隔離或真人驗收完成。
+
+2026-10-28 補查發現 Bun.write 也會沿最外層 archive／checksum 的符號或硬連結覆寫另一端，因此在任何打包寫入前先逐一 lstat 兩個輸出；既有路徑只能是單一連結的一般檔案，懸空連結、目錄及其他類型一律拒絕。不能只查壓縮檔，否則 checksum 到最後才拒絕時，舊 archive 已被改寫；也不自動移除異常路徑。完整 CLI 回歸覆蓋兩個輸出各四種異常與正常重建，確認合成 sentinel 與另一份舊產物不變。這是本機既存路徑的預檢，不宣稱抵禦其他本機程式同時競態改寫輸出；應使用本聊天專用目錄。
