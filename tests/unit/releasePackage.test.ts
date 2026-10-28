@@ -1,9 +1,24 @@
 /* 檔案用途：驗證下載包拒絕夾帶、損壞、缺檔與連結，不靠檔名副檔名猜安全。所在層：發布邊界回歸。主要關聯：package-web.ts。 */
 import { expect, test } from 'bun:test'
 import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { packageInputs, readAllowed, sealPackage, verifyPackage } from '../../scripts/package-web'
+
+test('包內指南引用的本機媒體證據必須隨包，離線也能查支援限制', () => {
+  let references = 0
+  // 所有隨包操作指南都要核對；check 在 build 前執行，須讀來源指南，不能依賴尚未產生的 notice 副本。
+  const guides = packageInputs.filter(name => name.endsWith('.md') && (name === 'START_HERE.md' || name.startsWith('docs/')) && !name.startsWith('docs/evidence/') && !name.startsWith('docs/ai/'))
+  for (const guide of guides) {
+    const source = readFileSync(resolve(import.meta.dir, '../..', guide), 'utf8')
+    for (const match of source.matchAll(/\]\(([^\s)]+)\)/g)) {
+      const target = posix.normalize(posix.join(posix.dirname(guide), match[1].split('#')[0]))
+      if (!target.startsWith('docs/evidence/') || !target.endsWith('.md')) continue
+      references++; expect(packageInputs).toContain(target)
+    }
+  }
+  expect(references).toBeGreaterThan(0)
+})
 
 test('完整公開包可 roundtrip；夾帶、缺片、竄改和失真 metadata 均拒絕', async () => {
   const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))

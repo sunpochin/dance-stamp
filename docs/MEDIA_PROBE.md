@@ -1,6 +1,8 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
+2026-10-29：#58 資料／主機保護與 #62 Safari 有界音訊的本次整合、14份執行資源核對及驗證界線見[整合證據](evidence/p0-safari-reliability-integration.md)。下方歷史媒體數據保持原受測來源，不移記為整合 head 新測。
+
 核心不用 FFmpeg 或 Playwright 套件；兩者只供開發測試。使用本機 FFmpeg（lavfi、libx264、AAC）與 Bun 1.4.4：
 
 ```sh

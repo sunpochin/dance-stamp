@@ -12,13 +12,19 @@ export const packageInputs = [
   'docs/WEB_USABILITY_CHECK.md', 'docs/agents/acceptance-template.md', 'docs/MEDIA_PROBE.md',
   'docs/evidence/existing-comparison.md', 'docs/evidence/issue-12-backup-recovery.md', 'docs/evidence/issue-13-offline-storage.md',
   // 支援限制指向的匿名證據也隨包，離線讀指南時才不會遇到缺檔連結。
-  'docs/evidence/issue-3-safari-feasibility.md', 'docs/evidence/issue-3-safari-current.md',
+  'docs/evidence/issue-3-safari-feasibility.md', 'docs/evidence/issue-3-safari-current.md', 'docs/evidence/issue-3-bounded-audio.md',
   // 隨包驗證說明已連到更新稽核，離線也須讀到單頁／多頁的實測界線。
   'docs/evidence/issue-13-update-audit.md',
   // 操作說明連到強制中斷證據；裸包離線閱讀時也必須保留該文件，避免斷鏈。
   'docs/evidence/issue-13-forced-install.md',
   // 原生容量拒絕也有獨立版本與限制，須隨指南提供，不能只保留操作連結。
   'docs/evidence/issue-13-native-quota.md',
+  // 媒體指南也連到各項匿名回歸；只明列實際依賴，不遞迴收集 output 或其他檔案。
+  'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
+  'docs/evidence/issue-9-capture-recovery.md', 'docs/evidence/issue-9-comparison-integration.md',
+  'docs/evidence/issue-13-cache-failure.md', 'docs/evidence/issue-13-media-size.md',
+  'docs/evidence/issue-14-web-accessibility.md', 'docs/evidence/issue-3-media-feasibility.md', 'docs/evidence/issue-3-g3-composition.md',
+  'docs/evidence/p0-safari-reliability-integration.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
   'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'docs/ai/harness-import.json',

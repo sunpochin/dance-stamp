@@ -42,7 +42,7 @@ JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外
 | 組合 | 證據與限制 |
 | --- | --- |
 | macOS 27.0.1／Chrome 156 | 合成資料的標記、兩條 VS 路徑、備份還原及離線有自動化證據；不代表所有素材、真人相機或完整 G1–G7 通過 |
-| macOS Safari 27.0.1 | 一般視窗的測試影片與 VS 已能保存並關窗取回，但本候選的 VS 品質仍未通過；私人視窗另有副本保存失敗。見[目前測試紀錄](docs/evidence/issue-3-safari-current.md) |
+| macOS Safari 27.0.1 | 一般新視窗已可測，不需改 Profiles 或日常設定；測試原片與 VS 曾能保存、關窗取回。有界音訊候選的完整品質仍未過，私人儲存亦未過；目前原生續測等待 Mac 解鎖。見[候選品質](docs/evidence/issue-3-bounded-audio.md)與[儲存對照](docs/evidence/issue-3-safari-current.md) |
 | iPhone Safari／主畫面安裝 | 依使用者決定暫緩，未驗證 |
 | Windows／Linux／其他瀏覽器 | 原始碼可取得，實機使用流程未驗證；CI 建置不算桌面／裝置驗收 |
 | 讀屏、五位舞者、喇叭／藍牙、背景／鎖屏／來電 | 未完成，不預填通過；未承諾背景錄製或永久離線 |
