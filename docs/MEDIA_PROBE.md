@@ -123,3 +123,7 @@ playwright-cli --session dance-file open about:blank --headed --config output/me
 playwright-cli --session dance-file goto "file://$PWD/output/media-probe/dance-vs.mp4"
 playwright-cli --session dance-file run-code "async page => { const play = $(cat tests/browser/download-playback.js); return play(page, page.url()); }"
 ```
+
+### 開啟 take 失敗時保留舊校正
+
+使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。
