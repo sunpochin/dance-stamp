@@ -322,3 +322,54 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 `run-media-feasibility.py` 預設拒絕未提交來源。只有有界實驗才加 `--allow-dirty`，原品質檢查仍全部執行，raw JSON 記 sourceDirty；true 不能宣告該 Git head 正式通過。正式候選應先完成原 check／commit／push，再以乾淨來源和新 label 重跑，不覆寫實驗或失敗報告。
 
 本輪隔離 Chrome 已實際通過上述準備取消／兩次拒播／重試下載、canvas 擷取備援與既有 export-failure；獨立分析器再次完整解碼並核對老師音源、鏡像與四份舊 VS 指紋。這些短片回歸不取代提交後的完整矩陣與真機驗收。
+
+## P0 整合候選的正式同版桌面證據（2026-10-28）
+
+受測來源 `efd09104630cdd5631166971ae5ba94d408b9f9d`，靜態 `22c187ea10e457c2`，一般 [PR #53](https://github.com/sunpochin/dance-stamp/pull/53)。環境為 macOS 27.0.1、隔離 Chrome 156、Bun 1.4.4、FFmpeg 8.1.2；每筆 raw 保留實際 userAgent。本節為該提交的新結果；上方舊版失敗與未提交對照仍保留，不能相加成通過。原完整 check／hooks、18 組 source browser 函式、12 個分析器正負控制均通過，正式 raw 全部 sourceDirty=false。只使用合成時間碼／音訊與假相機，沒有真人相機、麥克風或私人資料。
+
+| 正式成檔組別 | 結果 |
+| --- | --- |
+| smoke、三速度 × 15／30／60 秒 | 1＋9 組通過 |
+| 同 session／資料庫連續十輪 60 秒 | 10 組通過，不清庫、不重啟瀏覽器；每組重載工作台 |
+| WebM、正負 200ms／兩側獨立鏡像 | 1＋2 組通過 |
+| 取消、拒播、繪製／保存故障及恢復 | 1 組通過；額外故意未保存輸出不算正式成檔 |
+
+共 24 組全部由產品真正 capture→export、下載原片／VS、原 v5 全片獨立解碼，合法起末覆蓋皆通過。最大聲畫差 60ms、起中末配方誤差及新增漂移各 64.434ms、最長重複畫面 71ms、最低平均 29.984fps、最長完整匯出上界 63,818ms。WebM 單案聲畫最大差 40ms，與舊版 110ms 失敗分開記錄。24 take／24 VS 共 48 份 Blob 均存在且內容指紋對應本輪下載；沒有拿舊輸出代替本輪新增成功。
+
+取消與拒播、繪製錯誤後回呼 pending=0、同時最高 2；故意移除合成 Blob 可抓到缺檔，finally 還原後為 0。真正 media put quota 會被本輪新增 VS 檢查拒絕，原片、舊輸出、配方及資料保留。另有準備取消／兩次 play 拒絕／重試、canvas 擷取備援、export-failure 及三速度音高的獨立短片回歸；完整解碼確認老師聲源、鏡像與舊 VS 指紋。
+
+同提交乾淨獨立包：36 檔、117256 bytes、trackedChanges=false；archive SHA256 `e53715ba4d32978df4b7d4e40e8600f22955c1c9fa11e29e043cfe613ad3a185`。真正解到 Git／node_modules 外，原生 tar／逐檔校驗通過；五份資源 hash、八條內部路徑／三種寫入拒絕、HEAD／標頭／MIME、CLI／環境優先及八種錯誤設定拒絕均通過。包內 entry、錄影到比較、既有雙片三組實際操作通過，不依賴開發伺服器。
+
+真正 CLI 離頁並接受原生 beforeunload 後回站：trusted pagehide、相機同步釋放、離頁在 B 前；至少兩個已提交 chunks 恢復為 interrupted，原片可解碼、播放及下載，舊 take bytes／資料不變。SW 實際損壞更新拒絕；錄影、匯出各收到 waiting worker 均未重載／接管，全部舊分頁關閉後才啟用，舊筆記／錄影及無關 cache 保留。測試主機只在 ignored 工具副本改專用 port，不改原產品及品質條件。
+
+三份已下載代表檔以原生 file:// 頁面離開產品重播：60 秒 MP4、15 秒 WebM、0.75×／正偏移校正版皆播到 ended，1280×720、error=0、dropped=0、音訊解碼 bytes>0。此為隔離 headless Chrome／靜音輸出下的解碼與播放證據，不代表真人已聽到聲音。
+
+上述只屬桌面合成驗證。實體相機光學 G2、真人五人／讀屏／實聽、跨裝置保存、Safari 當前 runtime、熱／電池／記憶體壓力及發布主機仍未驗證；iPhone 依使用者安排暫緩。人工審查、合併及發布核准各自保留，#1 與未驗收子票不因本節關閉。
+
+## P1 整合候選的正式同版桌面證據（2026-10-28）
+
+[一般 PR #54](https://github.com/sunpochin/dance-stamp/pull/54) 的正式受測來源 `587689d143bb1417ef48f083e5fe983a81af2c02`、靜態 `db129e273cf0039b`。macOS 27.0.1、隔離 headless Chrome 156、Bun 1.4.4、FFmpeg 8.1.2；每筆正式 raw 留 Git head／靜態版本／sourceDirty=false／userAgent。不把前節 P0 或來源 #50／#51／#52 數據相加成此版通過。
+
+原 check／hooks 366 tests、1015 expects、0 fail；14 組整合 browser 函式與額外 move-draft 原生離頁保護通過：分類／歷史／離線重開、v1 延遲升 v2／quota／跨頁衝突、分享隱私／選項／穩定 ID／衝突副本／重連、手動拍點／合成 samples／三速度倒數與相機、入口／焦點／窄版、兩種比較、完整備份／配方副本及輸出取消／備援。系統分享只用 stub，不發送檔案或操作雲端；同機 contexts 不等於另一裝置。
+
+本 runtime 自己的新 session 完整 24 組（smoke 1、三速度 × 15／30／60 秒 9、同 session／同資料庫十次 60 秒、WebM 1、正負校正 2、恢復 1）全通過原 v5 全片解碼與合法起末覆蓋；每組重載工作台，未清庫或重啟瀏覽器。最大聲畫差 88.333ms、三點配方誤差 68.5ms、新增漂移 67.567ms、最長重複畫面 70.8ms、最低平均 29.984fps、完整匯出上界最高 63,803ms。24 take／24 VS 共 48 份 Blob 均對應本輪新增並與下載指紋一致。回呼最高同時 2、完成 pending=0；取消／拒播／繪製錯誤、故意移除 Blob 並還原、真正 media quota 導致未新增 VS 的拒絕檢查均通過。先前另跑五組代表成檔也通過，未混進正式 24 組。
+
+受測同提交乾淨包 40 檔、143039 bytes、trackedChanges=false，archive SHA256 `1508fe1d5dafa03862a725d37a078dfce534d8e8e675b3618c2614627a9095d5`。真正解到 Git／node_modules 外，以隨包主機通過逐檔／native tar 校驗、六資源 hash、八路徑與三寫入拒絕、標頭／MIME／HEAD、CLI／環境優先及八類錯誤設定拒絕；entry、錄影比較與既有雙片在裸包實際成檔通過。
+
+`integrated-workflow.js` 在裸包同一頁實走：拍點→動作→片段關聯→既有雙片 VS→比較歷史→選定分享→完整備份→空 context 還原。動作狀態仍由人決定；分享排除 Move／marker.moveId／beatGrid／未選正文，完整備份保留它們，選定 take／recipe／VS 閉包正確。還原資料正規化相同、沒有夾帶影片，VS 另經完整 FFmpeg 解碼。測試停用相機／麥克風 API，不涉及外部傳送。
+
+原生 CLI 真正離頁／接受 beforeunload 再返回，trusted pagehide 與同步釋放相機均成立；兩個以上已提交 chunks 恢復成 interrupted，原片可播／下載／全解碼，舊片保持。SW 以共用含 beats.js 白名單及原生 installing／waiting 生命周期拒絕損壞新版，錄影／匯出中不重載，全部舊分頁關閉才啟用，保留原資料及無關 cache。產品外 file:// 重播本版 60 秒 MP4、WebM、校正版均 ended／1280×720／error=0／dropped=0／audio decoded bytes>0；靜音 headless 不代替真人聽感。
+
+### 筆記規模觀察
+
+`notes-scale.js` 可在相同隔離設定呼叫，第二參數為 100／1000／5000，預設 1000。課程／動作／標記／take／配方／媒體描述各相同筆數；沒有實際影片。每組全新資料庫、原生交易保存後重載；輸入起至產品重繪後兩個影格量測，結果與空白／唯一命中／無命中相符，revision／內容指紋不變。
+
+| 每種資料筆數 | JSON bytes | 重載就緒上界 ms | 展開結果上界 ms | 無命中／唯一／空白搜尋 ms |
+| --- | --- | --- | --- | --- |
+| 100 | 104234 | 60.8 | 62.7 | 28.5／29.9／27.9 |
+| 1000 | 1040234 | 100.5 | 183.1 | 26.6／29.6／94.7 |
+| 5000 | 5200234 | 473.7 | 619.8 | 32.5／29.8／663.5 |
+
+這是一次本機樣本與完整渲染上界，包含兩個影格，非持續壓力／低階手機／所有表同時達格式上限的承諾；不因此修改產品品質門檻或引入搜尋服務。
+
+上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、當前 Safari、手機及發布主機仍未驗證；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。

@@ -1,6 +1,8 @@
 <!-- 檔案用途：記錄 #17 桌面候選的合成驗證與剩餘門檻。所在層：版本證據。主要關聯：DATA_FORMAT.md、moves.js、moves-storage.js。 -->
 # #17 分類、動作庫與練習歷史
 
+目前整合候選另以 `587689d`／`db129e273cf0039b` 完成同版測試，見 [正式整合證據](../MEDIA_PROBE.md#p1-整合候選的正式同版桌面證據2026-10-28)。下列保留本票獨立來源版本與限制，不當作整合版的測試合計。
+
 2026-10-28 Asia/Taipei；基線 main `0a8bbd62035cc90f4498cb82bde1f58de83c447b`，分支 `feature/issue-17-move-library`；提交由本交付 PR head 綁定。macOS 27.0.1（26A434）、Chrome 156.0.8078.49 headless、Bun 1.4.4。專用 localhost port 48117、獨立 profile／全新 contexts；沒有操作桌面 Safari、其他聊天或實體相機／麥克風。
 
 ## 實作範圍與前置
