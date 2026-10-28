@@ -175,6 +175,8 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 
 以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。
 
+`offline-cache-failure.js` 另建乾淨 context，實際破壞一份公開 cache，再於真正 worker 注入 Cache.put quota、CacheStorage.open 與 Cache.match 例外。沿用本機白名單主機及 CLI `run-code --filename tests/browser/offline-cache-failure.js`；可用專用 port，無須相機設定。每種故障都要在線重開工作台、顯示離線不完整，合成筆記與 sentinel Blob 不變；解除故障後實際補存，再斷網重開。單元回歸另驗錯誤版本仍回 503、斷網缺檔失敗及安裝 quota 仍拒絕候選。這些注入不代替真實磁碟低空間；[版本證據](evidence/issue-13-cache-failure.md)獨立於先前大檔與真機矩陣。
+
 #### 20／100／200 MiB 保存矩陣
 
 `make-storage-fixtures.ts` 讀本機已生成的合成 `output/media-probe/reference.mp4`，每輪建立全新 `output/storage-size-*`，不覆寫舊檔。加 free atom 得到四份精確大小的 MP4，第四份為 200 MiB＋1 byte；媒體 sample 不變，只測容量邊界，不代表高碼率／長片壓力。先用 FFmpeg 完整解碼，核對時長、串流及媒體 packet hash 與來源相同；不要用私人影片替代。

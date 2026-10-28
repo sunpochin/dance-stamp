@@ -28,14 +28,21 @@ worker.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // 影片、筆記、其他 origin 及非 GET 不進 SW；媒體保存在獨立的本機儲存層。
   if (e.request.method !== 'GET' || url.origin !== worker.location.origin || !files.includes(url.pathname)) return;
-  e.respondWith(caches.open(cacheName).then(async cache => {
-    const cached = await cache.match(url.pathname);
-    if (cached && await matches(cached, url.pathname)) return cached;
+  e.respondWith((async () => {
+    /** @type {Cache | undefined} */
+    let cache;
+    try {
+      cache = await caches.open(cacheName);
+      const cached = await cache.match(url.pathname);
+      if (cached && await matches(cached, url.pathname)) return cached;
+    } catch { /* 快取暫時無法讀取時仍可在線取回，但不能略過下面的版本驗證。 */ }
     // 舊版缺檔時不能從新版主機混入不相容模組；符合本版雜湊才可補回。
     const response = await fetch(e.request);
     if (!await matches(response, url.pathname)) return new Response('應用版本不完整，請先備份並關閉所有本站分頁後重開。', { status: 503 });
-    await cache.put(url.pathname, response.clone()); return response;
-  }));
+    // 容量不足不能讓正確的在線頁面也失效；未補存仍由離線檢查誠實回報不完整。
+    try { await cache?.put(url.pathname, response.clone()); } catch { /* 本次回應可用，不代表已保存副本。 */ }
+    return response;
+  })());
 });
 worker.addEventListener('message', e => {
   if (e.data?.type !== 'CHECK_OFFLINE' || !e.ports[0]) return;
