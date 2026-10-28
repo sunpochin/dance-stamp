@@ -87,7 +87,8 @@ playwright-cli --session dance-background run-code "$(cat tests/browser/practice
 
 ```sh
 playwright-cli --session dance-capture open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
-playwright-cli --session dance-capture run-code "$(cat tests/browser/capture.js)"
+playwright-cli --session dance-capture run-code --filename tests/browser/capture.js
+playwright-cli --session dance-capture run-code --filename tests/browser/capture-comparison.js
 playwright-cli --session dance-capture-matrix open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
 for capture_rate in 0.5 0.75 1; do
   if test "$capture_rate" = 0.5; then capture_countdown=3; elif test "$capture_rate" = 0.75; then capture_countdown=5; else capture_countdown=10; fi
@@ -99,6 +100,8 @@ playwright-cli --session dance-capture-matrix run-code "$(cat tests/browser/capt
 ```
 
 矩陣約需數分鐘，逐例確認成功，不在執行中更換 dist 內容；觀察逾時先查同一 session，不能重開取代還活著的錄影。九段原 take 位於 ignored `output/media-probe/captures/`，另用 ffprobe 盤點、FFmpeg 完整解碼，不能只看 metadata／第一幀。只有合成證據，真正 G1／G6 與硬體中斷仍見 [#9 未完成項](evidence/issue-9-capture-recovery.md)。
+
+`capture-comparison.js` 在同頁依序錄影、匯出、改用既有雙片並再次匯出，最後重開原錄影，確認共用單一 AudioContext、相機停止、原片／筆記／舊 VS 都保留。只使用合成相機；不代替長片矩陣、真實硬體或背景驗收。
 
 ### 真正離頁與獨立重播
 
