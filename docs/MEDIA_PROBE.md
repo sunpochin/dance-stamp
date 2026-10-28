@@ -380,3 +380,8 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 乾淨 `85b1ba6`／`db129e273cf0039b`、真正 Safari 27.0.1：一般視窗的 15 秒既有雙片真的成檔、保存及關窗取回，三份媒體下載指紋均相同；原 v5 全檔分析仍拒絕 351.667ms 老師停格、1006.667ms 最大提示音配對差及 15.340 秒容器覆蓋。這不是 capture／光學或 Safari P0 通過。私人模式匯出被護欄拒絕，副本保存持續等待；獨立原生 8 KiB Blob 對照在私人模式 UnknownError、一般模式完整往返通過。普通新視窗不需初始化 Profiles；未修改日常設定。
 
 [完整版本、合成來源、數據與接手步驟](evidence/issue-3-safari-current.md)。`tests/browser/safari-storage-probe/serve.ts` 提供可重現的最小原生頁，只綁 loopback、不讀產品資料；其 timeout 不冒充產品已恢復。短片已失敗，暫不擴跑 Safari 九組／十輪矩陣，不改原護欄或宣稱手機失敗。
+
+
+## 更新分頁數的證據邊界（2026-10-29 補查）
+
+前述原生 `offline-update.js` 在自己的新 context 只有一個受控制產品頁；欄位 `activatesOnlyAfterAllOldTabsClose` 只證明該受測頁關閉後啟用，不能延伸為已驗證另一個舊產品分頁仍開著的情境。#60 補部分安裝回滾及 install／activate 刪除邊界單元測試，沒有把 handler 成功當作真實多頁 lifecycle。獨立雙分頁仍待補驗，詳見[當前更新稽核](evidence/issue-13-update-audit.md)。舊媒體與 lifecycle 結果保留原版本，不能憑欄位名稱或本次整合自動提高證據範圍。

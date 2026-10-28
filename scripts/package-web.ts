@@ -13,6 +13,8 @@ export const packageInputs = [
   'docs/evidence/existing-comparison.md', 'docs/evidence/issue-12-backup-recovery.md', 'docs/evidence/issue-13-offline-storage.md',
   // 支援限制指向的匿名證據也隨包，離線讀指南時才不會遇到缺檔連結。
   'docs/evidence/issue-3-safari-feasibility.md', 'docs/evidence/issue-3-safari-current.md',
+  // 隨包驗證說明已連到更新稽核，離線也須讀到單頁／多頁的實測界線。
+  'docs/evidence/issue-13-update-audit.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
   'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'docs/ai/harness-import.json',
