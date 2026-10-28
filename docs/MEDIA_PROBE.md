@@ -145,3 +145,7 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 更新專用主機：`bun --no-env-file tests/browser/serve-update.ts`（僅本機 4180，請勿部署）。開啟該 origin 的新隔離合成相機 session，執行 `offline-update.js`。測試控制入口只在此測試主機，產品 `serve-web.ts` 沒有它；以相同 manifest 的新 worker 身分及一份錯誤雜湊模擬完整／損壞更新，實際觀察 install、waiting、activate、原頁 controller 與資料，沒有偽造生命週期事件。
 
 以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。
+
+### 開啟 take 失敗時保留舊校正
+
+使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。
