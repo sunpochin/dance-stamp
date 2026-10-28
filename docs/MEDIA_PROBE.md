@@ -151,6 +151,35 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 
 以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。
 
+#### 20／100／200 MiB 保存矩陣
+
+`make-storage-fixtures.ts` 讀本機已生成的合成 `output/media-probe/reference.mp4`，每輪建立全新 `output/storage-size-*`，不覆寫舊檔。加 free atom 得到四份精確大小的 MP4，第四份為 200 MiB＋1 byte；媒體 sample 不變，只測容量邊界，不代表高碼率／長片壓力。先用 FFmpeg 完整解碼，核對時長、串流及媒體 packet hash 與來源相同；不要用私人影片替代。
+
+```sh
+bun --no-env-file scripts/make-storage-fixtures.ts
+# 替換為工具回報的本輪完整目錄；使用可用的本機產品埠。
+matrix_dir='output/storage-size-請替換本輪目錄'
+playwright-cli --session dance-size open http://127.0.0.1:4173 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
+playwright-cli --session dance-size run-code --filename "$matrix_dir/prepare.js"
+playwright-cli --session dance-size close
+```
+
+prepare 必須成功；它拒絕已有資料的 profile，不清庫。記錄 CLI 的程序識別並確認 close 後舊程序已退出；只是 reload 不算瀏覽器重啟。**只在本輪新建測片目錄**把四份輸入移開，不能操作真人原片或其他工作目錄：
+
+```sh
+mkdir "$matrix_dir/withheld-synthetic-inputs"
+for name in 20-mib 100-mib 200-mib 200-mib-plus-one; do
+  mv -n "$matrix_dir/$name.mp4" "$matrix_dir/withheld-synthetic-inputs/$name.mp4"
+done
+playwright-cli --session dance-size open http://127.0.0.1:4173 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
+playwright-cli --session dance-size run-code --filename "$matrix_dir/verify.js"
+playwright-cli --session dance-size close
+```
+
+先確認四個原路徑均已不存在，再開始 verify；新程序必須使用同一 profile。verify 實際斷網重開，逐份比較全 Blob SHA256、播放兩側，再點下載。核對 `### Result` 的六個磁碟檔 bytes／SHA256 與 `manifest.json` 相符，另做完整 FFmpeg 解碼；200 MiB 代表檔用 `download-playback.js` 從產品外播完，65 秒測片需把 timeout 設為 90,000ms。這個 timeout 是播放等待，不是匯出效能門檻。
+
+成功後還原本輪四份合成輸入並核對原雜湊；保留 profile、下載與紀錄在 ignored output，不能宣稱它們已公開。fixture 的 free atom／稀疏填充不改 File.size，也不把瀏覽器 quota、壓縮率或實際佔用空間當作已量測；[本輪證據與限制](evidence/issue-13-media-size.md)獨立於手機、真實低空間或未來 migration。
+
 ### 開啟 take 失敗時保留舊校正
 
 使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。
