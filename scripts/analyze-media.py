@@ -67,13 +67,21 @@ rate = recipe['rate']
 start, offset = recipe['startMs'] / 1000, recipe['offsetMs'] / 1000
 clip_start = start + rate * max(0, -offset)
 clip_end = start + rate * min((recipe['endMs'] / 1000 - start) / rate, recipe['selfDurationMs'] / 1000 - offset)
+expected_duration = (clip_end - clip_start) / rate
+take_interval = statistics.median(b[0] - a[0] for a, b in zip(take_frames, take_frames[1:]))
+take_span = take_frames[-1][0] - take_frames[0][0] + take_interval
 errors, reference_flashes, boundary_flashes, frozen, self_frozen = [], [], [], [], []
+content_clock_errors = []
 last_code, last_self_code = None, None
 hold_start = self_hold_start = output_frames[0][0]
 for pts, reference_code, camera_code in output_frames:
     if camera_code not in lookup:
         raise ValueError('VS 時間碼找不到對應的自拍原片影格')
     self_time = statistics.median(lookup[camera_code])
+    elapsed = pts - output_frames[0][0]
+    # 起末正確仍可能在中間重播；所有時間碼也須跟著輸出時鐘前進，容差沿用 G3 的 250ms。
+    content_clock_errors.append(max(abs((reference_code / 30 - clip_start) / rate - elapsed),
+        abs(self_time - (clip_start - start) / rate - offset - elapsed)) * 1000)
     # 量測的是「成檔對配方」誤差；模擬相機沒有實體光學時鐘，不能冒充硬體 G2。
     errors.append((pts, ((reference_code / 30 - start) / rate - (self_time - offset)) * 1000))
     if reference_code != last_code:
@@ -130,7 +138,16 @@ drift = checkpoints[-1] - checkpoints[0]
 full_export_ms = record.get('exportReadyUpperBoundMs')
 performance_verified = (isinstance(full_export_ms, (int, float)) and not isinstance(full_export_ms, bool)
     and math.isfinite(full_export_ms) and full_export_ms > 0)
-result = {'name': record['name'], 'analyzerVersion': 4, 'scope': 'synthetic encoded-file recipe validation, not physical-camera G2',
+# 首中末同步本身抓不到「兩側一起截短／重播」；另核對合法交集的長度與實際來源覆蓋。
+# 100ms 沿用同步容差，包含來源 30fps 在 0.5× 下的 66.7ms 量化；不跳過任何影格。
+coverage_errors = [(output_frames[0][1] / 30 - clip_start) / rate * 1000,
+    ((output_frames[-1][1] + 1) / 30 - clip_end) / rate * 1000,
+    (statistics.median(lookup[output_frames[0][2]]) - (clip_start - start) / rate - offset) * 1000,
+    (statistics.median(lookup[output_frames[-1][2]]) + take_interval - (clip_end - start) / rate - offset) * 1000]
+coverage_verified = (abs(video_span - expected_duration) <= 0.1 and abs(duration - expected_duration) <= 0.1
+    and abs(take_span - recipe['selfDurationMs'] / 1000) <= 0.1 and all(abs(error) <= 100 for error in coverage_errors)
+    and ('seconds' not in record or abs(take_span - record['seconds']) <= 0.5) and max(content_clock_errors) <= 250)
+result = {'name': record['name'], 'analyzerVersion': 5, 'scope': 'synthetic encoded-file recipe validation, not physical-camera G2',
           'durationSeconds': duration, 'width': video['width'], 'height': video['height'], 'codec': video['codec_name'],
           'durationSource': 'container' if container_duration else 'decoded audio/video end',
           'audioCodecs': [stream['codec_name'] for stream in audio_streams], 'averageFps': round(average_fps, 3),
@@ -147,11 +164,14 @@ result = {'name': record['name'], 'analyzerVersion': 4, 'scope': 'synthetic enco
           'maximumFlashToAudioMs': round(max(abs(error) for error in audio_errors), 3) if audio_errors else None,
           'exportElapsedMs': record['diagnostics']['export']['elapsedMs'], 'fullExportUpperBoundMs': full_export_ms,
           'performanceVerified': performance_verified, 'fullDecode': True}
+result.update(expectedDurationSeconds=expected_duration, decodedVideoSpanSeconds=video_span,
+    decodedTakeSpanSeconds=take_span, sourceCoverageErrorMs=[round(error, 3) for error in coverage_errors],
+    maximumContentClockErrorMs=round(max(content_clock_errors), 3), completeRecipeCoverage=coverage_verified)
 result['withinSyntheticTargets'] = (all(abs(error) <= 100 for error in checkpoints) and abs(drift) <= 100
     and average_fps >= 24 and max(frozen) <= 250 and max(self_frozen) <= 250
     and len(audio_streams) == 1 and bool(audio_errors) and extension_matches
     and audio_counts_match and max(abs(error) for error in audio_errors) <= 100
-    and performance_verified and full_export_ms <= 90_000)
+    and performance_verified and full_export_ms <= 90_000 and coverage_verified)
 destination = args.report or args.record.with_name(args.record.stem + '-analysis.json')
 if destination.exists():
     raise FileExistsError('拒絕覆寫既有量測證據')

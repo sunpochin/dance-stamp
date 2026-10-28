@@ -192,3 +192,5 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [手機清單](PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
 
 分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
+
+分析器 v5 另獨立驗證配方合法交集的解碼長度及兩側來源起末時間碼覆蓋（100ms 邊界容差），全片來源時間碼依輸出時鐘核對（250ms 品質容差）；runner 相機原片規劃長度沿用既有 500ms 容差。自查增加截短及重播補長負例。瀏覽器先快照既有 ID，要求本輪新增 ready take／export、正確關聯及 Blob 與下載內容一致；recovery 另注入 VS 保存 quota 並確認新檢查拒絕，該額外未保存檔不列入正式成檔數。

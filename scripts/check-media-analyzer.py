@@ -8,12 +8,12 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 folder = root / 'output/media-feasibility'
 parser = argparse.ArgumentParser()
-parser.add_argument('--case', choices=['all', 'aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-pts-delay', 'terminal-boundary', 'audio-gap', 'tail-freeze', 'slow-finalize', 'missing-timing'], default='all')
+parser.add_argument('--case', choices=['all', 'aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-pts-delay', 'terminal-boundary', 'audio-gap', 'tail-freeze', 'slow-finalize', 'missing-timing', 'truncated', 'repeated-source'], default='all')
 parser.add_argument('--label', default='', help='另存一輪工具自查，不覆寫舊證據')
 args = parser.parse_args()
 if args.label and not re.fullmatch('[a-z0-9-]+', args.label):
     parser.error('證據標籤只接受小寫英數與連字號。')
-for case in (['aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-pts-delay', 'terminal-boundary', 'audio-gap', 'tail-freeze', 'slow-finalize', 'missing-timing'] if args.case == 'all' else [args.case]):
+for case in (['aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-pts-delay', 'terminal-boundary', 'audio-gap', 'tail-freeze', 'slow-finalize', 'missing-timing', 'truncated', 'repeated-source'] if args.case == 'all' else [args.case]):
     shifted = case == 'shifted'
     name = f'analyzer-{args.label + "-" if args.label else ""}{case}'
     output = folder / f'{name}.mp4'
@@ -34,6 +34,12 @@ for case in (['aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-
     if case == 'audio-gap': audio_filter = ['-af', 'volume=0:enable=between(t\\,6.8\\,7.2)']
     # 只移動音軌 PTS、不在樣本中插入靜音，才能抓到 raw PCM 遺失時間原點的漏洞。
     if case == 'audio-pts-delay': audio_filter = ['-af', 'asetpts=PTS+0.2/TB']
+    if case == 'repeated-source':
+        # 時長雖滿 60 秒，兩側卻都重播同一段 15 秒；同步與提示音仍會看似正確。
+        duration = 60
+        graph = ('[0:v]trim=duration=15,loop=loop=3:size=450:start=0,setpts=N/(30*TB),split[l][r];'
+                 '[l]pad=640:720:0:204[l];[r]pad=640:720:0:204[r];[l][r]hstack[v]')
+        audio_filter = ['-af', 'atrim=duration=15,aloop=loop=3:size=720000,asetpts=N/SR/TB']
     subprocess.run(['ffmpeg', '-v', 'error', '-n', '-i', str(folder / 'reference.mp4'), '-filter_complex', graph,
                     '-map', '[v]', '-map', '0:a', *audio_filter, '-t', str(duration), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', str(output)], check=True)
     # 故意保留 15 秒 timeline 卻注入 100 秒完整流程，確認不是只拿播放迴圈當效能通過。
@@ -42,6 +48,7 @@ for case in (['aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-
               'diagnostics': {'export': {'elapsedMs': 15000, 'recipe': {'startMs': 0, 'endMs': 15000, 'rate': 1,
               'offsetMs': 0, 'selfDurationMs': 65000, 'referenceMirror': False, 'selfMirror': False}}}}
     if case == 'missing-timing': record.pop('exportReadyUpperBoundMs')
+    if case in ['truncated', 'repeated-source']: record['diagnostics']['export']['recipe']['endMs'] = 60000
     path = folder / f'{name}.json'
     if path.exists():
         raise FileExistsError('拒絕覆寫既有自查證據')
@@ -67,4 +74,6 @@ for case in (['aligned', 'shifted', 'audio-delay', 'audio-second-delay', 'audio-
         raise RuntimeError('量測漏掉中段缺音')
     if case == 'tail-freeze' and abs(analysis['maximumUnchangedSelfMs'] - 266.667) > 2:
         raise RuntimeError('量測沒有算入片尾最後一格的呈現時間')
+    if case in ['truncated', 'repeated-source'] and analysis['completeRecipeCoverage']:
+        raise RuntimeError('量測沒有抓到配方未完整覆蓋')
     print(f'{name}: expected {"pass" if should_pass else "failure"}, measured {analysis["recipeErrorStartMiddleEndMs"]}, audio={analysis["maximumFlashToAudioMs"]}ms', flush=True)

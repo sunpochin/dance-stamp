@@ -2,6 +2,23 @@
 async (page, options) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const { phase, baseUrl, seconds, rate, name } = options;
+  const verifySaved = (kind, exportIds) => page.evaluate(async ({ kind, exportIds }) => {
+    const { readLibrary, readMedia } = await import('/storage.js'); const { data } = await readLibrary();
+    const test = window.feasibility;
+    const rows = kind === 'take' ? data.takes.filter(row => !test.before.takeIds.includes(row.id))
+      : data.exports.filter(row => !(exportIds || test.before.exportIds).includes(row.id));
+    // 保存失敗時下載仍可用；必須證明本輪新增成功關聯，不能只數現存的舊媒體。
+    if (rows.length !== 1 || rows[0].state !== 'ready') throw new Error(kind === 'take' ? '本輪 take 未新增並完成保存' : '本輪 VS 未新增並完成保存');
+    const row = rows[0], id = kind === 'take' ? row.cameraAssetId : row.assetId;
+    if (kind === 'take') test.takeId = row.id;
+    else if (data.recipes.find(recipe => recipe.id === row.recipeId)?.takeId !== test.takeId) throw new Error('本輪 VS 關聯錯誤');
+    const saved = await readMedia(id), href = document.getElementById(kind === 'take' ? 'take-download' : 'output-download').href;
+    const downloaded = test.blobs.get(href);
+    if (!downloaded?.size) throw new Error('找不到本輪下載內容');
+    const digest = async blob => [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].join(',');
+    if (!saved?.size || saved.size !== downloaded.size || await digest(saved) !== await digest(downloaded)) throw new Error('本輪保存內容與下載不符');
+    return true;
+  }, { kind, exportIds });
   const storageCheck = () => page.evaluate(async () => {
     const { readLibrary, readMedia } = await import('/storage.js');
     const { data } = await readLibrary();
@@ -16,7 +33,11 @@ async (page, options) => {
     await page.goto(baseUrl);
     await page.evaluate(() => {
       if (window.__danceSyntheticCameraOnly !== true) throw new Error('禁止實測工具啟用真人相機。');
-      window.feasibility = { tracks: [], requests: [], frames: { pending: new Set(), requested: 0, delivered: 0, cancelled: 0, maximum: 0 } };
+      window.feasibility = { tracks: [], requests: [], blobs: new Map(), frames: { pending: new Set(), requested: 0, delivered: 0, cancelled: 0, maximum: 0 } };
+      const createUrl = URL.createObjectURL, revokeUrl = URL.revokeObjectURL;
+      // 只觀察下載 URL 的原始 Blob；產品 CSP 不開放 blob fetch，不為測試放寬它。
+      URL.createObjectURL = blob => { const url = createUrl.call(URL, blob); window.feasibility.blobs.set(url, blob); return url; };
+      URL.revokeObjectURL = url => { window.feasibility.blobs.delete(url); revokeUrl.call(URL, url); };
       const requestFrame = HTMLVideoElement.prototype.requestVideoFrameCallback;
       const cancelFrame = HTMLVideoElement.prototype.cancelVideoFrameCallback;
       if (requestFrame) {
@@ -48,6 +69,10 @@ async (page, options) => {
         return stream;
       };
     });
+    await page.evaluate(async () => {
+      const { data } = await (await import('/storage.js')).readLibrary();
+      window.feasibility.before = { takeIds: data.takes.map(row => row.id), exportIds: data.exports.map(row => row.id) };
+    });
     if (options.forceWebM) await page.evaluate(() => {
       // 只略過 MP4 候選，仍交由原生編碼器試錄；不能把能力偵測偽造成成功。
       const supported = MediaRecorder.isTypeSupported.bind(MediaRecorder);
@@ -68,6 +93,7 @@ async (page, options) => {
   if (phase === 'export') {
     assert(await page.evaluate(() => window.feasibility.tracks.every(track => track.readyState === 'ended')), '相機沒有釋放');
     assert(await page.evaluate(() => window.feasibility.requests.every(request => request.audio === false)), '意外要求麥克風');
+    await verifySaved('take');
     const saving = page.waitForEvent('download');
     await page.locator('#take-download').click();
     const take = await saving;
@@ -83,11 +109,32 @@ async (page, options) => {
       }
     }
     await page.locator('#export').click();
-    return { takePath };
+    return { takePath, currentTakeSaved: true };
   }
   if (phase === 'export-status') return page.evaluate(() => ({ ready: !document.getElementById('compare').disabled,
     status: document.getElementById('status').textContent, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent) }));
   if (phase === 'recovery') {
+    const beforeExports = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.map(row => row.id));
+    await page.evaluate(() => {
+      window.g3OriginalPut = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(...args) {
+        if (this.name === 'media') throw new DOMException('synthetic export quota', 'QuotaExceededError');
+        return window.g3OriginalPut.apply(this, args);
+      };
+    });
+    let quotaRejected = false;
+    try {
+      await page.locator('#export').click();
+      await page.waitForFunction(() => !document.getElementById('compare').disabled && document.getElementById('status').textContent.includes('無法保存'));
+      assert(await page.evaluate(() => !JSON.parse(document.getElementById('diagnostics').textContent).lastError), '未重現成檔但保存失敗沒有 lastError');
+      assert((await storageCheck()).missing === 0, '未重現舊保存檢查誤通過');
+      try { await verifySaved('vs', beforeExports); }
+      catch (error) { if (!String(error).includes('本輪 VS 未新增並完成保存')) throw error; quotaRejected = true; }
+      assert(quotaRejected, '新檢查漏掉本輪未保存的 VS');
+      const saving = page.waitForEvent('download'); await page.locator('#output-download').click();
+      const download = await saving;
+      await download.saveAs(`output/media-feasibility/${name}-quota-unsaved.${download.suggestedFilename().split('.').pop()}`);
+    } finally { await page.evaluate(() => { IDBObjectStore.prototype.put = window.g3OriginalPut; }); }
     const originalTake = await page.locator('#take-download').getAttribute('href');
     const originalOutput = await page.locator('#output-download').getAttribute('href');
     for (const [button, message] of [['#export', '合成中'], ['#play', '共同預覽中']]) {
@@ -157,7 +204,7 @@ async (page, options) => {
     storageNegative.restoredMissing = (await storageCheck()).missing;
     assert(storageNegative.restoredMissing === 0, '負向自查後未還原原片');
     return { exportCancellation: true, previewCancellation: true, playRejection: true, frameRejection: true,
-      missingBlobDetectedAndRestored: true, storageNegative, filesPreserved: true, frames };
+      missingBlobDetectedAndRestored: true, quotaUnsavedExportRejected: quotaRejected, storageNegative, filesPreserved: true, frames };
   }
   if (phase === 'save') {
     const diagnostics = JSON.parse(await page.locator('#diagnostics').textContent());
@@ -169,12 +216,13 @@ async (page, options) => {
     const output = await saving;
     const outputPath = `output/media-feasibility/${name}-vs.${output.suggestedFilename().split('.').pop()}`;
     await output.saveAs(outputPath);
+    await verifySaved('vs');
     // 檢查真正的持久化媒體，不只確認下載連結存在；十次連續試驗沿用同一資料庫。
     const storage = await storageCheck();
     assert(storage.missing === 0, '已保存的媒體遺失');
     const frames = await page.evaluate(() => { const {pending,...counts}=window.feasibility.frames; return {...counts,pending:pending.size}; });
     assert(frames.pending === 0 && frames.maximum <= 2 && frames.delivered > 0, '影格訂閱未正常執行或未釋放');
-    return { diagnostics, outputPath, storage, frames, cameraReleased: true, noMicrophone: true, userAgent: await page.evaluate(() => navigator.userAgent) };
+    return { diagnostics, outputPath, storage, frames, currentExportSaved: true, cameraReleased: true, noMicrophone: true, userAgent: await page.evaluate(() => navigator.userAgent) };
   }
   throw new Error('未知媒體驗證階段');
 }

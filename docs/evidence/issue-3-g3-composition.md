@@ -21,7 +21,7 @@
 
 中途基線 `cbc5dee`／`9396010483a03587` 已完成九組速度／長度與十輪 60 秒 capture→export，未重現原停格；其分析器與數據屬中途版本，不計入最終通過數量。交付前 main 又合併 #33／#36／#37／#38，改到錄影與保存流程，因此從 `e9e154a` 的全新 session／資料庫再跑完整驗證。
 
-最終版本使用 `g3-current` 標籤、相同靜態內容及分析器 v4，24 組完整驗證已通過。不借用舊版錄影或既有雙片矩陣。
+最終版本使用 `g3-current` 標籤、相同靜態內容及分析器 v5，24 組完整驗證已通過。不借用舊版錄影或既有雙片矩陣。
 
 ### 最終版本九組矩陣
 
@@ -69,11 +69,11 @@
 
 最慢完整匯出上界 62.383 秒，涵蓋準備、實時合成、編碼收尾、讀回及保存，低於 90 秒；不是只取 timeline 的時間。熱、電池及硬體記憶體壓力未驗證。
 
-最終 24 個 ready take／24 個 ready export、未完成記錄 0，48 份非空 Blob 與下載檔的 bytes／SHA-256 多重集合完全一致；cache 名稱僅 `dance-stamp-web-2f1ec6b3335cd790`。全 24 組另存 `*-final-analysis.json` 以 v4 全片重新覆核，原中途報告保留。
+最終 24 個 ready take／24 個 ready export、未完成記錄 0，48 份非空 Blob 與下載檔的 bytes／SHA-256 多重集合完全一致；cache 名稱僅 `dance-stamp-web-2f1ec6b3335cd790`。全 24 組另存 `*-v5-final-analysis.json` 以 v5 全片重新覆核，原中途報告保留。
 
 匯出取消、預覽取消、一側 play 拒絕與實際繪製失敗均保留原片／上次輸出；最多同時兩個呈現訂閱、完成與失敗後 pending=0。故障注入實際移除一份合成 Blob 時，舊篩選漏報 0、新檢查正確回報 1；finally 還原後為 0，最終指紋確認未改內容。
 
-工具十項自查符合預期：對齊、合法片尾邊界通過；200ms 畫面偏移、200／1200ms 樣本音訊延遲、只平移音軌 PTS、中段缺音、266.667ms 片尾凍結、100 秒完整收尾、缺完整耗時各拒絕。另重現舊分析器誤放行音軌 PTS 延遲與 100 秒收尾；v4 均拒絕，原 266.400ms 停格亦仍拒絕。
+工具十二項自查符合預期：對齊、合法片尾邊界通過；200ms 畫面偏移、200／1200ms 樣本音訊延遲、只平移音軌 PTS、中段缺音、266.667ms 片尾凍結、100 秒完整收尾、缺完整耗時、截短與重播補長各拒絕。另重現舊分析器誤放行音軌 PTS 延遲與 100 秒收尾；v4 均拒絕，原 266.400ms 停格亦仍拒絕。
 
 本機 `bun run check`／pre-commit／遠端 CI 以交付 PR 最新 head 為準；同版初次檢查 342 tests、599 expects、checkJs、Biome、公開掃描及 build 通過。重要變更仍待 Claude Code 或使用者審查；沒有合併或發布。
 
@@ -87,13 +87,21 @@ v2 六項工具自查通過預期：對齊與末格邊界為正例；畫面錯�
 
 ### 片尾停格計算
 
-分析器 v3 將末格的一個呈現區間也計入停格，避免只算到最後 PTS 而少約 33ms。新增負例讓最後八格固定，必須拒絕 266.667ms；僅算 PTS 差會誤報 233.333ms。所有最終成檔都以相同 v4 量測，沒有弱化 250ms 門檻。
+分析器 v3 將末格的一個呈現區間也計入停格，避免只算到最後 PTS 而少約 33ms。新增負例讓最後八格固定，必須拒絕 266.667ms；僅算 PTS 差會誤報 233.333ms。所有最終成檔都以相同 v5 量測，沒有弱化 250ms 門檻。
 
 ### 承接 PR #34 的審查修正
 
 三項 P2 均成立並納入本次工具：保存檢查改從 ready／interrupted take 與 ready export 的媒體關聯讀 Blob，不篩掉 readLibrary 推導的 missing；增加真實移除／finally 還原合成 Blob 的負向自查，最終指紋再次核對。音訊解碼保留 PTS，以 `-copyts` 及 `aresample=8000:async=1:first_pts=0` 把前導／中途空隙放回共同時間軸，只影響量測樣本，不改原片；僅平移音軌 PTS 的 200ms 測片會拒絕。效能判定使用完整 `exportReadyUpperBoundMs`；只有 timeline 時間時標未驗證，不會過關，100 秒收尾測片亦拒絕。
 
-最終所有錄製原檔都再用分析器 v4 另存覆核報告，保留 v3 中途報告。參考 [FFmpeg copyts](https://ffmpeg.org/ffmpeg.html#Advanced-options) 與 [resampler first_pts／async](https://ffmpeg.org/ffmpeg-resampler.html#Resampler-Options)。
+當時全部成檔以 v4 另存覆核，後續最終 v5 報告再另存，不覆寫 v3／v4。參考 [FFmpeg copyts](https://ffmpeg.org/ffmpeg.html#Advanced-options) 與 [resampler first_pts／async](https://ffmpeg.org/ffmpeg-resampler.html#Resampler-Options)。
+
+### PR #41 完整性與本輪保存審查
+
+兩項 P2 均成立。v4 曾誤放行「60 秒配方只有 15 秒檔案」，以及時長 60 秒但兩側都把同一段 15 秒重播四次的內容。v5 獨立核對合法交集的預期長度、解碼視訊／影音長度、來源起末時間碼覆蓋與原 take 長度；來源與輸出邊界容差 100ms，沿用同步門檻並涵蓋慢速來源影格量化。相機原片另獨立核對 runner 規劃長度的既有 500ms 容差。兩個真實成檔負例均拒絕，不再以同步或能解碼代替完整性。
+
+全部 24 組另存 v5 報告覆核通過，解碼視訊長度誤差最大 46.466ms、來源邊界誤差最大 44.444ms、全片內容時鐘誤差最大 108.333ms，48 份內容指紋不變；再從每份原片及 VS 的實際 Blob 指紋回查 take→recipe→export，24 對均一一正確。v4 報告保留，不覆寫。所有來源時間碼還須跟隨輸出時鐘，偏移不超過既有 G3 的 250ms，避免首末正確卻在中途重播。
+
+保存工具在操作前快照 take／export ID，要求本輪各新增一筆 ready 關聯，並比較該 Blob 與下載 URL 所持內容的大小及 SHA-256。URL 只作觀察，不修改 CSP 或另取影格。另用隔離資料庫注入真正 VS media put quota，確認成檔可下載、lastError 為空且舊 missing 檢查為 0 時，新檢查仍因沒有本輪新增 export 而拒絕。獨立 session 的 `recovery-review-v5b` 已通過：正常 take／export 均新增並逐 Blob 核對成功，quota 時新檢查拒絕未新增 VS，原片與舊資料保留；取消／播放拒絕／繪製失敗及 Blob 移除還原也通過，pending=0、同時最多 2。不把額外正常回歸或故意未保存輸出計入原 24 組。
 
 ## 驗證方式與邊界
 
