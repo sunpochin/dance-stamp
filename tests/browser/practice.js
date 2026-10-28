@@ -19,8 +19,8 @@ async (page) => {
     Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', { ...clock, set(value) {
       if (this.id === 'reference') {
         const evidence = window.practiceEvidence, trial = evidence.trial, from = clock.get.call(this);
-        // 合成取消刻意攔截 seeked，事件旗標會殘留；直接讀原生狀態，仍要求實際重疊為零。
-        if (this.seeking) evidence.overlappingSeeks++;
+        // 取消後 seeked 可能晚到；用原生 seeking 判斷是否重疊，不把觀察器舊旗標當成仍在跳轉。
+        if (this.seeking) { evidence.overlappingSeeks++; (evidence.overlapDetails ??= []).push({ stage: window.practiceStage, from, to: value }); }
         if (trial && Math.abs(value - trial.a) < 0.001) {
           // 第一次是開始定位；其後才計算越過 B 的媒體時間，另獨立觀察呈現影格。
           if (trial.started && from >= trial.b) trial.rewinds.push({ from, overshootMs: (from - trial.b) * 1000 });
@@ -150,7 +150,7 @@ async (page) => {
   await page.locator('#reference-file').setInputFiles('output/media-probe/short/reference.mp4'); await idle();
   assert(await page.locator('#reference').evaluate(v => v.paused && v.playbackRate === 2 && window.practiceEvidence.frames.size === 0), '切片留下 callback 或速度重設');
   checks.replaceCleansUp = true;
-  const ownership = await page.evaluate(() => ({ maximumCallbacks: window.practiceEvidence.maximumFrames, overlappingSeeks: window.practiceEvidence.overlappingSeeks }));
+  const ownership = await page.evaluate(() => ({ maximumCallbacks: window.practiceEvidence.maximumFrames, overlappingSeeks: window.practiceEvidence.overlappingSeeks, overlaps: window.practiceEvidence.overlapDetails || [] }));
   assert(ownership.maximumCallbacks <= 1 && ownership.overlappingSeeks === 0, `callback／seek 重疊：${JSON.stringify(ownership)}`);
   checks.ownership = ownership;
   await stage('pagehide');
