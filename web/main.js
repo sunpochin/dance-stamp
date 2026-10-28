@@ -25,6 +25,7 @@ const urls = new Map();
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
 let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
+let operationTrigger, operationFocus;
 let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comparisonSaveVersion = 0;
 /** @type {import('./types').Diagnostics} */
 const diagnostics = { stage: 'idle', camera: null, capture: null, export: null };
@@ -35,6 +36,21 @@ let markerVideoId;
 let looping = false, practiceStarting = false, practiceController, practiceSeek, practiceFrame, practiceFrameUsesVideo, practiceToken = 0;
 
 function status(message) { $('status').textContent = message; }
+function focusControl(element) {
+  if (!(element instanceof HTMLElement)) return;
+  // 先等 fieldset 重新啟用；直接 focus 停用中的輸入不會生效。
+  if (active) { operationFocus = element; return; }
+  /** @type {HTMLElement | null} */
+  let target = element;
+  if (!element.isConnected) {
+    const key = element.dataset.focusKey;
+    target = key ? document.querySelector(`[data-focus-key="${CSS.escape(key)}"]`) : null;
+    if (!target && key?.startsWith('asset:')) target = document.querySelector(`[data-asset-id="${CSS.escape(key.split(':')[1])}"] button`) || $('refresh-media');
+    target ||= key?.startsWith('marker:') ? $('mark') : $('library');
+  }
+  const modal = document.querySelector('dialog[open]');
+  if (target && !target.matches(':disabled') && target.getClientRects().length && (!modal || modal.contains(target))) target.focus();
+}
 function report() { $('diagnostics').textContent = JSON.stringify(diagnostics, null, 2); }
 function urlFor(key, blob) {
   const previous = urls.get(key);
@@ -90,8 +106,10 @@ function updateControls() {
 }
 async function operation(task) {
   if (active) return;
-  const controller = new AbortController();
+  const controller = new AbortController(), trigger = document.activeElement;
+  operationTrigger = trigger; operationFocus = null;
   active = controller;
+  for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'true');
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
   $('existing-mode').disabled = true;
   for (const id of /** @type {const} */ (['reference-start', 'reference-end', 'self-start'])) $(id).disabled = true;
@@ -104,7 +122,8 @@ async function operation(task) {
   catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
     releaseCamera();
     status(error.name === 'AbortError' ? '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);
-    diagnostics.lastError = error.name === 'AbortError' ? 'cancelled' : error.message;
+    // 原生錯誤可能含檔名／裝置資訊；可帶走的診斷只留分類，詳細說明留在本機狀態。
+    diagnostics.lastError = error.name === 'AbortError' ? 'cancelled' : error.name === 'QuotaExceededError' ? 'storage-full' : 'operation-failed';
   } finally {
     reference.pause(); self.pause();
     if (monitor) monitor.gain.value = 1;
@@ -113,7 +132,12 @@ async function operation(task) {
     // 比較結束先收起暫停控制，再恢復練習速度，避免下一次播放沿用合成設定。
     applyPracticeSettings(); drawPractice();
     reference.controls = true; self.controls = true;
+    for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'false');
     updateControls(); report();
+    const current = document.activeElement, requested = operationFocus;
+    operationTrigger = null; operationFocus = null;
+    // 停用控制會讓鍵盤焦點掉到 BODY；只補回遺失焦點，不搶走使用者移到停止鍵等處的焦點。
+    if (current === document.body || current === document.documentElement || (requested && current?.closest('dialog') === requested.closest('dialog') && current?.closest('dialog'))) focusControl(requested || trigger);
   }
 }
 function abortIfNeeded(signal) { signal.throwIfAborted(); }
@@ -544,14 +568,17 @@ function linkedMime(previous, file) {
 function closeImportDialog(abort = true) {
   if (!importDraft && !$('import-dialog').open) return;
   if (abort) active?.abort(); importDraft = null; $('import-dialog').close();
+  focusControl($('restore'));
   if (abort) status('已取消匯入，原資料保留。');
 }
 function closeMediaDialog(abort = true) {
   if (!relinkDraft && !$('media-dialog').open) return;
+  const opener = relinkDraft?.opener;
   if (abort) active?.abort(); relinkDraft = null;
   const video = $('relink-preview'); video.pause(); video.removeAttribute('src'); video.load();
   const url = urls.get('relink-preview'); if (url) URL.revokeObjectURL(url); urls.delete('relink-preview');
   $('relink-file').value = ''; $('media-dialog').close();
+  focusControl(opener || $('refresh-media'));
   if (abort) status('已取消重連，原資料與比較畫面保留。');
 }
 function sessionFile(id) {
@@ -568,12 +595,13 @@ async function refreshMediaInventory() {
   const stored = new Set(keys.filter(key => typeof key === 'string')), session = new Set(data.assets.filter(a => sessionFile(a.id)).map(a => a.id));
   const rows = mediaInventory(data, stored, session), labels = { reference: '示範', take: '自己原片', vs: 'VS' };
   $('media-summary').textContent = 'JSON 不含影片。共 ' + rows.length + ' 份描述：本機副本 ' + rows.filter(r => r.availability === 'stored').length + '、本次連結 ' + rows.filter(r => r.availability === 'session').length + '、缺片 ' + rows.filter(r => r.availability === 'missing').length + '。本機副本仍須另行備份，瀏覽器可能清除資料。';
+  const focused = $('media-items').contains(document.activeElement) ? document.activeElement : null;
   $('media-items').replaceChildren();
   for (const row of rows) {
     const li = document.createElement('li'); li.dataset.assetId = row.asset.id; li.dataset.availability = row.availability;
     const statusText = row.availability === 'stored' ? '已存瀏覽器副本' : row.availability === 'session' ? '本次已連結，未存瀏覽器副本' : '缺片，需要另選原檔';
     li.append(document.createTextNode(labels[row.asset.kind] + ' · ' + row.owner + ' · ' + statusText + (row.interrupted ? '（錄影／中斷片段，需檢查完整性）' : '') + '。描述大小 ' + (row.asset.byteLength / 1048576).toFixed(2) + ' MiB。 '));
-    if (row.availability === 'missing') li.append(button('選片並預覽重連', () => openMediaRelink(row.asset.id, row.owner)));
+    if (row.availability === 'missing') li.append(button('選片並預覽重連', () => openMediaRelink(row.asset.id, row.owner), `asset:${row.asset.id}:link`));
     else {
       li.append(button('另存影片檔', async () => {
         const original = await getAvailableMedia(row.asset.id); if (!original) throw new Error('原片已不在，請重新檢查清單並選片。');
@@ -581,7 +609,7 @@ async function refreshMediaInventory() {
         const blob = await normalizedVideo(original).catch(() => original), link = document.createElement('a');
         link.href = urlFor('inventory:' + row.asset.id, blob); link.download = mediaFilename(blob, 'dance-' + row.asset.kind); link.click();
         status('已交給瀏覽器另存影片；請確認下載完成，JSON 本身不含影片。');
-      }));
+      }, `asset:${row.asset.id}:download`));
       if (row.availability === 'session') li.append(button('保存瀏覽器副本', async signal => {
         const blob = await getAvailableMedia(row.asset.id); if (!blob) throw new Error('原片已不在，請重新連結。');
         if (blob.size > 200 * 1024 * 1024) throw new Error('副本初期限 200 MiB；仍可另存影片檔。');
@@ -590,35 +618,39 @@ async function refreshMediaInventory() {
           Object.assign(asset, { byteLength: blob.size, mimeType: linkedMime(asset.mimeType, blob), state: 'ready', storageKind: 'indexeddb' });
         }, { id: row.asset.id, blob }, signal);
         status('已保存副本，仍請另存影片與 JSON。');
-      }));
-      if (row.availability === 'stored') li.append(button('移除此瀏覽器副本…', () => showDelete('copy', row.asset.id)));
+      }, `asset:${row.asset.id}:save`));
+      if (row.availability === 'stored') li.append(button('移除此瀏覽器副本…', () => showDelete('copy', row.asset.id), `asset:${row.asset.id}:remove`));
     }
     $('media-items').append(li);
   }
+  if (focused) focusControl(focused);
 }
 async function openMediaRelink(assetId, owner) {
   if (await getAvailableMedia(assetId)) { await refreshMediaInventory(); status('這支影片已可用，原比較畫面保留。'); return; }
   const asset = state.data.assets.find(a => a.id === assetId); if (!asset) throw new Error('媒體描述已失聯，原資料保留。');
   releaseCamera(); closeMediaDialog(false);
-  relinkDraft = { assetId, revision: state.revision, candidate: null };
+  relinkDraft = { assetId, revision: state.revision, candidate: null, opener: operationTrigger };
   $('media-title').textContent = ({ reference: '示範', take: '自己原片', vs: 'VS' })[asset.kind] + ' · ' + owner;
   $('relink-file-label').textContent = asset.kind === 'vs' ? '已合成的單一 VS（不取代比較原片）' : '未合成的' + (asset.kind === 'reference' ? '老師原片' : '自己原片') + '（請勿用 VS 代替）';
   $('relink-checked').checked = false; $('relink-save').checked = false; $('relink-file').value = '';
   $('relink-summary').textContent = '請選片並預覽。備份描述 ' + (asset.byteLength / 1048576).toFixed(2) + ' MiB' + (asset.durationMs ? '、' + (asset.durationMs / 1000).toFixed(3) + ' 秒' : '') + '；本期預設只在這次連結。';
-  $('media-dialog').showModal(); $('relink-file').focus();
+  $('media-dialog').showModal(); focusControl($('relink-file'));
 }
-function button(text, action) {
+function button(text, action, focusKey) {
   const el = document.createElement('button'); el.type = 'button'; el.textContent = text;
+  if (focusKey) el.dataset.focusKey = focusKey;
   el.addEventListener('click', () => operation(action)); return el;
 }
 function closeDeleteDialog(abort = true) {
   if (!deleteDraft && !$('delete-dialog').open) return;
+  const opener = deleteDraft?.opener;
   if (abort) active?.abort(); deleteDraft = null; $('delete-dialog').close();
+  focusControl(opener || $('library'));
 }
 async function showDelete(kind, id) {
   if (keepMarkerDraft()) return;
   const plan = planDeletion(state.data, kind, id), keys = new Set(await readMediaKeys());
-  deleteDraft = { plan, revision: state.revision };
+  deleteDraft = { plan, revision: state.revision, opener: operationTrigger };
   const names = { copy: '只移除此瀏覽器副本', take: '刪除此練習影片與比較', export: '刪除此 VS 輸出', video: '刪除整份影片筆記' };
   // 按 ID 各查一次，避免大型備份的三層關聯搜尋卡住刪除預覽。
   const artifact = kind === 'export' ? state.data.exports.find(e => e.id === id) : undefined;
@@ -670,6 +702,7 @@ $('delete-confirm').addEventListener('click', () => operation(async signal => {
   status('指定的本站資料已移除；原始檔、原相簿與其他筆記保留。');
 }));
 function renderLibrary() {
+  const focused = document.activeElement;
   refreshMediaInventory().catch(() => { $('media-summary').textContent = '暫時無法檢查媒體，原資料保留；仍可下載 JSON。'; });
   const selected = $('library').value;
   $('library').replaceChildren(new Option('選擇影片筆記', ''));
@@ -688,13 +721,13 @@ function renderLibrary() {
       await seek(reference, marker.startMs / 1000, signal);
       if (!selfDurationMs && marker.endMs !== undefined) { $('start').value = String(marker.startMs / 1000); $('end').value = String(marker.endMs / 1000); }
       status(marker.endMs === undefined ? '已跳到標記。' : selfDurationMs ? '已跳到標記；已有自拍，錄影片段維持原設定。' : '已跳到標記，並將區間設為下一次練習片段。');
-    });
+    }, `marker:${marker.id}:jump`);
     jump.disabled = outside;
-    li.append(jump, button('編輯', async () => editMarker(marker)), button('刪除標記', async () => {
+    li.append(jump, button('編輯', async () => editMarker(marker), `marker:${marker.id}:edit`), button('刪除標記', async () => {
       if (keepMarkerDraft()) return;
       if (!confirm('確定刪除這個標記？其他筆記與影片不受影響。')) return;
       await saveData(data => { data.markers = data.markers.filter(m => m.id !== marker.id); });
-    }));
+    }, `marker:${marker.id}:delete`));
     $('markers').append(li);
   }
   for (const take of state.data.takes.filter(t => t.referenceVideoId === currentVideoId)) {
@@ -703,7 +736,7 @@ function renderLibrary() {
     const mediaState = sessionMedia.has(take.cameraAssetId) && asset?.state !== 'ready' ? 'session-only' : asset?.state;
     const label = take.state === 'failed' ? '未錄成；可重新錄製' : take.state === 'interrupted' ? mediaState === 'ready' ? '中斷片段已保存' : '中斷待恢復' : mediaState === 'missing' ? '原片待重連' : take.state === 'ready' ? mediaState === 'session-only' ? '當次開啟，原片請另存' : '已保存' : '可能錄製中／待恢復';
     li.append(document.createTextNode(`${take.rate}× · ${((take.referenceEndMs - take.referenceStartMs) / take.rate / 1000).toFixed(1)} 秒 · ${label} `));
-    li.append(button('開啟自拍／恢復', signal => openTake(take, signal)), button('刪除此練習與比較…', () => showDelete('take', take.id)));
+    li.append(button('開啟自拍／恢復', signal => openTake(take, signal), `take:${take.id}:open`), button('刪除此練習與比較…', () => showDelete('take', take.id), `take:${take.id}:delete`));
     for (const artifact of state.data.exports.filter(e => state.data.recipes.some(r => r.id === e.recipeId && r.takeId === take.id))) {
       const savedRecipe = state.data.recipes.find(r => r.id === artifact.recipeId);
       li.append(button(artifact.recipeRevision === savedRecipe?.revision ? '下載已存 VS' : '下載舊版 VS（設定已變更）', async () => {
@@ -712,11 +745,12 @@ function renderLibrary() {
         $('output-status').textContent = '已取回當時保存的 VS；影片對應其原本的比較設定。';
         output.src = urls.get('output-download'); output.hidden = false; $('share').disabled = false;
         status('已取回保存的 VS，可用下方連結下載。');
-      }));
-      li.append(button('刪除此 VS 輸出…', () => showDelete('export', artifact.id)));
+      }, `export:${artifact.id}:download`));
+      li.append(button('刪除此 VS 輸出…', () => showDelete('export', artifact.id), `export:${artifact.id}:delete`));
     }
     $('takes').append(li);
   }
+  if (focused instanceof HTMLElement && focused.dataset.focusKey && !focused.isConnected) focusControl(focused);
 }
 async function beginTake(value) {
   if (!currentVideoId) throw new Error('請先開啟並連結影片筆記。');
@@ -898,14 +932,14 @@ function editMarker(marker, clickedMs = Math.round(reference.currentTime * 1000)
   $('marker-start').value = String((marker?.startMs ?? clickedMs) / 1000);
   $('marker-end').value = marker?.endMs === undefined ? '' : String(marker.endMs / 1000);
   $('marker-title').value = marker?.title || ''; $('marker-note').value = marker?.note || '';
-  $('marker-form').hidden = false; $('marker-title').focus();
+  $('marker-form').hidden = false; focusControl($('marker-title'));
 }
 $('mark').addEventListener('click', () => {
   // 在點擊事件內先取時間；後續打字、非同步保存或播放進度不能改寫它。
   const clickedMs = Math.round(reference.currentTime * 1000);
   if (!active && referenceDurationMs) editMarker(undefined, clickedMs);
 });
-$('cancel-marker').addEventListener('click', clearMarkerEditor);
+$('cancel-marker').addEventListener('click', () => { clearMarkerEditor(); focusControl($('mark')); });
 $('marker-form').addEventListener('submit', e => {
   e.preventDefault(); operation(async () => {
     const video = requireCurrentVideo();
@@ -923,7 +957,7 @@ $('marker-form').addEventListener('submit', e => {
       if (markerEditingId && data.markers[index]?.videoId !== row.videoId) throw new Error('這份標記已不屬於目前影片，請重新開啟編輯。');
       if (index < 0) data.markers.push(row); else { row.revision = data.markers[index].revision + 1; data.markers[index] = row; }
     });
-    clearMarkerEditor(); status('時間標記已保存；點「跳到這裡」即可回看。');
+    clearMarkerEditor(); focusControl($('mark')); status('時間標記已保存；點「跳到這裡」即可回看。');
   });
 });
 $('backup').addEventListener('click', () => operation(async () => {

@@ -24,3 +24,5 @@ jobs:
       # 固定開發工具與完整性，禁止安裝腳本；與本機使用同一品質入口。
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run check
+      # 只驗證白名單下載包，不部署或上傳發行檔；發布仍需人工決策。
+      - run: bun run package:web && bun run check:package
