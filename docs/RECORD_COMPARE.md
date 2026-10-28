@@ -46,6 +46,8 @@
 
 保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
 
+比較預覽及 VS 採隨速度自然變調；不套用瀏覽器音高保持，以避免受測慢速成檔的聲畫差。一般練習播放仍依能力保持音高，媒體操作結束後恢復同一練習設定。這不改時間映射、音訊來源或驗收門檻。
+
 預設用來源影片音訊，透過 Web Audio 的 MediaElementSource → MediaStreamDestination 加入輸出 stream；源音訊到喇叭與輸出路徑分開控制，自拍音軌不混入。AudioContext 必須處理手勢恢復、暫停、音訊路由變動，測試慢速時音高及時間是否跟畫面一致。[來源節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource)、[輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
 先偵測並試錄 MIME／codec 組合，再選裝置真正可工作的格式。`isTypeSupported()` 回 true 仍可能因資源失敗，最後要讀回輸出檔驗證。優先測 MP4/H.264/AAC；無此組合時測 WebM 路徑，副檔名必須反映真實容器，且另測在接收者裝置的播放。不能靠改檔名、付費雲端轉碼或強迫所有人安裝同一播放器過關。[編碼偵測](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/isTypeSupported_static)。

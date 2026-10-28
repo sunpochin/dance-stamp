@@ -191,6 +191,8 @@ function draw(value) {
 }
 async function align(value, elapsedMs, signal) {
   reference.pause(); self.pause();
+  // 慢速音高處理曾讓成檔聲音早於畫面；預覽與輸出共用自然變調，結束後才恢復練習音高。
+  if ('preservesPitch' in reference) reference.preservesPitch = false;
   const target = positions(value, elapsedMs);
   await Promise.all([seek(reference, target.referenceMs / 1000, signal), seek(self, target.selfMs / 1000, signal)]);
   draw(value);

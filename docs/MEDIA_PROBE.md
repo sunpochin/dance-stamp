@@ -289,3 +289,8 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
 
 分析器 v5 另獨立驗證配方合法交集的解碼長度及兩側來源起末時間碼覆蓋（100ms 邊界容差），全片來源時間碼依輸出時鐘核對（250ms 品質容差）；runner 相機原片規劃長度沿用既有 500ms 容差。自查增加截短及重播補長負例。瀏覽器先快照既有 ID，要求本輪新增 ready take／export、正確關聯及 Blob 與下載內容一致；recovery 另注入 VS 保存 quota 並確認新檢查拒絕，該額外未保存檔不列入正式成檔數。
+
+
+## #11 慢速比較音高對照
+
+使用合成 `make-comparison-fixtures.ts` 與新隔離 Chrome context 執行 `tests/browser/comparison-pitch.js`，再跑 `python3 scripts/analyze-comparison-pitch.py`。真正下載三份三秒 VS，完整解碼並確認 660Hz 老師聲源依 0.5／0.75／1× 成為 330／495／660Hz，排除 880Hz 自己聲源與誤保留原音高；預覽取消／成檔／繪製失敗後仍恢復一般練習音高。這是短片功能與音訊內容驗證，完整同步／穩定性另跑原始 `run-media-feasibility.py`，不代替真機聽感。
