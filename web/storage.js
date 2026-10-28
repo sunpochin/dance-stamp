@@ -1,6 +1,6 @@
 /* 檔案用途：版本化初始化、筆記 revision 與媒體短交易。所在層：IndexedDB 儲存。主要關聯：library.js、main.js、DATA_FORMAT.md。 */
 import { assembleChunks } from './recorder.js';
-import { newLibrary, validateBackup } from './library.js';
+import { newLibrary, validateBackup, migrateLibrary } from './library.js';
 /** @type {Promise<IDBDatabase> | null} */
 let database = null;
 const stores = ['metadata', 'media', 'chunks'];
@@ -44,7 +44,7 @@ export async function readLibrary() {
   if (!Number.isSafeInteger(saved.revision) || saved.revision < 1) throw new Error('筆記版本無效；沒有重置資料。');
   validateBackup(saved.data);
   /** @type {import('./types').LibraryState} */
-  const result = structuredClone(saved);
+  const result = { ...saved, data: migrateLibrary(saved.data) };
   const present = new Set(keys);
   const unfinished = new Set(result.data.takes.filter(t => ['recording', 'interrupted'].includes(t.state)).map(t => t.cameraAssetId));
   for (const asset of result.data.assets) {

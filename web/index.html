@@ -19,6 +19,15 @@
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
     <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><label class="file-label">還原筆記<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
     <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
+    <p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p>
+    <details><summary>分類搜尋與動作庫</summary>
+      <p>先開啟課程填寫老師、舞風和日期，再把各課程的標記連到同一動作。狀態由你決定，錄影次數不會自動改成「會了」。</p>
+      <div class="settings"><label>搜尋關鍵字<input id="library-keyword" type="search" maxlength="500" placeholder="動作、標題或筆記"></label><label>搜尋舞風<input id="library-style" maxlength="200"></label><label>搜尋老師<input id="library-teacher" maxlength="200"></label><label>課程日期從<input id="library-from" type="date"></label><label>課程日期到<input id="library-to" type="date"></label><label>搜尋練習狀態<select id="library-status"><option value="">全部</option><option value="wanted">想練</option><option value="practicing">練習中</option><option value="learned">會了</option></select></label></div>
+      <button id="library-reset" type="button">清除搜尋條件</button><p id="search-summary" role="status"></p>
+      <h3>課程搜尋結果</h3><ul id="search-videos"></ul>
+      <h3>動作與練習歷史</h3><p class="hint">歷史列出與動作片段重疊的 take；編輯片段範圍或解除關聯會改變此清單，原 take 與比較配方保留。</p><ul id="move-results"></ul>
+      <form id="move-form"><h3>新增／編輯動作</h3><label>動作名稱<input id="move-name" maxlength="500" required></label><label>動作舞風<input id="move-style" maxlength="200"></label><label>手動練習狀態<select id="move-status"><option value="wanted">想練</option><option value="practicing">練習中</option><option value="learned">會了</option></select></label><button type="submit">儲存動作</button><button id="cancel-move" type="button">取消動作編輯</button></form>
+    </details>
     <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
   <fieldset id="controls"><legend>01 · 準備片段</legend>
@@ -44,12 +53,13 @@
   </section>
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
+    <div class="settings"><label>課程老師<input id="video-teacher" maxlength="200"></label><label>課程舞風<input id="video-style" maxlength="200"></label><label>課程日期<input id="video-date" type="date"></label></div><p class="hint">「儲存標題」也會保存老師、舞風與日期；日期由你填寫，不以檔案時間猜測。</p>
     <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
     <p id="pitch-status" class="hint" role="status"></p>
     <canvas id="practice-canvas" width="960" height="540" hidden aria-label="鏡像練習畫面"></canvas>
     <div class="actions"><button type="button" id="set-a">當下設為 A</button><button type="button" id="set-b">當下設為 B</button><button type="button" id="loop">開始 A–B 循環</button><button type="button" id="mark">標記當下時間</button></div>
     <p id="loop-status" class="hint">A–B 使用上方片段起訖；練習不限制影片長度，錄影最多 60 秒。</p>
-    <form id="marker-form" hidden><label>標記標題<input id="marker-title" maxlength="500" required></label><div class="settings"><label>起點（秒）<input id="marker-start" type="number" min="0" step="0.001" required></label><label>終點（可留空）<input id="marker-end" type="number" min="0" step="0.001"></label></div><label>筆記<textarea id="marker-note" maxlength="20000" rows="3"></textarea></label><button type="submit">儲存標記</button><button id="cancel-marker" type="button">取消編輯</button></form>
+    <form id="marker-form" hidden><label>標記標題<input id="marker-title" maxlength="500" required></label><div class="settings"><label>起點（秒）<input id="marker-start" type="number" min="0" step="0.001" required></label><label>終點（可留空）<input id="marker-end" type="number" min="0" step="0.001"></label></div><label>所屬動作<select id="marker-move"><option value="">不連結動作</option></select></label><label>筆記<textarea id="marker-note" maxlength="20000" rows="3"></textarea></label><button type="submit">儲存標記</button><button id="cancel-marker" type="button">取消編輯</button></form>
     <ul id="markers"></ul>
     <div class="actions"><button type="button" id="copy-reference">保存示範副本到此瀏覽器</button><button type="button" id="remove-copy">移除本機示範副本</button></div>
     <p class="hint">示範預設只在本次開啟。副本初期限 200 MiB；瀏覽器可能清除資料，仍需自行備份。</p>

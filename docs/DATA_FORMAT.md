@@ -1,6 +1,6 @@
-# 資料模型與可攜格式 v1 草案
+# 資料模型與可攜格式 v1／v2
 
-狀態：桌面 Web 已有 v1 實作與備份／恢復；下方另含尚未實作的 P1 欄位規劃。儲存與格式更新必須保留既有資料，依版本與相容性處理，不能以重置資料繞過。
+狀態：桌面 Web 已有備份／恢復；#17 候選新增 v2 分類與動作庫，可讀 v1，完整相容與回復限制見第 10 節。下方 v1 範例及原規劃保留版本歸屬。儲存與格式更新必須保留既有資料，不能以重置資料繞過。
 
 ## 1. 分開筆記、媒體與練習配方
 
@@ -13,7 +13,7 @@
 | PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt、captureTiming? | 影片與錄影各自可保存，不把 VS 當唯一原件 |
 | ComparisonRecipe | id、takeId、offsetMs、referenceMirror、selfMirror、layout、audioSource、revision | 時間公式見錄影規格；不等於已產生影片 |
 | ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
-| Move（P1） | id、name、danceStyle、status | 一個動作可由多個 marker 指向 |
+| Move（#17 v2 候選） | id、name、danceStyle、status、revision | 一個動作可由多個 marker 指向 |
 
 不建立 users、subscriptions、share_tokens 或同步 outbox；本期沒有對應服務。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
 
@@ -155,3 +155,16 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 不新增 schema。副本移除只改本機狀態並移除 media key；可攜描述與配方保留，重開由實際 key 判斷 missing，可按第 8 節重連。本次已開啟 File 不等於仍有持久副本。
 
 刪除單一 VS 保留 recipe／take；刪 take 包含其 recipes、exports；刪整份影片筆記包含標記及下游。只有完全失去引用的 asset／Blob 才清理，共用原片保留；chunks 以 cameraAssetId 清理。計數預覽後明確確認，metadata／media／chunks 同一交易、全庫 revision 及 take 鎖保護，取消或失敗不部分刪除。原始檔與相簿不在此交易內，App 不會刪除。詳見 TECHNICAL.md 第 19 節及 [#13 證據](evidence/issue-13-offline-storage.md)。
+
+## 10. #17 v2 分類與動作庫
+
+本節取代上方「Move（P1）」未實作描述：桌面候選輸出 `schemaVersion: 2` 的完整 `kind=backup`，仍可讀 v1；第 3 節 JSON 保留為有效 v1 舊備份範例。分享格式屬 #18，本變更未實作或改其 UI。
+
+- Video：選填 `teacher`／`danceStyle`（各 ≤200 字）、`recordedDate`（真實日曆日期 `YYYY-MM-DD`）；清空即移除欄位。日期不推測自檔案時間。
+- Move：`id`、非空 `name`（≤500 字）、`danceStyle`（≤200 字，可空）、`status`（wanted=想練／practicing=練習中／learned=會了）、正整數 `revision`。只有人能改狀態。
+- Marker：選填 `moveId`，必須指向本備份的 Move。解除關聯保留標記及其他資料。移除 Move 解除全部指向它的 marker 並增加其 revision，不刪媒體。
+- 練習歷史沒有新表：按 Move 的 marker 與 take 老師區間相交顯示，點位置需 ≥take 起點且 <結尾；區間只接觸邊界不算。編輯 marker 範圍或關聯會改變視圖，但 take／配方原件保留。按 take.createdAt 排序，不當拍攝日期。
+
+v1 正規化到 v2（v1 的 moves 必須為空），不重配舊 ID、不移動媒體。讀取只在記憶體升版，成功寫入才以同一全庫 revision 提交；IndexedDB store version 維持 1。失敗保留原 version／revision／metadata／media／chunks，不用重置修復。新欄位仍走 JSON 白名單、10 MiB／各表 10,000 筆上限、關聯驗證與純文字顯示。
+
+舊程式不讀 v2；降版需升版前由舊版保存的 v1 備份與獨立原片，在另一資料環境還原。現有 v2 資料保持原樣；本版不輸出會省略動作的 v1 備份。衝突與不同來源匯入一併重寫 Move→Marker，多次重匯冪等；衝突動作副本保留各自狀態，不依時間戳覆寫。測試與版本證據見 [#17](evidence/issue-17-moves.md)。
