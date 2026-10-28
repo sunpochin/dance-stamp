@@ -35,30 +35,50 @@ export async function mediaAction(target, name, action, signal, timeoutMs = 15_0
 }
 
 // 啟播承諾完成不代表兩側像素已呈現；先收原生影格通知，輸出才不會錄入啟動等待。
-/** @param {HTMLVideoElement} video @param {AbortSignal} signal */
-export async function presentedFrame(video, signal) {
+/** @param {HTMLVideoElement} video @param {AbortSignal} signal @param {(frame: VideoFrameCallbackMetadata) => boolean} [accept] */
+export async function presentedFrame(video, signal, accept = _frame => true) {
   signal.throwIfAborted();
   if (!video.requestVideoFrameCallback) { await event(video, 'playing', signal); return; }
   return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-    let id;
+    let id, finished = false;
     const finish = error => {
-      clearTimeout(timer); signal.removeEventListener('abort', aborted);
+      if (finished) return;
+      finished = true; clearTimeout(timer); signal.removeEventListener('abort', aborted);
       if (id !== undefined) video.cancelVideoFrameCallback(id);
       error ? reject(error) : resolve();
     };
     const aborted = () => finish(signal.reason);
     const timer = setTimeout(() => finish(new Error('等待比較畫面逾時，原片保留，請重新預覽後重試。')), 15_000);
-    signal.addEventListener('abort', aborted, { once: true });
-    id = video.requestVideoFrameCallback(() => { id = undefined; finish(); });
+    const watch = () => {
+      try {
+        id = video.requestVideoFrameCallback((_now, frame) => {
+          id = undefined;
+          // 回零後仍可能先收到暖機舊格；只接受這次所需的來源位置，不能讓舊像素變成輸出首格。
+          try { if (accept(frame)) finish(); else watch(); } catch (error) { finish(error); }
+        });
+      } catch (error) { finish(error); }
+    };
+    signal.addEventListener('abort', aborted, { once: true }); watch();
   }));
 }
 
-export async function seek(video, seconds, signal) {
+export async function seek(video, seconds, signal, waitForFrame = false) {
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('跳轉時間不正確。');
   if (video.readyState < 1) throw new Error('影片尚未準備好，請先重新選片。');
   signal?.throwIfAborted();
-  if (Math.abs(video.currentTime - seconds) < 0.001 && video.readyState >= 2) return;
-  await mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, signal);
+  if (!waitForFrame) {
+    if (Math.abs(video.currentTime - seconds) < 0.001 && video.readyState >= 2) return;
+    await mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, signal); return;
+  }
+  if (!video.requestVideoFrameCallback) throw new Error('此瀏覽器無法確認起始畫面，未開始合成；原片保留。');
+  const waiting = new AbortController(), cancel = () => waiting.abort(signal?.reason);
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    // 訂閱必須先於 seek；seeked 只代表播放位置完成，不能保證 Canvas 已讀到那一格。
+    // 影格與 seeked 的順序不固定；分別記住完成，不能因 seeking 尚為 true 丟掉唯一的目標格。
+    const frame = presentedFrame(video, waiting.signal, value => value.mediaTime <= seconds + 0.000001);
+    await Promise.all([frame, mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, waiting.signal)]);
+  } finally { waiting.abort(); signal?.removeEventListener('abort', cancel); }
 }
 
 export async function load(video, url, signal) {
