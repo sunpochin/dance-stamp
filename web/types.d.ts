@@ -1,5 +1,14 @@
 /* 檔案用途：固定資料契約與 DOM 控制型別。所在層：Web 靜態型別。主要關聯：index.html、library.js、main.js。 */
 export interface Elements {
+  "beat-bpm": HTMLInputElement;
+  "beat-first": HTMLInputElement;
+  "beat-count-in": HTMLSelectElement;
+  "beat-set-first": HTMLButtonElement;
+  "beat-save": HTMLButtonElement;
+  "beat-cancel": HTMLButtonElement;
+  "beat-clear": HTMLButtonElement;
+  "beat-status": HTMLParagraphElement;
+  "beat-position": HTMLParagraphElement;
   "offline-status": HTMLParagraphElement;
   "capacity-status": HTMLParagraphElement;
   "persistence-status": HTMLParagraphElement;
@@ -112,10 +121,11 @@ export interface Elements {
   "output-status": HTMLParagraphElement;
   "diagnostics": HTMLPreElement;
 }
-export interface Video { id: string; title: string; durationMs: number; revision: number }
+export interface BeatGrid { bpm: number; firstBeatMs: number; countInBeats: number }
+export interface Video { id: string; title: string; durationMs: number; revision: number; beatGrid?: BeatGrid }
 export interface Asset { id: string; videoId?: string; kind: 'reference' | 'take' | 'vs'; byteLength: number; mimeType: string; durationMs?: number; mediaIncluded?: boolean; state?: 'session-only' | 'copying' | 'ready' | 'missing' | 'interrupted' | 'failed'; storageKind?: 'session' | 'indexeddb' | 'external' }
 export interface Marker { id: string; videoId: string; startMs: number; endMs?: number; title: string; note: string; revision: number }
-export interface Take { id: string; referenceVideoId: string; cameraAssetId: string; referenceStartMs: number; referenceEndMs: number; rate: number; state: 'recording' | 'ready' | 'interrupted' | 'failed'; createdAt: string; captureTiming?: CaptureTiming }
+export interface Take { id: string; referenceVideoId: string; cameraAssetId: string; referenceStartMs: number; referenceEndMs: number; rate: number; state: 'recording' | 'ready' | 'interrupted' | 'failed'; createdAt: string; captureTiming?: CaptureTiming; beatGrid?: BeatGrid }
 export interface Recipe { id: string; takeId: string; offsetMs: number; referenceMirror: boolean; selfMirror: boolean; layout: 'side-by-side'; audioSource: 'reference'; revision: number }
 export interface Artifact { id: string; recipeId: string; recipeRevision: number; assetId: string; mimeType: string; state: 'ready' | 'interrupted' | 'failed'; createdAt: string }
 export interface Library { format: string; schemaVersion: number; kind: string; exportedAt: string; sourceLibraryId: string; videos: Video[]; assets: Asset[]; markers: Marker[]; takes: Take[]; recipes: Recipe[]; exports: Artifact[]; moves: never[] }

@@ -1,5 +1,6 @@
 /* 檔案用途：本機筆記與 v1 備份的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
 import { validateMarkerRange } from './timeline.js';
+import { validateBeatGrid } from './beats.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
 export function newLibrary() {
@@ -33,7 +34,7 @@ export function validateBackup(input) {
   const out = newLibrary(); out.sourceLibraryId = input.sourceLibraryId; out.exportedAt = input.exportedAt;
   for (const v of input.videos) {
     check(text(v.title) && integer(v.durationMs) && v.durationMs > 0 && integer(v.revision) && v.revision > 0);
-    out.videos.push({ id: v.id, title: v.title, durationMs: v.durationMs, revision: v.revision });
+    out.videos.push({ id: v.id, title: v.title, durationMs: v.durationMs, revision: v.revision, ...(v.beatGrid === undefined ? {} : { beatGrid: validateBeatGrid(v.beatGrid, v.durationMs) }) });
   }
   for (const a of input.assets) {
     check(['reference', 'take', 'vs'].includes(a.kind) && integer(a.byteLength) && text(a.mimeType, 200));
@@ -61,7 +62,7 @@ export function validateBackup(input) {
       // 單調時間只供觀測，不推導影格同步；白名單排除裝置與原始錯誤資訊。
       captureTiming = { recorderRequestedMs: timing.recorderRequestedMs, ...Object.fromEntries(['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs'].filter(key => timing[key] !== undefined).map(key => [key, timing[key]])) };
     }
-    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt, ...(captureTiming ? { captureTiming } : {}) });
+    out.takes.push({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state === 'recording' ? 'interrupted' : t.state, createdAt: t.createdAt, ...(captureTiming ? { captureTiming } : {}), ...(t.beatGrid === undefined ? {} : { beatGrid: validateBeatGrid(t.beatGrid, maps.videos.get(t.referenceVideoId).durationMs) }) });
   }
   for (const r of input.recipes) {
     check(maps.takes.has(r.takeId) && Number.isSafeInteger(r.offsetMs) && typeof r.referenceMirror === 'boolean' && typeof r.selfMirror === 'boolean');

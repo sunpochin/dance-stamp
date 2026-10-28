@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 const root = resolve(import.meta.dir, '..'), target = resolve(root, 'dist/web')
-const files = ['index.html', 'style.css', 'main.js', 'timeline.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js']
+const files = ['index.html', 'style.css', 'main.js', 'timeline.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js']
 const result = await Bun.build({ entrypoints: files.filter(f => f.endsWith('.js') && f !== 'sw.js').map(f => resolve(root, 'web', f)), target: 'browser', write: false })
 if (!result.success) { console.error(result.logs); process.exit(1) }
 const digest = createHash('sha256')

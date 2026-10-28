@@ -228,3 +228,10 @@ playwright-cli --session dance-size close
 `interrupted-session.js` 用全新資料環境還原中斷 take，驗證人工重連與重複開啟不自動存片、明確保存才寫入，以及重開已存中斷片不重寫 Blob。以乾淨 session 執行 `playwright-cli --session dance-session run-code --filename tests/browser/interrupted-session.js`。
 
 `backup-recipe-copies.js` 驗證只有校正不同的備份也有可選 take、不同版本與已編輯副本各自保留、重匯冪等，以及實際匯出使用所選副本。以乾淨 session 執行 `playwright-cli --session dance-recipe-copies run-code --filename tests/browser/backup-recipe-copies.js`。
+
+
+## #19 手動拍點與合成提示音
+
+執行 `bun --no-env-file scripts/make-beat-fixtures.ts` 產生 ignored `output/beats/reference.mp4`（20 秒 testsrc／120 BPM／第一拍 0.35 秒／660Hz），不覆寫既有素材。以獨立隨機 localhost port、乾淨 headless Chrome session、`--mute-audio` 執行 `tests/browser/beats.js`；沿用本文件 Playwright CLI `run-code --filename` 方法。腳本只用傳入 page 的 origin，不固定或占用其他聊天埠，測片、備份及 logs 只留本機。
+
+`beats.js` 測 UI、嚴格輸入、保存失敗重試、取消／重匯、乾淨 context 還原、三速度來源拍號，以及 OfflineAudioContext 提示音 samples。`beats-capture.js` 用頁內合成 canvas 相機，不呼叫實體相機／麥克風，量測倒數、錄影鎖及取消／中斷。既有 `storage.js` 的 migration 腳本可在專用 runner 將硬編碼測試 origin 替換為自己的 origin 執行。長片／效能或有視窗操作按當次派工的共用互斥鎖規則進行，不搶刪他人鎖。

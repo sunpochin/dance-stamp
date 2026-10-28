@@ -155,3 +155,14 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 不新增 schema。副本移除只改本機狀態並移除 media key；可攜描述與配方保留，重開由實際 key 判斷 missing，可按第 8 節重連。本次已開啟 File 不等於仍有持久副本。
 
 刪除單一 VS 保留 recipe／take；刪 take 包含其 recipes、exports；刪整份影片筆記包含標記及下游。只有完全失去引用的 asset／Blob 才清理，共用原片保留；chunks 以 cameraAssetId 清理。計數預覽後明確確認，metadata／media／chunks 同一交易、全庫 revision 及 take 鎖保護，取消或失敗不部分刪除。原始檔與相簿不在此交易內，App 不會刪除。詳見 TECHNICAL.md 第 19 節及 [#13 證據](evidence/issue-13-offline-storage.md)。
+
+
+## 10. #19 可選手動拍點 metadata
+
+v1 的 Video 與相機 PracticeTake 可選 `beatGrid: { bpm, firstBeatMs, countInBeats }`。BPM 是來源音樂原速有限數字 20–300；firstBeatMs 為非負安全整數且嚴格小於老師原片 durationMs；countInBeats 必填且只允許 0（原秒倒數）、4、8。未知子欄位白名單排除。Take 為錄影開始前保存的快照；Video 後來校正不回寫舊 take 或 recipe。
+
+`{"bpm":120,"firstBeatMs":350,"countInBeats":8}` 表示原片 0.35 秒第一拍、原速每拍 0.5 秒。0.5× 錄影每拍實際 1 秒，8 拍倒數為 8 秒；來源拍點不翻倍。完整時間語意只以 [RECORD_COMPARE](RECORD_COMPARE.md#7-19-手動拍點與倒數桌面工程候選) 為準。
+
+欄位缺少代表未設定，沿用秒數；不升 IndexedDB/schemaVersion、不搬移舊資料。無效拍點使整份備份拒絕，不部分匯入；備份、衝突副本、ID 關聯重寫及重匯冪等沿用第 8 節，拍點納入 canonical 內容。備份不含提示音、影片 bytes 或裝置資訊。舊版應用可能忽略它不認識的欄位，降版前保留新版原備份，不能拿舊版重新匯出的 JSON 保證拍點仍在。
+
+UI 只有交易成功才套用；錯誤、取消及另一分頁 revision 衝突保留草稿與上次設定。移除只刪該 Video 的可選欄位，不刪標記、原片、take 快照或配方。沒有新的 migration；既有 migration 失敗回滾演練仍適用。
