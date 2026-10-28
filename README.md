@@ -9,6 +9,8 @@
 
 使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4173/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
 
+`bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
+
 ## 第一版要做到什麼
 
 1. 選取自己的課程影片，標記重要動作，點一下跳到重點。
