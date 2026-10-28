@@ -149,3 +149,11 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 ### 開啟 take 失敗時保留舊校正
 
 使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。
+
+### #14 Web 可及性與媒體隱私
+
+用新隔離 session 分別執行 `accessibility-focus.js`、`accessibility-layout.js`、`accessibility-media.js`，仍用原有 CLI `run-code --filename`，必須檢查 `### Result` 且沒有 `### Error`。前兩支需 `output/comparison/` 的兩份合成原片；第三支用既有合成相機設定與 `output/media-probe/reference.mp4`，不得改用真實私人相機或真人影片。
+
+focus 函式測保存／編輯／清單重繪、modal 返回、quota 與停止鍵不被搶焦。layout 函式在五組 viewport 與 100%／200% 根文字尺寸量 44px 目標、完整焦點可見、無水平溢出、原生狀態捲動及七種常用文字對比；不以程式捲到控制來掩蓋 Tab 行為。原生 End 捲動須等實際 scrollTop 改變，不能只看按鍵回傳。
+
+media 函式用 CDP 真正可及性樹核對播放器名稱、禮貌狀態及輸出進度，合成權限拒絕後明確重試、不開麥克風；注入合成敏感檔名／deviceId／groupId／label，核對診斷及 JSON 不含它們、無外部請求且 tracks 全部釋放。下載 VS 再按既有方法完整解碼與產品外播放。這不是讀屏實聽、實體裝置或全媒體 gates；[本版本證據](evidence/issue-14-web-accessibility.md)與[人工觀察單](WEB_USABILITY_CHECK.md)分開。
