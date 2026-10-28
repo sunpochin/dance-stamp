@@ -313,3 +313,12 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 
 原生確認框會中斷單次 CLI 的回覆，不能將空結果當通過。`move-draft.js` 採兩階段：第一次 `run-code --filename` 必須取得 `beforeUnloadPrepared=true`；再對同 session `goto about:blank`、`dialog-dismiss`，第二次執行同檔必須取得 `realBeforeUnloadDismissed=true`，並驗 trusted／prevented 事件及原輸入未變。測試先拒絕非 loopback、非合成標記或非空庫，再停用相機 API。
+
+
+## 匯出準備與來源歸屬
+
+新隔離 session 執行 `export-ready.js`，只選合成既有雙片並停用相機 API。原生影格通知刻意暫不交付時不可先建立編碼器，取消須撤銷等待且保留上次輸出；同頁重試真正成檔下載，準備及正式播放各自拒絕時也保留舊片、配方並釋放串流。`comparison-capture-fallback.js` 另驗沒有手動 canvas requestFrame 的既有備援。
+
+`run-media-feasibility.py` 預設拒絕未提交來源。只有有界實驗才加 `--allow-dirty`，原品質檢查仍全部執行，raw JSON 記 sourceDirty；true 不能宣告該 Git head 正式通過。正式候選應先完成原 check／commit／push，再以乾淨來源和新 label 重跑，不覆寫實驗或失敗報告。
+
+本輪隔離 Chrome 已實際通過上述準備取消／兩次拒播／重試下載、canvas 擷取備援與既有 export-failure；獨立分析器再次完整解碼並核對老師音源、鏡像與四份舊 VS 指紋。這些短片回歸不取代提交後的完整矩陣與真機驗收。
