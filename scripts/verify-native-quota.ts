@@ -27,6 +27,9 @@ const observe = async <T>(work: Promise<T>): Promise<T> => {
 }
 let locked = false, server: ReturnType<typeof Bun.serve> | undefined, context: any, cdp: any, origin: string
 const closeOwnedBrowser = async () => {
+  // 先標為未驗證；context.close 後若 CDP／ps 核對失敗，finally 也不能因 handle 已清空就誤放鎖。
+  report.browserClosed = false
+  report.browserCloseError = 'browser cleanup unverified; own lock retained'
   // CDP 僅列出自己啟動的瀏覽器程序；關閉後只查這些 PID，不掃描或終止其他程序。
   let processInfo
   try {
@@ -48,6 +51,7 @@ const closeOwnedBrowser = async () => {
   if (remaining) report.browserCloseError = 'owned browser processes remain; own lock retained'
   ok(!remaining, '自己瀏覽器仍有程序，未掃殺或釋放測試鎖')
   report.browserClosed = true
+  delete report.browserCloseError
 }
 try {
   // 原子取得且只釋放同 nonce 的鎖；既有檔案即拒絕，不猜測或刪除其他測試的鎖。

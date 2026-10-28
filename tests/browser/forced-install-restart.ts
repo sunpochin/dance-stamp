@@ -44,8 +44,15 @@ const waitFor = async (check: () => any, message: string) => {
   while (!await check()) { assert(Date.now() < deadline, message); await Bun.sleep(50) }
 }
 async function stop(signal: 'SIGKILL' | 'SIGTERM') {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return
+  if (!child) return
   const owned = child, pid = owned.pid!
+  assert(Number.isInteger(pid) && pid > 0, '缺少自有程序 PID，無法確認收尾')
+  // 主程序已退出仍可能留下子程序；整個已知群組都消失，才可交回共用鎖。
+  if (owned.exitCode !== null || owned.signalCode !== null) {
+    assert.equal(members(pid).length, 0, '自有瀏覽器主程序已退出，但群組仍有程序')
+    child = undefined
+    return
+  }
   const group = members(pid)
   assert(group.some(line => Number(line.trim().split(/\s+/)[0]) === pid && line.includes(`--user-data-dir=${profile}`)), 'PID／profile provenance 不符，拒絕發訊號')
   // detached 建立獨立群組；只終止本次 child 及其群組，不能用名稱掃殺日常瀏覽器。
@@ -192,8 +199,14 @@ try {
   event('failure', { error: String(error) }); process.exitCode = 1
 } finally {
   try { await stop('SIGTERM') } catch (error) { evidence.status = 'failed'; evidence.cleanupError = String(error); process.exitCode = 1 }
-  // 只有本輪 nonce 相符才釋放；失敗日誌與 profile 不刪除，供核對故障基線。
-  if (ownsLock && JSON.parse(readFileSync(ownerFile, 'utf8')).nonce === nonce) { unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true }
+  // 清理未確認必須留鎖；nonce 讀取失敗也只記錯誤，不能略過後面的自有主機收尾。
+  if (ownsLock) {
+    try {
+      assert(!child, 'browser cleanup unverified; own lock retained')
+      assert.equal(JSON.parse(readFileSync(ownerFile, 'utf8')).nonce, nonce, 'nonce changed; did not remove')
+      unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true
+    } catch (error) { evidence.lockReleaseError = String(error); evidence.status = 'failed'; process.exitCode = 1 }
+  }
   for (const release of pending) release()
   server?.stop(true)
   evidence.finishedAt = new Date().toISOString(); save()
