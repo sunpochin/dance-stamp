@@ -11,6 +11,8 @@ export const packageInputs = [
   'docs/DATA_FORMAT.md', 'docs/RECORD_COMPARE.md', 'docs/ACCEPTANCE.md', 'docs/LICENSING_AND_COST.md', 'docs/RELEASE.md',
   'docs/WEB_USABILITY_CHECK.md', 'docs/agents/acceptance-template.md', 'docs/MEDIA_PROBE.md',
   'docs/evidence/existing-comparison.md', 'docs/evidence/issue-12-backup-recovery.md', 'docs/evidence/issue-13-offline-storage.md',
+  // 支援限制指向的匿名證據也隨包，離線讀指南時才不會遇到缺檔連結。
+  'docs/evidence/issue-3-safari-feasibility.md',
   'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'docs/ai/harness-import.json',
 ].sort()
 const packagePaths = [...packageInputs, 'release.json', 'SHA256SUMS'].sort()
