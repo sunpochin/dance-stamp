@@ -1,6 +1,14 @@
 <!-- 檔案用途：關機前保存可接手的 Web 工作節點。所在層：交接文件。主要關聯：WEB_PREVIEW.md、MEDIA_PROBE.md、evidence/web-preview.md。 -->
 # 關機交接 · 2026-10-27
 
+## 2026-10-28 #8 原生背景補查
+
+PR #31 已合併；本輪來源為 main `e9e154a`、靜態 `2f1ec6b3335cd790`。PR #40 獨立包的 `5bc414f1b847bf47` 曾以專用原生 Chrome、連線時 `noDefaults: true` 及現有 default context 執行未改動的嚴格函式，收到 trusted 背景／前景事件並通過；main 重跑尚未通過，兩個版本不能混用。補查工具確認 Mac 目前鎖定，已請使用者手動解鎖；尚未成功重現的啟動工具保留 ignored output，產品與原嚴格測試維持原樣。詳見 [版本證據與接手步驟](evidence/issue-8-practice-loop.md)。
+
+下一步是桌面解鎖後在同一受測版本補原生背景／明確重啟與 callback 清理，再更新 #8 驗收。iPhone 仍暫緩；#8／#1、人工審查與發布保持未完成。完成的 Web 交付依使用者偏好採一般 PR；先前「草稿」用語是歷史狀態，當前以遠端 PR 為準。
+
+## 先前交接
+
 使用者要求實作 #1，後改為「先做 Web，不要管 iPhone」，最後要求關機前告一段落。此節點是桌面 Web 預覽，整體 P0 未完成。
 
 已實作：選片、IndexedDB 筆記／revision／媒體／錄影 chunks、明確重連、時間標記 CRUD、變速／A–B／鏡像、倒數相機、共同時間線／offset、單一帶音訊 VS、保存／下載、JSON 備份／原子匯入、靜態離線資源。無 runtime 套件、付費 API、帳號或媒體上傳。

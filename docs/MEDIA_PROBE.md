@@ -77,7 +77,9 @@ playwright-cli --session dance-background open http://127.0.0.1:4173 --headed --
 playwright-cli --session dance-background run-code "$(cat tests/browser/practice-background.js)"
 ```
 
-前兩支驗證六組 20 次循環、呈現影格邊界、速度／鏡像、取消／失敗與 callback 清理，以及缺 API 時的 RAF／音高提示。合成 visibility 只驗證 handler。第三支必須真的 hidden，不通過不能以合成事件代替；當前環境仍未驗證真正背景，詳見 [#8 證據](evidence/issue-8-practice-loop.md)。新測試以頁面 origin 為入口，可配合不與其他程序衝突的本機埠。
+前兩支驗證六組 20 次循環、呈現影格邊界、速度／鏡像、取消／失敗與 callback 清理，以及缺 API 時的 RAF／音高提示。合成 visibility 只驗證 handler。第三支必須真的 hidden，不通過不能以合成事件代替；main 的原生背景 gate 仍未通過，詳見 [#8 證據](evidence/issue-8-practice-loop.md)。新測試以頁面 origin 為入口，可配合不與其他程序衝突的本機埠。
+
+背景補查前先確認桌面已解鎖且專用測試視窗可見。一般工具連線的 focus emulation 可能使兩個分頁都回報 visible；只有 headed 不足以排除。以獨立新 profile 的原生 Chrome 在連線時設定 `connectOverCDP(endpoint, { noDefaults: true })`、沿用現有 default context 的方法，曾在 PR #40 候選取得 trusted 背景／前景事件；main 仍未通過，精確版本與限制見同一份證據。這不是新增已驗證的啟動入口；需要保留原嚴格函式、核對實際 `### Result`、補 callback 清理證據，並只清理自己建立的頁面／程序。勿接管日常 profile，或在 Mac 鎖定時反覆重啟猜測。
 
 `practice` 的跳轉重疊以當下原生 `seeking` 屬性計數；取消後晚到的 `seeked` 不等於瀏覽器仍在跳轉，零重疊門檻不變。`practice-range-change.js` 驗證循環中把 A 往後移會在一秒內重新定位，逆序 A/B 則停止。以同一份 browser.json 開乾淨 session，再執行 `playwright-cli --session dance-range run-code --filename tests/browser/practice-range-change.js`。
 
