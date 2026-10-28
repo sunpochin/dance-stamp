@@ -3,6 +3,7 @@ import { comparison, positions, contain, validateMarkerRange, captureDuration } 
 import { event, normalizedVideo, mediaAction, presentedFrame, seek, load, record, extension, cameraError } from './recorder.js';
 import { validateBackup, parseBackup, planBackupImport, createShare, mediaInventory, videoLabels, planDeletion, moveStatuses, searchLibrary, practiceHistory } from './library.js';
 import { startOffline } from './offline.js';
+import { safariAudio, decodeLocalAudio, audioReady } from './local-audio.js';
 import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './beats.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
 
@@ -20,6 +21,7 @@ function drawingContext(canvas) {
 }
 const reference = $('reference'), self = $('self'), preview = $('preview'), output = $('output');
 const canvas = $('canvas'), context = drawingContext(canvas);
+const localAudio = safariAudio();
 let camera, cameraWatch, active, referenceDurationMs = 0, selfDurationMs = 0, takeBlob, outputBlob;
 let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
@@ -33,7 +35,8 @@ let shareSending = false;
 
 let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comparisonSaveVersion = 0;
 /** @type {import('./types').Diagnostics} */
-const diagnostics = { stage: 'idle', camera: null, capture: null, export: null };
+// 原生測試要辨識真正執行的聲路；只有主機檔案版本不能排除舊 SW 仍控制頁面。
+const diagnostics = { stage: 'idle', camera: null, capture: null, export: null, audioPath: localAudio ? 'bounded-aac-v1' : 'media-element' };
 /** @type {import('./types').LibraryState} */
 let state;
 let ready, currentVideoId, currentReferenceFile, pendingLinkId, pendingTakeId, activeTakeId, markerEditingId;
@@ -181,12 +184,15 @@ function mirrors() {
 async function prepareAudio() {
   if (!audio) {
     audio = new AudioContext();
-    audioSource = audio.createMediaElementSource(reference);
     monitor = audio.createGain();
-    audioDestination = audio.createMediaStreamDestination();
-    // 同一個 video 一生只能掛一個來源節點；重試匯出時重用，避免第二次無聲或拋錯。
-    audioSource.connect(monitor).connect(audio.destination);
-    audioSource.connect(audioDestination);
+    // Safari 直接播放原片；一旦掛上元素來源便無法還原原生聲路，會再次觸發開頭漏音。
+    if (!localAudio) {
+      audioSource = audio.createMediaElementSource(reference);
+      audioDestination = audio.createMediaStreamDestination();
+      // 同一個 video 一生只能掛一個來源節點；重試匯出時重用，避免第二次無聲或拋錯。
+      audioSource.connect(monitor).connect(audio.destination);
+      audioSource.connect(audioDestination);
+    }
   }
   await audio.resume();
   if (audio.state !== 'running') throw new Error('音訊尚未啟動，請再次點按重試。');
@@ -234,7 +240,8 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
     await Promise.all([...frames, Promise.resolve().then(() => reference.play()), Promise.resolve().then(() => self.play())]);
     // 先喚醒解碼與音訊，再回到配方起點；不能靠錄晚一點而省略自拍開頭。
     if (exporting) await align(value, 0, starting.signal);
-    abortIfNeeded(signal); startOutput();
+    // 本機音訊須等原生 recorder start 才排程；等待完成後才啟播兩側畫面。
+    abortIfNeeded(signal); await startOutput(); abortIfNeeded(signal);
     if (exporting) await Promise.all([reference.play(), self.play()]);
   } finally { starting.abort(); signal.removeEventListener('abort', cancelStart); }
   const began = performance.now();
@@ -533,16 +540,24 @@ $('play').addEventListener('click', () => operation(async signal => {
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
-  const value = recipe(); let stream, recording, blob;
+  const value = recipe(); let stream, recording, blob, buffer, bufferSource, destination;
+  const muted = reference.muted;
   await saveCurrentRecipe();
-  await prepareAudio(); await align(value, 0, signal); abortIfNeeded(signal);
   try {
+    await prepareAudio();
+    if (localAudio) {
+      status('正在準備 Safari 相容音訊，可隨時取消；原片保留。');
+      const first = positions(value, 0);
+      buffer = await decodeLocalAudio(currentReferenceFile, audio, first.referenceMs / 1000, comparison(value).durationMs * value.rate / 1000, signal);
+      reference.muted = true;
+    }
+    await align(value, 0, signal); abortIfNeeded(signal);
     monitor.gain.value = 0;
     /** @type {CanvasCaptureMediaStreamTrack | undefined} */
     let canvasTrack;
     status('正在準備比較畫面，請保持此頁在前景。');
     // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
-    const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), () => {
+    const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), async () => {
       draw(value);
       // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
       // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
@@ -552,8 +567,23 @@ $('export').addEventListener('click', () => operation(async signal => {
         stream.getTracks().forEach(track => { track.stop(); });
         stream = canvas.captureStream(30); canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
       }
-      audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
-      recording = record(stream);
+      if (localAudio) {
+        // 每輪自己的目的端與一次性來源都由 finally 釋放；無音軌就保持真正無聲，不猜測壞解碼為靜音。
+        if (buffer) {
+          destination = audio.createMediaStreamDestination(); bufferSource = audio.createBufferSource();
+          bufferSource.buffer = buffer; bufferSource.playbackRate.value = value.rate; bufferSource.connect(destination);
+          destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
+        }
+        const nativeStart = new Promise((resolve, reject) => {
+          recording = record(stream, () => {}, resolve); recording.done.catch(reject);
+        });
+        await audioReady(nativeStart, signal); abortIfNeeded(signal);
+        // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
+        bufferSource?.start(audio.currentTime + 0.01);
+      } else {
+        audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
+        recording = record(stream);
+      }
       recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
       status('合成中，請保持此頁在前景。取消後仍可重試。');
     });
@@ -575,6 +605,11 @@ $('export').addEventListener('click', () => operation(async signal => {
     } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); status(`VS 已成檔但無法保存到此瀏覽器：${error.message} 請立即下載；原片仍保留。`); }
   } finally {
     reference.pause(); self.pause();
+    reference.muted = muted;
+    // 取消、背景或原生錯誤立即停聲並放開 PCM，不能等編碼收尾才釋放來源。
+    if (bufferSource) { try { bufferSource.stop(); } catch { /* 尚未排程也需斷線。 */ } bufferSource.disconnect(); bufferSource.buffer = null; }
+    buffer = null;
+    destination?.stream.getTracks().forEach(track => { track.stop(); }); destination?.disconnect();
     if (recording) await recording.stop().catch(() => {});
     stream?.getTracks().forEach(track => { track.stop(); });
   }

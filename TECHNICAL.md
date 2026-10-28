@@ -4,6 +4,8 @@
 最新可及性決策見第 20 節，下載包與發布準備見第 21 節；前面標記原型階段的限制保留歷史版本歸屬。
 分類、動作庫、練習歷史與 v1→v2 相容決策見第 26 節。
 
+Safari 有界本機音訊候選的格式與資源取捨見第 31 節；這不是整體 Safari／P0 通過聲明。
+
 選定筆記分享的原始設計見第 27 節；整合格式取捨另記。
 
 
@@ -437,3 +439,28 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 `notes-scale.js` 在獨立效能鎖與無媒體 API 的環境量測原生 IndexedDB 及真正 DOM 搜尋；每種資料 100／1000／5000 筆，最大 JSON 5,200,234 bytes，空白重建最多約 664ms、唯一命中約 30ms。搜尋前後 revision／內容指紋不變。這是本機一次量測，非低階手機、全部格式上限或持續負載承諾；沒有憑空建立新的速度門檻。暫不引入持久化索引、分頁架構或搜尋服務，保留單份原資料與目前掃描方式。
 
 本次合入 P0 的後續文件並新增可重現驗證，不再改產品 runtime；最終乾淨包應與受測 587689d 的 15 份執行資源逐檔相同，來源 head 與 archive 校驗在 PR／release.json 另記，避免文件自我引用形成無窮重建。
+
+## 31. #3／#11 Safari 有界本機音訊候選
+
+原生 Safari 的 `MediaElementSource` 冷啟動曾遺失有身分的來源零秒聲音；AudioBufferSource 的小型原生對照能保留它。故 WebKit 比較合成改用 `local-audio.js`，練習及比較預覽直接播放同一老師片，不永久綁元素來源。Chrome 保持原 MediaElementSource 聲路，沒有縮短其長片、無音軌或 WebM 支援，也沒有新增必要服務或套件。其他 WebKit 瀏覽器僅套保守路徑，是否通過仍按裝置證據；iPhone 暫緩。
+
+有界解碼只讀 Blob 小段，跳過視訊 mdat。一般非 fragmented MP4、單一自包含 AAC-LC（8–48kHz／1–2 聲道／1024-sample frame）為來源範圍；支援 stco／co64、固定或逐包 stsz、stsc／stts、v0／v1 的單一正常 edit，或前置空 edit＋正常 edit。拒絕多音軌、HE-AAC／SBR／PCE、加密、外部資料參照、特殊 edit rate、音訊 ctts、碎片化及不一致表格；MOV v1/v2 sample entry 與 WebM 尚未加入 Safari 相容解碼。無音軌的一般 MP4 明確輸出無聲；不能把有音軌的解碼失敗當無音軌。
+
+| 應用配置／讀取預算 | 上限及拒絕點 |
+| --- | --- |
+| 單份 moov | 8 MiB，讀取前檢查；不整檔 ArrayBuffer |
+| 音訊索引 | 250,000 包，typed arrays 約 4.77 MiB；表格一致性驗證後才取片段 |
+| 每包 AAC／同批 | 16 KiB／8 包，flush 後再送下一批；不堆積全部壓縮資料 |
+| PCM | 來源交集最多 60 秒、48kHz、雙聲道 float32，最多 23,040,000 bytes（約 21.98 MiB） |
+| 解碼暫存 | 每聲道最多 1024 frames；每個 AudioData 立即 close；所選片段含兩包前置最多 2,900 包 |
+| 結構／等待 | 最多 4096 個頂層 box／16 tracks；原生支援查詢、flush、錄影 start 各最多 10 秒 |
+
+這些是應用可限制的配置與工作量，並非瀏覽器／作業系統總 footprint 保證；原片 Blob、兩側視訊解碼、Canvas、錄影器與輸出 chunks 沿用既有成本。長來源不是整支 PCM 解碼，但超過索引預算仍安全拒絕；Safari 不能藉此宣稱支援所有長片。選取／練習／原片下載仍可用，失敗保留資料且不默默回退壞聲路。
+
+片段從 `positions(value,0)` 的 A+rL 取至 `comparison(value).durationMs*r`，AAC 以 edit list 與原封包時間戳定位；兩包前置僅恢復重疊窗，輸出固定 PCM 片段不含額外來源。fresh Destination／BufferSource 每輪建立；真正 recorder start 後留 10ms 排程前置，再啟播既有雙片時間線。這是排程前置，沒有減去裝置延遲、修改 offset、裁首尾或放寬門檻。自然變調率 r 與原配方一致。
+
+取消／背景／錯誤會關閉 AudioDecoder queue，所有 AudioData 用 finally close，停止及斷開 BufferSource、清空 buffer 引用、停止目的端與輸出 tracks。每輪重新讀目前老師片，不留跨來源 PCM cache；舊原片、配方及前次 VS 沿用既有保護。解碼前置亦在匯出 try/finally 內，不能準備失敗後漏清理。
+
+排除整檔 decodeAudioData＋僅信 video.duration 的方案：容器資訊不足以限制 native 解碼配置，且長片會配置全部 PCM。也排除 ffmpeg.wasm、雲端轉碼、換輸出副檔名及固定裝置補償：代價大或不能處理已知來源問題。採 [WebCodecs AAC 封包／設定契約](https://w3c.github.io/webcodecs/aac_codec_registration.html)與原生 AudioDecoder，依 [WebKit 的實作說明](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/)先檢查支援，實際能力仍以完整下載檔驗證。
+
+單元、瀏覽器與版本綁定的原生結果見 [Safari 音訊候選證據](docs/evidence/issue-3-bounded-audio.md)。需要 Claude Code 或使用者獨立審查；#1／#3／#11 與未測 gates 保留，不合併或發布。
