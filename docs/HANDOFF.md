@@ -41,3 +41,22 @@
 #5／#6 已由 PR #28／#29 合併，main 為 `6be83d1`；#7 PR #30 尚待審查。原始 checkout 的 Git 資料夾已不在原路徑，保留舊 worktree 檔案，從遠端建立本聊天專屬 clone 接續 #8，沒有重建或覆寫原資料夾。
 
 #8 已修啟動取消競態、單一回捲、callback 清理、速度恢復、鏡像靜態更新與能力提示。120 次合成循環顯示越界最大約 83.333ms，停止後 callback=0；但此自動化環境不能產生真正 hidden，原生背景 gate 保持未驗證，不能關 #8。見 evidence/issue-8-practice-loop.md 與三支 practice browser 驗收。後續需補實際桌面背景驗收；同時仍可在另一張票接續 #9 的軟體與合成錄影矩陣，不能用那些結果代替本票 gate。整體 #1／G1–G7、人工 review、發布與真機證據仍未完成。
+
+## 2026-10-28 使用者要求暫停
+
+使用者說「先休息一下吧告段落我要當 dj 了」，因此停止開發，不開始下一張票。整體目標暫停，#9 尚未結案；此提交是可接手的草稿節點，沒有合併或發布。
+
+- 實際有效 Git 工作位置是本聊天新建的 `dance-stamp-issue-8` clone，完整本機位置由聊天交付。分支 `codex/issue-9-capture-recovery`，基線 main `6be83d1`，包含未合併 PR #30／#31 的前置內容。不要在已失去 Git 來源的舊 worktree 提交，也不要重建或覆寫原 checkout。
+- #9 已補倒數取消歸屬、相機方向／預覽／停止清理、原生 start 觀測、編碼錯誤後尾塊排空、chunks 完整性、quota 原片保留及 interrupted 恢復。受測靜態版本 `b52e552869eb154c`；完整證據見 `evidence/issue-9-capture-recovery.md`。
+- 321 tests、型別／lint／公開掃描／build 通過；最終版本九種速度／時長合成錄影皆可下載並由 FFmpeg 全片解碼，12 支既有 browser 回歸通過。真人相機、LED、真正背景／鎖屏／來電、G1／G6、Safari 與人工 review 仍未驗證；#8／#9 均不可直接關票。
+- 暫停前關閉本次測試瀏覽器與本聊天 4175 服務；不動其他工作的 4173。合成原片在 ignored `output/media-probe/captures-final/`，不進 Git。暫存 log 非必要來源；重現腳本已進版控。
+- 續作先核對此分支與草稿 PR、執行原本檢查，再獨立完整解碼本輪 VS 並確認音訊。Bun 需 1.4.4；目前可用執行檔在舊 worktree 的 ignored `output/tooling/bun-1.4.4/bun-darwin-aarch64/bun`，新機依鎖檔與專案安裝說明準備。
+- 後續 #10 已由人類確認新增「比較已有影片」正式 P0，兩支影片匯入不必等 #9 真機門檻；它與邊播邊錄皆須完成，不能用現有自拍測試入口算完成。先重讀最新 #1／#10 及規劃 PR #32（尚未合併），避免把兩個流程互相取代。iPhone 仍依使用者要求暫不處理。
+
+## 2026-10-28 使用者返回，接續 #9
+
+使用者明確要求從 #9 接著做，維持 Web 優先，iPhone 暫不處理。本回合補完桌面合成資料的原生離頁恢復與產品之外的磁碟檔重播；未更動靜態版本 `b52e552869eb154c`。原生 pagehide 在來源 8.376 秒時釋放相機，取回 6.730733 秒已落盤部分，舊自拍保留且新片仍標 interrupted。最終單一 VS 為 1280×720 H.264／AAC、15.000200 秒，FFmpeg 全片解碼與 Chrome 原生檔案播放器完整重播通過。
+
+新增 `capture-navigation.js` 的兩階段原生離頁驗收、`download-playback.js`，並補強既有 self-failure／media-probe 的保存與診斷等待。操作順序與結果見 MEDIA_PROBE.md 及 #9 證據；不能把 async predicate 的 Promise 或 CLI 退出碼當成通過。#33 仍為草稿，真實相機／LED、真正背景／鎖屏／來電、G1／G6、Safari、獨立人工 review 等仍未完成，#9 不結案；也沒有合併或發布。
+
+後續核對遠端：規劃 PR #32 已由另一次使用者授權合併至 main `1d8ed7f`。此分支同步該八份正式規格，保留 #9 程式與受測靜態版本；不是重新授權合併產品 PR。#10 以這份已確認規格接續，仍不啟動 iPhone 工作。

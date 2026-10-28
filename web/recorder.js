@@ -53,8 +53,27 @@ export async function load(video, url, signal) {
   return durationMs;
 }
 
-/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk */
-export function record(stream, onChunk = () => {}) {
+export function cameraError(error, facing) {
+  switch (error?.name) {
+    case 'NotAllowedError': case 'SecurityError': return new Error('相機權限未開啟。請在瀏覽器允許相機，再按開啟；不需要麥克風。');
+    case 'NotFoundError': return new Error('找不到可用相機，請接上相機或換裝置後重試。');
+    case 'OverconstrainedError': return new Error(facing === 'environment' ? '沒有可用的後鏡頭，請選前鏡頭再重試。' : '目前相機無法使用這組設定，請重新開啟或換相機。');
+    case 'NotReadableError': case 'AbortError': return new Error('相機可能被其他程式使用或暫時中斷。請關閉其他相機程式，再按開啟重試。');
+    default: return new Error('相機無法開啟，請確認連接與瀏覽器權限後重試。');
+  }
+}
+
+/** @param {Array<{index: number, blob: Blob}>} rows */
+export function assembleChunks(rows) {
+  if (!rows.length) throw new Error('沒有可恢復的錄影片段；筆記仍保留。');
+  const mime = rows.find(row => row.blob?.type)?.blob.type || '', family = mime.split(';')[0];
+  // 缺首塊、缺號或混合容器不拼成「成功」；原始 chunks 留在庫中，不能靠重置修復。
+  if (rows.some((row, index) => row.index !== index || !(row.blob instanceof Blob) || !row.blob.size || (row.blob.type && row.blob.type.split(';')[0] !== family))) throw new Error('錄影片段不完整或格式不一致；已保留原資料，不能標示成功。');
+  return new Blob(rows.map(row => row.blob), { type: mime });
+}
+
+/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk @param {(timeMs: number) => void} onStart */
+export function record(stream, onChunk = () => {}, onStart = () => {}) {
   if (!globalThis.MediaRecorder) throw new Error('此瀏覽器沒有錄影能力。');
   const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm', ''];
   let recorder;
@@ -62,25 +81,40 @@ export function record(stream, onChunk = () => {}) {
     if (mimeType && !MediaRecorder.isTypeSupported(mimeType)) continue;
     try {
       recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined);
+      // start() 呼叫與原生 start 事件分開觀測，不能冒充影格同步證據。
+      recorder.addEventListener('start', () => onStart(Math.round(performance.now())), { once: true });
       recorder.start(1000);
       break;
     } catch { recorder = null; }
   }
   if (!recorder) throw new Error('裝置無法啟動任何候選錄影格式。');
   const chunks = [];
-  recorder.addEventListener('dataavailable', e => { if (e.data.size) { chunks.push(e.data); onChunk(e.data); } });
-  const done = /** @type {Promise<Blob>} */ (new Promise((resolve, reject) => {
-    recorder.addEventListener('error', () => reject(new Error('編碼失敗；保留來源，請降低負載後重試。')), { once: true });
-    recorder.addEventListener('stop', () => {
-      // stop 之後最後一塊資料才齊全，不能在呼叫 stop 的當下組出半個影片。
-      const blob = new Blob(chunks, { type: recorder.mimeType || chunks[0]?.type });
-      blob.size ? resolve(blob) : reject(new Error('沒有錄到影片資料。'));
-    }, { once: true });
-  }));
-  done.catch(() => {});
+  let resolveDone, rejectDone, resolveStopped, rejectStopped, failure, finished = false, timer;
+  const done = /** @type {Promise<Blob>} */ (new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; }));
+  const stopped = /** @type {Promise<Blob>} */ (new Promise((resolve, reject) => { resolveStopped = resolve; rejectStopped = reject; }));
+  const data = e => { if (e.data.size) { chunks.push(e.data); onChunk(e.data); } };
+  const error = () => { failure = new Error('編碼失敗；原始片段保留，請降低負載後重試。'); rejectDone(failure); };
+  const cleanup = () => {
+    finished = true; clearTimeout(timer);
+    recorder.removeEventListener('dataavailable', data); recorder.removeEventListener('error', error); recorder.removeEventListener('stop', stoppedEvent);
+  };
+  const stoppedEvent = () => {
+    // 編碼 error 先通知 owner 停止，但仍等原生 stop 收齊最後一塊，不能提早撤銷落盤監聽。
+    const blob = new Blob(chunks, { type: recorder.mimeType || chunks[0]?.type }); cleanup();
+    if (blob.size) { resolveStopped(blob); failure ? rejectDone(failure) : resolveDone(blob); }
+    else { const empty = failure || new Error('沒有錄到影片資料。'); rejectStopped(empty); rejectDone(empty); }
+  };
+  recorder.addEventListener('dataavailable', data); recorder.addEventListener('error', error); recorder.addEventListener('stop', stoppedEvent, { once: true });
+  done.catch(() => {}); stopped.catch(() => {});
   return {
     done,
-    stop() { if (recorder.state !== 'inactive') recorder.stop(); return done; },
+    async stop() {
+      if (!finished && !timer) timer = setTimeout(() => { failure ??= new Error('等待錄影停止逾時；已保留原始片段。'); cleanup(); rejectStopped(failure); rejectDone(failure); }, 15_000);
+      if (recorder.state !== 'inactive') recorder.stop();
+      const blob = await stopped;
+      if (failure) throw failure;
+      return blob;
+    },
   };
 }
 

@@ -1,4 +1,5 @@
 /* 檔案用途：版本化初始化、筆記 revision 與媒體短交易。所在層：IndexedDB 儲存。主要關聯：library.js、main.js、DATA_FORMAT.md。 */
+import { assembleChunks } from './recorder.js';
 import { newLibrary, validateBackup } from './library.js';
 /** @type {Promise<IDBDatabase> | null} */
 let database = null;
@@ -78,16 +79,16 @@ export async function writeLibrary(next, expectedRevision, mediaChange) {
 export async function readMedia(id) { const db = await openStore(); return request(db.transaction('media').objectStore('media').get(id)); }
 /** @param {string} id @param {number} index @param {Blob} blob */
 export async function saveChunk(id, index, blob) {
+  if (!Number.isSafeInteger(index) || index < 0 || !(blob instanceof Blob) || !blob.size) throw new Error('錄影片段的順序或內容無效，未寫入。');
   const db = await openStore(), tx = db.transaction('chunks', 'readwrite'), done = completed(tx);
-  tx.objectStore('chunks').put(blob, [id, index]); await done;
+  // 同一塊不能覆寫；重複通知必須保留第一份並回報錯誤。
+  tx.objectStore('chunks').add(blob, [id, index]); await done;
 }
 /** @param {string} id */
 export async function recoverChunks(id) {
-  const db = await openStore();
-  /** @type {Blob[]} */
-  const chunks = await request(db.transaction('chunks').objectStore('chunks').getAll(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])));
-  if (!chunks.length) throw new Error('沒有可恢復的錄影片段；筆記仍保留。');
-  return new Blob(chunks, { type: chunks[0].type });
+  const db = await openStore(), store = db.transaction('chunks').objectStore('chunks'), range = IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER]);
+  const [chunks, keys] = await Promise.all([request(store.getAll(range)), request(store.getAllKeys(range))]);
+  return assembleChunks(chunks.map((blob, index) => ({ index: Array.isArray(keys[index]) && keys[index].length === 2 ? Number(keys[index][1]) : -1, blob })));
 }
 /** @param {string} id */
 export async function clearChunks(id) {

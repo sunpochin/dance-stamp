@@ -10,7 +10,7 @@
 | Video | id、title、durationMs、teacher、danceStyle、recordedDate、revision | 影片的筆記主體；時間以實際 metadata 為準 |
 | MediaAsset | id、videoId?、kind、storageKind、state、byteLength、mimeType、originalName?、durationMs、fingerprint? | kind 為 reference／take／vs；位置僅本機可解讀 |
 | Marker | id、videoId、startMs、endMs?、title、note、moveId?、revision | 0≤start；區間 end>start；已知長度時不超出影片 |
-| PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt | 影片與錄影各自可保存，不把 VS 當唯一原件 |
+| PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt、captureTiming? | 影片與錄影各自可保存，不把 VS 當唯一原件 |
 | ComparisonRecipe | id、takeId、offsetMs、referenceMirror、selfMirror、layout、audioSource、revision | 時間公式見錄影規格；不等於已產生影片 |
 | ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
 | Move（P1） | id、name、danceStyle、status | 一個動作可由多個 marker 指向 |
@@ -18,6 +18,8 @@
 不建立 users、subscriptions、share_tokens 或同步 outbox；本期沒有對應服務。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
 
 ID 為隨機 UUID，與檔名、路徑、內容 hash 分離。reference 指向錯誤影片比找不到影片更危險，因此不得只憑同檔名自動連結。
+
+PracticeTake 可選 `captureTiming`（#9，v1 向後相容）：`recorderRequestedMs` 必填，`recorderStartedMs`、`referencePlayResolvedMs`、`referenceAtPlayMs` 可缺。皆為非負安全整數毫秒；最後一項不能超過來源影片長度。前三項使用同一次頁面生命週期的 performance 單調時鐘，最後一項是來源媒體位置；不能當 UTC、跨 take 排序依據或 G2 同步證明，也不假設非同步 start 與 play Promise 必定誰先到。匯出／匯入只保留這四欄，不帶 deviceId、裝置 label 或原始錯誤；舊資料沒有此欄仍可讀取，外部原片匯入不偽造觀測值。
 
 ## 2. 媒體狀態
 

@@ -36,10 +36,21 @@ async (page) => {
   for (const rate of ['0.5', '0.75', '1', '1.25', '1.5', '2']) {
     await page.locator('#practice-rate').selectOption(rate);
     const result = await page.locator('#reference').evaluate(async video => {
-      await video.play(); const before = video.currentTime; await new Promise(r => setTimeout(r, 200)); video.pause();
-      return { rate: video.playbackRate, advance: video.currentTime - before, pitch: video.preservesPitch };
+      await video.play(); const before = video.currentTime;
+      // 冷啟動不保證 200ms 內時鐘已前進；改量真正呈現的影格，觀察器不列入產品 callback 數。
+      const presentedAdvance = await new Promise((resolve, reject) => {
+        let id;
+        const timer = setTimeout(() => { window.practiceNativeCancel.call(video, id); reject(new Error('五秒內沒有前進的呈現影格')); }, 5000);
+        const next = (_, metadata) => {
+          if (metadata.mediaTime > before) { clearTimeout(timer); resolve(metadata.mediaTime - before); }
+          else id = window.practiceNativeFrame.call(video, next);
+        };
+        id = window.practiceNativeFrame.call(video, next);
+      });
+      video.pause();
+      return { rate: video.playbackRate, advance: video.currentTime - before, presentedAdvance, pitch: video.preservesPitch };
     });
-    assert(result.rate === Number(rate) && result.advance > 0 && result.pitch === true, `速度 ${rate} 未實播或音高設定失敗`);
+    assert(result.rate === Number(rate) && result.presentedAdvance > 0 && result.pitch === true, `速度 ${rate} 未實播或音高設定失敗`);
     speedSamples.push(result);
   }
   checks.sixRatesActuallyPlay = speedSamples;
@@ -125,6 +136,8 @@ async (page) => {
   await page.locator('#stop').click();
   checks.simulatedVisibilityStopAndExplicitRestartAligns = true;
   await stage('capture');
+  // 新錄影需符合實際 15–60 秒；短循環仍可練習，不拿無效片段測倒數鎖定。
+  await page.locator('#start').fill('0'); await page.locator('#end').fill('15');
   await page.locator('#rate').selectOption('0.75'); await page.locator('#camera').click(); await idle();
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));

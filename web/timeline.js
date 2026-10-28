@@ -24,6 +24,13 @@ export function comparison(recipe) {
   return { lowerMs, upperMs, durationMs: upperMs - lowerMs };
 }
 
+export function captureDuration({ startMs, endMs, rate }) {
+  const { durationMs } = comparison({ startMs, endMs, rate, offsetMs: 0, selfDurationMs: 60_000 });
+  // 下限只約束新錄影；既有短片與中斷原片仍可保留、播放及比較。
+  if (durationMs < 15_000) throw new Error('請調整片段或速度，讓實際錄影時間介於 15 到 60 秒。');
+  return durationMs;
+}
+
 export function positions(recipe, elapsedMs) {
   const { lowerMs, durationMs } = comparison(recipe);
   if (!Number.isFinite(elapsedMs) || elapsedMs < 0 || elapsedMs > durationMs) throw new Error('時間超出共同區間。');

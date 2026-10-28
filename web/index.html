@@ -27,9 +27,10 @@
       <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
       <label>倒數<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label>
     </div>
+    <label>相機方向<select id="camera-facing"><option value="user">前鏡頭／桌面相機</option><option value="environment">後鏡頭（裝置需支援）</option></select></label>
     <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範鏡像</label><label><input id="self-mirror" type="checkbox">自拍輸出鏡像</label><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
-    <div class="actions"><button type="button" id="camera" disabled>開啟前相機</button><button type="button" id="capture" disabled>倒數並錄下我</button><button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
-    <p class="hint">不使用麥克風。相機只在你點按時開啟，每次最多 60 秒。重錄前請先下載上一段。</p>
+    <div class="actions"><button type="button" id="camera" disabled>開啟前相機</button><button type="button" id="capture" disabled>倒數並錄下我</button><button type="button" id="new-take" disabled>準備下一段錄影</button><button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
+    <p class="hint">不使用麥克風。相機只在你點按時開啟，實際錄影 15–60 秒。請把全身與腳步留在取景框內；重錄前先下載上一段。</p>
     <label>我的已錄影片<input id="self-file" type="file" accept="video/*"></label><button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button>
     <p class="hint">已有兩支影片就直接選片，不必開相機。先分別播放，找到同一個動作的起點；原片不會被裁切。外部影片預設只在本次開啟。</p>
   </fieldset>
@@ -37,7 +38,7 @@
     <div><h2>左 · 老師示範</h2>
 <!-- biome-ignore lint/a11y/useMediaCaption: 來源是使用者本機影片，不能憑空附上假字幕；本版不處理字幕生成。 -->
 <video id="reference" controls playsinline preload="metadata"></video><button type="button" id="reference-start" disabled>老師當下畫面設為起點</button><button type="button" id="reference-end" disabled>老師當下畫面設為結尾</button></div>
-    <div><h2>右 · 我的練習</h2><video id="self" controls playsinline muted preload="metadata"></video><video id="preview" playsinline muted hidden></video><button type="button" id="self-start" disabled>我的當下畫面設為起點</button></div>
+    <div><h2>右 · 我的練習</h2><video id="self" controls playsinline muted preload="metadata"></video><div id="preview-frame" class="preview-frame" hidden><video id="preview" playsinline muted hidden></video><div class="body-guide" aria-hidden="true"></div></div><button type="button" id="self-start" disabled>我的當下畫面設為起點</button></div>
   </section>
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
