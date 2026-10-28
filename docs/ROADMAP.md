@@ -1,6 +1,8 @@
 # 路線圖與 issue 導覽
 
-日期：2026-10-27。所有功能尚待實作，總追蹤：[issue #1](https://github.com/sunpochin/dance-stamp/issues/1)。本次提交只有規劃與授權，不表示任一產品驗收完成。
+原規劃日期：2026-10-27；需求更新：2026-10-28。已有桌面預覽基礎，各功能依 issue 收集驗收證據，總追蹤：[issue #1](https://github.com/sunpochin/dance-stamp/issues/1)。本次僅補規劃，不表示任一產品驗收完成。
+
+2026-10-28 需求補充：P0／M2 納入「比較已有影片」，讓老師課後原片與自己已錄好的片直接並排、手動對齊及匯出。使用既有 #10／#11 追蹤，#12 補備份驗收，不重建同目的 issue。桌面入口已實作，合成雙片的九組比例／時長、十次長輸出及備份重連見[證據](evidence/existing-comparison.md)；重要變更待人工審查，整體 P0、手機與真實相機仍未完成。
 
 ## 1. 里程碑與停止條件
 
@@ -8,7 +10,7 @@
 | --- | --- | --- |
 | M0 決策與風險 | 授權轉換、最小邊播邊錄＋VS 成檔試驗、平台決策 | 手機／桌面證據齊全，或明確啟動 iOS 備援；沒有設備不能假判失敗 |
 | M1 筆記與練習基礎 | 選片、標記、保存、變速、鏡像、A–B | 正確時間、可重開、資料不靜默遺失 |
-| M2 P0 錄影比較 | 倒數錄影、同步校正、單檔 VS、備份還原 | [G1–G7](RECORD_COMPARE.md) 與資料恢復通過；不能以雙播放器代替輸出 |
+| M2 P0 錄影比較 | 倒數錄影或選兩支既有影片、同步校正、單檔 VS、備份還原 | 兩條入口各依 [錄影比較規格](RECORD_COMPARE.md) 驗收與資料恢復；不能以雙播放器代替輸出 |
 | M3 可用 beta | 離線、容量與更新安全、手機可用性、真機與使用者驗收 | 支援矩陣及授權／隱私／取得方式明確 |
 | M4 後續 | 動作庫、分享筆記、Salsa 八拍輔助 | P0 完整後才安排，不提前擠占核心工作 |
 | 條件式 iOS | Web 無法可靠完成的核心流程由 iOS 提供 | 需 Web 可重現阻礙＋限時修正結果；仍按相同 P0 驗收 |
@@ -27,7 +29,7 @@
 | [#7](https://github.com/sunpochin/dance-stamp/issues/7) | M1／P0 | 時間標記、區間筆記與一鍵跳轉 | [#5](https://github.com/sunpochin/dance-stamp/issues/5)、[#6](https://github.com/sunpochin/dance-stamp/issues/6) | 1–2 |
 | [#8](https://github.com/sunpochin/dance-stamp/issues/8) | M1／P0 | 變速、獨立鏡像與 A–B 練習循環 | [#6](https://github.com/sunpochin/dance-stamp/issues/6)、[#7](https://github.com/sunpochin/dance-stamp/issues/7) | 2–3 |
 | [#9](https://github.com/sunpochin/dance-stamp/issues/9) | M2／P0 | 邊播邊錄：倒數、自拍 take 與中斷恢復 | [#3](https://github.com/sunpochin/dance-stamp/issues/3)、[#5](https://github.com/sunpochin/dance-stamp/issues/5)、[#6](https://github.com/sunpochin/dance-stamp/issues/6)、[#8](https://github.com/sunpochin/dance-stamp/issues/8) | 3–5 |
-| [#10](https://github.com/sunpochin/dance-stamp/issues/10) | M2／P0 | 並排比較、共同時間線與手動同步校正 | [#9](https://github.com/sunpochin/dance-stamp/issues/9) | 2–4 |
+| [#10](https://github.com/sunpochin/dance-stamp/issues/10) | M2／P0 | 既有影片／錄影並排比較、共同時間線與手動同步校正 | 共用 [#5](https://github.com/sunpochin/dance-stamp/issues/5)、[#6](https://github.com/sunpochin/dance-stamp/issues/6)；錄影接入另依 [#9](https://github.com/sunpochin/dance-stamp/issues/9) | 原 2–4；新增入口後待重估 |
 | [#11](https://github.com/sunpochin/dance-stamp/issues/11) | M2／P0 | 本機合成並保存帶音訊的 VS 影片 | [#10](https://github.com/sunpochin/dance-stamp/issues/10) | 3–5 |
 | [#12](https://github.com/sunpochin/dance-stamp/issues/12) | M2／P0 | 可攜 JSON 備份、還原與媒體清單 | [#5](https://github.com/sunpochin/dance-stamp/issues/5)、[#7](https://github.com/sunpochin/dance-stamp/issues/7)、[#10](https://github.com/sunpochin/dance-stamp/issues/10) | 2–3 |
 | [#13](https://github.com/sunpochin/dance-stamp/issues/13) | M3／P0 | 離線使用、影片副本與容量／更新安全 | [#4](https://github.com/sunpochin/dance-stamp/issues/4)、[#5](https://github.com/sunpochin/dance-stamp/issues/5)、[#9](https://github.com/sunpochin/dance-stamp/issues/9)、[#11](https://github.com/sunpochin/dance-stamp/issues/11)、[#12](https://github.com/sunpochin/dance-stamp/issues/12) | 2–4 |
@@ -40,7 +42,7 @@
 
 #18 第一版限於檔案匯出／匯入與影片重新連結：選定筆記檔與影片分開，使用者自行透過 Google Drive、Dropbox、iCloud Drive 或 AirDrop 分享。不提供自己的影片儲存服務，不做雲端 API／OAuth 直連、同步或連結串流；未使用雲端仍可交換本機檔案。依賴仍為 #12、#15，維持 M4／P1；更新規劃不代表功能或真機驗收完成。完整流程見 [DATA_FORMAT.md](DATA_FORMAT.md#6-分享格式p1)，驗收見 [ACCEPTANCE.md](ACCEPTANCE.md#8-p1-檔案分享18)。
 
-前 14 個常規 P0 任務粗估合計 **26.5–46 工程日**，再保留整合、設備與不可預期問題的緩衝；約 6–12 個全職工作週只是排程起點。M0 結果出來後重估，不用這個數字保證交期。iOS 備援另估 10–20 日起，App Store 分發準備／審核、等設備與外部測試者時間未包含；不能把 Web 與 iOS 的重疊工作機械相加。P1 尚未估算。
+前 14 個常規 P0 任務原粗估合計 **26.5–46 工程日**，未含本次既有影片入口的增量，#10／#11／#12 與總量須依現有能力重估；再保留整合、設備與不可預期問題的緩衝。原約 6–12 個全職工作週只是排程起點，不用這個數字保證交期。iOS 備援另估 10–20 日起，App Store 分發準備／審核、等設備與外部測試者時間未包含；不能把 Web 與 iOS 的重疊工作機械相加。P1 尚未估算。
 
 ## 3. 依賴圖與平台切換
 
@@ -54,7 +56,9 @@ flowchart TD
     E --> F
     F --> G["#8 練習"]
     G --> H["#9 錄影"]
-    H --> I["#10 校正"]
+    D --> I["#10 既有影片／錄影比較與校正"]
+    E --> I
+    H -->|錄影入口| I
     I --> J["#11 VS 成檔"]
     D --> K["#12 備份"]
     I --> K
@@ -68,6 +72,8 @@ flowchart TD
 ```
 
 圖表呈現主線，完整前置條件以工作表與 issue 為準。M0 最小原型先串完錄影／輸出，不等待 M1 完整介面；這不是把 P0 錄影拖到最後才研究。
+
+#10 的既有影片入口可在 #5／#6 基礎上獨立實作與驗收，不要求先完成 #9 或開相機。#10 整體結案仍須涵蓋錄影接入；#11 對兩種輸入各自驗證成檔，#12 驗證兩片配對與配方的備份／重連。現有桌面預覽或單一路徑通過不能代替另一條驗收。
 
 若啟動 #16：Web 保留筆記、備份及可用的桌面能力；#9–11 等 issue 追蹤的是使用者能力，可用明確連結的 iOS 實作驗收，不能要求先完成失敗的 Web 實作才能開始 iOS。#14/#15 依實際支援平台收證據並發布限制，不把手機 Web 未通過寫成全面 Web 支援。Android 原生不在本輪派工。
 

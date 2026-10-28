@@ -21,6 +21,13 @@ describe('M0 共同比較區間', () => {
     expect(() => positions(slow, -1)).toThrow()
     expect(() => positions(slow, 29_801)).toThrow()
   })
+  test('既有影片各自選起點，長原片只取選定片段', () => {
+    const value = { startMs: 12000, endMs: 32000, rate: 1, offsetMs: 4000, selfDurationMs: 80000 }
+    expect(comparison(value).durationMs).toBe(20000)
+    expect(positions(value, 0)).toEqual({ referenceMs: 12000, selfMs: 4000 })
+    expect(positions(value, 20000)).toEqual({ referenceMs: 32000, selfMs: 24000 })
+    expect(comparison({ ...value, selfDurationMs: 9000 }).durationMs).toBe(5000)
+  })
   test('拒絕空值、非整數、超長與不允許速度', () => {
     for (const patch of [{ startMs: -1 }, { endMs: 0 }, { rate: 0 }, { rate: 2 }, { offsetMs: NaN }, { offsetMs: 0.5 }, { selfDurationMs: Infinity }, { endMs: 41_000 }]) {
       expect(() => comparison({ ...slow, ...patch })).toThrow()
