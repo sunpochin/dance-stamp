@@ -14,7 +14,7 @@
 1. 選取自己的課程影片，標記重要動作，點一下跳到重點。
 2. 變速、鏡像、A–B 循環，練熟一小段 Salsa shine。
 3. **一邊播放示範，一邊錄下自己；錄完校正時間，輸出帶示範音訊的左右 VS 影片。這是 P0，不能只交付雙播放器。**
-   同為 P0 的另一入口是「比較已有影片」：選老師課後影片與自己已錄好的影片，各自選起點、左右並排校正，再輸出同一種 VS 影片；不必開相機或重新錄影。此入口的完整流程與驗收於 2026-10-28 補入規劃，由 [#10](https://github.com/sunpochin/dance-stamp/issues/10)／[#11](https://github.com/sunpochin/dance-stamp/issues/11) 追蹤，尚未驗收完成。
+   同為 P0 的另一入口是「比較已有影片」：選老師課後影片與自己已錄好的影片，各自選起點、左右並排校正，再輸出同一種 VS 影片；不必開相機或重新錄影。桌面 Web 已提供此流程，由 [#10](https://github.com/sunpochin/dance-stamp/issues/10)／[#11](https://github.com/sunpochin/dance-stamp/issues/11) 追蹤；使用方式見 [Web 預覽](docs/WEB_PREVIEW.md)，手機支援仍待驗證。
 4. 筆記留在裝置，可以匯出、還原；影片不自動上傳。
 
 不設 Pro、訂閱、廣告、付費 API 或雲端影片分鐘額度。免費不代表無限硬碟、永久瀏覽器保存或免費無限影片雲端。

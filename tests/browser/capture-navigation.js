@@ -2,7 +2,7 @@
 async (page, phase = 'prepare') => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const origin = new URL(page.url()).origin;
-  const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
+  const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   const library = () => page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
   if (phase === 'prepare') {
     await page.addInitScript(() => {
@@ -22,6 +22,8 @@ async (page, phase = 'prepare') => {
     await page.locator('#copy-reference').click(); await idle();
     const videoId = await page.locator('#library').inputValue();
     await page.locator('#self-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
+    // 本案例要保護已保存的舊片；外部選片不自動落盤，先由明確操作保存基準副本。
+    await page.locator('#copy-self').click(); await idle();
     const previous = await page.evaluate(async () => {
       const store = await import('/storage.js'), { data } = await store.readLibrary(), take = data.takes.at(-1);
       return { take, bytes: (await store.readMedia(take.cameraAssetId)).size };

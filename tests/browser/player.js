@@ -30,7 +30,7 @@ async (page) => {
   for (const [label, path, required] of cases) {
     await input.setInputFiles(`output/media-probe/${path}`); await settle();
     const status = await page.locator('#status').textContent();
-    if (!status.startsWith('示範已載入')) { assert(!required, `${label} 失敗：${status}`); results.push({ label, result: 'unsupported', status }); continue; }
+    if (!status.startsWith('老師示範已載入')) { assert(!required, `${label} 失敗：${status}`); results.push({ label, result: 'unsupported', status }); continue; }
     const observed = await frames();
     assert(observed.width > 0 && observed.height > 0 && observed.time > 0.1 && !observed.error && observed.fit === 'contain', `${label} 沒有實際播放或方向拉伸`);
     if (label === 'portrait' || label === 'rotation') assert(observed.height > observed.width, '直向或旋轉方向錯誤');
@@ -54,10 +54,11 @@ async (page) => {
   }
   await input.setInputFiles([]); await settle();
   assert(await page.locator('#reference').getAttribute('src') === previous, '取消選檔破壞原影片');
+  // 播放器與新增的原片下載各有一個 URL；重選十次仍應維持固定數量。
   for (let i = 0; i < 10; i++) {
     await input.setInputFiles(`output/media-probe/${i % 2 ? 'player/portrait.mp4' : 'short/reference.mp4'}`); await settle();
-    assert(await page.evaluate(() => window.playerURLs.size === 1), '換片殘留 object URL');
+    assert(await page.evaluate(() => window.playerURLs.size === 2), '換片殘留 object URL');
     assert(await page.locator('#reference').evaluate(v => v.paused && !v.error), '換片殘留播放或錯誤狀態');
   }
-  return { cases: results, corruptDespiteProbablyRejected: true, badAndEmptyPreserveSourceAndNotes: true, cancelPreservesSource: true, tenSwitchesKeepOneURL: true, maximumLiveURLs: await page.evaluate(() => window.playerURLPeak) };
+  return { cases: results, corruptDespiteProbablyRejected: true, badAndEmptyPreserveSourceAndNotes: true, cancelPreservesSource: true, tenSwitchesKeepPlayerAndDownloadURLs: true, maximumLiveURLs: await page.evaluate(() => window.playerURLPeak) };
 }
