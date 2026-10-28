@@ -109,6 +109,7 @@ async function operation(task) {
     if (monitor) monitor.gain.value = 1;
     if (audio?.state === 'running') await audio.suspend().catch(() => {});
     active = null; $('controls').disabled = false; $('pause-comparison').hidden = true;
+    // 比較結束先收起暫停控制，再恢復練習速度，避免下一次播放沿用合成設定。
     applyPracticeSettings(); drawPractice();
     reference.controls = true; self.controls = true;
     updateControls(); report();
@@ -1059,6 +1060,7 @@ reference.addEventListener('ended', async () => {
     catch { if (owner === practiceController) stopPractice(); }
   }
 });
+// ended 只保留上方可取消的循環 owner；重複掛舊 handler 會在停止後重新播放。
 function changeComparison(change) {
   if (active || pendingTakeId) return;
   change(); $('scrub').value = '0'; updateIntersection();
