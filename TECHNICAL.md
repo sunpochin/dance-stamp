@@ -9,7 +9,7 @@
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
-#3 的真正 macOS Safari 同步／私人視窗副本失敗與原生對照見 [Safari 歷史證據](docs/evidence/issue-3-safari-feasibility.md)，受測為 `2f1ec6b3335cd790`；七個未通過候選已還原。P0 `22c187ea10e457c2` 與 P1 整合 `db129e273cf0039b` 的 Safari 均尚未驗證，一般設定檔初始化仍待使用者同意；不能把舊版失敗或 Chrome 通過延伸成新版 Safari 結論。
+#3 的 Safari 舊版七個失敗試驗見 [歷史證據](docs/evidence/issue-3-safari-feasibility.md)。目前 P1 `db129e273cf0039b`／來源 `85b1ba6` 已以真正 Safari 一般與私人模式續測：[當前結果](docs/evidence/issue-3-safari-current.md)。一般視窗不用啟用 Profiles 即可保存及關窗取回三份相同檔案，但 15 秒 VS 完整解碼仍未通過停格／聲畫／覆蓋；私人模式另有原生 Blob 錯誤。P0 獨立靜態 `22c187ea10e457c2` 未在 Safari 重測，不能延伸歸屬。
 
 ## 1. 架構結論
 
@@ -437,3 +437,10 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 `notes-scale.js` 在獨立效能鎖與無媒體 API 的環境量測原生 IndexedDB 及真正 DOM 搜尋；每種資料 100／1000／5000 筆，最大 JSON 5,200,234 bytes，空白重建最多約 664ms、唯一命中約 30ms。搜尋前後 revision／內容指紋不變。這是本機一次量測，非低階手機、全部格式上限或持續負載承諾；沒有憑空建立新的速度門檻。暫不引入持久化索引、分頁架構或搜尋服務，保留單份原資料與目前掃描方式。
 
 本次合入 P0 的後續文件並新增可重現驗證，不再改產品 runtime；最終乾淨包應與受測 587689d 的 15 份執行資源逐檔相同，來源 head 與 archive 校驗在 PR／release.json 另記，避免文件自我引用形成無窮重建。
+
+
+## 31. 當前 Safari 的有界環境對照
+
+普通新視窗與獨立 loopback origin 已能完成一般模式對照，不需要初始化 Profiles。新增僅供手動診斷的 `safari-storage-probe`，完全不讀產品 DB；用原生文字及 8 KiB 記憶體 Blob 分開定位私人模式錯誤，排除以清庫、檔案 materialize 或新增外部服務作為未驗證修復。每步 timeout 只界定診斷等待，不聲稱產品交易回滾。當前匿名證據沿用下載包文件白名單，離線閱讀支援限制時仍可開啟；診斷程式不進產品包。
+
+一般模式當前候選真的產生並保存 MP4，關窗取回的兩支原片與 VS 均逐 byte 相同；原 v5 卻拒絕實際凍結 351.667ms、聲畫及完整長度，因此不擴大 Safari 支援承諾。保留目前 runtime 與原品質護欄，不重試已失敗的共用音訊時鐘／可見性假設、不把 JS drift 當成成檔驗收。完整版本及限制見[當前 Safari 證據](docs/evidence/issue-3-safari-current.md)。

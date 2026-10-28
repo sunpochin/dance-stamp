@@ -60,7 +60,7 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
-真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原，一般專用設定檔需先經使用者同意初始化。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
+真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原。後續已直接用一般新視窗完成目前候選對照，不需初始化 Profiles，見[當前 Safari 證據](evidence/issue-3-safari-current.md)。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
 
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
@@ -372,4 +372,11 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 這是一次本機樣本與完整渲染上界，包含兩個影格，非持續壓力／低階手機／所有表同時達格式上限的承諾；不因此修改產品品質門檻或引入搜尋服務。
 
-上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、當前 Safari、手機及發布主機仍未驗證；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
+上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、手機及發布主機仍未驗證；當前 Safari 短片與保存的分開結果見[續測證據](evidence/issue-3-safari-current.md)；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
+
+
+## 當前 Safari 的一般／私人模式續測（2026-10-28）
+
+乾淨 `85b1ba6`／`db129e273cf0039b`、真正 Safari 27.0.1：一般視窗的 15 秒既有雙片真的成檔、保存及關窗取回，三份媒體下載指紋均相同；原 v5 全檔分析仍拒絕 351.667ms 老師停格、1006.667ms 最大提示音配對差及 15.340 秒容器覆蓋。這不是 capture／光學或 Safari P0 通過。私人模式匯出被護欄拒絕，副本保存持續等待；獨立原生 8 KiB Blob 對照在私人模式 UnknownError、一般模式完整往返通過。普通新視窗不需初始化 Profiles；未修改日常設定。
+
+[完整版本、合成來源、數據與接手步驟](evidence/issue-3-safari-current.md)。`tests/browser/safari-storage-probe/serve.ts` 提供可重現的最小原生頁，只綁 loopback、不讀產品資料；其 timeout 不冒充產品已恢復。短片已失敗，暫不擴跑 Safari 九組／十輪矩陣，不改原護欄或宣稱手機失敗。
