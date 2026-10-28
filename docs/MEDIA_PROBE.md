@@ -142,6 +142,8 @@ playwright-cli --session dance-capture-matrix run-code "$(cat tests/browser/capt
 
 矩陣約需數分鐘，逐例確認成功，不在執行中更換 dist 內容；觀察逾時先查同一 session，不能重開取代還活著的錄影。九段原 take 位於 ignored `output/media-probe/captures/`，另用 ffprobe 盤點、FFmpeg 完整解碼，不能只看 metadata／第一幀。只有合成證據，真正 G1／G6 與硬體中斷仍見 [#9 未完成項](evidence/issue-9-capture-recovery.md)。
 
+`capture-drain.js` 使用新的隔離合成相機 session，刻意保持 chunks 的原生 IndexedDB 交易未提交，再注入編碼 error。斷言相機已停止、工作仍忙碌且另一分頁無法取得同一 take 的恢復鎖；放行交易後才能恢復可解碼的 interrupted 原片，重開後舊片與恢復片的 metadata／配方／完整 SHA256 保持一致。執行 `playwright-cli --session dance-drain run-code --filename tests/browser/capture-drain.js`；下載的 `output/media-probe/drain-recovered.mp4` 另用 FFmpeg 全片解碼。這是儲存失敗時序回歸，不是硬體、背景或 G1／G6 驗收。
+
 `capture-comparison.js` 在同頁依序錄影、匯出、改用既有雙片並再次匯出，最後重開原錄影，確認共用單一 AudioContext、相機停止、原片／筆記／舊 VS 都保留。只使用合成相機；不代替長片矩陣、真實硬體或背景驗收。
 
 ### 真正離頁與獨立重播

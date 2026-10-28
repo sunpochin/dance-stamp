@@ -457,7 +457,11 @@ $('capture').addEventListener('click', () => operation(async signal => {
             try { await finalizeTake(take, blob, durationMs, info.interrupted, captureTiming); }
             catch (error) { persistenceError = error instanceof Error ? error : new Error('儲存發生錯誤。'); }
 
-          } finally { releaseCamera(); }
+          } finally {
+            releaseCamera();
+            // 編碼或讀回失敗也要持鎖等尾塊落盤，否則另一分頁會恢復尚未收齊的片段。
+            await chunkQueue;
+          }
         } else releaseCamera();
       }
       if (persistenceError) throw persistenceError;
