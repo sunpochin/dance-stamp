@@ -240,3 +240,39 @@ playwright-cli --session dance-size close
 focus 函式測保存／編輯／清單重繪、modal 返回、quota 與停止鍵不被搶焦。layout 函式在五組 viewport 與 100%／200% 根文字尺寸量 44px 目標、完整焦點可見、無水平溢出、原生狀態捲動及七種常用文字對比；不以程式捲到控制來掩蓋 Tab 行為。原生 End 捲動須等實際 scrollTop 改變，不能只看按鍵回傳。
 
 media 函式用 CDP 真正可及性樹核對播放器名稱、禮貌狀態及輸出進度，合成權限拒絕後明確重試、不開麥克風；注入合成敏感檔名／deviceId／groupId／label，核對診斷及 JSON 不含它們、無外部請求且 tracks 全部釋放。下載 VS 再按既有方法完整解碼與產品外播放。這不是讀屏實聽、實體裝置或全媒體 gates；[本版本證據](evidence/issue-14-web-accessibility.md)與[人工觀察單](WEB_USABILITY_CHECK.md)分開。
+
+## #3 長錄影與逐幀成檔量測
+
+新增工具只使用 Python 標準函式庫、既有 FFmpeg 與 Playwright CLI，不新增產品依賴。先建置，再建立不循環的合成相機與逐幀時間碼；不覆寫既有證據。
+
+```sh
+bun run build
+python3 scripts/make-sync-fixtures.py
+python3 scripts/check-media-analyzer.py
+DANCE_STAMP_PORT=42833 bun --no-env-file scripts/serve-web.ts
+```
+
+另開終端，以自己已安裝的 CLI 開新隔離 session。若使用 Codex skill 的 wrapper，將其路徑傳入 `--cli`；不自動安裝 CLI／瀏覽器。
+
+```sh
+playwright-cli --session dance-issue3 open http://127.0.0.1:42833 --config output/media-feasibility/browser.json
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode matrix --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode stability --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode webm --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode alignment --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode recovery --label g3 --analyze
+```
+
+matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料庫連續十次 1× 的 60 秒 capture→export；webm 只略過 MP4 候選，仍由原生編碼器實際試錄與回讀；alignment 用正／負 200ms 校正及兩側獨立鏡像重跑 15 秒成檔；recovery 在一次完整流程後檢查匯出取消、預覽取消及 play 拒絕的回呼清理／檔案保留。每段都下載原片／VS，`--analyze` 立即全片解碼，門檻不過即停止並保留失敗報告。
+
+每個版本開全新隔離 session，`--label` 換未使用的英數標籤；JSON 記錄 Git head 與建置內容版本，不覆寫舊證據。已產生過的分析報告也不覆寫；需另行分析時可傳 `analyze-media.py record.json --report 新報告.json`。每個流程都有包含下載／輪詢成本的完整匯出耗時上界，亦可用 `--mode performance` 單獨重跑 60 秒。完整解碼與二進位時間碼不代表實體相機光學時鐘、手機／Safari 相容性或 G2 已完成。
+
+分析器 v4 的聲音事件依配方合法交集 `[L,U)` 配對；來源 B 的末格閃光另列 `boundaryFlashPts`，不能要求片段外的下一個提示音。所有影格仍計入首末同步與 G3，片尾含最後一格的呈現時間，沒有忽略開頭或尾端的停格。自查另含末格邊界正例、中段缺音及片尾凍結負例；`check-media-analyzer.py --label 新標籤` 另存一輪，不覆寫舊自查。
+
+若產品版本完全未變，且中斷原因已釐清、前段已用同一分析器確認，可用 `--start-index 7` 從第七組未執行案例接續。它仍拒絕覆寫既有案例；產品有改動須用新 session／標籤重跑，不能用接續功能跳過未解決失敗。
+
+手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [手機清單](PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
+
+分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
+
+分析器 v5 另獨立驗證配方合法交集的解碼長度及兩側來源起末時間碼覆蓋（100ms 邊界容差），全片來源時間碼依輸出時鐘核對（250ms 品質容差）；runner 相機原片規劃長度沿用既有 500ms 容差。自查增加截短及重播補長負例。瀏覽器先快照既有 ID，要求本輪新增 ready take／export、正確關聯及 Blob 與下載內容一致；recovery 另注入 VS 保存 quota 並確認新檢查拒絕，該額外未保存檔不列入正式成檔數。
