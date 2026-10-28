@@ -5,7 +5,7 @@
 
 P0 整合候選以桌面 Chrome 為測試範圍。一般 macOS Safari 已用普通新視窗完成對照，不需改 Profiles 或日常設定；測試原片與 VS 曾能保存並關窗取回，版本歸屬見[儲存對照](evidence/issue-3-safari-current.md)。有界音訊候選的0.5×完整覆蓋與較長輸出同步仍有缺口，修正後尚待原生複驗，見[候選品質證據](evidence/issue-3-bounded-audio.md)。私人模式另有匯出與原生 Blob 保存阻礙，仍未通過；[早期紀錄](evidence/issue-3-safari-feasibility.md)保留原版本。目前原生續測等待 Mac 解鎖，無須使用者另選設定。iPhone 暫緩；真人相機／音訊、五人操作與最終審查仍須各自證據。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
 
-本候選已整合 [PR #58](https://github.com/sunpochin/dance-stamp/pull/58) `2d31302` 的主機與資料保護，以及 [PR #62](https://github.com/sunpochin/dance-stamp/pull/62) `13976bb` 的有界音訊、空 edit 靜音與音訊偏移拒絕；來源 PR 與 main 均未合併。整合驗證及版本界線見[本候選證據](evidence/p0-safari-reliability-integration.md)。本機工程包仍須獨立審查及發布核准。
+本候選已整合 [PR #58](https://github.com/sunpochin/dance-stamp/pull/58) `2d31302` 的主機與資料保護，以及 [PR #62](https://github.com/sunpochin/dance-stamp/pull/62) `676ba50`（runtime 仍為 `13976bb`）的有界音訊、空 edit 靜音與音訊偏移拒絕；來源 PR 與 main 均未合併。整合驗證及版本界線見[本候選證據](evidence/p0-safari-reliability-integration.md)。本機工程包仍須獨立審查及發布核准。
 
 ## 取得與重建
 
