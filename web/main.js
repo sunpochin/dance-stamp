@@ -1,6 +1,6 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
 import { comparison, positions, contain, validateMarkerRange, captureDuration } from './timeline.js';
-import { event, normalizedVideo, mediaAction, seek, load, record, extension, cameraError } from './recorder.js';
+import { event, normalizedVideo, mediaAction, presentedFrame, seek, load, record, extension, cameraError } from './recorder.js';
 import { validateBackup, parseBackup, planBackupImport, mediaInventory, videoLabels, planDeletion } from './library.js';
 import { startOffline } from './offline.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
@@ -197,12 +197,20 @@ async function align(value, elapsedMs, signal) {
   await Promise.all([seek(reference, target.referenceMs / 1000, signal), seek(self, target.selfMs / 1000, signal)]);
   draw(value);
 }
-async function timeline(value, signal, exporting, captureFrame = () => {}) {
+async function timeline(value, signal, exporting, captureFrame = () => {}, startOutput = () => {}) {
   const { durationMs } = comparison(value);
   const first = positions(value, 0);
   reference.playbackRate = value.rate; self.playbackRate = 1; self.muted = true;
-  await Promise.all([reference.play(), self.play()]);
-  abortIfNeeded(signal);
+  const starting = new AbortController(), cancelStart = () => starting.abort(signal.reason);
+  signal.addEventListener('abort', cancelStart, { once: true }); if (signal.aborted) cancelStart();
+  try {
+    const frames = exporting ? [presentedFrame(reference, starting.signal), presentedFrame(self, starting.signal)] : [];
+    await Promise.all([...frames, Promise.resolve().then(() => reference.play()), Promise.resolve().then(() => self.play())]);
+    // 先喚醒解碼與音訊，再回到配方起點；不能靠錄晚一點而省略自拍開頭。
+    if (exporting) await align(value, 0, starting.signal);
+    abortIfNeeded(signal); startOutput();
+    if (exporting) await Promise.all([reference.play(), self.play()]);
+  } finally { starting.abort(); signal.removeEventListener('abort', cancelStart); }
   const began = performance.now();
   let maxDriftMs = 0, maxRenderGapMs = 0, lastFrameAt = began, lastCaptureAt = began - 1000 / 30, lastProgress = began, lastElapsed = 0;
   await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
@@ -500,20 +508,26 @@ $('export').addEventListener('click', () => operation(async signal => {
   await saveCurrentRecipe();
   await prepareAudio(); await align(value, 0, signal); abortIfNeeded(signal);
   try {
-    // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
     monitor.gain.value = 0;
-    // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
-    stream = canvas.captureStream(0);
-    let canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
-    if (typeof canvasTrack.requestFrame !== 'function') {
-      stream.getTracks().forEach(track => { track.stop(); });
-      stream = canvas.captureStream(30); canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
-    }
-    audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
-    recording = record(stream);
-    recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
-    status('合成中，請保持此頁在前景。取消後仍可重試。');
-    const measured = await timeline(value, signal, true, () => canvasTrack.requestFrame?.());
+    /** @type {CanvasCaptureMediaStreamTrack | undefined} */
+    let canvasTrack;
+    status('正在準備比較畫面，請保持此頁在前景。');
+    // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
+    const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), () => {
+      draw(value);
+      // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
+      // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
+      stream = canvas.captureStream(0);
+      canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
+      if (typeof canvasTrack.requestFrame !== 'function') {
+        stream.getTracks().forEach(track => { track.stop(); });
+        stream = canvas.captureStream(30); canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
+      }
+      audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
+      recording = record(stream);
+      recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
+      status('合成中，請保持此頁在前景。取消後仍可重試。');
+    });
     blob = await recording.stop();
     diagnostics.export = { ...measured, mime: blob.type, bytes: blob.size, requestedWidth: 1280, requestedHeight: 720, recipe: value };
     const temporary = URL.createObjectURL(blob), validationVideo = document.createElement('video');

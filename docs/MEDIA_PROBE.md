@@ -294,3 +294,12 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 ## #11 慢速比較音高對照
 
 使用合成 `make-comparison-fixtures.ts` 與新隔離 Chrome context 執行 `tests/browser/comparison-pitch.js`，再跑 `python3 scripts/analyze-comparison-pitch.py`。真正下載三份三秒 VS，完整解碼並確認 660Hz 老師聲源依 0.5／0.75／1× 成為 330／495／660Hz，排除 880Hz 自己聲源與誤保留原音高；預覽取消／成檔／繪製失敗後仍恢復一般練習音高。這是短片功能與音訊內容驗證，完整同步／穩定性另跑原始 `run-media-feasibility.py`，不代替真機聽感。
+
+
+## 匯出準備與來源歸屬
+
+新隔離 session 執行 `export-ready.js`，只選合成既有雙片並停用相機 API。原生影格通知刻意暫不交付時不可先建立編碼器，取消須撤銷等待且保留上次輸出；同頁重試真正成檔下載，準備及正式播放各自拒絕時也保留舊片、配方並釋放串流。`comparison-capture-fallback.js` 另驗沒有手動 canvas requestFrame 的既有備援。
+
+`run-media-feasibility.py` 預設拒絕未提交來源。只有有界實驗才加 `--allow-dirty`，原品質檢查仍全部執行，raw JSON 記 sourceDirty；true 不能宣告該 Git head 正式通過。正式候選應先完成原 check／commit／push，再以乾淨來源和新 label 重跑，不覆寫實驗或失敗報告。
+
+本輪隔離 Chrome 已實際通過上述準備取消／兩次拒播／重試下載、canvas 擷取備援與既有 export-failure；獨立分析器再次完整解碼並核對老師音源、鏡像與四份舊 VS 指紋。這些短片回歸不取代提交後的完整矩陣與真機驗收。

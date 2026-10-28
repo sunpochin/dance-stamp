@@ -15,6 +15,7 @@ parser.add_argument('--mode', choices=['smoke', 'matrix', 'stability', 'webm', '
 parser.add_argument('--label', default='', help='不同版本的證據名稱，不覆寫上一輪')
 parser.add_argument('--rate', type=float, choices=[0.5, 0.75, 1], default=1, help='smoke／performance 的速度')
 parser.add_argument('--analyze', action='store_true', help='每段立即完整解碼，品質門檻未過就停止')
+parser.add_argument('--allow-dirty', action='store_true', help='僅實驗允許未提交來源；紀錄仍標示 sourceDirty，不算該 Git head 的正式證據')
 parser.add_argument('--start-index', type=int, default=1, help='保留既有證據，從尚未執行的矩陣編號繼續')
 args = parser.parse_args()
 if args.label and not re.fullmatch('[a-z0-9-]+', args.label):
@@ -34,6 +35,10 @@ if not build_match:
     raise RuntimeError('無法辨識建置版本，請先建置並核對 Service Worker。')
 build = build_match.group(1)
 git_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+# 不輸出路徑或內容；未提交修改不能冒充目前 head 的正式量測。
+source_dirty = bool(subprocess.run(['git', 'status', '--porcelain'], cwd=root, capture_output=True, text=True, check=True).stdout.strip())
+if source_dirty and not args.allow_dirty:
+    raise RuntimeError('來源尚未提交；正式量測請先 commit，僅實驗才可指定 --allow-dirty。')
 
 def invoke(options):
     # 以 argv 傳遞完整程式，不能把測試文字插入 shell 造成意外命令展開。
@@ -64,7 +69,7 @@ for index, (seconds, rate) in enumerate(cases, 1):
     print(f'{name}: capture started', flush=True)
     started = time.monotonic()
     record = {'name': name, 'seconds': seconds, 'rate': rate, 'label': args.label, 'staticBuild': build, 'gitHead': git_head,
-              'startedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+              'sourceDirty': source_dirty, 'startedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
     try:
         invoke({**options, 'phase': 'start'})
         for phase in ['capture-status', 'export-status']:

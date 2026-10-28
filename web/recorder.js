@@ -34,6 +34,25 @@ export async function mediaAction(target, name, action, signal, timeoutMs = 15_0
   finally { waiting.abort(); signal?.removeEventListener('abort', cancel); }
 }
 
+// 啟播承諾完成不代表兩側像素已呈現；先收原生影格通知，輸出才不會錄入啟動等待。
+/** @param {HTMLVideoElement} video @param {AbortSignal} signal */
+export async function presentedFrame(video, signal) {
+  signal.throwIfAborted();
+  if (!video.requestVideoFrameCallback) { await event(video, 'playing', signal); return; }
+  return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+    let id;
+    const finish = error => {
+      clearTimeout(timer); signal.removeEventListener('abort', aborted);
+      if (id !== undefined) video.cancelVideoFrameCallback(id);
+      error ? reject(error) : resolve();
+    };
+    const aborted = () => finish(signal.reason);
+    const timer = setTimeout(() => finish(new Error('等待比較畫面逾時，原片保留，請重新預覽後重試。')), 15_000);
+    signal.addEventListener('abort', aborted, { once: true });
+    id = video.requestVideoFrameCallback(() => { id = undefined; finish(); });
+  }));
+}
+
 export async function seek(video, seconds, signal) {
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('跳轉時間不正確。');
   if (video.readyState < 1) throw new Error('影片尚未準備好，請先重新選片。');
