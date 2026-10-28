@@ -128,3 +128,7 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 `download-playback.js` 第三參數可傳等待上限，例如 60 秒下載檔傳 `90_000`；預設仍為 25 秒，所有情況都必須真的到 ended 且無解碼錯誤，不能用延長等待取代重播。整合版另跑原本雙片完整矩陣；分析仍檢查原有同步／fps／凍結／聲源門檻，再加嚴格影格時間與真正首末影格。各版本證據見 [#9 整合證據](evidence/issue-9-comparison-integration.md)，不把不同 head 結果混在一起。
 
 `existing-no-camera.js` 在相機 API 完全不存在的隔離頁跑完整選片／預覽／匯出；`comparison-keyboard.js` 補鍵盤移焦、播放／暫停與原生數字微調保存，窄版截圖留 ignored output。兩者都透過相同的 CLI `run-code --filename` 入口，不改產品資料或降低門檻。
+
+### 開啟 take 失敗時保留舊校正
+
+使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。

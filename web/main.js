@@ -654,23 +654,26 @@ async function openTakeUnlocked(take, signal) {
   if (!row) throw new Error('找不到此自拍的比較配方，沒有變更原畫面。');
   // 已持有同一 take 的恢復鎖，才可把無 owner 的工作狀態改成中斷。
   if (take.state === 'recording') await markStoppedTake(take, 'interrupted');
-  releaseCamera(); existingMode = true;
-  $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
-  $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
+  releaseCamera();
   let blob = sessionMedia.get(take.cameraAssetId) || await readMedia(take.cameraAssetId);
   const recovered = !blob;
   if (!blob) {
     try { blob = await recoverChunks(take.cameraAssetId); }
     catch {
+      existingMode = true;
+      $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
+      $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
       selfDurationMs = 0; activeTakeId = null; takeBlob = null;
       self.removeAttribute('src'); self.load();
       pendingTakeId = take.id;
       status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用「我的已錄影片」載入另存原片，預覽後確認連結。'); return;
     }
   }
-  download('take-download', blob, 'dance-self');
   const durationMs = await loadCandidate(blob, self, 'self', signal);
+  // 原片讀回成功才一起切換配方與下載；壞檔或取消不得把另一段設定寫進舊 take。
+  download('take-download', blob, 'dance-self'); existingMode = true;
   selfDurationMs = durationMs; takeBlob = blob; activeTakeId = take.id;
+  pendingTakeId = null; $('confirm-take').hidden = true;
   $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
   $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
   const interrupted = recovered || take.state !== 'ready';
