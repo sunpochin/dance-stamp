@@ -228,3 +228,9 @@ playwright-cli --session dance-size close
 `interrupted-session.js` 用全新資料環境還原中斷 take，驗證人工重連與重複開啟不自動存片、明確保存才寫入，以及重開已存中斷片不重寫 Blob。以乾淨 session 執行 `playwright-cli --session dance-session run-code --filename tests/browser/interrupted-session.js`。
 
 `backup-recipe-copies.js` 驗證只有校正不同的備份也有可選 take、不同版本與已編輯副本各自保留、重匯冪等，以及實際匯出使用所選副本。以乾淨 session 執行 `playwright-cli --session dance-recipe-copies run-code --filename tests/browser/backup-recipe-copies.js`。
+
+## 12. 選定筆記分享（#18）
+
+以專用短片及全新隔離無視窗 session 執行 `tests/browser/share.js`；沿用 `make-export-fixtures.ts` 的八秒 reference／self，另建立兩秒同名裁切片及同名不同內容候選。下載路徑與完整重現見 [#18 證據](evidence/issue-18-sharing.md)。測試會實際下載分享／完整備份，在其他新 contexts 選檔、預覽、重建 ID、原子匯入、人工確認逐側重連與跳片段；用 stub 測系統分享，禁止實際寄件。
+
+包含私人欄位預設排除、明確加入、最小閉包、文字／JSON 預覽、下載失敗、quota／交易內取消、真實多分頁 revision、重匯冪等與衝突另存、同名／裁切／VS／壞檔；既有 `backup-recipe-copies.js` 與 migration／鎖回歸分開跑。這是短片功能與資料保護回歸，不重跑未變的長片／效能矩陣，不操作桌面或雲端。另一實體裝置及 Google Drive／Dropbox／iCloud Drive／AirDrop 保留未驗證。

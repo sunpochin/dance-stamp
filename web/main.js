@@ -1,7 +1,7 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
 import { comparison, positions, contain, validateMarkerRange, captureDuration } from './timeline.js';
 import { event, normalizedVideo, mediaAction, seek, load, record, extension, cameraError } from './recorder.js';
-import { validateBackup, parseBackup, planBackupImport, mediaInventory, videoLabels, planDeletion } from './library.js';
+import { validateBackup, parseBackup, planBackupImport, createShare, mediaInventory, videoLabels, planDeletion } from './library.js';
 import { startOffline } from './offline.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
 
@@ -25,6 +25,9 @@ const urls = new Map();
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
 let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
+/** @type {{ file: File, revision: number } | null} */
+let shareDraft = null;
+let shareSending = false;
 let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comparisonSaveVersion = 0;
 /** @type {import('./types').Diagnostics} */
 const diagnostics = { stage: 'idle', camera: null, capture: null, export: null };
@@ -66,13 +69,15 @@ function releaseCamera() {
 }
 function stop() {
   active?.abort();
-  closeImportDialog(); closeMediaDialog(); closeDeleteDialog();
+  closeImportDialog(); closeMediaDialog(); closeDeleteDialog(); closeShareDialog();
   reference.pause(); self.pause();
   releaseCamera();
   stopPractice();
 }
 function updateControls() {
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
+  $('share-controls').disabled = !!active || shareSending;
+  $('share-download').disabled = !shareDraft || shareSending;
   $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
@@ -93,6 +98,7 @@ async function operation(task) {
   const controller = new AbortController();
   active = controller;
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
+  $('share-controls').disabled = true;
   $('existing-mode').disabled = true;
   for (const id of /** @type {const} */ (['reference-start', 'reference-end', 'self-start'])) $(id).disabled = true;
   stopPractice();
@@ -526,7 +532,7 @@ window.addEventListener('pagehide', e => {
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
 window.addEventListener('pageshow', e => { if (e.persisted) status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); });
-window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (active || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
 function requireCurrentVideo() { const video = currentVideo(); if (!video) throw new Error('影片筆記已失聯，請重新開啟。'); return video; }
@@ -545,6 +551,17 @@ function closeImportDialog(abort = true) {
   if (!importDraft && !$('import-dialog').open) return;
   if (abort) active?.abort(); importDraft = null; $('import-dialog').close();
   if (abort) status('已取消匯入，原資料保留。');
+}
+function invalidateShare() {
+  shareDraft = null; $('share-content').textContent = ''; $('share-readable').replaceChildren(); $('share-summary').textContent = '請先預覽，再下載或交給系統分享。';
+  $('share-download').disabled = true; $('share-system').hidden = true;
+  const url = urls.get('share-notes'); if (url) URL.revokeObjectURL(url); urls.delete('share-notes');
+}
+function closeShareDialog() { invalidateShare(); $('share-dialog').close(); }
+function shareChoice(parent, table, value, text) {
+  const label = document.createElement('label'), input = document.createElement('input');
+  label.className = 'check-label'; input.type = 'checkbox'; input.value = value; input.dataset.table = table;
+  label.append(input, document.createTextNode(text)); parent.append(label);
 }
 function closeMediaDialog(abort = true) {
   if (!relinkDraft && !$('media-dialog').open) return;
@@ -933,6 +950,66 @@ $('backup').addEventListener('click', () => operation(async () => {
   const a = document.createElement('a'); a.href = urlFor('backup', blob); a.download = 'notes.dance-stamp.json'; a.click();
   status('筆記與配方備份已下載，不含影片。請另存示範、自拍與 VS。');
 }));
+$('share-notes').addEventListener('click', () => operation(async () => {
+  if (keepMarkerDraft()) return;
+  invalidateShare(); $('share-items').replaceChildren();
+  for (const input of $('share-fields').querySelectorAll('input')) input.checked = false;
+  const names = videoLabels(state.data.videos);
+  for (const video of state.data.videos) {
+    const group = document.createElement('fieldset'), legend = document.createElement('legend'); legend.textContent = names.get(video.id) || video.title; group.append(legend);
+    shareChoice(group, 'videos', video.id, '只含這份影片筆記的標題與媒體描述（不含全部標記）');
+    for (const marker of state.data.markers.filter(m => m.videoId === video.id).sort((a, b) => a.startMs - b.startMs)) shareChoice(group, 'markers', marker.id, `${(marker.startMs / 1000).toFixed(3)} 秒 · ${marker.title}`);
+    for (const take of state.data.takes.filter(t => t.referenceVideoId === video.id)) {
+      shareChoice(group, 'takes', take.id, `加入練習配方 ${take.referenceStartMs / 1000}–${take.referenceEndMs / 1000} 秒／${take.rate}×（自己原片另傳）`);
+      for (const artifact of state.data.exports.filter(e => state.data.recipes.some(r => r.id === e.recipeId && r.takeId === take.id))) shareChoice(group, 'exports', artifact.id, '加入 VS 描述與所需練習配方（VS 檔另傳）');
+    }
+    $('share-items').append(group);
+  }
+  $('share-dialog').showModal(); $('share-cancel').focus();
+}));
+for (const id of /** @type {const} */ (['share-items', 'share-fields'])) $(id).addEventListener('change', invalidateShare);
+$('share-preview').addEventListener('click', () => operation(async () => {
+  invalidateShare();
+  const selected = table => [...$('share-items').querySelectorAll('input:checked')].filter(input => /** @type {HTMLInputElement} */ (input).dataset.table === table).map(input => /** @type {HTMLInputElement} */ (input).value);
+  const fields = [...$('share-fields').querySelectorAll('input:checked')].map(input => /** @type {HTMLInputElement} */ (input).value);
+  const data = createShare(state.data, { videoIds: selected('videos'), markerIds: selected('markers'), takeIds: selected('takes'), exportIds: selected('exports'), fields });
+  const content = JSON.stringify(data, null, 2), file = new File([content], 'shared-notes.dance-stamp.json', { type: 'application/json' });
+  // 驗證實際下載的 UTF-8 大小，避免縮排後超限而產生自己也無法匯入的分享檔。
+  if (file.size > 10 * 1024 * 1024) throw new Error('分享檔超過 10 MiB，請減少選取的片段或正文。');
+  shareDraft = { file, revision: state.revision }; $('share-content').textContent = content;
+  const line = text => { const p = document.createElement('p'); p.textContent = text; $('share-readable').append(p); };
+  // 人先看得懂實際會傳的文字，再提供完整 JSON；兩份預覽都從同一個已篩選物件產生。
+  for (const video of data.videos) {
+    line('影片筆記：' + video.title);
+    if (video.teacher !== undefined) line('老師：' + video.teacher);
+    if (video.danceStyle !== undefined) line('舞風：' + video.danceStyle);
+    if (video.recordedDate !== undefined) line('拍攝日期：' + video.recordedDate);
+    for (const marker of data.markers.filter(m => m.videoId === video.id)) line(`${marker.startMs / 1000}${marker.endMs === undefined ? '' : '–' + marker.endMs / 1000} 秒 · ${marker.title}\n${fields.includes('note') ? marker.note : '（不含筆記正文）'}`);
+  }
+  for (const asset of data.assets) if (asset.originalName !== undefined) line('原檔名：' + asset.originalName);
+  const allowed = [...$('share-fields').querySelectorAll('label')].filter(label => label.querySelector('input')?.checked).map(label => label.textContent);
+  $('share-summary').textContent = `筆記檔預覽：${data.videos.length} 份影片筆記、${data.markers.length} 個標記、${data.takes.length} 份練習、${data.exports.length} 份 VS 描述；${file.size} bytes，不含影片。額外欄位：${allowed.length ? allowed.join('、') : '無'}。`;
+  try { $('share-system').hidden = !(typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })); } catch { $('share-system').hidden = true; }
+}));
+$('share-download').addEventListener('click', () => operation(async () => {
+  if (!shareDraft || shareDraft.revision !== state.revision) { invalidateShare(); throw new Error('內容已變更，請重新預覽。'); }
+  const a = document.createElement('a'); a.href = urlFor('share-notes', shareDraft.file); a.download = shareDraft.file.name; a.click();
+  $('share-summary').textContent = '已交給瀏覽器下載筆記檔；請確認下載完成，再自行傳送。沒有確認對方接收結果。';
+}));
+$('share-system').addEventListener('click', async () => {
+  if (active || shareSending || !shareDraft || shareDraft.revision !== state.revision) return;
+  const draft = shareDraft;
+  shareSending = true; updateControls();
+  try {
+    // 必須在明確點按當下交給系統，不能先 await 儲存而失去瀏覽器的使用者啟動資格。
+    await navigator.share({ files: [draft.file] });
+    if (shareDraft === draft) $('share-summary').textContent = '已交給系統分享；無法確認對方是否下載或匯入。仍可下載此檔。';
+  } catch (error) {
+    if (shareDraft === draft) $('share-summary').textContent = error instanceof Error && error.name === 'AbortError' ? '已取消系統分享，原資料保留；仍可下載。' : '系統分享未完成，原資料保留；請改用下載筆記檔。';
+  } finally { shareSending = false; updateControls(); }
+});
+$('share-cancel').addEventListener('click', closeShareDialog);
+$('share-dialog').addEventListener('cancel', e => { e.preventDefault(); closeShareDialog(); });
 $('restore').addEventListener('change', () => operation(async signal => {
   const file = $('restore').files?.[0]; $('restore').value = ''; if (!file) return;
   if (file.size > 10 * 1024 * 1024) throw new Error('備份超過 10 MiB。');
@@ -940,6 +1017,8 @@ $('restore').addEventListener('change', () => operation(async signal => {
   const revision = state.revision, incoming = parseBackup(await file.text());
   const plan = await planBackupImport(state.data, incoming, signal); signal.throwIfAborted();
   importDraft = { plan, revision };
+  $('import-title').textContent = incoming.kind === 'share' ? '匯入分享筆記預覽（重建 ID）' : '還原筆記預覽';
+  $('import-content').textContent = JSON.stringify(incoming, null, 2);
   $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
   const count = kind => incoming.assets.filter(a => a.kind === kind).length;
   $('import-media').textContent = `JSON 不含影片：示範 ${count('reference')}、自己 ${count('take')}、VS ${count('vs')} 份描述。確認後請核對保存清單，缺片須另外選取並預覽確認。`;

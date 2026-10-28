@@ -130,7 +130,22 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 
 時間連結只能在已匯入且完成影片配對的本機資料中定位 marker，不能授權讀取寄件者手機或雲端影片；第一版不讀取雲端分享連結來串流播放。筆記檔的欄位篩選不會替另傳的影片去除畫面、聲音或內嵌資訊，傳送前須自行確認內容與檔名。分享出去的 JSON／影片檔案可被複製；即使停止雲端連結分享，也不能撤回已下載副本。
 
-第一版不做自建影片儲存、雲端分享 token、供應商 API／OAuth 串接、自動雙向同步、自動發社群或已下載檔案的遠端撤銷。後續若要加入雲端直連，需另行規劃與授權，不是完成 #18 的前提。目前為規劃；各裝置的存檔、傳送與接收匯入能力仍依 [ACCEPTANCE.md](ACCEPTANCE.md) 實測。
+第一版不做自建影片儲存、雲端分享 token、供應商 API／OAuth 串接、自動雙向同步、自動發社群或已下載檔案的遠端撤銷。後續若要加入雲端直連，需另行規劃與授權，不是完成 #18 的前提。桌面檔案流程已實作（2026-10-28），細節見下節；各裝置的存檔、傳送與接收匯入能力仍依 [ACCEPTANCE.md](ACCEPTANCE.md) 實測。
+
+### 桌面分享允許清單與 ID（2026-10-28）
+
+| 選取 | 自動補足的必要關聯 | 預設排除 |
+| --- | --- | --- |
+| Video | 該 Video 與 reference 描述 | 該影片所有未選 Marker／take／VS |
+| Marker | 該 Marker、Video 與 reference 描述 | 正文（保留空 note 以相容 v1） |
+| take | 該 take、recipes、Video、reference／自己的原片描述 | 其他 take／VS、captureTiming、原建立日期 |
+| VS 描述 | 該 export 與 owning recipe／take 所需的上列關聯 | 其他輸出、影片 bytes |
+
+必含標題、時間、固定比例、所選配方的 offset／鏡像與必要種類／容器／大小描述。額外允許欄位只有 note、teacher、danceStyle、recordedDate、originalName；每次重新開啟預設全不勾。未知欄位、Move／節拍或裝置 metadata 不因新功能而自動加入。標題本身也可能含私人內容，須看實際文字預覽；展開區可核對完整 JSON。選項改變後必須重新預覽，下載與可選系統分享使用該次預覽 File。縮排後實際檔案也須 ≤10 MiB。
+
+v1 take／export 必填 createdAt 用固定 `1970-01-01T00:00:00.000Z` 佔位，代表分享未提供原建立時間，不是拍攝日期；exportedAt 仍是匯出時間。舊資料不回填此值。接收後完整 backup 可保存上述允許欄位，不因備份還原而遺失。
+
+share 在空庫或原來源庫都重建所有 ID，使用獨立 `dance-stamp-share-v1` namespace 的穩定 UUIDv8，原 sourceLibraryId 只作資料來源隔離，非帳號或授權。匯入後為接收者的 backup 資料，不接管其 library 身分；同一分享重匯冪等，內容不同沿用第 8 節衝突副本。完整備份還原後仍維持此行為。版本與匿名結果見 [#18 證據](evidence/issue-18-sharing.md)。
 
 ## 7. 桌面 Web v1 實作狀態（#5）
 

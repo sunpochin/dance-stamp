@@ -1,7 +1,7 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-最新桌面離線／容量／更新與個別刪除決策見第 19 節；前面標記原型階段的限制保留歷史版本歸屬。
+最新選定分享決策見第 20 節；桌面離線／容量／更新與個別刪除見第 19 節；前面標記原型階段的限制保留歷史版本歸屬。
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
@@ -275,3 +275,19 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 刪除先按固定 ID 順序取得所有受影響 take 的原生鎖，再以全庫 revision 核對；另一頁錄製／恢復或預覽後更新會拒絕。metadata、無關聯的 media 及 chunks 在同一原生交易提交，取消或 abort 全數回滾；chunks 按 cameraAssetId 清理，不是 take.id，共用原片未失去所有引用時不清分段。UI 及下載 URL 僅在成功後清理；等待缺片重連的 take 被刪除時也釋放 pending 狀態，下一次選片可新建配對。
 
 排除自動啟用新版、強制 reload、清庫修復及只刪 metadata 後另清媒體：都可能中斷工作或留下半份關聯。也不新增另一份媒體後端、永久儲存宣稱、雲端備份或服務依賴。桌面真實 SW／IndexedDB 與瀏覽器斷網證據見 [#13 驗證](docs/evidence/issue-13-offline-storage.md)；瀏覽器斷網不等同手機飛航模式，iPhone、Safari、真實相機與全 P0 仍分開驗收。
+
+## 20. #18 選定筆記檔分享（桌面 Web）
+
+2026-10-28：依使用者當次授權先做獨立 P1 工程；不把 P0、#15 發布或真實跨裝置前置判為完成。基線 main `0a8bbd62035cc90f4498cb82bde1f58de83c447b` 已含 #12／PR #37 的原子匯入與重連；#48 是未合併的補充測試，沒有工程依賴，也未引入本分支。第 4 節的檔案交換方案現在接入桌面介面；其他平台與外部傳送仍依實測記錄。
+
+`createShare` 從各表逐欄建立新物件，不展開資料庫列後刪欄。使用者逐一勾 Video 標題／描述、Marker、take 或 VS；選 Marker 補其 Video／reference 描述，選 VS 只補 owning recipe／take／兩側原片描述，不拉入其他練習、其他標記或其他 VS。標題與時間必含，正文、老師、舞風、原檔名、拍攝日期預設不含；額外欄位另勾。move、節拍、任意未來 metadata、captureTiming、裝置狀態及位置都不自動輸出。允許的文字仍可能被使用者寫入私人內容，所以明示核對標題並提供實際文字與完整 JSON 預覽。
+
+預覽的 File 是下載／系統分享的同一份 bytes；任一選項改動會清掉舊預覽並停用傳送。每次開啟都重設選取，避免上次允許正文變成下次預設。沿用 v1 的 10 MiB／各表 10,000 筆／正文 20,000 字元界線，另檢查縮排後實際 UTF-8 File 大小。take／export 必填 createdAt 使用固定 `1970-01-01T00:00:00.000Z` 佔位，不輸出原練習日期，也不讓重複匯出因時間變動產生假衝突；exportedAt 只表示匯出時間。原資料與舊備份不改寫。
+
+驗證器接受 v1 backup／share，保留明確允許的三個 Video 欄位及 originalName，使接收後完整備份不遺失它們。分享永遠以 `dance-stamp-share-v1`／sourceLibraryId／table／原 ID 建立穩定 UUIDv8，即使空庫或同來源也重建；沿用第 18 節的完整衝突閉包、重匯冪等與單一 revision 交易。只在 ID 規劃完成後轉為本機 backup 資料；低階 merge 拒絕未規劃的 share。完整備份保留接收者 library 身分，恢復後仍可重匯相同分享。沒有 schema migration、alias 表或媒體複製。
+
+接收端共用既有選檔、格式／大小／關聯驗證、完整內容預覽與取消優先的 modal。缺片仍留筆記，reference／take／VS 逐側實播及人工確認；選檔不自動信任同名或相同長度，短於 B 的示範拒絕，其他裁切／轉碼顯示差異，原時間不截斷。內容是否為正確原片仍靠人核對，未聲稱能自動辨識任意 VS；VS 重連不替換比較原片。確認後可從筆記開啟並跳標記，take 保持既有時間映射。
+
+系統分享依 [Web Share API](https://www.w3.org/TR/web-share/) 檢查實際 File 的 canShare，只在使用者明確點按時呼叫 share，呼叫前不 await；取消／拒絕／失敗保留下載途徑。不包含 URL、帳號或連結，不顯示送達。排除完整備份直接分享、隨機 ID 導致重匯重複、全物件匯出、雲端 API／OAuth／上傳中繼、大 ZIP 及自動媒體辨識。影片另傳時的畫面／聲音／內嵌資訊與已下載副本不能撤回，分享前明示。
+
+版本與測試限制見 [#18 證據](docs/evidence/issue-18-sharing.md)。同機隔離 context／系統 API stub 不代替真實跨裝置、OS 寄件或 Google Drive／Dropbox／iCloud Drive／AirDrop；未操作真人資料、相機、麥克風或雲端帳號，待 Claude Code 或使用者最終審查。
