@@ -84,6 +84,7 @@ export function parseBackup(source) {
 }
 /** @param {import('./types').Library} local @param {import('./types').Library} incoming */
 export function mergeBackup(local, incoming) {
+  incoming = validateBackup(incoming);
   const next = structuredClone(local);
   const normalizedLocal = validateBackup(local);
   // 以整份來源記錄的對照表保證重匯入冪等；同 ID 衝突直接拒絕，保留全部本機資料。
@@ -92,9 +93,151 @@ export function mergeBackup(local, incoming) {
     for (const row of incoming[table]) {
       const old = existing.get(row.id);
       if (old && JSON.stringify(old) !== JSON.stringify(row)) throw new Error('備份與本機有相同 ID 的不同內容；請保留原檔，改用另一個瀏覽器資料夾還原。');
-      if (!old) (/** @type {Array<{id: string}>} */ (next[table])).push(row);
+      if (!old) (/** @type {Array<{id: string, state?: string, storageKind?: string}>} */ (next[table])).push(table === 'assets' ? { ...row, state: 'missing', storageKind: 'external' } : row);
     }
   }
   validateBackup(next);
   return next;
+}
+
+// 同一份關聯表用於依賴閉包與 ID 重寫，避免副本把 take／輸出連到本機另一支影片。
+const backupRelations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {} };
+const rowKey = (table, id) => table + ':' + id;
+const canonical = row => JSON.stringify(row);
+/** @param {import('./types').Recipe[]} recipes */
+function recipeSettingsByTake(recipes) {
+  const groups = new Map();
+  for (const { id: _id, takeId, ...settings } of recipes) {
+    const group = groups.get(takeId) || []; group.push(canonical(settings)); groups.set(takeId, group);
+  }
+  for (const group of groups.values()) group.sort();
+  return groups;
+}
+function rewriteBackupRow(row, table, ids) {
+  const next = { ...row, id: ids[table].get(row.id) || row.id };
+  for (const [field, parent] of Object.entries(backupRelations[table])) if (row[field] !== undefined) next[field] = ids[parent].get(row[field]) || row[field];
+  return next;
+}
+async function backupUUID(value, signal) {
+  signal?.throwIfAborted();
+  if (!crypto.subtle) throw new Error('安全匯入副本需要受信任的 HTTPS 或本機預覽；原資料保留。');
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)))).slice(0, 16);
+  signal?.throwIfAborted();
+  // 只對筆記描述建立可重現的 UUIDv8，不讀影片內容，也不把 hash 當身分或授權證明。
+  bytes[6] = (bytes[6] & 15) | 128; bytes[8] = (bytes[8] & 63) | 128;
+  const hex = [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+}
+/** @param {import('./types').Library} local @param {import('./types').Library} source @param {AbortSignal} [signal] */
+export async function planBackupImport(local, source, signal) {
+  const existingData = validateBackup(local), incoming = validateBackup(source);
+  const empty = tables.every(table => local[table].length === 0), foreign = !empty && local.sourceLibraryId !== incoming.sourceLibraryId;
+  const ids = Object.fromEntries(tables.map(table => [table, new Map()]));
+  if (foreign) {
+    for (const table of tables) for (const row of incoming[table]) ids[table].set(row.id, await backupUUID(['dance-stamp-import-v1', incoming.sourceLibraryId, table, row.id], signal));
+    for (const table of tables) for (const row of incoming[table]) Object.assign(row, rewriteBackupRow(row, table, ids));
+  }
+  const existing = Object.fromEntries(tables.map(table => [table, new Map(existingData[table].map(row => /** @type {const} */ ([row.id, row])))]));
+  const conflicts = [];
+  const forks = new Set();
+  for (const table of tables) for (const row of incoming[table]) {
+    const old = existing[table].get(row.id);
+    if (old && canonical(old) !== canonical(row)) { conflicts.push({ table, id: row.id }); forks.add(rowKey(table, row.id)); }
+  }
+  // 示範媒體變更也要分開筆記主體，否則同一 video 會出現兩個不同的 reference。
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const fork = (table, id) => { const key = rowKey(table, id); if (!forks.has(key)) { forks.add(key); changed = true; } };
+    for (const asset of incoming.assets) if (asset.kind === 'reference' && asset.videoId && forks.has(rowKey('assets', asset.id))) fork('videos', asset.videoId);
+    for (const artifact of incoming.exports) if (forks.has(rowKey('exports', artifact.id))) fork('assets', artifact.assetId);
+    // 開啟入口以 take 選配方；只複製 recipe 會讓新校正永遠被第一份舊配方遮住。
+    for (const recipe of incoming.recipes) if (forks.has(rowKey('recipes', recipe.id))) fork('takes', recipe.takeId);
+    for (const table of tables) for (const row of incoming[table]) {
+      if (Object.entries(backupRelations[table]).some(([field, parent]) => row[field] !== undefined && forks.has(rowKey(parent, row[field])))) fork(table, row.id);
+    }
+  }
+  const referenceGroups = new Map();
+  for (const asset of incoming.assets) if (asset.kind === 'reference' && asset.videoId) {
+    const group = referenceGroups.get(asset.videoId) || []; group.push(asset); referenceGroups.set(asset.videoId, group);
+  }
+  for (const group of referenceGroups.values()) group.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const records = Object.fromEntries(tables.map(table => [table, new Map(incoming[table].map(row => /** @type {const} */ ([row.id, row])))]));
+  const exportGroups = new Map(), videoSignatures = new Map();
+  for (const artifact of incoming.exports) { const group = exportGroups.get(artifact.assetId) || []; group.push(artifact); exportGroups.set(artifact.assetId, group); }
+  for (const group of exportGroups.values()) group.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const videoSignature = id => {
+    // 共用的示範描述只 hash 一次，避免大型備份中每個輸出重複序列化整份來源。
+    if (!videoSignatures.has(id)) videoSignatures.set(id, backupUUID(['dance-stamp-origin-v1', records.videos.get(id), referenceGroups.get(id) || []], signal));
+    return videoSignatures.get(id);
+  };
+  const copies = Object.fromEntries(tables.map(table => [table, new Map()]));
+  const recipeGroups = recipeSettingsByTake(incoming.recipes), existingRecipes = recipeSettingsByTake(existingData.recipes);
+  for (const table of tables) {
+    const reserved = new Set(incoming[table].map(row => row.id));
+    for (const row of incoming[table]) {
+      if (!forks.has(rowKey(table, row.id))) continue;
+      const rewritten = rewriteBackupRow(row, table, copies);
+      let referenceFingerprint = table === 'videos' ? await videoSignature(row.id) : [];
+      // 相同 take 的不同備份校正需要不同副本；不靠 recipe 的新 ID 反推，避免循環相依。
+      if (table === 'takes') referenceFingerprint = recipeGroups.get(row.id) || [];
+      if (table === 'assets' && 'kind' in row && row.kind === 'vs') {
+        const origins = [];
+        // 複製配方不能誤取本機舊 VS；描述含來源版本，沒有複製影片 bytes。
+        for (const artifact of exportGroups.get(row.id) || []) {
+          const recipe = records.recipes.get(artifact.recipeId), take = records.takes.get(recipe.takeId);
+          origins.push([artifact, recipe, take, await videoSignature(take.referenceVideoId), records.assets.get(take.cameraAssetId)]);
+        }
+        referenceFingerprint = origins;
+      }
+      let assigned = false;
+      // 已匯入的副本若再被編輯，尋找下一個穩定 ID；原件及編輯版都不能覆寫。
+      for (let counter = 0; counter <= existing[table].size + incoming[table].length; counter++) {
+        const id = await backupUUID(['dance-stamp-copy-v1', incoming.sourceLibraryId, table, rewritten, referenceFingerprint, counter], signal);
+        if (reserved.has(id)) continue;
+        const old = existing[table].get(id);
+        if (old && canonical(old) !== canonical({ ...rewritten, id })) continue;
+        // 已匯入的校正若被編輯，原 take 也要保留；不可再往同一 take 塞第二份不可選的 recipe。
+        if (old && table === 'takes' && canonical(existingRecipes.get(id) || []) !== canonical(recipeGroups.get(row.id) || [])) continue;
+        copies[table].set(row.id, id); reserved.add(id); assigned = true; break;
+      }
+      if (!assigned) throw new Error('無法安全配置副本 ID；原資料保留，沒有匯入。');
+    }
+  }
+  for (const table of tables) for (const row of incoming[table]) Object.assign(row, rewriteBackupRow(row, table, copies));
+  const additions = Object.fromEntries(tables.map(table => [table, incoming[table].filter(row => !existing[table].has(row.id)).length]));
+  const added = Object.values(additions).reduce((sum, count) => sum + count, 0);
+  const data = mergeBackup(local, incoming);
+  if (empty) data.sourceLibraryId = incoming.sourceLibraryId;
+  signal?.throwIfAborted();
+  return { data, additions, added, conflicts, copied: forks.size, differentSource: foreign, skipped: tables.reduce((sum, table) => sum + incoming[table].length, 0) - added };
+}
+
+/** @param {import('./types').Video[]} videos */
+export function videoLabels(videos) {
+  const counts = new Map(), seen = new Map();
+  for (const video of videos) counts.set(video.title, (counts.get(video.title) || 0) + 1);
+  return new Map(videos.map(video => {
+    const index = (seen.get(video.title) || 0) + 1; seen.set(video.title, index);
+    return [video.id, counts.get(video.title) > 1 ? video.title + '（第' + index + '份）' : video.title];
+  }));
+}
+/** @param {import('./types').Library} data @param {Set<string>} stored @param {Set<string>} session */
+export function mediaInventory(data, stored, session) {
+  const names = videoLabels(data.videos), owners = new Map(), takes = new Map(data.takes.map(t => [t.id, t])), recipes = new Map(data.recipes.map(r => [r.id, r]));
+  const addOwner = (assetId, videoId) => { const group = owners.get(assetId) || new Set(); group.add(videoId); owners.set(assetId, group); };
+  for (const asset of data.assets) if (asset.videoId) addOwner(asset.id, asset.videoId);
+  for (const take of data.takes) addOwner(take.cameraAssetId, take.referenceVideoId);
+  for (const artifact of data.exports) {
+    const recipe = recipes.get(artifact.recipeId), take = recipe && takes.get(recipe.takeId);
+    if (take) addOwner(artifact.assetId, take.referenceVideoId);
+  }
+  const interrupted = new Set(data.takes.filter(t => t.state === 'interrupted' || t.state === 'recording').map(t => t.cameraAssetId));
+  return data.assets.map(asset => {
+    const ids = [...(owners.get(asset.id) || [])], labels = ids.slice(0, 3).map(id => names.get(id));
+    const owner = labels.join('、') + (ids.length > 3 ? '等 ' + ids.length + ' 份筆記' : '');
+    // 只依實際媒體 key／已確認的本次 File 判斷可用，不相信備份中的 ready 宣告。
+    const availability = stored.has(asset.id) ? 'stored' : session.has(asset.id) ? 'session' : 'missing';
+    return { asset, owner: owner || '未關聯的媒體', availability, interrupted: interrupted.has(asset.id) };
+  });
 }

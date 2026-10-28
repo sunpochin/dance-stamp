@@ -55,13 +55,17 @@ export async function readLibrary() {
   // 讀取不改寫正在錄製的 take；另一分頁可能仍握有錄影鎖，只有明確恢復才能 finalize。
   return result;
 }
-/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob}} [mediaChange] */
-export async function writeLibrary(next, expectedRevision, mediaChange) {
+/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob}} [mediaChange] @param {AbortSignal} [signal] */
+export async function writeLibrary(next, expectedRevision, mediaChange, signal) {
   validateBackup(next);
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error('筆記版本無效，未寫入。');
   if (mediaChange && !next.assets.some(a => a.id === mediaChange.id)) throw new Error('媒體沒有對應資料記錄，未寫入。');
-  const db = await openStore(), tx = db.transaction(['metadata', 'media'], 'readwrite');
+  const db = await openStore(); signal?.throwIfAborted();
+  const tx = db.transaction(['metadata', 'media'], 'readwrite');
   const done = completed(tx), store = tx.objectStore('metadata');
+  // 取消匯入或重連須取消同一個原生交易，不能只關畫面後仍偷偷寫入。
+  const abort = () => { try { tx.abort(); } catch { /* 已完成的交易不能再回滾。 */ } };
+  signal?.addEventListener('abort', abort, { once: true });
   let failure;
   const req = store.get('library');
   req.onsuccess = () => {
@@ -72,11 +76,13 @@ export async function writeLibrary(next, expectedRevision, mediaChange) {
       if (mediaChange) mediaChange.blob ? tx.objectStore('media').put(mediaChange.blob, mediaChange.id) : tx.objectStore('media').delete(mediaChange.id);
     } catch (error) { failure = error; tx.abort(); }
   };
-  try { await done; } catch (error) { throw failure || error; }
+  try { await done; } catch (error) { throw signal?.aborted ? signal.reason : failure || error; }
+  finally { signal?.removeEventListener('abort', abort); }
   return { revision: expectedRevision + 1, data: next };
 }
 /** @param {string} id @returns {Promise<Blob | undefined>} */
 export async function readMedia(id) { const db = await openStore(); return request(db.transaction('media').objectStore('media').get(id)); }
+export async function readMediaKeys() { const db = await openStore(); return request(db.transaction('media').objectStore('media').getAllKeys()); }
 /** @param {string} id @param {number} index @param {Blob} blob */
 export async function saveChunk(id, index, blob) {
   if (!Number.isSafeInteger(index) || index < 0 || !(blob instanceof Blob) || !blob.size) throw new Error('錄影片段的順序或內容無效，未寫入。');

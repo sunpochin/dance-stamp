@@ -18,6 +18,7 @@
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
     <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><label class="file-label">還原筆記<input id="restore" type="file" accept=".json,application/json"></label></div>
     <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
+    <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
   <fieldset id="controls"><legend>01 · 準備片段</legend>
     <label>示範影片<input id="reference-file" type="file" accept="video/*"></label>
@@ -74,5 +75,7 @@
     <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對左右、聲音與鏡像。取消不會刪除原片。</p>
   </section>
   <details><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
+  <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-summary import-media"><h2 id="import-title">還原筆記預覽</h2><p>JSON 只有筆記、配方與媒體描述，不含任何影片。原有資料保留，確認後才寫入。</p><fieldset id="import-controls"><legend>本次匯入</legend><p id="import-summary" role="status"></p><p id="import-media"></p><button id="import-confirm" type="button" class="primary">確認匯入</button></fieldset><button id="import-cancel" type="button">不匯入，保留本機</button></dialog>
+  <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept="video/*"></label><video id="relink-preview" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
   <footer>免費 · 非商用 · 影片留在裝置</footer>
 </main></body></html>
