@@ -373,3 +373,11 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 這是一次本機樣本與完整渲染上界，包含兩個影格，非持續壓力／低階手機／所有表同時達格式上限的承諾；不因此修改產品品質門檻或引入搜尋服務。
 
 上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、當前 Safari、手機及發布主機仍未驗證；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
+
+## Safari候選分支的Chrome原24組回歸（2026-10-29）
+
+乾淨來源13976bb／靜態adbe8eb1d6acfd09，實際Chrome156.0.8078.49 headless、合成相機、原腳本與原v5全部通過：matrix9、stability10、webm1、alignment2、recovery1、performance1。各raw綁定同一head且sourceDirty=false，沒有UA覆寫；14份Web資源與c211c94相同。
+
+最大聲畫差88.333ms、最大配方差48.911ms、新增漂移絕對值42.511ms、最長重複畫面70.966ms、最低平均29.943fps、最長完整匯出上界64,003ms。48份實際下載全片解碼並保留bytes／SHA256；逐例已保存媒體可讀、missing=0。這輪下載指紋沒有與每份IndexedDB Blob做全bytes比對；相關儲存證據維持原受測版本歸屬。
+
+依本文件既有隔離合成環境，以原 `run-media-feasibility.py` 加 `--analyze`，依序執行六模式、label=candidate-13976bb；重跑請用新label保留原證據。十輪同context／資料庫、逐輪導航，常駐無重載／實體資源仍待驗。完整版本、恢復負向控制與限制見[候選證據](evidence/issue-3-bounded-audio.md)。自有瀏覽器／主機／nonce鎖已清理，未合併或發布，Safari原生與人工／裝置gates保持開啟。
