@@ -98,6 +98,22 @@
 
 紀錄留 ignored `output/native-capture-headed-results.json` 與其下載目錄，不上傳媒體。專用 Chrome 與控制端已關閉。這一節完成受測桌面 Chrome＋合成相機的分頁背景 gate，前面鎖定／headless 結果保留各自歸屬，不替換成當時已通過。
 
+## 續作：失敗後尾塊落盤與恢復鎖
+
+2026-10-28；從 main `d2f126c239a306af603876eb48d78c559a4f86f7` 的專用 clone 分支查核。#33（合併 `8d133081`）、#36（合併 `aec1ca08`）、#43（合併 `d2f126c2`）均已合併，三者最後 head 的 harness CI 皆 success；#36 的配方切換 review 已 resolved，#33／#43 無 inline review threads。#43 head `ee7535b5756fc04ca9e4fdb15979aa94b4163bae` 與本次基線的 `web/`、背景函式無差異，先前桌面背景結果維持原版本歸屬，不重跑未變的長片矩陣。開工後 main 新增的 #47 僅測試／文件，未改本票的 runtime。
+
+`capture-drain.js` 在專用 headless Chrome 156.0.8078.49＋合成相機，保持真正 chunks readwrite transaction 未提交，收到原生 stop 且 tracks ended 後，從另一分頁嘗試取得同一 take 的 Web Lock。基線靜態 `2f1ec6b3335cd790` 如預期失敗：**「編碼失敗後尾塊仍未提交，另一分頁卻已可取得恢復鎖」**。這證明外層 finally 雖等待 queue，跨分頁鎖卻已提早釋放；沒有宣稱已發生真實資料遺失。
+
+修正把失敗收尾的 queue 等待放回持鎖範圍，先釋放相機、再等尾塊。未改 schema、正常錄影／匯出、校正或背景 handler。測試不改 Web Locks、不改 Blob／索引，也不固定睡幾秒冒充交易完成。基線在共用互斥目錄內執行；修正後是短片 headless 時序回歸，不涉及長片／效能量測、真正背景或桌面操作，沒有佔用其他票的桌面測試鎖。
+
+修正版靜態 `3ae0e7be493841e0` 在同一環境的新隔離 session 通過：原生 stop 後相機 tracks 全 ended，chunks 交易仍 pending 時另一分頁取得鎖被拒，controls 維持忙碌。放行交易後鎖可取得、chunks 組回 91,874 bytes，明確恢復讀回成功才保存；take 持續 interrupted。重新載入後，舊片與恢復片的 take／recipe／完整 Blob SHA256 均維持原值。只用合成相機，未請求麥克風。結果留 ignored `output/drain-fixed.log`，原始失敗留 `output/drain-baseline.log`。
+
+實際點產品下載的 `drain-recovered.mp4` 為 H.264 640×360、無音軌、3.435433 秒、91,874 bytes；SHA256 `773d5edaf04fb062ecbb956d0db41cf877cc2157897d5cc7b241b03046345d3d`。FFmpeg 逐幀完整解碼 exit=0、stderr 空，沒有修補或轉碼原檔；不以這份短片聲稱 G1／G6、聲畫校正或硬體通過。素材與下載均留本機 ignored output，不公開。
+
+同版 `capture.js` 在另一個全新隔離 session 通過：拒絕／占用／後鏡頭重試、取消倒數、停止後 tracks 釋放、編碼 error、五種合成中斷，以及 chunks／media quota 均保留原片或可恢復資料。連續兩塊恢復後才清除；缺號／壞檔仍各保留兩塊，take 皆不標 ready。合成旋轉／visibility 等只驗 handler，不是鎖屏／來電或真正分頁背景證據。結果留 ignored `output/capture-regression.log`。
+
+本機預設 Bun 1.4.2 被原版本 gate 正確拒絕，切換已存在的 Bun 1.4.4 後原 `bun run check` 通過：342 tests／599 expects／0 fail、TypeScript、Biome、公開內容掃描及 build 通過；未改版本要求或略過 hook。本輪只修正持鎖等候時序，#43 的真正有視窗背景與歷史長片證據沒有重新冒用為新版本全矩陣通過。
+
 ## 未完成
 
-真實相機、實體指示燈、前後鏡頭硬體可用性、鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 播放與本票合成相機的真正桌面切分頁 gates 已各自補驗，不能代替硬體或其他裝置。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；沒有合併、發布或新增外部服務。
+真實相機、實體指示燈、前後鏡頭硬體可用性、鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 播放與本票合成相機的真正桌面切分頁 gates 已各自補驗，不能代替硬體或其他裝置。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；本輪尾塊互斥修正未合併、發布或新增外部服務，前面各 PR 的實際合併狀態見本輪查核。
