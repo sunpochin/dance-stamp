@@ -303,3 +303,26 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 `run-media-feasibility.py` 預設拒絕未提交來源。只有有界實驗才加 `--allow-dirty`，原品質檢查仍全部執行，raw JSON 記 sourceDirty；true 不能宣告該 Git head 正式通過。正式候選應先完成原 check／commit／push，再以乾淨來源和新 label 重跑，不覆寫實驗或失敗報告。
 
 本輪隔離 Chrome 已實際通過上述準備取消／兩次拒播／重試下載、canvas 擷取備援與既有 export-failure；獨立分析器再次完整解碼並核對老師音源、鏡像與四份舊 VS 指紋。這些短片回歸不取代提交後的完整矩陣與真機驗收。
+
+## P0 整合候選的正式同版桌面證據（2026-10-28）
+
+受測來源 `efd09104630cdd5631166971ae5ba94d408b9f9d`，靜態 `22c187ea10e457c2`，一般 [PR #53](https://github.com/sunpochin/dance-stamp/pull/53)。環境為 macOS 27.0.1、隔離 Chrome 156、Bun 1.4.4、FFmpeg 8.1.2；每筆 raw 保留實際 userAgent。本節為該提交的新結果；上方舊版失敗與未提交對照仍保留，不能相加成通過。原完整 check／hooks、18 組 source browser 函式、12 個分析器正負控制均通過，正式 raw 全部 sourceDirty=false。只使用合成時間碼／音訊與假相機，沒有真人相機、麥克風或私人資料。
+
+| 正式成檔組別 | 結果 |
+| --- | --- |
+| smoke、三速度 × 15／30／60 秒 | 1＋9 組通過 |
+| 同 session／資料庫連續十輪 60 秒 | 10 組通過，不清庫、不重啟瀏覽器；每組重載工作台 |
+| WebM、正負 200ms／兩側獨立鏡像 | 1＋2 組通過 |
+| 取消、拒播、繪製／保存故障及恢復 | 1 組通過；額外故意未保存輸出不算正式成檔 |
+
+共 24 組全部由產品真正 capture→export、下載原片／VS、原 v5 全片獨立解碼，合法起末覆蓋皆通過。最大聲畫差 60ms、起中末配方誤差及新增漂移各 64.434ms、最長重複畫面 71ms、最低平均 29.984fps、最長完整匯出上界 63,818ms。WebM 單案聲畫最大差 40ms，與舊版 110ms 失敗分開記錄。24 take／24 VS 共 48 份 Blob 均存在且內容指紋對應本輪下載；沒有拿舊輸出代替本輪新增成功。
+
+取消與拒播、繪製錯誤後回呼 pending=0、同時最高 2；故意移除合成 Blob 可抓到缺檔，finally 還原後為 0。真正 media put quota 會被本輪新增 VS 檢查拒絕，原片、舊輸出、配方及資料保留。另有準備取消／兩次 play 拒絕／重試、canvas 擷取備援、export-failure 及三速度音高的獨立短片回歸；完整解碼確認老師聲源、鏡像與舊 VS 指紋。
+
+同提交乾淨獨立包：36 檔、117256 bytes、trackedChanges=false；archive SHA256 `e53715ba4d32978df4b7d4e40e8600f22955c1c9fa11e29e043cfe613ad3a185`。真正解到 Git／node_modules 外，原生 tar／逐檔校驗通過；五份資源 hash、八條內部路徑／三種寫入拒絕、HEAD／標頭／MIME、CLI／環境優先及八種錯誤設定拒絕均通過。包內 entry、錄影到比較、既有雙片三組實際操作通過，不依賴開發伺服器。
+
+真正 CLI 離頁並接受原生 beforeunload 後回站：trusted pagehide、相機同步釋放、離頁在 B 前；至少兩個已提交 chunks 恢復為 interrupted，原片可解碼、播放及下載，舊 take bytes／資料不變。SW 實際損壞更新拒絕；錄影、匯出各收到 waiting worker 均未重載／接管，全部舊分頁關閉後才啟用，舊筆記／錄影及無關 cache 保留。測試主機只在 ignored 工具副本改專用 port，不改原產品及品質條件。
+
+三份已下載代表檔以原生 file:// 頁面離開產品重播：60 秒 MP4、15 秒 WebM、0.75×／正偏移校正版皆播到 ended，1280×720、error=0、dropped=0、音訊解碼 bytes>0。此為隔離 headless Chrome／靜音輸出下的解碼與播放證據，不代表真人已聽到聲音。
+
+上述只屬桌面合成驗證。實體相機光學 G2、真人五人／讀屏／實聽、跨裝置保存、Safari 當前 runtime、熱／電池／記憶體壓力及發布主機仍未驗證；iPhone 依使用者安排暫緩。人工審查、合併及發布核准各自保留，#1 與未驗收子票不因本節關閉。
