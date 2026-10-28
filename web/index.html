@@ -11,7 +11,8 @@
   <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看一段，跳一段。<br>把進步放在一起。</h1>
     <p>選老師課後影片與自己已錄好的影片，對齊腳步一起看，也能邊播邊錄。影片不會上傳。</p>
     <button type="button" id="existing-mode" class="primary" aria-pressed="false">比較已有影片</button>
-    <p class="notice">桌面 Web 預覽版。筆記及完成的自拍保存在此瀏覽器；請定期備份。手機支援另行驗證。</p>
+    <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
+    <p class="notice">桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
   </header>
   <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選一支本機示範影片。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <details id="offline-panel"><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>

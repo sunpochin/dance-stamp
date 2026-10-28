@@ -3,6 +3,8 @@
 
 2026-10-28 核對。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
+P0 整合候選以桌面 Chrome 為測試範圍。macOS Safari 已有私人模式的實際匯出凍結與 Blob 副本保存阻礙；候選尚未通過 Safari，不把它與暫緩的 iPhone 一起寫成單純未測。一般 Safari 設定檔對照、真人相機／音訊、五人操作及最終審查仍須各自證據；版本細節見來源中的 [Safari 紀錄](evidence/issue-3-safari-feasibility.md)。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
+
 ## 取得與重建
 
 下載包的使用入口為 [START_HERE.md](../START_HERE.md)。已建置包無須 Git、套件安裝或編譯，仍需 Bun 1.4.4 啟動本機 HTTP 主機；不能以雙擊 HTML 代替可信任 localhost。尚無公開發行檔／網址，新使用者取得來源仍需自行建置或由維護者交付候選包，這項安裝限制尚未經真人驗收。
