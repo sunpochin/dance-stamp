@@ -732,7 +732,7 @@ function clearPracticeWatch() {
   practiceFrame = undefined;
 }
 function stopPractice() {
-  looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null;
+  looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null; practiceSeek = null;
   reference.pause(); $('loop').textContent = '開始 A–B 循環';
 }
 function applyPracticeSettings() {
@@ -752,7 +752,11 @@ function drawPractice() {
 async function rewindPractice(seconds, signal) {
   // tick 與 ended 可能同時抵達尾端；共用進行中的 seek，不排入第二次回捲。
   if (practiceSeek) return practiceSeek;
-  const pending = seek(reference, seconds, signal); practiceSeek = pending;
+  // 取消等待不會取消原生 seek；新 owner 先等舊跳轉結束，避免重啟時重疊。
+  const pending = (async () => {
+    if (reference.seeking) await mediaAction(reference, 'seeked', () => {}, signal);
+    await seek(reference, seconds, signal);
+  })(); practiceSeek = pending;
   try { await pending; } finally { if (practiceSeek === pending) practiceSeek = null; }
 }
 async function playLoopFromA(controller) {
@@ -784,7 +788,8 @@ function watchPractice() {
     if (looping && !reference.seeking) {
       try {
         const { a, b } = practiceRange();
-        if (reference.currentTime >= b) await rewindPractice(a, owner.signal);
+        // 循環中改 A 也要重新定位，不能繼續播放新起點之前的畫面。
+        if (reference.currentTime >= b || reference.currentTime < a - 0.15) await rewindPractice(a, owner.signal);
       } catch (caught) {
         if (owner !== practiceController || token !== practiceToken) return;
         const error = caught instanceof Error ? caught : new Error(String(caught)); if (error.name !== 'AbortError') status(error.message); stopPractice(); return;
