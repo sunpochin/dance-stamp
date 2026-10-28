@@ -45,3 +45,15 @@ SHA256 依表順序：`023dcb9fb6929c5ee98881bae15210705e573dbbde495060fb032c23f
 Bun 1.4.4 的實際完整 CLI 回歸在修正前失敗：archive 是連到合成 sentinel 的符號連結時，打包仍以 exit 0 完成。修正後兩個外層輸出各測符號連結、懸空連結、硬連結及目錄，八種都在打包寫入前拒絕，sentinel 與另一份舊產物 bytes 不變；之後移除本測試建立的異常路徑，正常完整建包與 manifest 校驗通過。沒有讀取私人媒體或操作他人目錄。
 
 完整 `bun run check`：345 tests／648 expects／0 fail、checkJs、SW 型別、Biome、建置與公開掃描通過；`package:web`／`check:package` 通過，仍為 35 檔、靜態 `5bc414f1b847bf47`。`web/`、本機主機、資源政策與開始指南對 `eead3a1` 無差異，因此本輪不重跑既有九組 browser、21 HTTP 或媒體矩陣，上述實測仍綁舊 head，不宣稱本輪重新驗收。沒有發布、部署或更動供應商決策，免費方案仍須實際發布前重查。
+
+## 2026-10-29 隨包主機讀檔連結補查
+
+本輪從最新 main `918d8d7aa814533823522e3d4e0ab18df75cb212` 建獨立 clone／新分支，只處理 #15。已讀 PR #55 `2372aa4` 的 Safari 文件與包白名單增量，沒有把尚未合併的已知增量另報為 bug；未操作 Safari、瀏覽器、媒體鎖、相機／麥克風或私人檔案。使用 Bun 1.4.4，無新增依賴。
+
+既有打包／建置的連結拒絕測試仍通過，但沒有測到啟動後的 HTTP 路徑：合成候選的 `dist/web/main.js` 換成指向候選目錄外 sentinel 的符號連結，舊主機實際 GET 回 200、body 等於 `synthetic outside candidate`。此回歸先在未改主機時明確失敗，再修正每次讀取前的完整路徑 lstat；保留原網址、Bun.file 傳輸與回應政策。
+
+`tests/unit/serveWeb.test.ts` 真正啟動自己的 loopback 子程序，以系統分配的 port 避開既有主機；不靠 HTTP mock。12 份白名單資源的內容／政策、正常 HEAD、五條禁止路徑與三種寫入方法維持原行為。主機啟動後，合法檔名逐一換成符號連結、懸空連結、硬連結及目錄；GET／HEAD 都 404、沒有 sentinel 原文，sentinel bytes 不變，還原一般檔案後可再讀。另將包根目錄、dist、web 各換成連結，均 404。既有 releasePackage 回歸照常驗 manifest／checksum、夾帶、缺檔、竄改與外層輸出保護。
+
+完整 `bun run check`、`package:web`、`check:package` 通過；靜態版本仍 `db129e273cf0039b`，`web/`／授權／共用政策／開始指南未改。真正 40 檔壓縮包解到本任務 repo、Git 與 node_modules 之外，不安裝套件即可按隨包入口啟動；本輪另跑自己的 21 項 HTTP 檢查，逐檔 bytes、MIME／政策、HEAD、禁止路徑／方法均通過。實際解壓包在啟動後換 main.js 連結也拒絕；還原後原生逐檔 SHA256 再通過，整包校驗與原生 archive 讀回通過。預檢不宣稱抵禦其他本機程式同時競態換檔；仍須使用可信任且專用的目錄。
+
+上述實測先在有修改的候選完成，精確測試數、最終提交、提交後乾淨包的 sourceRevision／trackedChanges=false、整包 SHA256 及與受測執行資源逐檔相同的結果由交付 PR 綁定，避免把測試中來源 main 識別誤寫成最終 head。沒有重跑或承接舊版 24 組／十輪媒體數據，不宣稱本 head 有新媒體或 Safari 驗收。#15 保持開啟；人工最終審查、真人／實體裝置、完整媒體、公開主機隔離／HTTPS／標頭與發布核准仍未完成，iPhone 暫緩。未合併、部署或建立公開下載／Release。
