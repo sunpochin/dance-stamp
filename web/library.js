@@ -222,6 +222,44 @@ export function videoLabels(videos) {
     return [video.id, counts.get(video.title) > 1 ? video.title + '（第' + index + '份）' : video.title];
   }));
 }
+
+/** @param {import('./types').Library} local @param {'copy'|'take'|'export'|'video'} kind @param {string} id */
+export function planDeletion(local, kind, id) {
+  validateBackup(local);
+  const data = structuredClone(local), candidates = new Set(), locks = new Set();
+  const table = ({ copy: 'assets', take: 'takes', export: 'exports', video: 'videos' })[kind];
+  if (!table || !data[table].some(row => row.id === id)) throw new Error('找不到要移除的資料；原資料保留。');
+  if (kind === 'copy') {
+    const asset = data.assets.find(a => a.id === id);
+    if (!asset) throw new Error('媒體描述已失聯；原資料保留。');
+    Object.assign(asset, { state: 'missing', storageKind: 'external', mediaIncluded: false });
+    data.takes.filter(t => t.cameraAssetId === id || asset.videoId === t.referenceVideoId).forEach(t => { locks.add(t.id); });
+  } else {
+    const removedTakes = new Set(data.takes.filter(t => kind === 'take' ? t.id === id : kind === 'video' && t.referenceVideoId === id).map(t => t.id));
+    const removedRecipes = new Set(data.recipes.filter(r => removedTakes.has(r.takeId)).map(r => r.id));
+    for (const t of data.takes) if (removedTakes.has(t.id)) { candidates.add(t.cameraAssetId); locks.add(t.id); }
+    for (const a of data.exports) if ((kind === 'export' && a.id === id) || removedRecipes.has(a.recipeId)) candidates.add(a.assetId);
+    data.exports = data.exports.filter(a => !(kind === 'export' && a.id === id) && !removedRecipes.has(a.recipeId));
+    data.recipes = data.recipes.filter(r => !removedRecipes.has(r.id));
+    data.takes = data.takes.filter(t => !removedTakes.has(t.id));
+    if (kind === 'video') {
+      data.assets.filter(a => a.videoId === id).forEach(a => { candidates.add(a.id); });
+      data.videos = data.videos.filter(v => v.id !== id); data.markers = data.markers.filter(m => m.videoId !== id);
+    }
+    // 多個配方可共用原片；只刪失去所有關聯的媒體，不能順手清掉其他 take 的副本。
+    const videos = new Set(data.videos.map(v => v.id));
+    const used = new Set([...data.takes.map(t => t.cameraAssetId), ...data.exports.map(a => a.assetId), ...data.assets.filter(a => a.videoId && videos.has(a.videoId)).map(a => a.id)]);
+    data.assets = data.assets.filter(a => !candidates.has(a.id) || used.has(a.id));
+  }
+  validateBackup(data);
+  const assets = new Set(data.assets.map(a => a.id)), takes = new Set(data.takes.map(t => t.id));
+  const mediaIds = kind === 'copy' ? [id] : local.assets.filter(a => !assets.has(a.id)).map(a => a.id);
+  const takeIds = local.takes.filter(t => !takes.has(t.id)).map(t => t.id);
+  // chunks 以相機 asset ID 為 key，不是 take ID；共用原片仍被引用時不得清理其分段。
+  const chunkIds = kind === 'copy' ? [] : local.assets.filter(a => a.kind === 'take' && !assets.has(a.id)).map(a => a.id);
+  const counts = Object.fromEntries(['videos', 'markers', 'takes', 'recipes', 'exports'].map(name => [name, local[name].length - data[name].length]));
+  return { data, mediaIds, takeIds, chunkIds, locks: [...locks].sort(), counts, kind, id };
+}
 /** @param {import('./types').Library} data @param {Set<string>} stored @param {Set<string>} session */
 export function mediaInventory(data, stored, session) {
   const names = videoLabels(data.videos), owners = new Map(), takes = new Map(data.takes.map(t => [t.id, t])), recipes = new Map(data.recipes.map(r => [r.id, r]));

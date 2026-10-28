@@ -55,13 +55,17 @@ export async function readLibrary() {
   // 讀取不改寫正在錄製的 take；另一分頁可能仍握有錄影鎖，只有明確恢復才能 finalize。
   return result;
 }
-/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob}} [mediaChange] @param {AbortSignal} [signal] */
-export async function writeLibrary(next, expectedRevision, mediaChange, signal) {
+/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob}} [mediaChange] @param {AbortSignal} [signal] @param {{mediaIds: string[], chunkIds: string[]}} [cleanup] */
+export async function writeLibrary(next, expectedRevision, mediaChange, signal, cleanup) {
   validateBackup(next);
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error('筆記版本無效，未寫入。');
   if (mediaChange && !next.assets.some(a => a.id === mediaChange.id)) throw new Error('媒體沒有對應資料記錄，未寫入。');
+  if (cleanup) {
+    const retained = new Set(next.assets.map(a => a.id));
+    if ([...cleanup.mediaIds, ...cleanup.chunkIds].some(id => retained.has(id))) throw new Error('清理仍有關聯的資料遭拒，原資料保留。');
+  }
   const db = await openStore(); signal?.throwIfAborted();
-  const tx = db.transaction(['metadata', 'media'], 'readwrite');
+  const tx = db.transaction(cleanup ? ['metadata', 'media', 'chunks'] : ['metadata', 'media'], 'readwrite');
   const done = completed(tx), store = tx.objectStore('metadata');
   // 取消匯入或重連須取消同一個原生交易，不能只關畫面後仍偷偷寫入。
   const abort = () => { try { tx.abort(); } catch { /* 已完成的交易不能再回滾。 */ } };
@@ -74,6 +78,11 @@ export async function writeLibrary(next, expectedRevision, mediaChange, signal) 
     try {
       store.put({ revision: expectedRevision + 1, data: next }, 'library');
       if (mediaChange) mediaChange.blob ? tx.objectStore('media').put(mediaChange.blob, mediaChange.id) : tx.objectStore('media').delete(mediaChange.id);
+      // metadata、失去關聯的副本及 chunks 同一交易；中斷不能留下半刪的筆記。
+      if (cleanup) {
+        for (const id of cleanup.mediaIds) tx.objectStore('media').delete(id);
+        for (const id of cleanup.chunkIds) tx.objectStore('chunks').delete(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER]));
+      }
     } catch (error) { failure = error; tx.abort(); }
   };
   try { await done; } catch (error) { throw signal?.aborted ? signal.reason : failure || error; }

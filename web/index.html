@@ -14,9 +14,10 @@
     <p class="notice">桌面 Web 預覽版。筆記及完成的自拍保存在此瀏覽器；請定期備份。手機支援另行驗證。</p>
   </header>
   <div class="statusbar"><p id="status" role="status" aria-live="polite">先選一支本機示範影片。</p><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div>
+  <details id="offline-panel"><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
   <section id="library-panel"><h2>我的練舞影片</h2><p id="storage-status" role="status">正在開啟本機筆記…</p>
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
-    <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><label class="file-label">還原筆記<input id="restore" type="file" accept=".json,application/json"></label></div>
+    <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><label class="file-label">還原筆記<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
     <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
     <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
@@ -77,5 +78,6 @@
   <details><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
   <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-summary import-media"><h2 id="import-title">還原筆記預覽</h2><p>JSON 只有筆記、配方與媒體描述，不含任何影片。原有資料保留，確認後才寫入。</p><fieldset id="import-controls"><legend>本次匯入</legend><p id="import-summary" role="status"></p><p id="import-media"></p><button id="import-confirm" type="button" class="primary">確認匯入</button></fieldset><button id="import-cancel" type="button">不匯入，保留本機</button></dialog>
   <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept="video/*"></label><video id="relink-preview" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-summary"><h2 id="delete-title">移除本機資料</h2><p id="delete-summary"></p><p>這會移除下列本站資料，無法復原；需要的筆記與影片請先另存。原相簿、原始檔與其他筆記不會刪除。</p><fieldset id="delete-controls"><legend>確認移除</legend><button id="delete-confirm" type="button">確認移除</button></fieldset><button id="delete-cancel" type="button">取消，保留資料</button></dialog>
   <footer>免費 · 非商用 · 影片留在裝置</footer>
 </main></body></html>

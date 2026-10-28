@@ -1,5 +1,19 @@
 /* 檔案用途：固定資料契約與 DOM 控制型別。所在層：Web 靜態型別。主要關聯：index.html、library.js、main.js。 */
 export interface Elements {
+  "offline-status": HTMLParagraphElement;
+  "capacity-status": HTMLParagraphElement;
+  "persistence-status": HTMLParagraphElement;
+  "update-status": HTMLParagraphElement;
+  "check-offline": HTMLButtonElement;
+  "request-persist": HTMLButtonElement;
+  "check-update": HTMLButtonElement;
+  "delete-video": HTMLButtonElement;
+  "delete-dialog": HTMLDialogElement;
+  "delete-title": HTMLHeadingElement;
+  "delete-summary": HTMLParagraphElement;
+  "delete-controls": HTMLFieldSetElement;
+  "delete-confirm": HTMLButtonElement;
+  "delete-cancel": HTMLButtonElement;
   "media-inventory": HTMLDetailsElement;
   "media-summary": HTMLParagraphElement;
   "inventory-controls": HTMLFieldSetElement;
