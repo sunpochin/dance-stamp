@@ -42,20 +42,43 @@ test('影片衝突重寫完整下游；新 VS 不擅自沿用本機舊輸出', a
   incoming.exportedAt = '2026-10-28T10:00:00Z'; incoming.assets.reverse()
   expect((await planBackupImport(plan.data, incoming)).added).toBe(0)
 })
-test('只複製衝突配方及輸出；其他新增筆記不讓舊副本重複', async () => {
+test('衝突配方有獨立 take 可開啟；其他新增筆記不讓舊副本重複', async () => {
   const local = graph(), incoming = validateBackup(local)
   incoming.recipes[0].offsetMs = 4050; incoming.recipes[0].revision++
   const first = await planBackupImport(local, incoming)
   expect(first.additions.videos).toBe(0)
-  expect(first.additions.takes).toBe(0)
+  expect(first.additions.takes).toBe(1)
   expect(first.additions.recipes).toBe(1)
   expect(first.additions.exports).toBe(1)
   expect(first.additions.assets).toBe(1)
   expect(first.data.recipes[1].offsetMs).toBe(4050)
+  expect(first.data.recipes.find(r => r.takeId === first.data.takes[1].id)?.offsetMs).toBe(4050)
+  expect(first.data.recipes.find(r => r.takeId === local.takes[0].id)?.offsetMs).toBe(4000)
   incoming.videos.push({ id: crypto.randomUUID(), title: '另一合成課程', durationMs: 1000, revision: 1 })
   const next = await planBackupImport(first.data, incoming)
   expect(next.added).toBe(1)
   expect(next.additions.recipes).toBe(0)
+})
+test('同一 take 的不同備份校正各有可開啟的副本；重匯仍冪等', async () => {
+  const local = graph(), first = validateBackup(local), second = validateBackup(local)
+  first.recipes[0].offsetMs = 4050; first.recipes[0].revision++
+  second.recipes[0].offsetMs = 4100; second.recipes[0].revision++
+  const one = await planBackupImport(local, first), two = await planBackupImport(one.data, second)
+  expect(two.data.takes).toHaveLength(3)
+  expect(two.data.takes.map(t => two.data.recipes.find(r => r.takeId === t.id)?.offsetMs)).toEqual([4000, 4050, 4100])
+  expect((await planBackupImport(two.data, first)).added).toBe(0)
+  expect((await planBackupImport(two.data, second)).added).toBe(0)
+})
+test('已編輯的配方副本保留在原 take；再次匯入不增加不可選的第二配方', async () => {
+  const local = graph(), incoming = validateBackup(local)
+  incoming.recipes[0].offsetMs = 4050; incoming.recipes[0].revision++
+  const first = await planBackupImport(local, incoming), edited = first.data.recipes[1]
+  edited.offsetMs = 4075; edited.revision++
+  const second = await planBackupImport(first.data, incoming)
+  expect(second.data.takes).toHaveLength(3)
+  expect(second.data.takes.map(t => second.data.recipes.filter(r => r.takeId === t.id).length)).toEqual([1, 1, 1])
+  expect(second.data.takes.map(t => second.data.recipes.find(r => r.takeId === t.id)?.offsetMs)).toEqual([4000, 4075, 4050])
+  expect((await planBackupImport(second.data, incoming)).added).toBe(0)
 })
 test('示範檔衝突分開影片；後續來源版本不錯連舊副本或 VS', async () => {
   const local = graph(), incoming = validateBackup(local)

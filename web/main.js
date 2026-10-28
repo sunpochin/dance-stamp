@@ -129,6 +129,7 @@ async function operation(task) {
     if (monitor) monitor.gain.value = 1;
     if (audio?.state === 'running') await audio.suspend().catch(() => {});
     active = null; $('controls').disabled = false; $('pause-comparison').hidden = true;
+    // 比較結束先收起暫停控制，再恢復練習速度，避免下一次播放沿用合成設定。
     applyPracticeSettings(); drawPractice();
     reference.controls = true; self.controls = true;
     for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'false');
@@ -852,7 +853,8 @@ async function openTakeUnlocked(take, signal) {
   $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
   $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
   const interrupted = recovered || take.state !== 'ready';
-  if (interrupted) await finalizeTake(take, blob, selfDurationMs, true);
+  // 只有從 chunks 組回的原片需要落盤；外部 File 與已存中斷片段不能因狀態標籤被自動複製。
+  if (recovered) await finalizeTake(take, blob, selfDurationMs, true);
   updateIntersection(); draw(recipe()); status(interrupted ? '已取回可播放的中斷片段，仍標示中斷；請檢查長度並下載原片。' : '自拍與校正配方已取回。原片可另外下載。');
 }
 $('confirm-take').addEventListener('click', () => operation(async signal => {
@@ -862,8 +864,7 @@ $('confirm-take').addEventListener('click', () => operation(async signal => {
     // 人工確認只重新連結，不把外部原片當新錄影自動複製，也不改掉原配方。
     if (takeBlob.size !== state.data.assets.find(a => a.id === take.cameraAssetId)?.byteLength && !confirm('此檔與原片大小不同。請確認內容與時間對齊，仍要連結？')) return;
     const value = { ...recipe(), selfDurationMs }; comparison(value);
-    // 中斷相機仍需完成落盤；外部 ready 配對則只重連，不自動保存原片。
-    if (take.state !== 'ready') await finalizeTake(take, takeBlob, selfDurationMs, true);
+    // 人工選回的原片一律只連結；即使原紀錄是中斷，也要另按保存才可建立瀏覽器副本。
     sessionMedia.set(take.cameraAssetId, takeBlob); activeTakeId = take.id; pendingTakeId = null; $('confirm-take').hidden = true;
     await openTakeUnlocked(take, signal);
   });
@@ -1037,7 +1038,7 @@ function clearPracticeWatch() {
   practiceFrame = undefined;
 }
 function stopPractice() {
-  looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null;
+  looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null; practiceSeek = null;
   reference.pause(); $('loop').textContent = '開始 A–B 循環';
 }
 function applyPracticeSettings() {
@@ -1057,7 +1058,11 @@ function drawPractice() {
 async function rewindPractice(seconds, signal) {
   // tick 與 ended 可能同時抵達尾端；共用進行中的 seek，不排入第二次回捲。
   if (practiceSeek) return practiceSeek;
-  const pending = seek(reference, seconds, signal); practiceSeek = pending;
+  // 取消等待不會取消原生 seek；新 owner 先等舊跳轉結束，避免重啟時重疊。
+  const pending = (async () => {
+    if (reference.seeking) await mediaAction(reference, 'seeked', () => {}, signal);
+    await seek(reference, seconds, signal);
+  })(); practiceSeek = pending;
   try { await pending; } finally { if (practiceSeek === pending) practiceSeek = null; }
 }
 async function playLoopFromA(controller) {
@@ -1089,7 +1094,8 @@ function watchPractice() {
     if (looping && !reference.seeking) {
       try {
         const { a, b } = practiceRange();
-        if (reference.currentTime >= b) await rewindPractice(a, owner.signal);
+        // 循環中改 A 也要重新定位，不能繼續播放新起點之前的畫面。
+        if (reference.currentTime >= b || reference.currentTime < a - 0.15) await rewindPractice(a, owner.signal);
       } catch (caught) {
         if (owner !== practiceController || token !== practiceToken) return;
         const error = caught instanceof Error ? caught : new Error(String(caught)); if (error.name !== 'AbortError') status(error.message); stopPractice(); return;
@@ -1150,6 +1156,7 @@ reference.addEventListener('ended', async () => {
     catch { if (owner === practiceController) stopPractice(); }
   }
 });
+// ended 只保留上方可取消的循環 owner；重複掛舊 handler 會在停止後重新播放。
 function changeComparison(change) {
   if (active || pendingTakeId) return;
   change(); $('scrub').value = '0'; updateIntersection();
