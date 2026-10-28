@@ -100,6 +100,8 @@ flowchart LR
 
 測試曾在慢速素材留下約 267ms 舊畫面，但 JS 繪製間隔仍約 20ms；僅改手動擷取或 CPU 畫布都未消除。讓比較持續接收兩側真正影格更新後，針對性實測才通過。故不把播放時間、編碼 fps 或 JS drift 當作 G2／G3；驗收仍獨立讀回下載檔的影格碼及音軌，門檻沒有放寬。
 
+#11 補充驗證沿用同一匯出流程，直接注入格式啟動／編碼／新檔讀回失敗及取消，核對上一支成功 VS、兩側原片與配方仍可用，再同頁重試原生 WebM。以短橫／直式邊界素材逐格獨立解碼檢查 contain、鏡像與單一老師聲源，不另建編碼器、雲端轉碼或產品內自動故障測試。這份靜態色條證據只補失敗與成檔內容，不替代 G2／G3 長片矩陣；版本與結果見 [#11 匯出證據](docs/evidence/issue-11-export-failure.md)。
+
 ### 共用播放與相機規則
 
 - `input type=file` 為跨瀏覽器基線；`showOpenFilePicker` 是能力偵測後的選用增強，不能成為 iPhone 的必要入口。[File API](https://developer.mozilla.org/en-US/docs/Web/API/File_API)、[picker 支援限制](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker)。
