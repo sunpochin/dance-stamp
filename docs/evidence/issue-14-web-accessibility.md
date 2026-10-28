@@ -3,6 +3,12 @@
 
 2026-10-28 Asia/Taipei。main `e9e154a`（已含前置 PR 的審查修正），分支 `codex/issue-14-web-accessibility`；精確提交由交付 PR 綁定。macOS 27.0.1、Chrome 156、Bun 1.4.4，只用合成素材、隔離瀏覽器與本機主機。沒有招募／聯絡受測者或上傳媒體；本票未合併至 main 或發布。
 
+## 2026-10-28 同步 main 的交接文件衝突
+
+從候選 `7bb96a6601335810baa6d8528bb578702c3f72cb` 同步 main `d2f126c239a306af603876eb48d78c559a4f86f7`，解開 HANDOFF.md 的雙方追加衝突，完整保留 #14 與 main 的 #8／#9／#13 紀錄及各自受測版本；沒有覆寫其他任務的證據。產品 `web/`、授權與 notices 相對候選均未改動，建置指紋仍為 `0382343a0a0f73ff`。
+
+本輪以指定 Bun 1.4.4（`38afee6c8`）執行原有 `bun run check`：342 tests／599 expects／0 fail、checkJs、SW 型別、Biome、build 及公開掃描 166 檔通過。預設 Bun 1.4.2 曾被版本檢查拒絕，隨後使用既有 1.4.4 執行，沒有修改版本門檻。原始 hooks 已於本聊天 clone 啟用。這次只同步測試／文件，沒有新跑瀏覽器或媒體矩陣；下方 browser、AX tree、viewport 與成檔數據仍歸屬原受測候選，不冒稱為新提交重測。最新 head／CI 由 PR #39 綁定；最終人工審查、真人與裝置條件保持未完成。
+
 ## 範圍與已重現問題
 
 基線 `0f75e031af971bc4`：鍵盤保存示範副本後 activeElement 為 BODY；編輯既有標記也在停用 fieldset 中 focus 失效。667×320 長狀態的 sticky 列高 196.156px，已聚焦控制在 136.320–183.914px，整顆被列蓋住。320px／放大文字另發現原生還原欄固有寬度與長版本碼撐出頁面。

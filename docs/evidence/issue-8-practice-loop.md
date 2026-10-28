@@ -1,6 +1,55 @@
 <!-- 檔案用途：記錄 #8 練習循環實測與未完成 gate。所在層：版本驗收證據。主要關聯：practice.js、practice-background.js、TECHNICAL.md。 -->
 # #8 練習循環驗證
 
+## 2026-10-28 解鎖後：main 桌面背景通過
+
+使用者手動解鎖後，main `e9e154a6931f9efeb0e349096515f834774fe868`、靜態 `2f1ec6b3335cd790` 在 macOS 27.0.1／Chrome 156.0.8078.49／Bun 1.4.4 通過原始嚴格函式。其後補強觀察與新啟動入口；QA 提交以此 PR head 為準，`web/` bytes 未變，不重用其他候選的結果。
+
+`scripts/launch-native-browser.ts` 以全新 profile 啟動專用原生 Chrome，僅讀自己 profile 的 loopback 入口，生成 ignored CLI 控制設定及 runner。控制端 headless；受測端有真正視窗，使用 `noDefaults: true` 的現有 default context。runner 讀取同一份 `practice-background.js`，保留真正 hidden／停止／回前景不自播／明確重啟 gate，另記靜態版本與 Chrome 版本。測完 Ctrl+C 只停止自己啟動的程序；私有 profile／端點不進 Git。步驟見 [MEDIA_PROBE](../MEDIA_PROBE.md#8-練習循環)。
+
+補強後的正常輪次：
+
+| 觀察 | 實測 |
+| --- | --- |
+| 真正分頁背景／回前景 | hidden=true／false 事件均 isTrusted=true |
+| 背景停止 | paused=true；最終正常輪停止位置 1.420818 秒，產品 callback pending=0 |
+| 回前景 | 觀察 500ms 仍 paused；原生 playing 次數未增加 |
+| 明確重新開始 | 原生 playing 時間為 A＝1 秒，isTrusted=true；拒絕超出 A 後 150ms 的啟動 |
+| callback 生命週期 | 同時最多 1，背景及最後停止後均 0 |
+
+觀察器只包裝原生 reference 影格 callback 的登記／取消及記錄事件，沒有改可見性、強制暫停或派發事件。重新定位量的是原生 playing 時刻的媒體時間，未冒充呈現影格精度、音高聽感或聲畫同步。
+
+三個全新 profile 的負向測試分別只在本輪 HTTP 回應中移除背景停止、加入回前景自播、跳過第二次起點定位；均被對應檢查拒絕，沒有寫入產品檔案。負例阻擋 SW 註冊並核對實際文件的變體標記與回應命中，避免快取使負例沒有生效。第三例揭露觀察器可能太早讀到前一次 playing；已改為等待本次原生事件，負例才正確拒絕。修正後最後再用全新 profile、未替換回應、保留正常 SW 的正式入口重跑，得到上表數據；未以注入事件或放寬門檻取得成功。
+
+交付檢查：原有 `bun run check` 通過（342 tests／599 expects／0 fail、checkJs、Biome、公開掃描 157 檔及 build），啟動工具實際可編譯，browser 函式語法通過。完整 diff 檢查及原始 hook 於提交前執行；精確 QA commit／CI 以此 PR 為準。舊 #15 包 SHA-256 維持原值，未改其預覽或產物。
+
+這完成 #8 的受測桌面 Chrome 背景 gate；人工審查、Safari、鎖屏／來電、相機中斷、其他裝置及整體 G1–G7 不因此通過。#8 等待人工審查，#1 保持開啟；iPhone 暫緩，未合併或發布。
+
+## 解鎖前診斷（歷史）：環境與候選版本
+
+PR #31 已合併，head 為 `66d0ae9d3e97641a4f336c37bb96aace1264e643`；本次核對的 main 為 `e9e154a6931f9efeb0e349096515f834774fe868`，靜態內容 `2f1ec6b3335cd790`。以下區分候選包的一次成功與 main 尚未通過的結果；不覆寫下方舊版本數據。產品及原始 `practice-background.js` 均未修改。
+
+### 工具的前景覆寫
+
+一般 Playwright 頁面會啟用 focus emulation；只加 headed，或事後從另一個 CDP session 停用，這次仍無法取得所需的真正 hidden。核對本機 Playwright core `1.64.0-alpha-1790635538000` 與[官方 connectOverCDP 說明](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)：`noDefaults: true` 在連線時省略現有 default context 的焦點及媒體覆寫，另建 context 不適用。
+
+因此補查採全新專用 Chrome profile、僅 loopback 的臨時除錯入口，透過 `connectOverCDP(endpoint, { noDefaults: true })` 使用已存在的 default context，再執行原始嚴格測試。沒有接管日常 profile、覆寫 document.hidden、合成 visibility 事件或先替產品按暫停。觀察器只記錄 hidden、事件的 isTrusted 與原生 paused。這是桌面 QA 方法，未加入產品或下載包，也不代表所有 Playwright 功能都能在這種連線下使用。
+
+### 各版本實際結果
+
+| 受測版本 | 實際結果 | 可支持的結論 |
+| --- | --- | --- |
+| PR #40 `eead3a1915515382f93f2394a9ef7def4d0f9c53` 的獨立包，靜態 `5bc414f1b847bf47` | 原始嚴格函式回傳 `nativeBackgroundStopped=true`、`explicitRestartAlignsToA=true`；觀察到 trusted hidden=true，回前景 trusted hidden=false 且 paused=true | 此候選的一次桌面原生分頁切換成功；沒有量測該輪 callback 數、完整循環精度或鎖屏／裝置矩陣 |
+| main `e9e154a`，靜態 `2f1ec6b3335cd790` | 重跑在載入／前景前置條件逾時；診斷 hidden=true、尚未載入媒體（readyState=0、原生 error=0），沒有取得完整背景測試結果 | 本版本嚴格背景 gate 仍未通過；不能移用上一列結果，也不能據此判定影片格式失敗 |
+
+候選包先前已記錄 macOS 27.0.1／Chrome 156.0.8078.48／Bun 1.4.4。此次環境查詢 Chrome 已為 156.0.8078.49，產品外視窗操作工具明確回報 Mac 鎖定、無法自動解鎖。這證明目前不能檢查真正的前景視窗；沒有據此追認所有歷史逾時都由鎖定造成。已請使用者手動解鎖，未嘗試解鎖或更改系統設定。
+
+接手時先確認桌面解鎖且專用視窗可見，再在記明 commit、靜態版本及瀏覽器版本的同一份來源重跑原嚴格函式，補可信任事件、回前景保持暫停、明確重啟定位與 callback 清理。不可把 CLI 結束、hasFocus=true 或普通工具頁的 visible 當成 gate 通過。尚未成功重現的啟動工具只留 ignored output，沒有發布為已可用入口。
+
+**#8 保持開啟。** 人工審查、Safari、音高聽感與其他 G1–G7 仍分別追蹤；iPhone 依使用者要求暫緩。本輪沒有合併或發布，原嚴格測試與產品 bytes 均保留。
+
+## 初次實作證據（歷史版本）
+
 2026-10-28，Asia/Taipei。macOS 27.0.1、Bun 1.4.4；受測靜態內容 `26106b3cf184d603`，提交以 PR head 為準。僅使用既有 65 秒 640×360／30fps H.264 合成片與假相機，沒有真人、私人課程或第三方音樂。
 
 ## 修正前後

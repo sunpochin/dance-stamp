@@ -206,7 +206,9 @@ IndexedDB 明確實作 0→1 migration；未知路徑拒絕、交易回滾並保
 
 練習速度獨立於錄影配方，使用六個既有選項；一般 play、load 的預設速度及媒體操作結束後恢復練習選項。錄製仍使用既有 0.5／0.75／1 配方及停用控制，不能在 take 中改寫來源時間。依 [preservesPitch](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/preservesPitch) 能力啟用音高保持並顯示限制，未提供時明確提示可能變調；能力存在不是音質驗收。
 
-實測數據與尚缺的原生背景 gate 見 [#8 證據](docs/evidence/issue-8-practice-loop.md)。合成 visibility 事件只驗證 handler，不能代替真正切背景；保留獨立嚴格測試與未驗證狀態，不降低 ACCEPTANCE.md 門檻，也不宣稱完成 #8／整體 P0。
+實測數據與各版本原生背景 gate 見 [#8 證據](docs/evidence/issue-8-practice-loop.md)。合成 visibility 事件只驗證 handler，不能代替真正切背景；保留獨立嚴格測試，不降低 ACCEPTANCE.md 門檻。受測桌面結果不擴大為整體 P0 或其他裝置通過。
+
+原生背景補查須排除測試工具的 focus emulation：以全新專用 Chrome 的現有 default context，連線時設定 [noDefaults](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)，不另建 context 或覆寫可見性。桌面必須解鎖且能觀察實際視窗；Mac 鎖定時的載入逾時不能冒充格式失敗。解鎖後 main 靜態 `2f1ec6b3335cd790` 已通過；提供只管理自己程序的 `launch-native-browser.ts`，runner 沿用同一份嚴格測試並記版本。測試另檢查 trusted 事件、回前景 500ms 內無 playing、callback 清空及原生 playing 從 A 啟動。排除事後從另一 CDP session 停用焦點、合成事件、改產品停止邏輯或搬用另一版本結果。鎖定期間與 PR #40 的歷史資料分別保留，未擴大為裝置／音訊驗收。
 
 2026-10-28：PR #31 同步已合併既有雙片入口的 main `cbc5dee`。保留比較設定保存佇列、重連確認與標記草稿保護；媒體操作結束同時收起比較暫停按鈕並恢復練習速度。片尾只保留可取消 session 的單一 handler，排除直接保留兩份事件監聽的解法，避免重疊回捲與停止後重新播放。既有真機／背景與成檔證據仍綁原受測版本，本次同步不擴大驗收結論。
 
@@ -223,6 +225,8 @@ IndexedDB 明確實作 0→1 migration；未知路徑拒絕、交易回滾並保
 可選 captureTiming 記錄呼叫錄影、原生 start 事件、play Promise 完成與示範位置，依 DATA_FORMAT.md 白名單往返。它們是單頁單調時間觀測，不以其差值自動校正，也不當 G2 影格同步證據。測試與未完成真機 gates 見 [#9 證據](docs/evidence/issue-9-capture-recovery.md)，不因合成資料通過而關閉 #9。
 
 離頁驗收拆成 prepare／verify，中間由 CLI 真的導覽並接受瀏覽器原生警示；排除直接注入 pagehide 或停用 beforeunload，因為那些方式無法證明 document 被卸載後的片段保留。prepare 逐次 await IndexedDB 的 count 結果，至少兩塊確實保存才離開；本 CLI 的 async predicate 實測可能在查詢結果為 false 時仍先返回，不能把 Promise 當成功。依 [Playwright 的 truthy 等待契約](https://playwright.dev/docs/api/class-page#page-wait-for-function)，既有自拍回歸也改為操作結束後明確讀資料並 assert。匯出回歸等整個操作完成才讀診斷，避免下載連結先出現而讀到舊報告。這些只加強驗收，沒有新增 runtime 依賴或降低媒體 gate。
+
+分頁背景另由 `capture-background.js` 使用 #8 的專用原生 Chrome 入口；`--capture` 僅追加合成相機來源與隔離頁標記，缺素材先拒絕，預設 #8 模式不啟用相機。測試在產品 listener 之後觀察 trusted visibility／同步 track 釋放，收尾解碼可等回前景，但未經操作不得重新錄製。保留明確的預覽、倒數與錄影案例，不拿 pagehide 或合成 visibility 結果冒充。下載透過原生 Browser domain 的 GUID 檔及完成事件，再核對實際磁碟檔／雜湊；不用 Playwright 私有下載欄位或只憑 Blob URL 判定成檔。舊片、可播放中斷片與新錄影片的 metadata／配方／完整 Blob SHA256 在重開後比較，避免同大小內容被覆寫仍通過。這是 QA 設計，實際已通過的範圍以 #9 證據為準，未修改產品停止或保存邏輯。
 
 2026-10-28：PR #33 同步已合併既有雙片入口的 main `cbc5dee`，沿用 PR #36 已有的共同播放器解法，保留候選載入／metadata 同成敗、錄影尾塊排空、單一循環 owner 與 BFCache 資源歸屬。測試先明確保存用來驗證保留的舊片，並等待比較設定佇列完成；排除恢復外部影片自動保存或刪掉資料保護斷言的解法。新增同頁相機→VS→既有雙片→VS→重開錄影回歸；歷史長片、真機與背景證據不自動移作本次提交通過。
 
@@ -255,6 +259,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。
+
+容量邊界另以 20／100／200 MiB 及 200 MiB＋1 byte 合成 MP4 驗證：保留同一份已解碼的媒體 sample，在尾端加入 [free atom](https://developer.apple.com/documentation/quicktime-file-format/skip_atom) 精確控制總 bytes，不用壞檔或虛報 File.size。這只測保存大小、資料完整性與上限，不能代表高碼率、長片、HDR 或空間回收能力。各保存雙片均在瀏覽器完全關閉、原始測片暫時移開後，以同一專用 profile 重啟並斷網重開；全 Blob／實際下載 SHA256 比對，避免僅憑同頁 preview 或存在 metadata 判定保存。兩階段腳本不清庫、不請求相機；證據見 [#13 大檔矩陣](docs/evidence/issue-13-media-size.md)。
 
 離線狀態向當前 worker 查詢實際公開資源，逐一核對 SHA256，不以 SW 註冊或 online 狀態代替完整性。建置版本涵蓋所有 Web 來源、SW 來源及兩份 notices；只改授權說明也建立新 cache，避免改寫舊分頁使用的內容。manifest 包含應用及 notices，不包含媒體、筆記、其他 origin 或非 GET。安裝逐份無 HTTP cache 取回、驗證後存入；任一不符使安裝失敗，只清理該新版的未完成 cache。舊版缺檔也只補回符合自己 manifest 的 bytes；新版不同內容回 503，避免新舊 JS 混搭。這是本專案的建置一致性設計，不能當作來源主機或同 origin 已受信任。
 
