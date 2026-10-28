@@ -1,6 +1,6 @@
-# 資料模型與可攜格式 v1 草案
+# 資料模型與可攜格式 v1／v2
 
-狀態：桌面 Web 已有 v1 實作與備份／恢復；下方另含尚未實作的 P1 欄位規劃。儲存與格式更新必須保留既有資料，依版本與相容性處理，不能以重置資料繞過。
+狀態：桌面 Web 已有備份／恢復；#17 候選新增 v2 分類與動作庫，可讀 v1，完整相容與回復限制見第 10 節。下方 v1 範例及原規劃保留版本歸屬。儲存與格式更新必須保留既有資料，不能以重置資料繞過。
 
 ## 1. 分開筆記、媒體與練習配方
 
@@ -13,7 +13,7 @@
 | PracticeTake | id、referenceVideoId、cameraAssetId、referenceStartMs、referenceEndMs、rate、state、createdAt、captureTiming? | 影片與錄影各自可保存，不把 VS 當唯一原件 |
 | ComparisonRecipe | id、takeId、offsetMs、referenceMirror、selfMirror、layout、audioSource、revision | 時間公式見錄影規格；不等於已產生影片 |
 | ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
-| Move（P1） | id、name、danceStyle、status | 一個動作可由多個 marker 指向 |
+| Move（#17 v2 候選） | id、name、danceStyle、status、revision | 一個動作可由多個 marker 指向 |
 
 不建立 users、subscriptions、share_tokens 或同步 outbox；本期沒有對應服務。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
 
@@ -130,7 +130,22 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 
 時間連結只能在已匯入且完成影片配對的本機資料中定位 marker，不能授權讀取寄件者手機或雲端影片；第一版不讀取雲端分享連結來串流播放。筆記檔的欄位篩選不會替另傳的影片去除畫面、聲音或內嵌資訊，傳送前須自行確認內容與檔名。分享出去的 JSON／影片檔案可被複製；即使停止雲端連結分享，也不能撤回已下載副本。
 
-第一版不做自建影片儲存、雲端分享 token、供應商 API／OAuth 串接、自動雙向同步、自動發社群或已下載檔案的遠端撤銷。後續若要加入雲端直連，需另行規劃與授權，不是完成 #18 的前提。目前為規劃；各裝置的存檔、傳送與接收匯入能力仍依 [ACCEPTANCE.md](ACCEPTANCE.md) 實測。
+第一版不做自建影片儲存、雲端分享 token、供應商 API／OAuth 串接、自動雙向同步、自動發社群或已下載檔案的遠端撤銷。後續若要加入雲端直連，需另行規劃與授權，不是完成 #18 的前提。桌面檔案流程已實作（2026-10-28），細節見下節；各裝置的存檔、傳送與接收匯入能力仍依 [ACCEPTANCE.md](ACCEPTANCE.md) 實測。
+
+### 桌面分享允許清單與 ID（2026-10-28）
+
+| 選取 | 自動補足的必要關聯 | 預設排除 |
+| --- | --- | --- |
+| Video | 該 Video 與 reference 描述 | 該影片所有未選 Marker／take／VS |
+| Marker | 該 Marker、Video 與 reference 描述 | 正文（保留空 note 以相容 v1） |
+| take | 該 take、recipes、Video、reference／自己的原片描述 | 其他 take／VS、captureTiming、原建立日期 |
+| VS 描述 | 該 export 與 owning recipe／take 所需的上列關聯 | 其他輸出、影片 bytes |
+
+必含標題、時間、固定比例、所選配方的 offset／鏡像與必要種類／容器／大小描述。額外允許欄位只有 note、teacher、danceStyle、recordedDate、originalName；每次重新開啟預設全不勾。未知欄位、Move／節拍或裝置 metadata 不因新功能而自動加入。標題本身也可能含私人內容，須看實際文字預覽；展開區可核對完整 JSON。選項改變後必須重新預覽，下載與可選系統分享使用該次預覽 File。縮排後實際檔案也須 ≤10 MiB。
+
+v1 take／export 必填 createdAt 用固定 `1970-01-01T00:00:00.000Z` 佔位，代表分享未提供原建立時間，不是拍攝日期；exportedAt 仍是匯出時間。舊資料不回填此值。接收後完整 backup 可保存上述允許欄位，不因備份還原而遺失。
+
+share 在空庫或原來源庫都重建所有 ID，使用獨立 `dance-stamp-share-v1` namespace 的穩定 UUIDv8，原 sourceLibraryId 只作資料來源隔離，非帳號或授權。匯入後為接收者的 backup 資料，不接管其 library 身分；同一分享重匯冪等，內容不同沿用第 8 節衝突副本。完整備份還原後仍維持此行為。版本與匿名結果見 [#18 證據](evidence/issue-18-sharing.md)。
 
 ## 7. 桌面 Web v1 實作狀態（#5）
 
@@ -155,3 +170,34 @@ P0 不做巨大 ZIP 打包，避免手機瞬間佔滿記憶體。不能因 JSON 
 不新增 schema。副本移除只改本機狀態並移除 media key；可攜描述與配方保留，重開由實際 key 判斷 missing，可按第 8 節重連。本次已開啟 File 不等於仍有持久副本。
 
 刪除單一 VS 保留 recipe／take；刪 take 包含其 recipes、exports；刪整份影片筆記包含標記及下游。只有完全失去引用的 asset／Blob 才清理，共用原片保留；chunks 以 cameraAssetId 清理。計數預覽後明確確認，metadata／media／chunks 同一交易、全庫 revision 及 take 鎖保護，取消或失敗不部分刪除。原始檔與相簿不在此交易內，App 不會刪除。詳見 TECHNICAL.md 第 19 節及 [#13 證據](evidence/issue-13-offline-storage.md)。
+
+## 10. #17 v2 分類與動作庫
+
+本節取代上方「Move（P1）」未實作描述：桌面候選輸出 `schemaVersion: 2` 的完整 `kind=backup`，仍可讀 v1；第 3 節 JSON 保留為有效 v1 舊備份範例。分享格式屬 #18，本變更未實作或改其 UI。
+
+- Video：選填 `teacher`／`danceStyle`（各 ≤200 字）、`recordedDate`（真實日曆日期 `YYYY-MM-DD`）；清空即移除欄位。日期不推測自檔案時間。
+- Move：`id`、非空 `name`（≤500 字）、`danceStyle`（≤200 字，可空）、`status`（wanted=想練／practicing=練習中／learned=會了）、正整數 `revision`。只有人能改狀態。
+- Marker：選填 `moveId`，必須指向本備份的 Move。解除關聯保留標記及其他資料。移除 Move 解除全部指向它的 marker 並增加其 revision，不刪媒體。
+- 練習歷史沒有新表：按 Move 的 marker 與 take 老師區間相交顯示，點位置需 ≥take 起點且 <結尾；區間只接觸邊界不算。編輯 marker 範圍或關聯會改變視圖，但 take／配方原件保留。按 take.createdAt 排序，不當拍攝日期。
+
+v1 正規化到 v2（v1 的 moves 必須為空），不重配舊 ID、不移動媒體。讀取只在記憶體升版，成功寫入才以同一全庫 revision 提交；IndexedDB store version 維持 1。失敗保留原 version／revision／metadata／media／chunks，不用重置修復。新欄位仍走 JSON 白名單、10 MiB／各表 10,000 筆上限、關聯驗證與純文字顯示。
+
+舊程式不讀 v2；降版需升版前由舊版保存的 v1 備份與獨立原片，在另一資料環境還原。現有 v2 資料保持原樣；本版不輸出會省略動作的 v1 備份。衝突與不同來源匯入一併重寫 Move→Marker，多次重匯冪等；衝突動作副本保留各自狀態，不依時間戳覆寫。測試與版本證據見 [#17](evidence/issue-17-moves.md)。
+
+
+## 11. 功能整合候選的 backup／share 相容
+
+此整合候選的新完整備份與分享都輸出 schema v2，接受 v1／v2 的 backup／share；上述 #17、#18 獨立候選的 v1 敘述保留來源歸屬。合法 v1 分享中明確加入的老師／舞風／日期與原檔名會保留；分類仍依第 10 節的 ≤200 字與有效日曆日期契約，無效值拒絕匯入並保留原件。分享匯入的 ID 命名空間不改，v1 正規化後再重匯 v2 仍冪等。
+
+從 v2 動作庫挑片段分享時不帶 Move 或 marker.moveId；接收者既有動作不被覆寫。筆記、原片及 VS 的分開保存／重連與取消、quota、revision 保護不變。舊程式不能讀 v2，回復限制沿用第 10 節，不清庫或產生會省略動作的 v1 降版檔。
+
+
+## 12. #19 可選手動拍點 metadata
+
+原 #19 v1 候選及本功能整合 v2 的 Video 與相機 PracticeTake 可選 `beatGrid: { bpm, firstBeatMs, countInBeats }`。BPM 是來源音樂原速有限數字 20–300；firstBeatMs 為非負安全整數且嚴格小於老師原片 durationMs；countInBeats 必填且只允許 0（原秒倒數）、4、8。未知子欄位白名單排除。Take 為錄影開始前保存的快照；Video 後來校正不回寫舊 take 或 recipe。
+
+`{"bpm":120,"firstBeatMs":350,"countInBeats":8}` 表示原片 0.35 秒第一拍、原速每拍 0.5 秒。0.5× 錄影每拍實際 1 秒，8 拍倒數為 8 秒；來源拍點不翻倍。完整時間語意只以 [RECORD_COMPARE](RECORD_COMPARE.md#7-19-手動拍點與倒數桌面工程候選) 為準。
+
+欄位缺少代表未設定，沿用秒數；拍點本身不另升資料格式，整合候選依 #17 採 v2，IndexedDB store version 仍為 1，不搬移舊資料。無效拍點使整份備份拒絕，不部分匯入；備份、衝突副本、ID 關聯重寫及重匯冪等沿用第 8 節，拍點納入 canonical 內容。備份不含提示音、影片 bytes 或裝置資訊。舊版應用可能忽略它不認識的欄位，降版前保留新版原備份，不能拿舊版重新匯出的 JSON 保證拍點仍在。
+
+UI 只有交易成功才套用；錯誤、取消及另一分頁 revision 衝突保留草稿與上次設定。移除只刪該 Video 的可選欄位，不刪標記、原片、take 快照或配方。沒有新的 migration；既有 migration 失敗回滾演練仍適用。

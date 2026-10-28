@@ -46,6 +46,8 @@
 
 保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
 
+比較預覽及 VS 採隨速度自然變調；不套用瀏覽器音高保持，以避免受測慢速成檔的聲畫差。一般練習播放仍依能力保持音高，媒體操作結束後恢復同一練習設定。這不改時間映射、音訊來源或驗收門檻。
+
 預設用來源影片音訊，透過 Web Audio 的 MediaElementSource → MediaStreamDestination 加入輸出 stream；源音訊到喇叭與輸出路徑分開控制，自拍音軌不混入。AudioContext 必須處理手勢恢復、暫停、音訊路由變動，測試慢速時音高及時間是否跟畫面一致。[來源節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource)、[輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
 先偵測並試錄 MIME／codec 組合，再選裝置真正可工作的格式。`isTypeSupported()` 回 true 仍可能因資源失敗，最後要讀回輸出檔驗證。優先測 MP4/H.264/AAC；無此組合時測 WebM 路徑，副檔名必須反映真實容器，且另測在接收者裝置的播放。不能靠改檔名、付費雲端轉碼或強迫所有人安裝同一播放器過關。[編碼偵測](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/isTypeSupported_static)。
@@ -102,3 +104,15 @@
 沿用 [DATA_FORMAT.md](DATA_FORMAT.md) 的配方與 JSON，媒體使用 iOS 本機檔案儲存。可比較原生 app 與 Capacitor 原生模組成本，但不能把包 WebView 當作原生錄影完成。Android 原生待 iOS gate 通過後另開需求，不在本期承諾雙平台同時上架。
 
 iOS 的源碼、測試與使用免費，公開商店分發仍可能有年費；免費發佈限制見[費用文件](LICENSING_AND_COST.md)。本次不申購、不部署、不註冊開發者方案。
+
+
+## 7. #19 手動拍點與倒數（桌面工程候選）
+
+- 原速 BPM 為每分鐘來源音樂拍數，允許有限數值 20–300；不是慢放後重新估計的 BPM。第一拍 `F` 是老師來源時間內的非負整數毫秒，`0 ≤ F < durationMs`，可用當下畫面定位或手填秒數（保存至最近毫秒）。A、B 與自拍 offset δ 維持第 4 節含義。
+- 來源位置 `s ≥ F` 的拍序號為 `floor((s-F) × BPM / 60000)`，八拍組為 `floor(index/8)+1`，組內拍為 `index mod 8 + 1`。F 之前顯示「第一拍之前」，不猜負拍或音樂前奏。來源每拍 `60000/BPM` 毫秒；r=0.5／0.75／1 時每拍實際間隔為 `60000/BPM/r`，同一來源位置永遠同一拍。
+- 保存 Video 的 BPM／第一拍後，老師播放位置及標記清單附上八拍標籤；原始秒數與筆記不改。暫停、seek 與 A–B 直接重算來源位置，不依播放了幾秒累加。不是自動拍點偵測，也不在原片／VS 烘焙字樣。
+- 倒數選「秒數」或 4／8 拍（含提示音）。拍數倒數的實際總長 `N × 60000/BPM/r`，用上方固定錄影速度，與獨立練習速度無關。老師停在 A；從倒數第一聲到開始相隔 N 個間隔，最後一聲與開始也相隔一拍。不自動把 A 移至第一拍；需要音樂第 1 拍起跳，先自行把 A 設在對應八拍邊界。
+- 音訊由錄影點按後沿用既有啟動規則，第一聲 880Hz，其餘 660Hz、各 60ms 包絡。預排提示音與文字讀同一音訊時鐘；不逐拍累加計時器。完成才開始錄製與老師播放，提示音不接影片音軌。原生啟動延遲仍按第 4 節觀測與校正，不能把倒數當取樣級同步保證。
+- 錄影／倒數中沿用全控制鎖；取消、背景、音訊中斷停止並清理提示音，保留舊自拍、配方與可恢復資料。未保存拍點先明確保存或取消；無可靠拍點可移除，原 3／5／10 秒路徑保持可用。
+
+來源音樂 BPM 有變化時，此版固定 BPM 不足以跟隨整片，請縮短練習片段或使用秒數。自動辨識、變動拍速及量化／snap 另行設計。本候選僅有合成驗證，真人、實體相機與聲音路由未驗證。

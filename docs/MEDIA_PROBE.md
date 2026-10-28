@@ -60,6 +60,8 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
+真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原，一般專用設定檔需先經使用者同意初始化。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
+
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
 `markers.js` 請用全新 session，量實際顯示的 mediaTime，另驗證 CRUD、逆序拒絕、草稿保護與多分頁失敗恢復。此結果只適用受測素材，不是 G2 聲畫同步證據。
@@ -142,6 +144,8 @@ playwright-cli --session dance-capture-matrix run-code "$(cat tests/browser/capt
 
 矩陣約需數分鐘，逐例確認成功，不在執行中更換 dist 內容；觀察逾時先查同一 session，不能重開取代還活著的錄影。九段原 take 位於 ignored `output/media-probe/captures/`，另用 ffprobe 盤點、FFmpeg 完整解碼，不能只看 metadata／第一幀。只有合成證據，真正 G1／G6 與硬體中斷仍見 [#9 未完成項](evidence/issue-9-capture-recovery.md)。
 
+`capture-drain.js` 使用新的隔離合成相機 session，刻意保持 chunks 的原生 IndexedDB 交易未提交，再注入編碼 error。斷言相機已停止、工作仍忙碌且另一分頁無法取得同一 take 的恢復鎖；放行交易後才能恢復可解碼的 interrupted 原片，重開後舊片與恢復片的 metadata／配方／完整 SHA256 保持一致。執行 `playwright-cli --session dance-drain run-code --filename tests/browser/capture-drain.js`；下載的 `output/media-probe/drain-recovered.mp4` 另用 FFmpeg 全片解碼。這是儲存失敗時序回歸，不是硬體、背景或 G1／G6 驗收。
+
 `capture-comparison.js` 在同頁依序錄影、匯出、改用既有雙片並再次匯出，最後重開原錄影，確認共用單一 AudioContext、相機停止、原片／筆記／舊 VS 都保留。只使用合成相機；不代替長片矩陣、真實硬體或背景驗收。
 
 ### 真正離頁與獨立重播
@@ -179,6 +183,17 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 
 先備妥既有 `output/media-probe/`、`output/comparison/` 合成測片。新隔離 session 依序執行 `backup-conflicts.js`、`backup-recovery.js`、`backup-keyboard.js`；第一支會實際下載 JSON 與單一 VS，第二支用該檔在全新 context 還原並重連 reference／take／VS，不清除既有資料。三支均用既有 CLI `run-code --filename tests/browser/…js`，檢查真正的 `### Result`，不能只看退出碼。
 
+`backup-drill.js` 補共用恢復演練的完整數量：三份影片筆記、十標記、兩 take／recipe、一個真正合成的 VS，共六份媒體描述。先以 FFmpeg 建立三支六秒合成片（目的檔存在會拒絕覆寫）：
+
+```sh
+mkdir -p output/backup-drill
+for i in 1 2 3; do
+  ffmpeg -hide_banner -loglevel error -n -f lavfi -i 'testsrc2=size=320x180:rate=30:duration=6' -f lavfi -i "sine=frequency=$((440+i*110)):sample_rate=48000:duration=6" -vf "hue=h=$((i*70))" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "output/backup-drill/reference-$i.mp4"
+done
+```
+
+在自己的隔離 Chromium session 執行 `playwright-cli --session dance-backup-drill run-code --filename tests/browser/backup-drill.js`。函式只清除自己新建 context 的測試 origin（IndexedDB、cache 與 worker），不清除呼叫者或一般瀏覽器資料；清除前已透過產品下載 JSON 與六份媒體。先完整還原，再以六個獨立 context 逐檔缺片；補回前開啟其他筆記／可用 take，取消候選保留副本，預設 session-only 重連後重開仍須缺片。所有 canonical 關聯／時間／鏡像不變，恢復的原片與各案例 VS 下載比對 bytes／SHA-256。僅測資料恢復，不宣稱跨實體裝置、Safari、硬體相機或 G1–G7；獨立解碼下載檔後才另記成檔證據。
+
 驗收包含預覽不寫入、重匯與來源隔離、quota、metadata put 中取消、真實雙分頁衝突、危險輸入、同名裁切片拒絕、明確副本、重開與鍵盤／窄版。產物在 ignored output。`backup12-generated-vs.mp4` 與 `backup12-restored-vs.mp4` 應有相同 SHA256，再以 FFmpeg 完整解碼，並用 `download-playback.js` 在產品外完整重播。這驗證原始 bytes 被帶走／恢復，不把 JSON 冒充影片備份；結果見 [#12 證據](evidence/issue-12-backup-recovery.md)。
 
 
@@ -191,6 +206,8 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 更新專用主機：`bun --no-env-file tests/browser/serve-update.ts`（僅本機 4180，請勿部署）。開啟該 origin 的新隔離合成相機 session，執行 `offline-update.js`。測試控制入口只在此測試主機，產品 `serve-web.ts` 沒有它；以相同 manifest 的新 worker 身分及一份錯誤雜湊模擬完整／損壞更新，實際觀察 install、waiting、activate、原頁 controller 與資料，沒有偽造生命週期事件。
 
 以上仍用既有 CLI `run-code --filename`，檢查 `### Result` 並確認沒有 `### Error`，最後關閉自己的測試 session。離線與等待更新的下載檔也須用 FFmpeg 全片解碼、ffprobe 及產品外 `download-playback.js` 完整重播。結果與限制見 [#13 證據](evidence/issue-13-offline-storage.md)。
+
+`offline-cache-failure.js` 另建乾淨 context，實際破壞一份公開 cache，再於真正 worker 注入 Cache.put quota、CacheStorage.open 與 Cache.match 例外。沿用本機白名單主機及 CLI `run-code --filename tests/browser/offline-cache-failure.js`；可用專用 port，無須相機設定。每種故障都要在線重開工作台、顯示離線不完整，合成筆記與 sentinel Blob 不變；解除故障後實際補存，再斷網重開。單元回歸另驗錯誤版本仍回 503、斷網缺檔失敗及安裝 quota 仍拒絕候選。這些注入不代替真實磁碟低空間；[版本證據](evidence/issue-13-cache-failure.md)獨立於先前大檔與真機矩陣。
 
 #### 20／100／200 MiB 保存矩陣
 
@@ -228,3 +245,131 @@ playwright-cli --session dance-size close
 `interrupted-session.js` 用全新資料環境還原中斷 take，驗證人工重連與重複開啟不自動存片、明確保存才寫入，以及重開已存中斷片不重寫 Blob。以乾淨 session 執行 `playwright-cli --session dance-session run-code --filename tests/browser/interrupted-session.js`。
 
 `backup-recipe-copies.js` 驗證只有校正不同的備份也有可選 take、不同版本與已編輯副本各自保留、重匯冪等，以及實際匯出使用所選副本。以乾淨 session 執行 `playwright-cli --session dance-recipe-copies run-code --filename tests/browser/backup-recipe-copies.js`。
+
+### #14 Web 可及性與媒體隱私
+
+用新隔離 session 分別執行 `accessibility-focus.js`、`accessibility-layout.js`、`accessibility-media.js`，仍用原有 CLI `run-code --filename`，必須檢查 `### Result` 且沒有 `### Error`。前兩支需 `output/comparison/` 的兩份合成原片；第三支用既有合成相機設定與 `output/media-probe/reference.mp4`，不得改用真實私人相機或真人影片。
+
+focus 函式測保存／編輯／清單重繪、modal 返回、quota 與停止鍵不被搶焦。layout 函式在五組 viewport 與 100%／200% 根文字尺寸量 44px 目標、完整焦點可見、無水平溢出、原生狀態捲動及七種常用文字對比；不以程式捲到控制來掩蓋 Tab 行為。原生 End 捲動須等實際 scrollTop 改變，不能只看按鍵回傳。
+
+media 函式用 CDP 真正可及性樹核對播放器名稱、禮貌狀態及輸出進度，合成權限拒絕後明確重試、不開麥克風；注入合成敏感檔名／deviceId／groupId／label，核對診斷及 JSON 不含它們、無外部請求且 tracks 全部釋放。下載 VS 再按既有方法完整解碼與產品外播放。這不是讀屏實聽、實體裝置或全媒體 gates；[本版本證據](evidence/issue-14-web-accessibility.md)與[人工觀察單](WEB_USABILITY_CHECK.md)分開。
+
+## #3 長錄影與逐幀成檔量測
+
+新增工具只使用 Python 標準函式庫、既有 FFmpeg 與 Playwright CLI，不新增產品依賴。先建置，再建立不循環的合成相機與逐幀時間碼；不覆寫既有證據。
+
+```sh
+bun run build
+python3 scripts/make-sync-fixtures.py
+python3 scripts/check-media-analyzer.py
+DANCE_STAMP_PORT=42833 bun --no-env-file scripts/serve-web.ts
+```
+
+另開終端，以自己已安裝的 CLI 開新隔離 session。若使用 Codex skill 的 wrapper，將其路徑傳入 `--cli`；不自動安裝 CLI／瀏覽器。
+
+```sh
+playwright-cli --session dance-issue3 open http://127.0.0.1:42833 --config output/media-feasibility/browser.json
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode matrix --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode stability --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode webm --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode alignment --label g3 --analyze
+python3 scripts/run-media-feasibility.py --cli playwright-cli --url http://127.0.0.1:42833 --mode recovery --label g3 --analyze
+```
+
+matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料庫連續十次 1× 的 60 秒 capture→export；webm 只略過 MP4 候選，仍由原生編碼器實際試錄與回讀；alignment 用正／負 200ms 校正及兩側獨立鏡像重跑 15 秒成檔；recovery 在一次完整流程後檢查匯出取消、預覽取消及 play 拒絕的回呼清理／檔案保留。每段都下載原片／VS，`--analyze` 立即全片解碼，門檻不過即停止並保留失敗報告。
+
+每個版本開全新隔離 session，`--label` 換未使用的英數標籤；JSON 記錄 Git head 與建置內容版本，不覆寫舊證據。已產生過的分析報告也不覆寫；需另行分析時可傳 `analyze-media.py record.json --report 新報告.json`。每個流程都有包含下載／輪詢成本的完整匯出耗時上界，亦可用 `--mode performance` 單獨重跑 60 秒。完整解碼與二進位時間碼不代表實體相機光學時鐘、手機／Safari 相容性或 G2 已完成。
+
+分析器 v4 的聲音事件依配方合法交集 `[L,U)` 配對；來源 B 的末格閃光另列 `boundaryFlashPts`，不能要求片段外的下一個提示音。所有影格仍計入首末同步與 G3，片尾含最後一格的呈現時間，沒有忽略開頭或尾端的停格。自查另含末格邊界正例、中段缺音及片尾凍結負例；`check-media-analyzer.py --label 新標籤` 另存一輪，不覆寫舊自查。
+
+若產品版本完全未變，且中斷原因已釐清、前段已用同一分析器確認，可用 `--start-index 7` 從第七組未執行案例接續。它仍拒絕覆寫既有案例；產品有改動須用新 session／標籤重跑，不能用接續功能跳過未解決失敗。
+
+手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [手機清單](PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
+
+分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
+
+分析器 v5 另獨立驗證配方合法交集的解碼長度及兩側來源起末時間碼覆蓋（100ms 邊界容差），全片來源時間碼依輸出時鐘核對（250ms 品質容差）；runner 相機原片規劃長度沿用既有 500ms 容差。自查增加截短及重播補長負例。瀏覽器先快照既有 ID，要求本輪新增 ready take／export、正確關聯及 Blob 與下載內容一致；recovery 另注入 VS 保存 quota 並確認新檢查拒絕，該額外未保存檔不列入正式成檔數。
+
+
+## #11 慢速比較音高對照
+
+使用合成 `make-comparison-fixtures.ts` 與新隔離 Chrome context 執行 `tests/browser/comparison-pitch.js`，再跑 `python3 scripts/analyze-comparison-pitch.py`。真正下載三份三秒 VS，完整解碼並確認 660Hz 老師聲源依 0.5／0.75／1× 成為 330／495／660Hz，排除 880Hz 自己聲源與誤保留原音高；預覽取消／成檔／繪製失敗後仍恢復一般練習音高。這是短片功能與音訊內容驗證，完整同步／穩定性另跑原始 `run-media-feasibility.py`，不代替真機聽感。
+
+## 12. 選定筆記分享（#18）
+
+以專用短片及全新隔離無視窗 session 執行 `tests/browser/share.js`；沿用 `make-export-fixtures.ts` 的八秒 reference／self，另建立兩秒同名裁切片及同名不同內容候選。下載路徑與完整重現見 [#18 證據](evidence/issue-18-sharing.md)。測試會實際下載分享／完整備份，在其他新 contexts 選檔、預覽、重建 ID、原子匯入、人工確認逐側重連與跳片段；用 stub 測系統分享，禁止實際寄件。
+
+包含私人欄位預設排除、明確加入、最小閉包、文字／JSON 預覽、下載失敗、quota／交易內取消、真實多分頁 revision、重匯冪等與衝突另存、同名／裁切／VS／壞檔；既有 `backup-recipe-copies.js` 與 migration／鎖回歸分開跑。這是短片功能與資料保護回歸，不重跑未變的長片／效能矩陣，不操作桌面或雲端。另一實體裝置及 Google Drive／Dropbox／iCloud Drive／AirDrop 保留未驗證。
+
+
+## #19 手動拍點與合成提示音
+
+執行 `bun --no-env-file scripts/make-beat-fixtures.ts` 產生 ignored `output/beats/reference.mp4`（20 秒 testsrc／120 BPM／第一拍 0.35 秒／660Hz），不覆寫既有素材。以獨立隨機 localhost port、乾淨 headless Chrome session、`--mute-audio` 執行 `tests/browser/beats.js`；沿用本文件 Playwright CLI `run-code --filename` 方法。腳本只用傳入 page 的 origin，不固定或占用其他聊天埠，測片、備份及 logs 只留本機。
+
+`beats.js` 測 UI、嚴格輸入、保存失敗重試、取消／重匯、乾淨 context 還原、三速度來源拍號，以及 OfflineAudioContext 提示音 samples。`beats-capture.js` 用頁內合成 canvas 相機，不呼叫實體相機／麥克風，量測倒數、錄影鎖及取消／中斷。既有 `storage.js` 的 migration 腳本可在專用 runner 將硬編碼測試 origin 替換為自己的 origin 執行。長片／效能或有視窗操作按當次派工的共用互斥鎖規則進行，不搶刪他人鎖。
+
+
+`move-draft.js` 使用全新隔離頁面且停用相機 API，不需要影片；實走既有／新增草稿的編輯切換、明確保存／取消、metadata quota、真正第二分頁 revision 衝突及原生 beforeunload 拒絕離頁。原候選先重現覆蓋，再以相同測試驗修正；不將此短文字流程算入媒體或實體桌面 gates。
+
+
+原生確認框會中斷單次 CLI 的回覆，不能將空結果當通過。`move-draft.js` 採兩階段：第一次 `run-code --filename` 必須取得 `beforeUnloadPrepared=true`；再對同 session `goto about:blank`、`dialog-dismiss`，第二次執行同檔必須取得 `realBeforeUnloadDismissed=true`，並驗 trusted／prevented 事件及原輸入未變。測試先拒絕非 loopback、非合成標記或非空庫，再停用相機 API。
+
+
+## 匯出準備與來源歸屬
+
+新隔離 session 執行 `export-ready.js`，只選合成既有雙片並停用相機 API。原生影格通知刻意暫不交付時不可先建立編碼器，取消須撤銷等待且保留上次輸出；同頁重試真正成檔下載，準備及正式播放各自拒絕時也保留舊片、配方並釋放串流。`comparison-capture-fallback.js` 另驗沒有手動 canvas requestFrame 的既有備援。
+
+`run-media-feasibility.py` 預設拒絕未提交來源。只有有界實驗才加 `--allow-dirty`，原品質檢查仍全部執行，raw JSON 記 sourceDirty；true 不能宣告該 Git head 正式通過。正式候選應先完成原 check／commit／push，再以乾淨來源和新 label 重跑，不覆寫實驗或失敗報告。
+
+本輪隔離 Chrome 已實際通過上述準備取消／兩次拒播／重試下載、canvas 擷取備援與既有 export-failure；獨立分析器再次完整解碼並核對老師音源、鏡像與四份舊 VS 指紋。這些短片回歸不取代提交後的完整矩陣與真機驗收。
+
+## P0 整合候選的正式同版桌面證據（2026-10-28）
+
+受測來源 `efd09104630cdd5631166971ae5ba94d408b9f9d`，靜態 `22c187ea10e457c2`，一般 [PR #53](https://github.com/sunpochin/dance-stamp/pull/53)。環境為 macOS 27.0.1、隔離 Chrome 156、Bun 1.4.4、FFmpeg 8.1.2；每筆 raw 保留實際 userAgent。本節為該提交的新結果；上方舊版失敗與未提交對照仍保留，不能相加成通過。原完整 check／hooks、18 組 source browser 函式、12 個分析器正負控制均通過，正式 raw 全部 sourceDirty=false。只使用合成時間碼／音訊與假相機，沒有真人相機、麥克風或私人資料。
+
+| 正式成檔組別 | 結果 |
+| --- | --- |
+| smoke、三速度 × 15／30／60 秒 | 1＋9 組通過 |
+| 同 session／資料庫連續十輪 60 秒 | 10 組通過，不清庫、不重啟瀏覽器；每組重載工作台 |
+| WebM、正負 200ms／兩側獨立鏡像 | 1＋2 組通過 |
+| 取消、拒播、繪製／保存故障及恢復 | 1 組通過；額外故意未保存輸出不算正式成檔 |
+
+共 24 組全部由產品真正 capture→export、下載原片／VS、原 v5 全片獨立解碼，合法起末覆蓋皆通過。最大聲畫差 60ms、起中末配方誤差及新增漂移各 64.434ms、最長重複畫面 71ms、最低平均 29.984fps、最長完整匯出上界 63,818ms。WebM 單案聲畫最大差 40ms，與舊版 110ms 失敗分開記錄。24 take／24 VS 共 48 份 Blob 均存在且內容指紋對應本輪下載；沒有拿舊輸出代替本輪新增成功。
+
+取消與拒播、繪製錯誤後回呼 pending=0、同時最高 2；故意移除合成 Blob 可抓到缺檔，finally 還原後為 0。真正 media put quota 會被本輪新增 VS 檢查拒絕，原片、舊輸出、配方及資料保留。另有準備取消／兩次 play 拒絕／重試、canvas 擷取備援、export-failure 及三速度音高的獨立短片回歸；完整解碼確認老師聲源、鏡像與舊 VS 指紋。
+
+同提交乾淨獨立包：36 檔、117256 bytes、trackedChanges=false；archive SHA256 `e53715ba4d32978df4b7d4e40e8600f22955c1c9fa11e29e043cfe613ad3a185`。真正解到 Git／node_modules 外，原生 tar／逐檔校驗通過；五份資源 hash、八條內部路徑／三種寫入拒絕、HEAD／標頭／MIME、CLI／環境優先及八種錯誤設定拒絕均通過。包內 entry、錄影到比較、既有雙片三組實際操作通過，不依賴開發伺服器。
+
+真正 CLI 離頁並接受原生 beforeunload 後回站：trusted pagehide、相機同步釋放、離頁在 B 前；至少兩個已提交 chunks 恢復為 interrupted，原片可解碼、播放及下載，舊 take bytes／資料不變。SW 實際損壞更新拒絕；錄影、匯出各收到 waiting worker 均未重載／接管，全部舊分頁關閉後才啟用，舊筆記／錄影及無關 cache 保留。測試主機只在 ignored 工具副本改專用 port，不改原產品及品質條件。
+
+三份已下載代表檔以原生 file:// 頁面離開產品重播：60 秒 MP4、15 秒 WebM、0.75×／正偏移校正版皆播到 ended，1280×720、error=0、dropped=0、音訊解碼 bytes>0。此為隔離 headless Chrome／靜音輸出下的解碼與播放證據，不代表真人已聽到聲音。
+
+上述只屬桌面合成驗證。實體相機光學 G2、真人五人／讀屏／實聽、跨裝置保存、Safari 當前 runtime、熱／電池／記憶體壓力及發布主機仍未驗證；iPhone 依使用者安排暫緩。人工審查、合併及發布核准各自保留，#1 與未驗收子票不因本節關閉。
+
+## P1 整合候選的正式同版桌面證據（2026-10-28）
+
+[一般 PR #54](https://github.com/sunpochin/dance-stamp/pull/54) 的正式受測來源 `587689d143bb1417ef48f083e5fe983a81af2c02`、靜態 `db129e273cf0039b`。macOS 27.0.1、隔離 headless Chrome 156、Bun 1.4.4、FFmpeg 8.1.2；每筆正式 raw 留 Git head／靜態版本／sourceDirty=false／userAgent。不把前節 P0 或來源 #50／#51／#52 數據相加成此版通過。
+
+原 check／hooks 366 tests、1015 expects、0 fail；14 組整合 browser 函式與額外 move-draft 原生離頁保護通過：分類／歷史／離線重開、v1 延遲升 v2／quota／跨頁衝突、分享隱私／選項／穩定 ID／衝突副本／重連、手動拍點／合成 samples／三速度倒數與相機、入口／焦點／窄版、兩種比較、完整備份／配方副本及輸出取消／備援。系統分享只用 stub，不發送檔案或操作雲端；同機 contexts 不等於另一裝置。
+
+本 runtime 自己的新 session 完整 24 組（smoke 1、三速度 × 15／30／60 秒 9、同 session／同資料庫十次 60 秒、WebM 1、正負校正 2、恢復 1）全通過原 v5 全片解碼與合法起末覆蓋；每組重載工作台，未清庫或重啟瀏覽器。最大聲畫差 88.333ms、三點配方誤差 68.5ms、新增漂移 67.567ms、最長重複畫面 70.8ms、最低平均 29.984fps、完整匯出上界最高 63,803ms。24 take／24 VS 共 48 份 Blob 均對應本輪新增並與下載指紋一致。回呼最高同時 2、完成 pending=0；取消／拒播／繪製錯誤、故意移除 Blob 並還原、真正 media quota 導致未新增 VS 的拒絕檢查均通過。先前另跑五組代表成檔也通過，未混進正式 24 組。
+
+受測同提交乾淨包 40 檔、143039 bytes、trackedChanges=false，archive SHA256 `1508fe1d5dafa03862a725d37a078dfce534d8e8e675b3618c2614627a9095d5`。真正解到 Git／node_modules 外，以隨包主機通過逐檔／native tar 校驗、六資源 hash、八路徑與三寫入拒絕、標頭／MIME／HEAD、CLI／環境優先及八類錯誤設定拒絕；entry、錄影比較與既有雙片在裸包實際成檔通過。
+
+`integrated-workflow.js` 在裸包同一頁實走：拍點→動作→片段關聯→既有雙片 VS→比較歷史→選定分享→完整備份→空 context 還原。動作狀態仍由人決定；分享排除 Move／marker.moveId／beatGrid／未選正文，完整備份保留它們，選定 take／recipe／VS 閉包正確。還原資料正規化相同、沒有夾帶影片，VS 另經完整 FFmpeg 解碼。測試停用相機／麥克風 API，不涉及外部傳送。
+
+原生 CLI 真正離頁／接受 beforeunload 再返回，trusted pagehide 與同步釋放相機均成立；兩個以上已提交 chunks 恢復成 interrupted，原片可播／下載／全解碼，舊片保持。SW 以共用含 beats.js 白名單及原生 installing／waiting 生命周期拒絕損壞新版，錄影／匯出中不重載，全部舊分頁關閉才啟用，保留原資料及無關 cache。產品外 file:// 重播本版 60 秒 MP4、WebM、校正版均 ended／1280×720／error=0／dropped=0／audio decoded bytes>0；靜音 headless 不代替真人聽感。
+
+### 筆記規模觀察
+
+`notes-scale.js` 可在相同隔離設定呼叫，第二參數為 100／1000／5000，預設 1000。課程／動作／標記／take／配方／媒體描述各相同筆數；沒有實際影片。每組全新資料庫、原生交易保存後重載；輸入起至產品重繪後兩個影格量測，結果與空白／唯一命中／無命中相符，revision／內容指紋不變。
+
+| 每種資料筆數 | JSON bytes | 重載就緒上界 ms | 展開結果上界 ms | 無命中／唯一／空白搜尋 ms |
+| --- | --- | --- | --- | --- |
+| 100 | 104234 | 60.8 | 62.7 | 28.5／29.9／27.9 |
+| 1000 | 1040234 | 100.5 | 183.1 | 26.6／29.6／94.7 |
+| 5000 | 5200234 | 473.7 | 619.8 | 32.5／29.8／663.5 |
+
+這是一次本機樣本與完整渲染上界，包含兩個影格，非持續壓力／低階手機／所有表同時達格式上限的承諾；不因此修改產品品質門檻或引入搜尋服務。
+
+上述是可重現的桌面合成工程證據。實體相機光學與聲音、真人五人／讀屏／聽感、另一裝置與外部傳檔、當前 Safari、手機及發布主機仍未驗證；iPhone 暫緩。最終人工審查、合併與發布核准各自保留，原驗收票不關閉。後續文件／測試提交不改 runtime，乾淨最終包的來源與校驗以 PR 及 release.json 為準。
