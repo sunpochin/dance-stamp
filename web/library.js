@@ -104,6 +104,15 @@ export function mergeBackup(local, incoming) {
 const backupRelations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {} };
 const rowKey = (table, id) => table + ':' + id;
 const canonical = row => JSON.stringify(row);
+/** @param {import('./types').Recipe[]} recipes */
+function recipeSettingsByTake(recipes) {
+  const groups = new Map();
+  for (const { id: _id, takeId, ...settings } of recipes) {
+    const group = groups.get(takeId) || []; group.push(canonical(settings)); groups.set(takeId, group);
+  }
+  for (const group of groups.values()) group.sort();
+  return groups;
+}
 function rewriteBackupRow(row, table, ids) {
   const next = { ...row, id: ids[table].get(row.id) || row.id };
   for (const [field, parent] of Object.entries(backupRelations[table])) if (row[field] !== undefined) next[field] = ids[parent].get(row[field]) || row[field];
@@ -142,6 +151,8 @@ export async function planBackupImport(local, source, signal) {
     const fork = (table, id) => { const key = rowKey(table, id); if (!forks.has(key)) { forks.add(key); changed = true; } };
     for (const asset of incoming.assets) if (asset.kind === 'reference' && asset.videoId && forks.has(rowKey('assets', asset.id))) fork('videos', asset.videoId);
     for (const artifact of incoming.exports) if (forks.has(rowKey('exports', artifact.id))) fork('assets', artifact.assetId);
+    // 開啟入口以 take 選配方；只複製 recipe 會讓新校正永遠被第一份舊配方遮住。
+    for (const recipe of incoming.recipes) if (forks.has(rowKey('recipes', recipe.id))) fork('takes', recipe.takeId);
     for (const table of tables) for (const row of incoming[table]) {
       if (Object.entries(backupRelations[table]).some(([field, parent]) => row[field] !== undefined && forks.has(rowKey(parent, row[field])))) fork(table, row.id);
     }
@@ -161,12 +172,15 @@ export async function planBackupImport(local, source, signal) {
     return videoSignatures.get(id);
   };
   const copies = Object.fromEntries(tables.map(table => [table, new Map()]));
+  const recipeGroups = recipeSettingsByTake(incoming.recipes), existingRecipes = recipeSettingsByTake(existingData.recipes);
   for (const table of tables) {
     const reserved = new Set(incoming[table].map(row => row.id));
     for (const row of incoming[table]) {
       if (!forks.has(rowKey(table, row.id))) continue;
       const rewritten = rewriteBackupRow(row, table, copies);
       let referenceFingerprint = table === 'videos' ? await videoSignature(row.id) : [];
+      // 相同 take 的不同備份校正需要不同副本；不靠 recipe 的新 ID 反推，避免循環相依。
+      if (table === 'takes') referenceFingerprint = recipeGroups.get(row.id) || [];
       if (table === 'assets' && 'kind' in row && row.kind === 'vs') {
         const origins = [];
         // 複製配方不能誤取本機舊 VS；描述含來源版本，沒有複製影片 bytes。
@@ -183,6 +197,8 @@ export async function planBackupImport(local, source, signal) {
         if (reserved.has(id)) continue;
         const old = existing[table].get(id);
         if (old && canonical(old) !== canonical({ ...rewritten, id })) continue;
+        // 已匯入的校正若被編輯，原 take 也要保留；不可再往同一 take 塞第二份不可選的 recipe。
+        if (old && table === 'takes' && canonical(existingRecipes.get(id) || []) !== canonical(recipeGroups.get(row.id) || [])) continue;
         copies[table].set(row.id, id); reserved.add(id); assigned = true; break;
       }
       if (!assigned) throw new Error('無法安全配置副本 ID；原資料保留，沒有匯入。');

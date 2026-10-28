@@ -140,3 +140,7 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 ### 開啟 take 失敗時保留舊校正
 
 使用乾淨隔離 session 執行 `playwright-cli --session dance-take-recovery run-code --filename tests/browser/take-open-failure.js`。此回歸以合成影片驗證壞檔與載入中取消不混用另一段的校正或下載連結、缺片後可重開已存 take，以及原配方仍可完成匯出。新 session 仍用上方同一份 browser.json 與本機測片。
+
+`interrupted-session.js` 用全新資料環境還原中斷 take，驗證人工重連與重複開啟不自動存片、明確保存才寫入，以及重開已存中斷片不重寫 Blob。以乾淨 session 執行 `playwright-cli --session dance-session run-code --filename tests/browser/interrupted-session.js`。
+
+`backup-recipe-copies.js` 驗證只有校正不同的備份也有可選 take、不同版本與已編輯副本各自保留、重匯冪等，以及實際匯出使用所選副本。以乾淨 session 執行 `playwright-cli --session dance-recipe-copies run-code --filename tests/browser/backup-recipe-copies.js`。
