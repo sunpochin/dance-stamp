@@ -3,6 +3,8 @@
 
 2026-10-29：#58 資料／主機保護與 #62 Safari 有界音訊的本次整合、14份執行資源核對及驗證界線見[整合證據](evidence/p0-safari-reliability-integration.md)。下方歷史媒體數據保持原受測來源，不移記為整合 head 新測。
 
+2026-10-29 解鎖後的真正Safari續測見[整合版與起點候選原生結果](evidence/issue-3-bounded-audio.md#整合版續測與起點等待候選)：e0acf88半速仍被護欄拒絕、30秒完整耗時未量測；三份私有對照尾端未過，後續f88c28d候選另有原生等待逾時。不再等待已完成的解鎖前置，也不把單元／成檔或原型改善當完整驗收。
+
 核心不用 FFmpeg 或 Playwright 套件；兩者只供開發測試。使用本機 FFmpeg（lavfi、libx264、AAC）與 Bun 1.4.4：
 
 ```sh
