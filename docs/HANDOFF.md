@@ -1,6 +1,14 @@
 <!-- 檔案用途：關機前保存可接手的 Web 工作節點。所在層：交接文件。主要關聯：WEB_PREVIEW.md、MEDIA_PROBE.md、evidence/web-preview.md。 -->
 # 關機交接 · 2026-10-27
 
+## 2026-10-28 #9 原生錄影背景補查
+
+本輪分支 `codex/issue-9-native-background` 從 main `e9e154a` 接續 PR #42 `65d3b40`，只擴充專用測試工具與文件，產品仍為 `2f1ec6b3335cd790`。`launch-native-browser.ts --capture` 綁定合成相機；新的 `capture-background.js` 嚴格測三階段真實切分頁與中斷／重錄保留，重現步驟見 MEDIA_PROBE.md。
+
+首輪因 Mac 再次鎖定而在前景前置檢查逾時，實際桌面三階段錄影 gate 尚未驗證，已請使用者解鎖。其間以 headless Chrome 診斷同一腳本，修正測試自身讀 Blob 被 CSP 拒絕的問題，沒有改產品政策；三階段停止／不自動重啟、中斷片 VS、15 秒重錄及重開後三份原片完整雜湊保留通過。三份實際下載檔皆核對磁碟雜湊、FFmpeg 全片解碼、產品外完整播放；VS 有 AAC 音軌。這些是無視窗診斷，不代替桌面背景或硬體相機，也不把 #8 成功或 342 項既有測試算成 #9 通過。
+
+解鎖後用正常 launcher／新 profile 重跑嚴格腳本，再核對該輪下載檔，詳見 [#9 證據](evidence/issue-9-capture-recovery.md)。原產品預覽及其他任務不動；iPhone 暫緩。一般 PR 不代表票已結案，也沒有合併／發布授權。
+
 ## 2026-10-28 #8 原生背景補查
 
 PR #31 已合併；本輪來源為 main `e9e154a`、靜態 `2f1ec6b3335cd790`。使用者解鎖 Mac 後，Chrome 156.0.8078.49 已通過真正背景／前景及明確重啟；補強後觀察到 trusted 事件、背景 callback=0、回前景 500ms 不自播、重新播放從 A＝1 秒且同時最多一個 callback。提供專用原生 Chrome 啟動工具，操作見 MEDIA_PROBE.md。產品 bytes 未變，PR #40 的一次歷史成功與解鎖前逾時分版本保留。詳見 [證據與重現步驟](evidence/issue-8-practice-loop.md)。

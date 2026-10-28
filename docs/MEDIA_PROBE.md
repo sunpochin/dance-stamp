@@ -91,11 +91,19 @@ npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native run-c
 npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native close
 ```
 
-檢查真正的 `### Result` 且沒有 `### Error`，再回終端 A 按 Ctrl+C，只停止本工具建立的 Chrome。每輪重跑都重新啟動工具／新 profile，不接管日常瀏覽器。runner 沿用同一份嚴格函式並回報受測靜態／Chrome 版本；callback 觀察只涵蓋此桌面原生影格路徑，RAF 降級另跑上面的測試。main `2f1ec6b3335cd790` 已於解鎖後通過，鎖定期間與 PR #40 的歷史結果分開記錄，未宣稱其他裝置通過。
+檢查真正的 `### Result` 且沒有 `### Error`，再回終端 A 按 Ctrl+C，只停止本工具建立的 Chrome。每輪重跑都重新啟動工具／新 profile，不接管日常瀏覽器。runner 沿用同一份嚴格函式並回報受測靜態／Chrome 版本與 User-Agent；若含 `HeadlessChrome`，只能列無視窗診斷，不算實際桌面前景／背景 gate。callback 觀察只涵蓋此桌面原生影格路徑，RAF 降級另跑上面的測試。main `2f1ec6b3335cd790` 已於解鎖後通過，鎖定期間與 PR #40 的歷史結果分開記錄，未宣稱其他裝置通過。
 
 `practice` 的跳轉重疊以當下原生 `seeking` 屬性計數；取消後晚到的 `seeked` 不等於瀏覽器仍在跳轉，零重疊門檻不變。`practice-range-change.js` 驗證循環中把 A 往後移會在一秒內重新定位，逆序 A/B 則停止。以同一份 browser.json 開乾淨 session，再執行 `playwright-cli --session dance-range run-code --filename tests/browser/practice-range-change.js`。
 
 ## #9 錄影與恢復
+
+真正分頁背景驗收使用 `capture-background.js`。先依本文件建立合成素材並解鎖桌面，再於終端 A 執行 `bun --no-env-file scripts/launch-native-browser.ts --capture`；若要指定 Chrome 路徑，放在 `--capture` 後。缺少 `output/media-probe/camera.y4m` 時工具拒絕啟動，不能拿真人相機替代。終端 B 沿用上節的 `native-controller.json` 與 `native-background-run.js` 指令，每輪用新 profile；本機埠以實際預覽服務為準。
+
+這支測試用真正的 sibling tab 產生 trusted visibility 事件，分別檢查預覽、倒數與錄影：背景同步釋放 tracks／停止示範，回前景不自動開相機或播放。錄影至少兩塊 chunks 實際提交後才切走；返回後重新開啟 interrupted 片段、產生 VS、明確重錄到 B，最後重新載入資料庫，比對舊片／中斷片／重錄片的 metadata、配方及完整 Blob SHA256。它不注入 visibility／stop 事件，也不修改 `document.hidden`。
+
+`noDefaults` 連線不設定 Playwright 的下載攔截，因此測試只在自己瀏覽器的 default context 設定 [Chrome 原生下載](https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-setDownloadBehavior)。實際點產品下載連結，檔案依 GUID 寫入本輪新建的 ignored `output/native-download-*`。`### Result` 的 `downloads` 列出 GUID、建議檔名、容器 MIME、bytes 與 Blob SHA256；本機目錄見 `output/native-browser.local.json`。原生 completed 事件仍不足以證明檔案存在：必須另核對磁碟 GUID 檔的 bytes／SHA256，依實際建議副檔名建立本機播放副本，再按下節方法完整解碼及用 `download-playback.js` 於產品外播至 ended。不得把 GUID 檔直接改成與容器不符的副檔名。原片與本機紀錄均不上傳。
+
+若桌面鎖定或任何步驟失敗，保留錯誤並停止本輪專用 Chrome／控制端，不可跳過 gate 或算成錄影通過。當前執行狀態見 [#9 證據](evidence/issue-9-capture-recovery.md)；合成相機無法證明實體指示燈、真實硬體或鎖屏／來電行為。
 
 `capture.js` 用乾淨的合成相機 session 驗證拒絕／占用、後鏡頭錯誤、倒數取消、短錄影拒絕、中斷與兩種 quota，以及缺號／壞檔 chunks 不刪除、不冒充成功。請使用既有 browser.json，不能換成真人相機或私人影片：
 
