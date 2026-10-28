@@ -466,3 +466,7 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 排除整檔 decodeAudioData＋僅信 video.duration 的方案：容器資訊不足以限制 native 解碼配置，且長片會配置全部 PCM。也排除 ffmpeg.wasm、雲端轉碼、換輸出副檔名及固定裝置補償：代價大或不能處理已知來源問題。採 [WebCodecs AAC 封包／設定契約](https://w3c.github.io/webcodecs/aac_codec_registration.html)與原生 AudioDecoder，依 [WebKit 的實作說明](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/)先檢查支援，實際能力仍以完整下載檔驗證。
 
 單元、瀏覽器與版本綁定的原生結果見 [Safari 音訊候選證據](docs/evidence/issue-3-bounded-audio.md)。需要 Claude Code 或使用者獨立審查；#1／#3／#11 與未測 gates 保留，不合併或發布。
+
+審查續修保留兩個不同時間邊界：MP4 正常 edit 的呈現起點與 AAC 封包解碼起點。前置空 edit 期間保持零 PCM；提早解碼的封包仍供重疊窗暖機，但不得複製進正常 edit 之前的靜音。排除只平移所有封包而忽略 edit 下界的方案，因為它會把已丟棄的來源聲音洩入空白。
+
+BufferSource 的 AudioContext 時鐘不會等待 `video.play()` 或視訊短暫停滯，因此有音訊的相容匯出逐次比較實際音訊起點後的經過時間與既有老師時間線；沿用 RECORD_COMPARE 的 G2 限制，超標先拒絕，且在片尾成功判定之前檢查。音訊 context 未運作也拒絕，前次 VS 與原片保留。一般預覽、無聲來源與 Chrome 元素音訊仍走原時間線。選擇拒絕已失同步的輸出，暫不增加另一套速率控制、硬 seek 或固定延遲補償；這項防護不宣稱修好了原生 Safari 的短片覆蓋或長片品質，完整矩陣仍待重驗。

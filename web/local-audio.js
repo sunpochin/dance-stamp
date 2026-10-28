@@ -93,7 +93,7 @@ export async function readAudioTrack(file, signal) {
   // 只接受自包含資料，不可依外部 URL 讀取來源或將壞 offset 當音訊。
   const dref = one(children(v, one(minf, 'dinf')), 'dref'), dr = need(dref, 8);
   require(u32(v, dr + 4) === 1); const url = one(boxes(v, dr + 8, dref.end), 'url '); require(url.end - url.start === 4 && u32(v, url.start) === 1);
-  let shift = 0, audioEnd = Infinity;
+  let shift = 0, audioStart = 0, audioEnd = Infinity;
   const edts = one(track, 'edts', true);
   if (edts) {
     const elst = one(children(v, edts), 'elst'), p = need(elst, 8), version = v.getUint8(p); require(version <= 1);
@@ -103,7 +103,7 @@ export async function readAudioTrack(file, signal) {
       const q = p + 8 + i * stride, duration = version ? u64(v, q) : u32(v, q), at = version ? Number(v.getBigInt64(q + 8)) : v.getInt32(q + 4);
       require(Number.isSafeInteger(at) && u32(v, q + stride - 4) === 0x10000);
       if (at === -1) { require(i === 0 && n === 2); delay = duration / movieScale; }
-      else { require(at >= 0 && i === n - 1); shift = delay - at / scale; audioEnd = delay + duration / movieScale; }
+      else { require(at >= 0 && i === n - 1); shift = delay - at / scale; audioStart = delay; audioEnd = delay + duration / movieScale; }
     }
   }
   const sz = one(stbl, 'stsz'), sp = need(sz, 12), fixed = u32(v, sp + 4), n = u32(v, sp + 8);
@@ -131,7 +131,7 @@ export async function readAudioTrack(file, signal) {
     require(media.some(b => begin >= b.start && offset <= b.end));
   }
   require(index === n);
-  return { config, sizes, offsets, times, audioEnd: Math.min(audioEnd, times[n]) };
+  return { config, sizes, offsets, times, audioStart, audioEnd: Math.min(audioEnd, times[n]) };
 }
 
 // timeout 與取消涵蓋原生解碼等待；close() 才能真正取消 queue，不能只有 Promise.race。
@@ -162,7 +162,8 @@ export async function decodeLocalAudio(file, context, start, duration, signal) {
         try {
           if (signal.aborted || failure) return;
           require(data.sampleRate === rate && data.numberOfChannels === channels && data.numberOfFrames > 0 && data.numberOfFrames <= 1024);
-          const position = Math.round((data.timestamp / 1e6 - start) * rate), from = Math.max(0, -position), to = Math.min(data.numberOfFrames, frames - position, Math.round((track.audioEnd - start) * rate) - position);
+          // 前置封包只供解碼器暖機；空 edit 尚未結束前，不能把被丟棄的來源音訊寫進靜音區。
+          const position = Math.round((data.timestamp / 1e6 - start) * rate), from = Math.max(0, -position, Math.round((track.audioStart - start) * rate) - position), to = Math.min(data.numberOfFrames, frames - position, Math.round((track.audioEnd - start) * rate) - position);
           if (to > from) for (let channel = 0; channel < channels; channel++) {
             const pcm = new Float32Array(data.numberOfFrames); data.copyTo(pcm, { planeIndex: channel, format: 'f32-planar' });
             buffer.getChannelData(channel).set(pcm.subarray(from, to), position + from);

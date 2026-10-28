@@ -4,14 +4,15 @@ import { audioBudget, audioReady, decodeLocalAudio, readAudioTrack, safariAudio 
 
 const be = (...values: number[]) => Buffer.concat(values.map(n => { const b = Buffer.alloc(4); b.writeUInt32BE(n >>> 0); return b }))
 const box = (name: string, ...data: Uint8Array[]) => { const body = Buffer.concat(data); return Buffer.concat([be(body.length + 8), Buffer.from(name), body]) }
-function fixture(options: {silent?: boolean, samples?: number, packet?: number, edit?: number, codec?: number, offset?: number, fragment?: boolean} = {}) {
+function fixture(options: {silent?: boolean, samples?: number, packet?: number, edit?: number, delay?: number, codec?: number, offset?: number, fragment?: boolean} = {}) {
   const n = options.samples ?? 12, packet = options.packet ?? 4, edit = options.edit ?? 1024
   const mdat = box('mdat', Buffer.alloc(n * Math.min(packet, 4))), hdlr = box('hdlr', be(0, 0), Buffer.from(options.silent ? 'vide' : 'soun'))
   const asc = Buffer.from([options.codec ?? 0x11, 0x90]), esds = box('esds', be(0), Buffer.from([3, 22, 0, 1, 0, 4, 17, 0x40, 0x15]), Buffer.alloc(11), Buffer.from([5, 2]), asc)
   const entry = Buffer.alloc(28); entry.writeUInt16BE(1, 6)
   const stbl = box('stbl', box('stsd', be(0, 1), box('mp4a', entry, esds)), box('stts', be(0, 1, n, 1024)), box('stsc', be(0, 1, 1, n, 1)), box('stsz', be(0, packet, n)), box('stco', be(0, 1, options.offset ?? 8)))
   const minf = box('minf', box('dinf', box('dref', be(0, 1), box('url ', be(1)))), stbl)
-  const trak = box('trak', box('edts', box('elst', be(0, 1, n * 1024 - edit, edit, 0x10000))), box('mdia', box('mdhd', be(0, 0, 0, 48000, n * 1024, 0)), hdlr, minf))
+  const edits = options.delay ? be(0, 2, options.delay, -1, 0x10000, n * 1024 - edit, edit, 0x10000) : be(0, 1, n * 1024 - edit, edit, 0x10000)
+  const trak = box('trak', box('edts', box('elst', edits)), box('mdia', box('mdhd', be(0, 0, 0, 48000, n * 1024, 0)), hdlr, minf))
   const moov = box('moov', box('mvhd', be(0, 0, 0, 48000, n * 1024, 0)), trak, ...(options.fragment ? [box('mvex')] : []))
   return new Blob([mdat, moov])
 }
@@ -73,6 +74,20 @@ test('固定片段 PCM、每批最多八包、依來源 edit 時戳裁入；重�
   expect(audit.framesClosed).toBe(audit.submitted); expect(audit.closed).toBe(1)
   await decodeLocalAudio(fixture({ edit: 0 }), context, 0.02, 0.1, signal())
   expect(audit.closed).toBe(2); expect(audit.allocations.length).toBe(2)
+})
+test('前置空 edit 的靜音不能混入已被正常 edit 丟棄的 AAC，片段從空白中途開始亦同', async () => {
+  const { context, audit } = environment(), file = fixture({ samples: 120, edit: 48000, delay: 96000 })
+  // 來源前一秒雖須送解碼器恢復狀態，呈現時間兩秒前仍必須完全無聲。
+  for (const start of [0, 1.5]) {
+    const buffer = await decodeLocalAudio(file, context, start, 2.5 - start, signal())
+    for (const channel of [0, 1]) {
+      const pcm = buffer!.getChannelData(channel), boundary = (2 - start) * 48000
+      expect(pcm.subarray(0, boundary).every(x => x === 0)).toBe(true)
+      expect(pcm[boundary]).toBe(0.25)
+      expect(pcm[boundary + 1024]).toBe(0.25)
+    }
+  }
+  expect(audit.closed).toBe(2); expect(audit.framesClosed).toBe(audit.submitted)
 })
 test('預先取消、解碼取消、原生錯誤與輸出規格不符都 close，壞輸出不冒充靜音', async () => {
   const aborted = new AbortController(); aborted.abort()

@@ -229,7 +229,7 @@ async function align(value, elapsedMs, signal) {
   await Promise.all([seek(reference, target.referenceMs / 1000, signal), seek(self, target.selfMs / 1000, signal)]);
   draw(value);
 }
-async function timeline(value, signal, exporting, captureFrame = () => {}, startOutput = () => {}) {
+async function timeline(value, signal, exporting, captureFrame = () => {}, startOutput = () => {}, outputAudioTime = () => NaN) {
   const { durationMs } = comparison(value);
   const first = positions(value, 0);
   reference.playbackRate = value.rate; self.playbackRate = 1; self.muted = true;
@@ -277,6 +277,9 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
     const tick = () => {
       if (signal.aborted) return aborted();
       const elapsedMs = (reference.currentTime * 1000 - first.referenceMs) / value.rate;
+      // BufferSource 不會跟著影片等 play 或停滯；沿用 G2 的 100ms 限制，超標先拒絕，不能保存錯位影片。
+      const audioElapsedMs = outputAudioTime();
+      if (exporting && !Number.isNaN(audioElapsedMs) && Math.abs(audioElapsedMs - elapsedMs) > 100) return finish(new Error('音訊與畫面偏移超過 100ms，未完成合成；請降低負載後重試。'));
       if (elapsedMs >= durationMs - 20 || (reference.ended && elapsedMs >= durationMs - 100)) return finish();
       if (reference.ended || self.ended || reference.paused || self.paused) return finish(new Error('播放提前中斷，未完成合成。'));
       const now = performance.now();
@@ -540,7 +543,7 @@ $('play').addEventListener('click', () => operation(async signal => {
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
-  const value = recipe(); let stream, recording, blob, buffer, bufferSource, destination;
+  const value = recipe(); let stream, recording, blob, buffer, bufferSource, destination, audioStartedAt;
   const muted = reference.muted;
   await saveCurrentRecipe();
   try {
@@ -579,14 +582,15 @@ $('export').addEventListener('click', () => operation(async signal => {
         });
         await audioReady(nativeStart, signal); abortIfNeeded(signal);
         // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
-        bufferSource?.start(audio.currentTime + 0.01);
+        audioStartedAt = audio.currentTime + 0.01;
+        bufferSource?.start(audioStartedAt);
       } else {
         audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
         recording = record(stream);
       }
       recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
       status('合成中，請保持此頁在前景。取消後仍可重試。');
-    });
+    }, () => !bufferSource ? NaN : audio.state === 'running' ? Math.max(0, (audio.currentTime - audioStartedAt) * 1000) : Infinity);
     blob = await recording.stop();
     diagnostics.export = { ...measured, mime: blob.type, bytes: blob.size, requestedWidth: 1280, requestedHeight: 720, recipe: value };
     const temporary = URL.createObjectURL(blob), validationVideo = document.createElement('video');
