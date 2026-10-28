@@ -91,3 +91,16 @@ test('動作庫的分享仍不帶動作，v1 合法分類升 v2 並保持跨版�
   expect((await planBackupImport(imported.data, shared)).added).toBe(0)
   expect(target).toEqual(targetBefore)
 })
+
+test('完整 v2 備份保留分類及拍點，分享仍排除老師與 take 的拍點快照', () => {
+  const local = sample(), grid = { bpm: 120, firstBeatMs: 350, countInBeats: 4 }
+  local.videos[0].beatGrid = grid; local.takes[0].beatGrid = { ...grid, bpm: 124 }
+  const restored = validateBackup(local)
+  expect(restored.videos[0].teacher).toBe(local.videos[0].teacher)
+  expect(restored.videos[0].beatGrid).toEqual(grid)
+  expect(restored.takes[0].beatGrid).toEqual(local.takes[0].beatGrid)
+  const selected = selection(local); selected.exportIds = [local.exports[0].id]; selected.fields = ['beatGrid']
+  const shared = createShare(local, selected)
+  expect(shared.videos[0]).not.toHaveProperty('beatGrid'); expect(shared.takes[0]).not.toHaveProperty('beatGrid')
+  expect(local.takes[0].beatGrid.bpm).toBe(124)
+})

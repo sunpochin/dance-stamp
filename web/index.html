@@ -37,7 +37,7 @@
       <label>開始（秒）<input id="start" type="number" min="0" value="0" step="0.001"></label>
       <label>結束（秒）<input id="end" type="number" min="0" value="15" step="0.001"></label>
       <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
-      <label>倒數<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label>
+      <label>秒倒數（未選拍數時）<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label>
     </div>
     <label>相機方向<select id="camera-facing"><option value="user">前鏡頭／桌面相機</option><option value="environment">後鏡頭（裝置需支援）</option></select></label>
     <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範鏡像</label><label><input id="self-mirror" type="checkbox">自拍輸出鏡像</label><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
@@ -52,11 +52,19 @@
 <video id="reference" aria-label="老師示範影片播放器" aria-describedby="audio-status" controls playsinline preload="metadata"></video><button type="button" id="reference-start" disabled>老師當下畫面設為起點</button><button type="button" id="reference-end" disabled>老師當下畫面設為結尾</button></div>
     <div><h2>右 · 我的練習</h2><video id="self" aria-label="我的練習影片播放器" controls playsinline muted preload="metadata"></video><div id="preview-frame" class="preview-frame" hidden><video id="preview" aria-label="相機即時取景預覽" playsinline muted hidden></video><div class="body-guide" aria-hidden="true"></div></div><button type="button" id="self-start" disabled>我的當下畫面設為起點</button></div>
   </section>
+  <p id="beat-position">尚未設定拍點；仍可使用秒數與秒倒數。</p>
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
     <div class="settings"><label>課程老師<input id="video-teacher" maxlength="200"></label><label>課程舞風<input id="video-style" maxlength="200"></label><label>課程日期<input id="video-date" type="date"></label></div><p class="hint">「儲存標題」也會保存老師、舞風與日期；日期由你填寫，不以檔案時間猜測。</p>
     <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
     <p id="pitch-status" class="hint" role="status"></p>
+    <details><summary>手動 BPM 與八拍</summary>
+      <p class="hint">BPM 以原速音樂為準，第一拍是老師原片的秒數。保存後才套用；不確定時可不設定。八拍是從第一拍起依序 1–8，不自動辨識音樂。</p>
+      <div class="settings"><label>原速 BPM（20–300）<input id="beat-bpm" type="number" min="20" max="300" step="any"></label><label>第一拍（原片秒數）<input id="beat-first" type="number" min="0" step="0.001"></label><label>錄影倒數<select id="beat-count-in"><option value="0">使用上方秒倒數</option><option value="4">4 拍（含提示音）</option><option value="8">8 拍（含提示音）</option></select></label></div>
+      <div class="actions"><button id="beat-set-first" type="button">老師當下畫面設為第一拍</button><button id="beat-save" type="button">保存拍點</button><button id="beat-cancel" type="button">取消拍點編輯</button><button id="beat-clear" type="button">移除拍點，使用秒數</button></div>
+      <p id="beat-status" class="hint" role="status">未設定拍點。</p>
+      <p class="hint">拍數倒數依上方錄影速度放慢，老師停在 A 等倒數完成；不會自動移動 A 或改原片。錄影前請先保存或取消編輯。</p>
+    </details>
     <canvas id="practice-canvas" width="960" height="540" hidden aria-label="鏡像練習畫面"></canvas>
     <div class="actions"><button type="button" id="set-a">當下設為 A</button><button type="button" id="set-b">當下設為 B</button><button type="button" id="loop">開始 A–B 循環</button><button type="button" id="mark">標記當下時間</button></div>
     <p id="loop-status" class="hint">A–B 使用上方片段起訖；練習不限制影片長度，錄影最多 60 秒。</p>

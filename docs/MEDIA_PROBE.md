@@ -300,3 +300,10 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 以專用短片及全新隔離無視窗 session 執行 `tests/browser/share.js`；沿用 `make-export-fixtures.ts` 的八秒 reference／self，另建立兩秒同名裁切片及同名不同內容候選。下載路徑與完整重現見 [#18 證據](evidence/issue-18-sharing.md)。測試會實際下載分享／完整備份，在其他新 contexts 選檔、預覽、重建 ID、原子匯入、人工確認逐側重連與跳片段；用 stub 測系統分享，禁止實際寄件。
 
 包含私人欄位預設排除、明確加入、最小閉包、文字／JSON 預覽、下載失敗、quota／交易內取消、真實多分頁 revision、重匯冪等與衝突另存、同名／裁切／VS／壞檔；既有 `backup-recipe-copies.js` 與 migration／鎖回歸分開跑。這是短片功能與資料保護回歸，不重跑未變的長片／效能矩陣，不操作桌面或雲端。另一實體裝置及 Google Drive／Dropbox／iCloud Drive／AirDrop 保留未驗證。
+
+
+## #19 手動拍點與合成提示音
+
+執行 `bun --no-env-file scripts/make-beat-fixtures.ts` 產生 ignored `output/beats/reference.mp4`（20 秒 testsrc／120 BPM／第一拍 0.35 秒／660Hz），不覆寫既有素材。以獨立隨機 localhost port、乾淨 headless Chrome session、`--mute-audio` 執行 `tests/browser/beats.js`；沿用本文件 Playwright CLI `run-code --filename` 方法。腳本只用傳入 page 的 origin，不固定或占用其他聊天埠，測片、備份及 logs 只留本機。
+
+`beats.js` 測 UI、嚴格輸入、保存失敗重試、取消／重匯、乾淨 context 還原、三速度來源拍號，以及 OfflineAudioContext 提示音 samples。`beats-capture.js` 用頁內合成 canvas 相機，不呼叫實體相機／麥克風，量測倒數、錄影鎖及取消／中斷。既有 `storage.js` 的 migration 腳本可在專用 runner 將硬編碼測試 origin 替換為自己的 origin 執行。長片／效能或有視窗操作按當次派工的共用互斥鎖規則進行，不搶刪他人鎖。
