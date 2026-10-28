@@ -36,3 +36,17 @@
 本輪未啟動瀏覽器或本機測試主機，未取得或改動其他聊天持有的共用媒體鎖；沒有操作 Safari、桌面、相機／麥克風、媒體、效能矩陣或日常瀏覽器資料。真正部分安裝中斷／候選快取 API 故障的瀏覽器演練、上述雙分頁、真實低空間／回收、實體飛航與完整支援範圍仍未驗證；主機或程序強制中斷也未測。沒有清庫或以 cache 修復代替資料還原。
 
 Claude Code 或使用者最終審查、實體／跨裝置驗收及發布核准仍待完成，iPhone 暫緩；本輪不要求例行選擇、不合併或發布，#13 保持開啟。
+
+
+## 後續整合：真正雙舊頁 waiting／activation
+
+新增 `tests/browser/offline-multi-tab.js`，沿用本專案 `serve-update.ts` 與 `db129e273cf0039b` 真正 worker，不複製安裝／清理演算法。每次新建隔離 Chromium context，明確禁止 getUserMedia／getDisplayMedia；測試只建立合成動作筆記，不播放影片或開相機。這是本節的後續補驗，不把前述 #60 handler 單元測試改記成原生 lifecycle 成功；精確提交與提交後結果由交付 PR 綁定。
+
+1. 第一頁完成舊版安裝後重開；保存一份合成動作筆記與無關 cache sentinel。第二頁在更新前就由同一舊 worker 控制，兩頁分別保存 controller 物件及本頁 sentinel。
+2. 請求真正 `-next` 候選，等產品顯示原生 waiting 訊號，再以 MessageChannel 向 active／waiting 各查實際版本。確認兩舊頁都仍由基線控制，候選版本正確。
+3. 關閉第一頁；第二頁透過產品表單修改並保存同一筆動作，controller／本頁 sentinel 不變。再開第三頁做新導航，仍讀到舊 active 與 waiting 候選。保存及新導航跨過實際事件循環，不用固定睡眠假裝 waiting 仍存在。
+4. 關閉剩餘兩個舊版控制頁後重開，active 才是 `-next`、waiting 已空；完整筆記資料與 revision 逐 JSON 相同，無關 cache sentinel 仍在。各受測頁相機／麥克風／畫面擷取呼叫為0。
+
+驗證開發的前兩輪在候選尚未進入 waiting 時就讀版本，檢查正確拒絕；改以產品真正 waiting 訊號作屏障後仍核對原生 active／waiting 版本及 controller，沒有放寬斷言。前兩份失敗、修正後候選及提交後原始結果分開保留本機 ignored output。
+
+這補上「第一個舊頁關閉，另一舊頁繼續阻止啟用並能操作」的桌面 Chromium 證據。不是 Safari、另一實體裝置、低空間／程序強制中斷或媒體驗收；各自 gates 仍保留。原 `offline-update.js` 的單頁錄影／匯出演練維持其原版本與範圍，不因這支無媒體測試宣稱重新跑過媒體矩陣。

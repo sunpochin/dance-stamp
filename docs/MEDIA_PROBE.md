@@ -384,4 +384,4 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 ## 更新分頁數的證據邊界（2026-10-29 補查）
 
-前述原生 `offline-update.js` 在自己的新 context 只有一個受控制產品頁；欄位 `activatesOnlyAfterAllOldTabsClose` 只證明該受測頁關閉後啟用，不能延伸為已驗證另一個舊產品分頁仍開著的情境。#60 補部分安裝回滾及 install／activate 刪除邊界單元測試，沒有把 handler 成功當作真實多頁 lifecycle。獨立雙分頁仍待補驗，詳見[當前更新稽核](evidence/issue-13-update-audit.md)。舊媒體與 lifecycle 結果保留原版本，不能憑欄位名稱或本次整合自動提高證據範圍。
+前述原生 `offline-update.js` 在自己的新 context 只有一個受控制產品頁；欄位 `activatesOnlyAfterAllOldTabsClose` 只證明該受測頁關閉後啟用，不能延伸為已驗證另一個舊產品分頁仍開著的情境。#60 補部分安裝回滾及 install／activate 刪除邊界單元測試，沒有把 handler 成功當作真實多頁 lifecycle。後續以獨立 `offline-multi-tab.js` 補真正雙舊頁：關掉第一頁後，第二頁保存同一筆記、第三頁新導航仍使用舊版；剩餘舊頁全部關閉後才啟用候選，完整資料／revision 與無關 cache 保留，媒體 API 呼叫0。詳見[當前更新稽核](evidence/issue-13-update-audit.md)；精確提交與提交後執行結果由交付 PR 綁定。舊媒體與 lifecycle 結果保留原版本，不能憑欄位名稱或本次整合自動提高證據範圍。
