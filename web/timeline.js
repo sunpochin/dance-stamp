@@ -1,4 +1,14 @@
 /* 檔案用途：驗證 M0 比較配方與共同時間。所在層：純媒體邏輯。主要關聯：RECORD_COMPARE.md、main.js。 */
+/** @param {number} startMs @param {number | undefined} endMs @param {number} durationMs */
+export function validateMarkerRange(startMs, endMs, durationMs) {
+  // 表單與備份共用毫秒邊界，避免重連或匯入後出現另一套合法區間。
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0
+    || !Number.isSafeInteger(startMs) || startMs < 0
+    || (endMs !== undefined && (!Number.isSafeInteger(endMs) || endMs < 0))) throw new Error('標記時間必須是非負整數毫秒。');
+  if (endMs !== undefined && endMs <= startMs) throw new Error('標記終點必須晚於起點，不會自動交換。');
+  if ((endMs ?? startMs) > durationMs) throw new Error('標記超出影片長度。');
+}
+
 export function comparison(recipe) {
   const { startMs, endMs, rate, offsetMs, selfDurationMs } = recipe;
   if (![startMs, endMs, offsetMs, selfDurationMs].every(Number.isSafeInteger)

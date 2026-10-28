@@ -31,9 +31,11 @@ playwright-cli --session dance-check run-code --filename tests/browser/compariso
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-capture-fallback.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-appearance.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-save-failure.js
+playwright-cli --session dance-markers open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-markers run-code --filename tests/browser/markers.js
 ```
 
-分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線、20 次循環／晚到權限釋放／入口白名單，以及合成後練習音訊恢復、換片清除標記編輯、自拍替換失敗／取消後配方與輸出仍可保存。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
+分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線、20 次循環／晚到權限釋放／入口白名單，以及合成後練習音訊恢復、換片前保護標記草稿、取消後清除編輯、自拍替換失敗／取消後配方與輸出仍可保存。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
 
 `existing-comparison` 至 `comparison-appearance` 四組驗證既有雙片不用相機、選起點／鏡像／暫停拖曳／成檔、備份在全新 context 還原、兩側重連、明確保存、quota 原子回滾、真實分頁衝突，以及影格 callback／stream 清理。`comparison-recovery.js` 需先由 `existing-comparison.js` 下載備份；四種鏡像組合另以合成色條像素確認。
 
@@ -59,3 +61,22 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
+
+`markers.js` 請用全新 session，量實際顯示的 mediaTime，另驗證 CRUD、逆序拒絕、草稿保護與多分頁失敗恢復。此結果只適用受測素材，不是 G2 聲畫同步證據。
+
+## #8 練習循環
+
+各用乾淨 session，避免能力降級的 init script 影響其他驗收：
+
+```sh
+playwright-cli --session dance-practice open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-practice run-code "$(cat tests/browser/practice.js)"
+playwright-cli --session dance-fallback open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-fallback run-code "$(cat tests/browser/practice-fallback.js)"
+playwright-cli --session dance-background open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-background run-code "$(cat tests/browser/practice-background.js)"
+```
+
+前兩支驗證六組 20 次循環、呈現影格邊界、速度／鏡像、取消／失敗與 callback 清理，以及缺 API 時的 RAF／音高提示。合成 visibility 只驗證 handler。第三支必須真的 hidden，不通過不能以合成事件代替；當前環境仍未驗證真正背景，詳見 [#8 證據](evidence/issue-8-practice-loop.md)。新測試以頁面 origin 為入口，可配合不與其他程序衝突的本機埠。
+
+`practice` 的跳轉重疊以當下原生 `seeking` 屬性計數；取消後晚到的 `seeked` 不等於瀏覽器仍在跳轉，零重疊門檻不變。`practice-range-change.js` 驗證循環中把 A 往後移會在一秒內重新定位，逆序 A/B 則停止。以同一份 browser.json 開乾淨 session，再執行 `playwright-cli --session dance-range run-code --filename tests/browser/practice-range-change.js`。

@@ -38,6 +38,7 @@ export interface Elements {
   "video-title": HTMLInputElement;
   "save-title": HTMLButtonElement;
   "practice-rate": HTMLSelectElement;
+  "pitch-status": HTMLParagraphElement;
   "practice-mirror": HTMLInputElement;
   "practice-canvas": HTMLCanvasElement;
   "set-a": HTMLButtonElement;
