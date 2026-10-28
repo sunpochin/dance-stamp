@@ -463,3 +463,5 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 額外 G7 單輪量測綁 `2372aa4`，完整 60 秒合成上界 63,987ms、v5 通過；約一秒取樣的自有程序樹 RSS 最高 1,379,808 KiB，非精確 footprint／瞬時峰值／無洩漏或低記憶體壓力證明。AC 電源、熱警告查詢沒有實際溫度／電池數據。不能併入舊 24 組或當成整合新 head 的媒體量測，詳見 [#3 G7 紀錄](https://github.com/sunpochin/dance-stamp/issues/3)。
 
 後續整合 #61 `d763d5f` 的真正部分安裝／SIGKILL／同profile離線重開回歸，保留來源提交與實際worker／測試SHA；此證據使用已提交合成筆記與不可播放sentinel，不能承接媒體品質或寫入交易中斷。裸包白名單加入[強制中斷證據](docs/evidence/issue-13-forced-install.md)，使MEDIA_PROBE內連結在離線解壓包也能閱讀；只增加文件，不把需要自有程序控制的測試工具塞入產品runtime，也不重用舊42檔校驗。最終包檔數／SHA仍由提交後release.json與PR綁定。
+
+`verify-native-quota.ts` 補真正Chromium配額拒絕，而非再注入put例外；替換及新增交易均須trusted abort／QuotaExceededError、原生全庫／Blob完整保留，解除限制後同資料重試及同profile重開。31秒空間快取前置不能冒充拒絕證據，capture事件亦避免Promise先結束而漏收原生收據；原失敗輪保留。這項只新增工具與[匿名證據](docs/evidence/issue-13-native-quota.md)，不修改產品儲存行為，不宣稱UI／低磁碟／裝置通過；證據沿既有下載包白名單提供。

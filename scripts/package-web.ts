@@ -17,6 +17,8 @@ export const packageInputs = [
   'docs/evidence/issue-13-update-audit.md',
   // 操作說明連到強制中斷證據；裸包離線閱讀時也必須保留該文件，避免斷鏈。
   'docs/evidence/issue-13-forced-install.md',
+  // 原生容量拒絕也有獨立版本與限制，須隨指南提供，不能只保留操作連結。
+  'docs/evidence/issue-13-native-quota.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
   'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'docs/ai/harness-import.json',

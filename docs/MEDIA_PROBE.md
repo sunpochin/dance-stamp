@@ -209,6 +209,17 @@ done
 
 `offline-cache-failure.js` 另建乾淨 context，實際破壞一份公開 cache，再於真正 worker 注入 Cache.put quota、CacheStorage.open 與 Cache.match 例外。沿用本機白名單主機及 CLI `run-code --filename tests/browser/offline-cache-failure.js`；可用專用 port，無須相機設定。每種故障都要在線重開工作台、顯示離線不完整，合成筆記與 sentinel Blob 不變；解除故障後實際補存，再斷網重開。單元回歸另驗錯誤版本仍回 503、斷網缺檔失敗及安裝 quota 仍拒絕候選。這些注入不代替真實磁碟低空間；[版本證據](evidence/issue-13-cache-failure.md)獨立於先前大檔與真機矩陣。
 
+#### Chromium原生配額拒絕
+
+`verify-native-quota.ts` 以自有persistent Chromium與動態loopback主機，只載入產品儲存模組，驗替換／新增副本的原生QuotaExceededError、交易abort、完整資料保留、解除限制後重試及同profile正常重開。傳入已安裝工具，不安裝新的產品依賴：
+
+```sh
+bun run build
+bun --no-env-file scripts/verify-native-quota.ts "$playwright_core_index_mjs" "$chromium_executable"
+```
+
+工具原子取得共用媒體鎖，使用固定約11MiB不可播放合成Blob，不填滿硬碟。每次縮限先排除既有可用空間快取，再以真正trusted abort／QuotaExceededError判定，不能只看CDP或estimate；capture listener不改寫put或事件。失敗也解除自有override、關閉已知自有程序／主機並保留raw；未確認程序退出便不釋放自己的鎖。這是儲存函式證據，不是UI或真實低磁碟驗收；版本、失敗基線與限制見[原生配額證據](evidence/issue-13-native-quota.md)。
+
 #### 部分安裝時強制結束瀏覽器
 
 `forced-install-restart.ts` 是需程序控制的獨立 Bun 工具，使用既有 Playwright core 連到自己啟動的 Chromium；不新增產品依賴，不經 CLI 正常 close 來冒充強制終止。先用 Bun 1.4.4 建置，傳入已安裝瀏覽器與 Playwright core 的完整路徑：
