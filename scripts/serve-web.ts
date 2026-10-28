@@ -1,7 +1,8 @@
 /* 檔案用途：只提供白名單資源並支援明確啟用的媒體測試。所在層：開發與下載包本機入口。主要關聯：web-assets.ts、START_HERE.md、PHONE_MEDIA_CHECK.md。 */
-import { resolve } from 'node:path'
+import { lstatSync } from 'node:fs'
+import { relative, resolve, sep } from 'node:path'
 import { webPaths, webHeaders } from './web-assets'
-const root = resolve(import.meta.dir, '../dist/web')
+const base = resolve(import.meta.dir, '..'), root = resolve(base, 'dist/web')
 // 下載包的明確命令列設定優先；未指定時仍相容媒體工具的環境參數。
 const port = Number(process.argv[2] ?? process.env.DANCE_STAMP_PORT ?? 4173)
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('請指定 1–65535 的固定本機連接埠。')
@@ -20,7 +21,17 @@ const server = Bun.serve({
     const file = paths.get(new URL(request.url).pathname)
     // 明確白名單且只允許讀取，不能用此伺服器上傳影片或讀到 .env／Git。
     if (!file || !['GET', 'HEAD'].includes(request.method)) return new Response('Not found', { status: 404 })
-    return new Response(request.method === 'HEAD' ? null : Bun.file(resolve(root, file)), { headers: {
+    const target = resolve(root, file)
+    try {
+      // 網址白名單不能阻止檔案／父目錄被接到包外；每次讀取前都查，啟動後誤換連結也拒絕。
+      let path = base
+      for (const part of ['', ...relative(base, target).split(sep)]) {
+        path = resolve(path, part)
+        const stat = lstatSync(path)
+        if (path === target ? !stat.isFile() || stat.nlink !== 1 : !stat.isDirectory()) return new Response('Not found', { status: 404 })
+      }
+    } catch { return new Response('Not found', { status: 404 }) }
+    return new Response(request.method === 'HEAD' ? null : Bun.file(target), { headers: {
       'Content-Type': file.endsWith('.mp4') ? 'video/mp4' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
       ...webHeaders,
     } })

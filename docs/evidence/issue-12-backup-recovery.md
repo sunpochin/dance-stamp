@@ -35,6 +35,30 @@ macOS 27.0.1、Chrome 156.0.8078.49 **無視窗**（User-Agent 含 HeadlessChrom
 
 本輪未找出需要改 runtime 的缺陷，補的是原共用演練數量及每份媒體各自缺失的可重跑證據。重要變更／PR 仍交 Claude Code 或使用者最終審查；真實跨裝置、手機及完整支援範圍不由這七個桌面情境代替。已知 Safari 儲存／比較阻礙由 [#3 的 PR #46](https://github.com/sunpochin/dance-stamp/pull/46) 記錄，沒有在本票推測修正或操作真正 Safari。
 
+## 2026-10-29：整合 main 的資料保留稽核
+
+受查基線為 main `918d8d7`（PR #54 已合併）。本輪只修改純資料回歸與本節，沒有改 `web/`、交換格式、儲存交易或媒體流程；精確測試提交由本節所屬 PR head 綁定。使用 Bun 1.4.4、專用全新 clone 及合成 metadata，沒有操作相機、麥克風、私人影片或其他聊天的資料。
+
+本輪沿 `main.js` 的選檔／`parseBackup` → `planBackupImport` 預覽 → 確認／`writeLibrary` 檢查資料流。以下是程式碼與既有測試的覆蓋盤點，不代表本輪重跑瀏覽器：
+
+| 資料保留條件 | 既有保護與可重現入口 |
+| --- | --- |
+| 未知版本、壞 JSON、超限、危險鍵與孤兒關聯 | `validateBackup` 逐欄重建；預覽前驗證，`library.test.ts`、`backupImport.test.ts` 與 `backup-conflicts.js` |
+| 同 ID 衝突、不同來源、已編輯副本、重匯 | `planBackupImport` 計算 typed 關聯閉包及穩定 ID；`backupImport.test.ts`、`backup-conflicts.js`、`backup-recipe-copies.js` |
+| 預覽取消、容量不足、交易內取消、另一分頁 revision | 預覽不寫入；確認才以原 revision 執行單一交易，失敗不替換頁面 state；`backup-conflicts.js`、`moves-storage.js` |
+| JSON 缺片與逐側重連 | `mergeBackup` 將新增 asset 標為 missing，不寫媒體；`backup-recovery.js` 與 `backup-drill.js` 含逐檔缺片、取消、重開及下載 bytes 核對 |
+| v1→v2 讀取與失敗重試 | `migrateLibrary` 只改記憶體，成功交易才落盤；`moves.test.ts` 與 `moves-storage.js` 含舊版保留、quota 回滾、重試與跨頁衝突 |
+
+在此有界範圍內沒有重現需要修改 runtime 的資料保留問題。發現一個測試覆蓋缺口：`backupImport.test.ts` 的空庫案例原標示 v1，但 fixture 沿用 `newLibrary()`，目前實際產生 v2。修正該測試名稱，另加明確 `schemaVersion: 1` 的完整 Video／reference／take／recipe／VS 備份案例：
+
+- 還原到空庫時升為 v2、保留來源 ID、筆記、12／4 秒映射及鏡像，媒體描述全為 missing；再匯不新增。
+- 匯回同來源但已新增分類、Move→Marker、Video／take 獨立拍點的 v2 庫時，逐表核對所有原有列及本機媒體狀態完整保留；舊版內容另存完整關聯副本，新 VS 不借用舊媒體。
+- 原始 v1 與正規化後 v2 內容重匯都不新增；兩份輸入保持不變。這是 metadata／狀態測試，沒有以此宣稱實際影片 bytes、IndexedDB 或跨裝置已重新驗證。
+
+本輪相關回歸（`backupImport.test.ts`、`library.test.ts`、`moves.test.ts`、`beats.test.ts`）為 **26 tests／363 expects／0 fail**。完整 `bun run check` 及提交 hooks 的結果由交付 PR 記錄；不沿用前節的 24 組、恢復下載雜湊或 PR #54 的矩陣數字當成本 head 新測結果。
+
+共用媒體／桌面／效能鎖由主聊天持有，本輪未取得或變更鎖，未執行瀏覽器、Safari、媒體或效能矩陣。跨裝置／完整支援範圍、Claude Code 或使用者獨立審查仍未完成；iPhone 依指示暫緩，#12 保持開啟，未合併或發布。不新增後續票或擴張 #18 分享範圍。
+
 ## 限制
 
 這是桌面 Chrome 合成資料的還原演練，不是手機／Safari、真實相機、永久儲存或全 G1–G7 證據。清空測試使用新的隔離瀏覽器資料，沒有清除使用者儲存。JSON 不含影片，手動重連不能憑檔名／大小／時長證明原檔身分。跨裝置、完整發布與重要變更人工審查仍待完成；iPhone 依使用者要求暫緩。沒有合併或發布。

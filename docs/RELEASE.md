@@ -1,9 +1,11 @@
 <!-- 檔案用途：記錄下載包、免費主機、來源邊界及發布前缺口。所在層：#15 發布準備。主要關聯：START_HERE.md、LICENSING_AND_COST.md、ACCEPTANCE.md。 -->
 # Web 下載包與發布準備
 
-2026-10-28 核對。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
+2026-10-29 更新支援狀態；下方主機比較保留2026-10-28的查核資料，發布前仍須重查。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
-P0 整合候選以桌面 Chrome 為測試範圍。macOS Safari 已有私人模式的實際匯出凍結與 Blob 副本保存阻礙；候選尚未通過 Safari，不把它與暫緩的 iPhone 一起寫成單純未測。一般 Safari 設定檔對照、真人相機／音訊、五人操作及最終審查仍須各自證據；版本細節見來源中的 [Safari 紀錄](evidence/issue-3-safari-feasibility.md)。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
+P0 整合候選以桌面 Chrome 為測試範圍。一般 macOS Safari 已用普通新視窗完成對照，不需改 Profiles 或日常設定；測試原片與 VS 曾能保存並關窗取回，版本歸屬見[儲存對照](evidence/issue-3-safari-current.md)。有界音訊候選的0.5×完整覆蓋與較長輸出同步仍有缺口，修正後尚待原生複驗，見[候選品質證據](evidence/issue-3-bounded-audio.md)。私人模式另有匯出與原生 Blob 保存阻礙，仍未通過；[早期紀錄](evidence/issue-3-safari-feasibility.md)保留原版本。目前原生續測等待 Mac 解鎖，無須使用者另選設定。iPhone 暫緩；真人相機／音訊、五人操作與最終審查仍須各自證據。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
+
+本候選已整合 [PR #58](https://github.com/sunpochin/dance-stamp/pull/58) `2d31302` 的主機與資料保護，以及 [PR #62](https://github.com/sunpochin/dance-stamp/pull/62) `676ba50`（runtime 仍為 `13976bb`）的有界音訊、空 edit 靜音與音訊偏移拒絕；來源 PR 與 main 均未合併。整合驗證及版本界線見[本候選證據](evidence/p0-safari-reliability-integration.md)。本機工程包仍須獨立審查及發布核准。
 
 ## 取得與重建
 
@@ -23,6 +25,8 @@ bun run check:package
 白名單取代遞迴壓縮 repo，拒絕未知檔案／目錄、符號／硬連結、缺檔、內容竄改及公開掃描命中；建置寫入前也檢查，不自動刪除可疑檔案來換取成功。包內只有應用程式、共用本機主機、使用說明、資料／媒體契約、驗收與必要授權資料；沒有 node_modules、Git、私人媒體、資料庫、JSON 備份或測片。所有發佈 bytes 先校驗，再以 [Bun 原生 Archive](https://bun.sh/docs/runtime/archive) 壓縮並讀回核對，不新增壓縮套件。
 
 最外層 `.tar.gz` 與 `.tar.gz.sha256` 也必須是不存在的路徑或獨立的一般檔案；工具在任何打包寫入前同時檢查兩者，拒絕符號／硬連結、懸空連結及目錄，保留異常路徑供人工確認。請在專用來源資料夾建包，避免其他本機工作同時改動輸出；這不是對本機其他程式的安全隔離。
+
+隨包主機在每次 GET／HEAD 前也檢查包根目錄、`dist/web` 與實際白名單檔案，拒絕符號／硬連結、非一般檔案及缺檔並回 404；啟動後誤換連結同樣拒絕。這補上打包檢查之後的讀檔邊界，不會自動刪除或修復異常檔案。請保留專用且可信任的本機資料夾；預檢不保證抵禦另一個本機程式在檢查與讀取之間同時競態換檔，也不替代下載來源與校驗核對。
 
 CI 沿用完整 check，另執行相同 package／check:package。只建立及檢查產物，沒有 upload-artifact、部署 token、發布 workflow 或付費服務。CI 成功不是發布或產品驗收。
 

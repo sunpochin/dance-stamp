@@ -114,6 +114,33 @@
 
 本機預設 Bun 1.4.2 被原版本 gate 正確拒絕，切換已存在的 Bun 1.4.4 後原 `bun run check` 通過：342 tests／599 expects／0 fail、TypeScript、Biome、公開內容掃描及 build 通過；未改版本要求或略過 hook。本輪只修正持鎖等候時序，#43 的真正有視窗背景與歷史長片證據沒有重新冒用為新版本全矩陣通過。
 
+## 2026-10-29：整合 main 的有界覆蓋稽核
+
+基線為已合併 PR #54 的 main `918d8d7aa814533823522e3d4e0ab18df75cb212`。本輪使用專用全新 clone，只追 #9 的倒數、take 關聯、chunks、停止與明確恢復；沒有重現需要修改產品 runtime 的資料保留缺陷。新增一個純事件回歸與本節盤點，`web/`、schema、時間映射、編碼策略與 SW 均未改。交付 head 以本次 PR 為準。
+
+### 稽核路徑與證據歸屬
+
+| 路徑 | 目前保護與失敗結果 | 可檢查的證據 |
+| --- | --- | --- |
+| `beginTake` → 倒數 | 新 take／asset／recipe 使用新 ID；不先改 `activeTakeId`。倒數取消才把新工作標 failed，舊自拍與校正仍屬原 take。 | 既有 `capture.js` 的倒數取消與舊 offset 斷言；本輪讀碼，未重跑瀏覽器。 |
+| `record` → chunk queue → `saveChunk` | dataavailable 依序寫入；`add` 拒絕相同索引覆寫。單塊失敗記錄 chunkError 並停止本次操作；不拿缺號片段冒充完整原片。 | 本輪重跑 `capture.test.ts` 的連續／缺號／重複／空塊／容器邊界。原生 IndexedDB 重複索引與 quota 仍屬上節的歷史 `capture.js` 證據。 |
+| 錄製 error／候選讀回失敗 → 鎖內 finally | 相機先釋放，原生停止與已排入的尾塊寫入完成後才離開 take lock。外層 operation 在收尾後才解除忙碌。 | 本輪確認已含尾塊修正；真正 pending 交易與另一分頁 Web Lock 證據仍屬上節 `3ae0e7be493841e0`，沒有算成本 head 新實測。 |
+| `finalizeTake` → `saveData`／`writeLibrary` | metadata 與 media 在同一 revision 交易成功後才替換頁面 state；之後才清 chunks。quota／revision／解碼失敗不清原 chunks，狀態更新失敗也不重置儲存。 | 本輪讀碼；先前 `capture.js` 的 chunks／media quota、壞檔與保留舊 take／recipe 證據不變。 |
+| 明確恢復 `openTake` → `openTakeUnlocked` | 當前名稱沒有 `recoverPending`；恢復入口在 take lock 內。優先讀 session／已存原片，缺片才組 chunks；解碼成功才切配方與 finalize，恢復後仍 interrupted。人工重連及已存中斷片不因標籤自動複製。 | 本輪讀碼與重跑 chunks 純邏輯；既有 `capture.js`、`take-open-failure.js`、`comparison-recovery.js` 保留其原版本歸屬。 |
+| 停止／背景／離頁 → owner 清理 | `stop` 取消當次操作並立即釋放相機；非 BFCache 離頁清 URL／session File，BFCache 沿用並 suspend 原音訊 owner。回站不自動開相機。 | #43 的真正桌面背景及 #54 的正式離頁結果為歷史證據，本輪未操作桌面、瀏覽器或媒體。 |
+
+PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交付已先核對，沒有將其問題重報或把未合併變更帶入本分支。#54 的正式媒體 24 組／十輪仍只屬 `587689d`／`db129e273cf0039b`。
+
+### 新增與實際重跑
+
+`recordStop.test.ts` 原本已測 owner 先要求 stop，再收到 error 路徑的尾塊。本輪補另一個必要順序：先有前塊，編碼器自行送尾塊及 stop，owner 之後才重複要求停止。分正常／error 兩種情況，核對兩塊原始 bytes 與順序、重複停止不呼叫已 inactive 的 recorder、error 不變成功，以及完成後遲到事件不再觸發落盤 callback。另核對空 dataavailable／空停止拒絕成功。使用 mock MediaRecorder／EventTarget 與合成 Blob，沒有實體裝置、固定睡眠或編碼／解碼宣稱。這些情況在未修改的產品程式即通過，故沒有為測試改寫產品行為。
+
+- Bun 1.4.4，相關三檔 `recordStop.test.ts`、`capture.test.ts`、`mediaAction.test.ts`：9 tests／75 expects／0 fail。
+- 原 `bun run check`：367 tests／1033 expects／0 fail，17 份 harness 指紋、211 檔公開掃描、TypeScript checkJs、Biome 與 build 通過；既有 19 項 lint info，不降低門檻。
+- 靜態建置版本仍為 `db129e273cf0039b`。人工檢查完整 diff；原 hooks 保留，提交與推送結果見本次 PR。
+
+限制：本輪沒有原生 IndexedDB、跨分頁鎖或瀏覽器／相機驗證，也沒有取得共用媒體／桌面／效能鎖。mock 的事件順序通過不證明瀏覽器會以此順序送事件、影片可解碼、實體指示燈熄滅或強制關閉前最後影格已落盤。完整媒體、Safari、硬體及跨裝置仍按各自 gate；iPhone 暫緩。#9 保持開啟，待 Claude Code 或使用者獨立審查，未合併或發布。
+
 ## 未完成
 
 真實相機、實體指示燈、前後鏡頭硬體可用性、鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 播放與本票合成相機的真正桌面切分頁 gates 已各自補驗，不能代替硬體或其他裝置。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；本輪尾塊互斥修正未合併、發布或新增外部服務，前面各 PR 的實際合併狀態見本輪查核。
