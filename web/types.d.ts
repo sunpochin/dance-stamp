@@ -43,8 +43,21 @@ export interface Elements {
   "import-controls": HTMLFieldSetElement;
   "import-summary": HTMLParagraphElement;
   "import-media": HTMLParagraphElement;
+  "import-content": HTMLPreElement;
   "import-confirm": HTMLButtonElement;
   "import-cancel": HTMLButtonElement;
+  "share-notes": HTMLButtonElement;
+  "share-dialog": HTMLDialogElement;
+  "share-controls": HTMLFieldSetElement;
+  "share-items": HTMLDivElement;
+  "share-fields": HTMLDivElement;
+  "share-preview": HTMLButtonElement;
+  "share-content": HTMLPreElement;
+  "share-readable": HTMLDivElement;
+  "share-summary": HTMLParagraphElement;
+  "share-download": HTMLButtonElement;
+  "share-system": HTMLButtonElement;
+  "share-cancel": HTMLButtonElement;
   "media-dialog": HTMLDialogElement;
   "media-title": HTMLHeadingElement;
   "relink-controls": HTMLFieldSetElement;
@@ -132,9 +145,11 @@ export interface Elements {
   "diagnostics": HTMLPreElement;
 }
 export interface Video { id: string; title: string; durationMs: number; revision: number; teacher?: string; danceStyle?: string; recordedDate?: string }
-export interface Asset { id: string; videoId?: string; kind: 'reference' | 'take' | 'vs'; byteLength: number; mimeType: string; durationMs?: number; mediaIncluded?: boolean; state?: 'session-only' | 'copying' | 'ready' | 'missing' | 'interrupted' | 'failed'; storageKind?: 'session' | 'indexeddb' | 'external' }
+export interface Asset { id: string; videoId?: string; kind: 'reference' | 'take' | 'vs'; byteLength: number; mimeType: string; originalName?: string; durationMs?: number; mediaIncluded?: boolean; state?: 'session-only' | 'copying' | 'ready' | 'missing' | 'interrupted' | 'failed'; storageKind?: 'session' | 'indexeddb' | 'external' }
 export interface Marker { id: string; videoId: string; startMs: number; endMs?: number; title: string; note: string; revision: number; moveId?: string }
 export interface Move { id: string; name: string; danceStyle: string; status: 'wanted' | 'practicing' | 'learned'; revision: number }
+export interface ShareSelection { videoIds: string[]; markerIds: string[]; takeIds: string[]; exportIds: string[]; fields: string[] }
+
 export interface Take { id: string; referenceVideoId: string; cameraAssetId: string; referenceStartMs: number; referenceEndMs: number; rate: number; state: 'recording' | 'ready' | 'interrupted' | 'failed'; createdAt: string; captureTiming?: CaptureTiming }
 export interface Recipe { id: string; takeId: string; offsetMs: number; referenceMirror: boolean; selfMirror: boolean; layout: 'side-by-side'; audioSource: 'reference'; revision: number }
 export interface Artifact { id: string; recipeId: string; recipeRevision: number; assetId: string; mimeType: string; state: 'ready' | 'interrupted' | 'failed'; createdAt: string }

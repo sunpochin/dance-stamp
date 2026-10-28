@@ -294,3 +294,9 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 ## #11 慢速比較音高對照
 
 使用合成 `make-comparison-fixtures.ts` 與新隔離 Chrome context 執行 `tests/browser/comparison-pitch.js`，再跑 `python3 scripts/analyze-comparison-pitch.py`。真正下載三份三秒 VS，完整解碼並確認 660Hz 老師聲源依 0.5／0.75／1× 成為 330／495／660Hz，排除 880Hz 自己聲源與誤保留原音高；預覽取消／成檔／繪製失敗後仍恢復一般練習音高。這是短片功能與音訊內容驗證，完整同步／穩定性另跑原始 `run-media-feasibility.py`，不代替真機聽感。
+
+## 12. 選定筆記分享（#18）
+
+以專用短片及全新隔離無視窗 session 執行 `tests/browser/share.js`；沿用 `make-export-fixtures.ts` 的八秒 reference／self，另建立兩秒同名裁切片及同名不同內容候選。下載路徑與完整重現見 [#18 證據](evidence/issue-18-sharing.md)。測試會實際下載分享／完整備份，在其他新 contexts 選檔、預覽、重建 ID、原子匯入、人工確認逐側重連與跳片段；用 stub 測系統分享，禁止實際寄件。
+
+包含私人欄位預設排除、明確加入、最小閉包、文字／JSON 預覽、下載失敗、quota／交易內取消、真實多分頁 revision、重匯冪等與衝突另存、同名／裁切／VS／壞檔；既有 `backup-recipe-copies.js` 與 migration／鎖回歸分開跑。這是短片功能與資料保護回歸，不重跑未變的長片／效能矩陣，不操作桌面或雲端。另一實體裝置及 Google Drive／Dropbox／iCloud Drive／AirDrop 保留未驗證。

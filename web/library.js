@@ -1,4 +1,4 @@
-/* 檔案用途：本機筆記與 v1 備份的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
+/* 檔案用途：本機筆記與可攜格式的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
 import { validateMarkerRange } from './timeline.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
@@ -23,7 +23,8 @@ export function validateBackup(input) {
   check(input && typeof input === 'object');
   rejectDangerous(input);
   check(new Blob([JSON.stringify(input)]).size <= 10 * 1024 * 1024, '筆記資料超過 10 MiB，請先保存備份。');
-  check(input.format === 'dance-stamp' && [1, 2].includes(input.schemaVersion) && input.kind === 'backup', '不支援這個備份版本或種類，沒有改動本機資料。');
+  check(input.format === 'dance-stamp' && [1, 2].includes(input.schemaVersion) && ['backup', 'share'].includes(input.kind), '不支援這個備份版本或種類，沒有改動本機資料。');
+
   check(id(input.sourceLibraryId) && text(input.exportedAt) && Number.isFinite(Date.parse(input.exportedAt)));
   for (const table of tables) check(Array.isArray(input[table]) && input[table].length <= 10_000);
   // v1 從未支援動作，不能猜測舊草案欄位或把新版資料偷偷降級。
@@ -33,14 +34,13 @@ export function validateBackup(input) {
     for (const row of input[table]) { check(row && id(row.id) && !map.has(row.id)); map.set(row.id, row); }
     return [table, map];
   }));
-  const out = newLibrary(); out.sourceLibraryId = input.sourceLibraryId; out.exportedAt = input.exportedAt;
+  const out = newLibrary(); out.kind = input.kind; out.sourceLibraryId = input.sourceLibraryId; out.exportedAt = input.exportedAt;
   for (const v of input.videos) {
     check(text(v.title) && integer(v.durationMs) && v.durationMs > 0 && integer(v.revision) && v.revision > 0);
     const classification = {};
-    if (input.schemaVersion === 2) {
-      for (const field of ['teacher', 'danceStyle']) if (v[field] !== undefined) { check(text(v[field], 200)); classification[field] = v[field]; }
-      if (v.recordedDate !== undefined) { check(courseDate(v.recordedDate)); classification.recordedDate = v.recordedDate; }
-    }
+    // 舊分享中的合法分類也須保留，不能升 v2 時把使用者明確加入的欄位丟掉。
+    for (const field of ['teacher', 'danceStyle']) if (v[field] !== undefined) { check(text(v[field], 200)); classification[field] = v[field]; }
+    if (v.recordedDate !== undefined) { check(courseDate(v.recordedDate)); classification.recordedDate = v.recordedDate; }
     out.videos.push({ id: v.id, title: v.title, durationMs: v.durationMs, revision: v.revision, ...classification });
   }
   for (const move of input.moves) {
@@ -52,7 +52,8 @@ export function validateBackup(input) {
     check(['reference', 'take', 'vs'].includes(a.kind) && integer(a.byteLength) && text(a.mimeType, 200));
     check(a.videoId === undefined || maps.videos.has(a.videoId));
     check(a.durationMs === undefined || (integer(a.durationMs) && a.durationMs > 0));
-    out.assets.push({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}), mediaIncluded: false });
+    check(a.originalName === undefined || text(a.originalName));
+    out.assets.push({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}), ...(a.originalName === undefined ? {} : { originalName: a.originalName }), mediaIncluded: false });
   }
   for (const m of input.markers) {
     check(maps.videos.has(m.videoId));
@@ -143,10 +144,41 @@ export function practiceHistory(data, markers) {
   for (const marker of markers) { const group = byVideo.get(marker.videoId) || []; group.push(marker); byVideo.set(marker.videoId, group); }
   return data.takes.filter(take => (byVideo.get(take.referenceVideoId) || []).some(m => m.endMs === undefined ? m.startMs >= take.referenceStartMs && m.startMs < take.referenceEndMs : m.startMs < take.referenceEndMs && m.endMs > take.referenceStartMs)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
 }
+
+/** @param {import('./types').Library} local @param {import('./types').ShareSelection} selection */
+export function createShare(local, selection) {
+  const selected = (rows, ids) => {
+    const keys = new Set(ids);
+    check([...keys].every(id => rows.some(row => row.id === id)), '分享選取已改變，請重新選擇。');
+    return rows.filter(row => keys.has(row.id));
+  };
+  const markers = selected(local.markers, selection.markerIds), artifacts = selected(local.exports, selection.exportIds);
+  const recipes = local.recipes.filter(r => selection.takeIds.includes(r.takeId) || artifacts.some(e => e.recipeId === r.id));
+  const takes = selected(local.takes, [...selection.takeIds, ...recipes.map(r => r.takeId)]);
+  const videos = selected(local.videos, [...selection.videoIds, ...markers.map(m => m.videoId), ...takes.map(t => t.referenceVideoId)]);
+  check(videos.length > 0, '請至少選一份影片筆記或片段。');
+  check(takes.every(t => recipes.some(r => r.takeId === t.id)), '選取的練習缺少配方，請先修復。');
+  const assets = local.assets.filter(a => a.kind === 'reference' && videos.some(v => v.id === a.videoId) || takes.some(t => t.cameraAssetId === a.id) || artifacts.some(e => e.assetId === a.id));
+  const out = newLibrary(); out.kind = 'share'; out.sourceLibraryId = local.sourceLibraryId;
+  // 不能先展開整個物件再刪幾欄：未來動作庫、節拍或裝置欄位也必須預設不外流。
+  out.videos = videos.map(v => ({ id: v.id, title: v.title, durationMs: v.durationMs, revision: v.revision,
+    ...Object.fromEntries(['teacher', 'danceStyle', 'recordedDate'].filter(key => selection.fields.includes(key) && v[key] !== undefined).map(key => [key, v[key]])) }));
+  out.markers = markers.map(m => ({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs === undefined ? {} : { endMs: m.endMs }), title: m.title, note: selection.fields.includes('note') ? m.note : '', revision: m.revision }));
+  out.assets = assets.map(a => ({ id: a.id, ...(a.videoId ? { videoId: a.videoId } : {}), kind: a.kind, byteLength: a.byteLength, mimeType: a.mimeType, ...(a.durationMs ? { durationMs: a.durationMs } : {}),
+    ...(selection.fields.includes('originalName') && a.originalName !== undefined ? { originalName: a.originalName } : {}), mediaIncluded: false }));
+  // v1 必填的建立時間用固定佔位值；不透露練習日期，也不讓每次匯出都製造內容衝突。
+  const hiddenDate = '1970-01-01T00:00:00.000Z';
+  out.takes = takes.map(t => ({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state, createdAt: hiddenDate }));
+  out.recipes = recipes.map(r => ({ id: r.id, takeId: r.takeId, offsetMs: r.offsetMs, referenceMirror: r.referenceMirror, selfMirror: r.selfMirror, layout: r.layout, audioSource: r.audioSource, revision: r.revision }));
+  out.exports = artifacts.map(e => ({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: hiddenDate }));
+  return validateBackup(out);
+}
 /** @param {import('./types').Library} local @param {import('./types').Library} incoming */
 export function mergeBackup(local, incoming) {
   incoming = validateBackup(incoming);
+  check(incoming.kind === 'backup', '分享檔須先預覽並重建 ID，不能直接合併。');
   const next = migrateLibrary(local);
+
   const normalizedLocal = validateBackup(local);
   // 以整份來源記錄的對照表保證重匯入冪等；同 ID 衝突直接拒絕，保留全部本機資料。
   for (const table of tables) {
@@ -192,10 +224,12 @@ async function backupUUID(value, signal) {
 /** @param {import('./types').Library} local @param {import('./types').Library} source @param {AbortSignal} [signal] */
 export async function planBackupImport(local, source, signal) {
   const existingData = validateBackup(local), incoming = validateBackup(source);
-  const empty = tables.every(table => local[table].length === 0), foreign = !empty && local.sourceLibraryId !== incoming.sourceLibraryId;
+  const shared = incoming.kind === 'share';
+  // 分享永遠重建 ID，連空庫或寄回原作者也不能信任寄件者的本機身分。
+  const empty = tables.every(table => local[table].length === 0), foreign = shared || !empty && local.sourceLibraryId !== incoming.sourceLibraryId;
   const ids = Object.fromEntries(tables.map(table => [table, new Map()]));
   if (foreign) {
-    for (const table of tables) for (const row of incoming[table]) ids[table].set(row.id, await backupUUID(['dance-stamp-import-v1', incoming.sourceLibraryId, table, row.id], signal));
+    for (const table of tables) for (const row of incoming[table]) ids[table].set(row.id, await backupUUID([shared ? 'dance-stamp-share-v1' : 'dance-stamp-import-v1', incoming.sourceLibraryId, table, row.id], signal));
     for (const table of tables) for (const row of incoming[table]) Object.assign(row, rewriteBackupRow(row, table, ids));
   }
   const existing = Object.fromEntries(tables.map(table => [table, new Map(existingData[table].map(row => /** @type {const} */ ([row.id, row])))]));
@@ -269,8 +303,10 @@ export async function planBackupImport(local, source, signal) {
   for (const table of tables) for (const row of incoming[table]) Object.assign(row, rewriteBackupRow(row, table, copies));
   const additions = Object.fromEntries(tables.map(table => [table, incoming[table].filter(row => !existing[table].has(row.id)).length]));
   const added = Object.values(additions).reduce((sum, count) => sum + count, 0);
+  // 只有完成 ID／衝突規劃的資料才能走低階合併，避免其他呼叫者誤信分享檔的原 ID。
+  incoming.kind = 'backup';
   const data = mergeBackup(local, incoming);
-  if (empty) data.sourceLibraryId = incoming.sourceLibraryId;
+  if (empty && !shared) data.sourceLibraryId = incoming.sourceLibraryId;
   signal?.throwIfAborted();
   return { data, additions, added, conflicts, copied: forks.size, differentSource: foreign, skipped: tables.reduce((sum, table) => sum + incoming[table].length, 0) - added };
 }

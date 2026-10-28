@@ -55,6 +55,6 @@ CI 沿用完整 check，另執行相同 package／check:package。只建立及�
 
 發布前逐個實際 URL 核對 HTTPS、JavaScript MIME、CSP／Permissions-Policy、無意外 redirect、根路徑與 SW manifest；再在隔離資料環境實作三項核心任務、下載後獨立播放、匯入及逐片重連。將真實輸出、測試者及裝置證據綁到該次版本；數值只引用 [RECORD_COMPARE.md](RECORD_COMPARE.md)。目前不能關閉 #15 的完整發行驗收。
 
-更新維持 SW 等待，不強制 reload／skipWaiting。先備份 JSON、原片及 VS，關閉全部舊分頁，保留同一 origin 再啟動新版。若公開主機政策改變，可停止公開入口並提供已核對的本機包；換 origin 後須使用檔案備份還原，不自動搬移 DB。回復舊靜態檔不等於回復資料 schema，禁止清庫修復；目前 schema／交換格式仍為 v1。
+更新維持 SW 等待，不強制 reload／skipWaiting。先備份 JSON、原片及 VS，關閉全部舊分頁，保留同一 origin 再啟動新版。若公開主機政策改變，可停止公開入口並提供已核對的本機包；換 origin 後須使用檔案備份還原，不自動搬移 DB。回復舊靜態檔不等於回復資料 schema，禁止清庫修復；此功能整合候選寫入／交換採 v2 並可讀 v1；回復舊程式需升版前的 v1 備份及獨立影片，在另一資料環境還原，現有 v2 資料保留。
 
 授權全文、必要來源 LICENSE／NOTICE 隨包保留，不變更原授權；使用者影片／音樂不隨程式授權。未啟動 iOS fallback，不申購 Apple 帳號、不承諾 App Store／TestFlight 零費用；若以後觸發，依 [既有授權與費用政策](LICENSING_AND_COST.md)另驗可行分發方式。
