@@ -105,6 +105,8 @@ npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native close
 
 若桌面鎖定或任何步驟失敗，保留錯誤並停止本輪專用 Chrome／控制端，不可跳過 gate 或算成錄影通過。當前執行狀態見 [#9 證據](evidence/issue-9-capture-recovery.md)；合成相機無法證明實體指示燈、真實硬體或鎖屏／來電行為。
 
+使用者解鎖後，正常有視窗 Chrome 156.0.8078.49／靜態 `2f1ec6b3335cd790` 已通過三階段、原片保留及本輪下載檔的獨立完整播放；QA 原始函式來自 `6317d09`。先前 headless 診斷與鎖定逾時另列歷史，不併成真正桌面結果；硬體相機與裝置矩陣仍未驗證。
+
 `capture.js` 用乾淨的合成相機 session 驗證拒絕／占用、後鏡頭錯誤、倒數取消、短錄影拒絕、中斷與兩種 quota，以及缺號／壞檔 chunks 不刪除、不冒充成功。請使用既有 browser.json，不能換成真人相機或私人影片：
 
 ```sh

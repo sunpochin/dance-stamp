@@ -82,6 +82,22 @@
 
 本輪資料留 ignored `output/native-capture-headless-results.json` 與該檔記錄的下載目錄；不進 Git 或公開附件。launcher 另回報 User-Agent，避免日後把無視窗結果誤認桌面實測。共用工具的原有練習模式另以 headless 新 profile 回歸通過：停止 callback=0、最多 1、明確重啟 A=1 秒；不重算 #8 的桌面證據。公開掃描含新腳本共 158 檔；檢查及 hook 仍使用原品質入口。
 
+### 解鎖後：真正桌面三階段與獨立重播通過
+
+使用者再次確認解鎖後，以正常 `launch-native-browser.ts --capture`、新 profile、現有 default context／noDefaults 重跑提交 `6317d097630373760bb33bc7c426cb153c47ac96` 的原始函式。沒有改測試斷言、產品回應或 SW；受測產品仍是 `2f1ec6b3335cd790`。桌面工具確認可存取視窗，Chrome 156.0.8078.49 的 User-Agent 不含 HeadlessChrome；控制端 headless，受測端有實際視窗。
+
+- 預覽／倒數／錄影三階段各取得 trusted hidden=true／false；背景事件後同步暫停示範、關閉預覽及釋放 tracks，原生 recorder stop 完成，回前景不自動重啟。倒數中斷為 failed、沒有原片或 MediaRecorder；錄影中斷前已提交兩塊 chunks，來源位置 6.880 秒、未到 B=15 秒。
+- 取回 6,863ms 的可播放中斷片，狀態維持 interrupted；合成 VS 後明確重錄，新片到 B 自停、解碼 14,993ms、狀態 ready。重新載入後三份原片的 metadata／配方／完整 Blob SHA256 均未變；沒有自動開相機或請求麥克風。
+- 三份真正下載檔的磁碟 bytes／完整 SHA256 與保存副本相同；FFmpeg 全片解碼 exit=0、stderr 空。再在同一專用有視窗 Chrome 離開產品，以 file URL 原生播放器各播至 ended、error=0。原片／VS／重錄的 frames 為 211／209／455，dropped 為 1／0／1；VS 解碼 10,435 audio bytes。未把這些數據擴大為 G2–G3 或實聽通過。
+
+| 本輪真正桌面下載 | bytes | 容器秒數 | 視訊／音訊 | SHA256 前 16 字元 |
+| --- | --- | --- | --- | --- |
+| 中斷原片 | 183068 | 6.863267 | H.264 640×360／無音軌 | df065255cdd6c9af |
+| 中斷片 VS | 854880 | 6.868033 | H.264 1280×720／AAC 48kHz stereo | 4ff5dcc9680ebfb2 |
+| 明確重錄原片 | 398427 | 14.992933 | H.264 640×360／無音軌 | 4daae2eef7275f21 |
+
+紀錄留 ignored `output/native-capture-headed-results.json` 與其下載目錄，不上傳媒體。專用 Chrome 與控制端已關閉。這一節完成受測桌面 Chrome＋合成相機的分頁背景 gate，前面鎖定／headless 結果保留各自歸屬，不替換成當時已通過。
+
 ## 未完成
 
-真實相機、實體指示燈、前後鏡頭硬體可用性、錄影的真正背景／鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 的播放嚴格背景 gate 已於解鎖後在 `2f1ec6b3335cd790` 通過（PR #42），不代替本票錄影驗收。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；沒有合併、發布或新增外部服務。
+真實相機、實體指示燈、前後鏡頭硬體可用性、鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 播放與本票合成相機的真正桌面切分頁 gates 已各自補驗，不能代替硬體或其他裝置。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；沒有合併、發布或新增外部服務。
