@@ -18,6 +18,7 @@ def analyze(path):
     silent, mirror = parts[3] == 'silent', parts[3] == 'mirror'
     info = ffprobe(path, '-show_streams', '-show_format')
     times = [float(f['best_effort_timestamp_time']) for f in ffprobe(path, '-select_streams', 'v', '-show_frames', '-show_entries', 'frame=best_effort_timestamp_time')['frames']]
+    assert len(times) > 1 and all(a < b for a, b in zip(times, times[1:])), '成檔時間沒有嚴格前進'
     video = next(s for s in info['streams'] if s['codec_type'] == 'video')
     assert (video['width'], video['height']) == (1280, 720), '輸出尺寸錯誤'
     # 兩片均為 16:9，contain 後 y=204；取真正成檔像素，不讀瀏覽器診斷的漂移數字。
@@ -55,6 +56,11 @@ def analyze(path):
     windows = [statistics.median([d for t, d in values if max(0, target - 0.5) <= t <= target + 0.5]) for target in [0.5, requested / 2, requested - 0.5]]
     assert max(map(abs, windows)) <= 100, f'起中末不同步：{windows}'
     assert abs(windows[2] - windows[0]) <= 100, f'累積漂移：{windows}'
+    # 另讀真正首末幀及指定時刻；附近中位數不能掩蓋邊界幀的偏移。
+    points = [min(values, key=lambda value: abs(value[0] - target)) for target in [times[0], 1, requested / 2, requested - 1, times[-1]]]
+    assert max(abs(error) for _, error in points) <= 100, f'首末幀或指定時刻不同步：{points}'
+    edge_drift = points[-1][1] - points[0][1]
+    assert abs(edge_drift) <= 100, f'首末新增漂移：{edge_drift}'
     assert abs(first_codes[0] / 30 - 12) / rate * 1000 <= 100, '兩片雖同步但沒有從所選起點開始'
     assert len(times) / duration >= 24, '平均 fps 不足'
     freeze_ms = max(max_frozen)
@@ -69,7 +75,7 @@ def analyze(path):
         assert rms < 0.001, f'無聲來源被混入聲音：{rms}'
     else:
         assert rms > 0.01 and amplitudes[0] > amplitudes[1] * 10, f'音訊不正確：{rms}, {amplitudes}'
-    return {'file': path.name, 'frames': len(times), 'duration': duration, 'fps': round(len(times) / duration, 2), 'startMiddleEndMs': windows, 'addedDriftMs': windows[2] - windows[0], 'maxFrozenMs': round(freeze_ms, 2), 'audioRms': round(rms, 5), 'source660Hz': amplitudes[0], 'self880Hz': amplitudes[1], 'mirror': mirror, 'silent': silent}
+    return {'file': path.name, 'frames': len(times), 'duration': duration, 'fps': round(len(times) / duration, 2), 'startMiddleEndMs': windows, 'addedDriftMs': windows[2] - windows[0], 'firstAndLastFramePoints': points, 'firstToLastDriftMs': edge_drift, 'maxFrozenMs': round(freeze_ms, 2), 'audioRms': round(rms, 5), 'source660Hz': amplitudes[0], 'self880Hz': amplitudes[1], 'mirror': mirror, 'silent': silent}
 
 
 if __name__ == '__main__':

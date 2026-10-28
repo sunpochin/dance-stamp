@@ -60,3 +60,11 @@
 新增 `capture-navigation.js` 的兩階段原生離頁驗收、`download-playback.js`，並補強既有 self-failure／media-probe 的保存與診斷等待。操作順序與結果見 MEDIA_PROBE.md 及 #9 證據；不能把 async predicate 的 Promise 或 CLI 退出碼當成通過。#33 仍為草稿，真實相機／LED、真正背景／鎖屏／來電、G1／G6、Safari、獨立人工 review 等仍未完成，#9 不結案；也沒有合併或發布。
 
 後續核對遠端：規劃 PR #32 已由另一次使用者授權合併至 main `1d8ed7f`。此分支同步該八份正式規格，保留 #9 程式與受測靜態版本；不是重新授權合併產品 PR。#10 以這份已確認規格接續，仍不啟動 iPhone 工作。
+
+## 2026-10-28 #9 與正式既有雙片入口整合
+
+核對遠端時，另一個使用者聊天已交付 #35（`9935b06`），包含正式既有雙片入口、保存失敗恢復與完整輸出矩陣。本聊天先將自己已測的 dialog 原型及證據保存至 `codex/issue-10-existing-comparison` 的 `7e74663`，不另開重複實作 PR，不改他人的分支；正式整合沿用 #35。
+
+本聊天新建專屬 `dance-stamp-issue-9-integration` clone，從同步 main `1d8ed7f` 建 `codex/issue-9-comparison-integration`，包含 #33 `f77a8bf` 及 #35 `9935b06` 的完整歷史。錄影 stop／chunks／中斷與循環 owner 保留，外部 take 仍 session-only。使用獨立 4177 預覽與資料；#9 的 4175、原型 4176 及其他聊天 4173 均不覆寫。靜態版本 `0daa65c36a468383` 的測試及精確限制見 `evidence/issue-9-comparison-integration.md`；其他 head 的數據不自動算整合版通過。後續仍先 Web，不啟動 iPhone、合併或發布。
+
+整合版最終 323 tests／479 expects／0 fail、22 組 browser 函式通過。20 檔矩陣與無相機 API 檔共 21 份逐格／音訊分析通過，最大差距及新增漂移各 66.667ms、最長重複畫面 133.77ms；十次 60 秒完整輸出 60,052–60,086ms。七份代表檔在產品外完整重播，真正離頁可取回 6.726467 秒已落盤原片且保留 interrupted。原型／整合的合成媒體全部留 ignored output，不進 Git。後續 Web 缺口為 #12 的衝突另存副本與完整媒體清單；全 P0、人工 review、實體相機／背景與裝置驗收仍保持未完成。
