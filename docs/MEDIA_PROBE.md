@@ -64,6 +64,23 @@ API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、
 
 `markers.js` 請用全新 session，量實際顯示的 mediaTime，另驗證 CRUD、逆序拒絕、草稿保護與多分頁失敗恢復。此結果只適用受測素材，不是 G2 聲畫同步證據。
 
+## #11 匯出失敗與直式全身成檔
+
+在新隔離 session 執行；使用可用的本機產品埠。`make-export-fixtures.ts` 建立八秒橫／直式色條片與 660／880Hz 不同聲源，不覆寫已有檔。本項是三秒功能回歸，不量效能；若延伸長片／效能或實際桌面測試，先取得當次約定的共用媒體鎖，完成後只釋放自己的鎖。不用相機或麥克風。
+
+```sh
+bun --no-env-file scripts/make-export-fixtures.ts
+# browser.json 沿用上方隔離設定；本項不需假相機 flags，建議 headless 加 --mute-audio。
+playwright-cli --session dance-export-failure open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-export-failure run-code --filename tests/browser/export-failure.js
+python3 scripts/analyze-export-failure.py
+playwright-cli --session dance-export-failure close
+```
+
+`export-failure.js` 將相機 API 設為不存在，選老師 2–5 秒／自己 1 秒起點，右側直式片鏡像。先產生三秒 MP4，再注入全部格式無法啟動、非同步編碼錯誤、新檔讀回失敗及讀回途中取消。每次都核對原配方／輸出記錄未變、tracks 已停止，真正下載上一支成功 VS。最後讓 MP4 宣稱支援但建構失敗，同頁重試到原生 WebM；兩側原片也分別在前後下載。
+
+分析器比對四份舊 VS 與兩側原片的完整 SHA256；新 MP4／WebM 均用 FFmpeg 逐幀完整解碼，核對容器、副檔名、單一音軌、老師聲源、每格的上下邊界、直式留邊及鏡像。色條是靜態圖案，不能拿來驗 G2 同步或 G3 凍結；本項不取代既有長片矩陣。結果見 [#11 證據](evidence/issue-11-export-failure.md)。
+
 ## #8 練習循環
 
 各用乾淨 session，避免能力降級的 init script 影響其他驗收：
