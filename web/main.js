@@ -39,7 +39,7 @@ const diagnostics = { stage: 'idle', camera: null, capture: null, export: null }
 let state;
 let ready, currentVideoId, currentReferenceFile, pendingLinkId, pendingTakeId, activeTakeId, markerEditingId;
 let markerVideoId;
-let moveEditingId;
+let moveEditingId, moveDirty = false;
 let metadataVideoId;
 let beatEditorVideoId, beatDirty = false;
 
@@ -149,8 +149,8 @@ async function operation(task) {
     updateControls(); report();
     const current = document.activeElement, requested = operationFocus;
     operationTrigger = null; operationFocus = null;
-    // 停用控制會讓鍵盤焦點掉到 BODY；只補回遺失焦點，不搶走使用者移到停止鍵等處的焦點。
-    if (current === document.body || current === document.documentElement || (requested && current?.closest('dialog') === requested.closest('dialog') && current?.closest('dialog'))) focusControl(requested || trigger);
+    // 明確下一步且仍停在觸發控制時也要換焦；使用者已移到停止鍵等處則不搶回。
+    if (current === document.body || current === document.documentElement || (requested && (current === trigger || current?.closest('dialog') === requested.closest('dialog') && current?.closest('dialog')))) focusControl(requested || trigger);
   }
 }
 function abortIfNeeded(signal) { signal.throwIfAborted(); }
@@ -586,7 +586,7 @@ window.addEventListener('pagehide', e => {
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
 window.addEventListener('pageshow', e => { if (e.persisted) status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); });
-window.addEventListener('beforeunload', e => { if (active || beatDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (active || beatDirty || moveDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
 
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
@@ -873,6 +873,7 @@ function renderSearch() {
     const li = document.createElement('li'), heading = document.createElement('h4'), clips = document.createElement('ul');
     heading.textContent = `${move.name} · ${move.danceStyle} · ${moveStatuses[move.status]}`;
     li.append(heading, button('編輯動作／狀態', async () => {
+      if (keepMoveDraft()) return;
       moveEditingId = move.id; $('move-name').value = move.name; $('move-style').value = move.danceStyle; $('move-status').value = move.status; focusControl($('move-name'));
     }), button('移除動作…', () => showDelete('move', move.id)));
     for (const marker of markers) {
@@ -913,7 +914,13 @@ $('library-reset').addEventListener('click', () => {
   for (const id of /** @type {const} */ (['library-keyword', 'library-style', 'library-teacher', 'library-from', 'library-to', 'library-status'])) $(id).value = '';
   renderSearch();
 });
-$('cancel-move').addEventListener('click', () => { moveEditingId = null; $('move-form').reset(); });
+function keepMoveDraft() {
+  if (!moveDirty) return false;
+  // 切換只讀編輯也不能蓋掉輸入；失敗時不清旗標，直到明確保存或取消。
+  status('動作欄位尚未保存，請先儲存或取消動作編輯。'); focusControl($('move-name')); return true;
+}
+$('move-form').addEventListener('input', () => { moveDirty = true; });
+$('cancel-move').addEventListener('click', () => { moveEditingId = null; moveDirty = false; $('move-form').reset(); focusControl($('move-name')); });
 $('move-form').addEventListener('submit', e => {
   e.preventDefault(); operation(async () => {
     const name = $('move-name').value.trim(); if (!name) throw new Error('請填寫動作名稱。');
@@ -923,7 +930,7 @@ $('move-form').addEventListener('submit', e => {
       const row = { id: old?.id || crypto.randomUUID(), name, danceStyle: $('move-style').value.trim(), status: /** @type {import('./types').Move['status']} */ ($('move-status').value), revision: (old?.revision || 0) + 1 };
       if (old) Object.assign(old, row); else data.moves.push(row);
     });
-    moveEditingId = null; $('move-form').reset(); status('動作與你選擇的練習狀態已保存。');
+    moveEditingId = null; moveDirty = false; $('move-form').reset(); status('動作與你選擇的練習狀態已保存。');
   });
 });
 async function beginTake(value) {

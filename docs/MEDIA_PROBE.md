@@ -307,3 +307,9 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 執行 `bun --no-env-file scripts/make-beat-fixtures.ts` 產生 ignored `output/beats/reference.mp4`（20 秒 testsrc／120 BPM／第一拍 0.35 秒／660Hz），不覆寫既有素材。以獨立隨機 localhost port、乾淨 headless Chrome session、`--mute-audio` 執行 `tests/browser/beats.js`；沿用本文件 Playwright CLI `run-code --filename` 方法。腳本只用傳入 page 的 origin，不固定或占用其他聊天埠，測片、備份及 logs 只留本機。
 
 `beats.js` 測 UI、嚴格輸入、保存失敗重試、取消／重匯、乾淨 context 還原、三速度來源拍號，以及 OfflineAudioContext 提示音 samples。`beats-capture.js` 用頁內合成 canvas 相機，不呼叫實體相機／麥克風，量測倒數、錄影鎖及取消／中斷。既有 `storage.js` 的 migration 腳本可在專用 runner 將硬編碼測試 origin 替換為自己的 origin 執行。長片／效能或有視窗操作按當次派工的共用互斥鎖規則進行，不搶刪他人鎖。
+
+
+`move-draft.js` 使用全新隔離頁面且停用相機 API，不需要影片；實走既有／新增草稿的編輯切換、明確保存／取消、metadata quota、真正第二分頁 revision 衝突及原生 beforeunload 拒絕離頁。原候選先重現覆蓋，再以相同測試驗修正；不將此短文字流程算入媒體或實體桌面 gates。
+
+
+原生確認框會中斷單次 CLI 的回覆，不能將空結果當通過。`move-draft.js` 採兩階段：第一次 `run-code --filename` 必須取得 `beforeUnloadPrepared=true`；再對同 session `goto about:blank`、`dialog-dismiss`，第二次執行同檔必須取得 `realBeforeUnloadDismissed=true`，並驗 trusted／prevented 事件及原輸入未變。測試先拒絕非 loopback、非合成標記或非空庫，再停用相機 API。
