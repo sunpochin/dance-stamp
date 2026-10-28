@@ -48,7 +48,7 @@
 | THIRD_PARTY_NOTICES.md | 1502 | `79253f8dbced1f4184173360078eead5d7291bd8f85f285b0dbd734f3fe162f8` |
 | _headers | 456 | `874bd98b3d71cdd3979fffa831a68cfd4986d0a25e9688ba4a94657f98f83453` |
 
-#58 的原生 quota 證據綁乾淨 `2d31302`；其 storage.js 與本候選的 byte 身分另核對，不把這項歷史原生測試改寫為本整合 head 重跑。強制中斷的舊 worker 靜態為 `db129e273cf0039b`，與新增音訊後的 SW manifest 不同，亦不冒充新候選已完成相同強制終止驗收。既有工具保留可重跑。
+#58 的原生 quota 證據綁乾淨 `2d31302`；其 storage.js 與本候選的 byte 身分另核對，不把這項歷史原生測試改寫為本整合 head 重跑。強制中斷的舊 worker 為 `db129e273cf0039b`，與新增音訊後的 manifest 不同；主聊天後續已在自己的乾淨 `9d483e0484a5781c7e93dbd36213431bcbde85dc`，以未修改的原工具重跑新 worker `adbe8eb1d6acfd09`：12份完整舊資源、1／12份候選且CSS回應未完成時真正SIGKILL，同profile新程序離線取回舊殼、完整筆記與sentinel全部bytes／SHA。原生狀態、PID／signal、零主機重開請求及自有程序／鎖收尾均直接記錄，exit0；兩輪識別與限制見[強制中斷證據](issue-13-forced-install.md#整合候選新增音訊模組後的重跑)。這是新manifest的實測，不將雙頁更新、quota或媒體矩陣移記為9d483e0重跑。
 
 主24組由另一聊天在乾淨 `13976bb83e259be699f7c822cc125850e776f81e`／`adbe8eb1d6acfd09` 執行，本聊天沒有重跑同byte矩陣。開工時尚未完成；交付前已核對允許的 `state.json`、`verified-results.json` 以及主聊天實際terminal：最後performance案例quality pass，`collect-results.py` exit0，24／24組成功，原自有PID／主機／鎖均已清理。原矩陣9組、同context／IndexedDB十輪、WebM1、正負校正2、恢復1、長輸出1；全部原v5 fullDecode／完整來源覆蓋通過，保存檢查missing=0。48份下載有實際檔案指紋；這不是本輪新做live IndexedDB逐byte比較，十輪每輪仍有原腳本導航，不能稱無重載生命週期或裝置資源量測。
 
@@ -61,6 +61,8 @@
 | 完整匯出最高上界 | 64,003ms |
 
 來源、整合、測試與包識別分開，媒體數據只由逐檔相同的runtime承接原歸屬；本整合head的提交後check／乾淨包在交付PR綁定。沒有讀寫主聊天其他檔案，亦未操作其服務或程序。
+
+主聊天補齊新manifest重跑後，只續補四份文件；原check再次通過382 tests／1309 expects／0 fail，公開掃描228檔、型別／原lint／build通過。新增的同一證據連結使操作指南引用由38增為39，仍為21份不同文件。第一輪受限執行在本機port 0 listen被拒而失敗，未調整測試；以允許本機測試連線的相同原入口重跑通過，兩份日誌均保留。最新提交後的乾淨包／CI識別由PR另綁。
 
 ## Safari 與剩餘 gates
 

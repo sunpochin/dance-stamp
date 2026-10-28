@@ -237,6 +237,8 @@ bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable"
 
 確認該自有程序群組全數退出，再以同一 profile 新程序啟動；在導航前設定隔離 context offline。核對頁面由 SW 回應、舊 HTML 全 bytes 雜湊、舊版完整狀態，且未快取的網路 probe 失敗、主機零收到重開請求。筆記全內容、ID、revision、原生 metadata／media keys 與 Blob 每一 byte／SHA256 都須相同。原始日誌、成功／失敗證據及 profile 保留本機，finally 只停止自有程序／主機並釋放 nonce 相同的自有鎖；失敗不可刪除後當同一輪通過。這不代替實際磁碟損毀、斷電、低空間、影片播放品質、Safari 或手機驗收。
 
+2026-10-29 的整合續測以乾淨 `9d483e0`／`adbe8eb1d6acfd09` 重跑原工具：新增音訊模組後舊 cache 12／12完整，候選僅1／12份且真正CSS回應未完成時SIGKILL；同profile新程序離線取回舊殼、已提交筆記及sentinel完整bytes。原db129e的11份歷史輪另保留，詳見[新增manifest重跑](evidence/issue-13-forced-install.md#整合候選新增音訊模組後的重跑)。這不改變上列限制。
+
 #### 20／100／200 MiB 保存矩陣
 
 `make-storage-fixtures.ts` 讀本機已生成的合成 `output/media-probe/reference.mp4`，每輪建立全新 `output/storage-size-*`，不覆寫舊檔。加 free atom 得到四份精確大小的 MP4，第四份為 200 MiB＋1 byte；媒體 sample 不變，只測容量邊界，不代表高碼率／長片壓力。先用 FFmpeg 完整解碼，核對時長、串流及媒體 packet hash 與來源相同；不要用私人影片替代。

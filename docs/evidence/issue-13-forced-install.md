@@ -1,7 +1,7 @@
 <!-- 檔案用途：記錄真正部分安裝時強制終止及同設定檔離線重啟的匿名證據。所在層：#13 桌面驗收。主要關聯：forced-install-restart.ts、MEDIA_PROBE.md、sw.js。 -->
 # #13：候選部分安裝時強制終止瀏覽器
 
-2026-10-29 Asia/Taipei。結果：受測 Chromium 在新版只保存第一份資源、第二份 HTTP 回應未完成時被 SIGKILL；同一 persistent profile 的新瀏覽器程序離線重開後，舊殼、舊筆記與合成 Blob 完整取回。沒有發現產品 bug，本次只新增可重跑的瀏覽器測試及證據，不修改產品 runtime、資料格式或 `TECHNICAL.md`。
+2026-10-29 Asia/Taipei。結果：受測 Chromium 在新版只保存第一份資源、第二份 HTTP 回應未完成時被 SIGKILL；同一 persistent profile 的新瀏覽器程序離線重開後，舊殼、舊筆記與合成 Blob 完整取回。沒有發現產品 bug；原 #61 新增可重跑的瀏覽器測試，本整合續測只補證據與文件，不修改產品 runtime 或資料格式。
 
 ## 版本與資料
 
@@ -31,6 +31,19 @@
 - 既有 `offline-cache-failure.js` 真正 worker 的 cache put／open／match 故障、修復後離線重開與合成資料保留通過；既有 `offline-ready.js` 的 context 斷網／受控重開通過。沒有把其 Cache API 注入當作本次 SIGKILL 證據，也沒有繼續執行其媒體後續案例。
 - 原 `bun run check` 通過：366 tests、1015 expects、0 fail；包含 harness、公開掃描、TypeScript、原 lint 與 Web build。最終暫存後再跑相同入口及原 hooks，結果以交付 PR／CI 為準；未降低門檻。
 - 重跑入口及判斷條件見 [MEDIA_PROBE.md](../MEDIA_PROBE.md#部分安裝時強制結束瀏覽器)。raw JSON、瀏覽器日誌與 profile 僅留 ignored output；不公開本機端點、設定檔路徑或程序完整命令列。
+
+## 整合候選新增音訊模組後的重跑
+
+2026-10-29 04:59:27–04:59:30（Asia/Taipei），主聊天在自己的專用 clone，以乾淨 `9d483e0484a5781c7e93dbd36213431bcbde85dc` 重跑同一份原工具（上述測試 SHA 不變），exit 0。環境仍為 macOS 27.0.1、Chrome 156.0.8078.49 headless、Bun 1.4.4 與既有 Playwright core；沒有替換 User-Agent 或存取真實相機／麥克風。
+
+- 受測靜態為 `adbe8eb1d6acfd09`，實際 worker SHA256 `e8bffdacb06b2f7cc5b27749325c0c9a9cea4d4fd33ba21bc21b5e1c26b7741f`。舊 cache **12／12** 份符合 manifest，含新增 `local-audio.js`；本輪是新 worker 的實測，不沿用前述 db129e 的11份結論。
+- 合成更新 `adbe8eb1d6acfd09-forced-687fb192` 在第二份 CSS 真正 HTTP 回應尚未完成時，候選 cache 僅 **1／12** 份新 HTML；04:59:29.949 記錄 installing、waiting null、舊 active／controller 完整。工具依實際 manifest 計數，沒有調整測試門檻。
+- 04:59:29.986 只對自有 PID／PGID `53605` 發 SIGKILL，04:59:30.030 收到實際退出 signal SIGKILL、code null、群組剩餘0；原始證據在終止前已落盤。04:59:30.031 以同 profile 新程序 `53634` 重啟，導航前設 context offline，候選 HTTP barrier 仍保持。
+- 04:59:30.473 確認由 SW 取回原 HTML，SHA256 `1ae8198da59a5497a09f807d90719b5a314c6bc00cdc131083e3af01c112efa4`；舊 cache 仍12份且各雜湊相同。舊 worker activated、complete true、missing 空，installing／waiting 皆 null。原生 navigator.onLine false、未快取 probe 失敗、主機重開請求0；不是連網取回後再宣稱離線。
+- 原產品讀回 JSON、原生 metadata、媒體 keys、庫／列 revision 與上述1,048,613-byte sentinel 的完整 bytes／SHA256 全部相同；候選 cache 重開後仍僅新 HTML，未冒充候選已啟用或殘留已清除。
+- 04:59:30.545 自有重啟程序正常退出0、群組剩餘0，主機停止、nonce 匹配的自有鎖釋放；媒體 API 呼叫0。raw／profile／日誌保留 ignored output，不放入下載包或公開附件。
+
+這一輪填補新增音訊 manifest 的強制中斷缺口，與原 db129e 歷史輪分開保留；雙舊頁等待更新仍屬整合前的另一輪證據。資料是已提交的筆記與不可播放 sentinel，仍受下列限制，不延伸為播放品質、提交中的交易或 Safari 驗收。
 
 ## 限制與未驗證
 
