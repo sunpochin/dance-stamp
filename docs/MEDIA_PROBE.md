@@ -162,6 +162,17 @@ playwright-cli --session dance-file run-code "async page => { const play = $(cat
 
 先備妥既有 `output/media-probe/`、`output/comparison/` 合成測片。新隔離 session 依序執行 `backup-conflicts.js`、`backup-recovery.js`、`backup-keyboard.js`；第一支會實際下載 JSON 與單一 VS，第二支用該檔在全新 context 還原並重連 reference／take／VS，不清除既有資料。三支均用既有 CLI `run-code --filename tests/browser/…js`，檢查真正的 `### Result`，不能只看退出碼。
 
+`backup-drill.js` 補共用恢復演練的完整數量：三份影片筆記、十標記、兩 take／recipe、一個真正合成的 VS，共六份媒體描述。先以 FFmpeg 建立三支六秒合成片（目的檔存在會拒絕覆寫）：
+
+```sh
+mkdir -p output/backup-drill
+for i in 1 2 3; do
+  ffmpeg -hide_banner -loglevel error -n -f lavfi -i 'testsrc2=size=320x180:rate=30:duration=6' -f lavfi -i "sine=frequency=$((440+i*110)):sample_rate=48000:duration=6" -vf "hue=h=$((i*70))" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -c:a aac -movflags +faststart "output/backup-drill/reference-$i.mp4"
+done
+```
+
+在自己的隔離 Chromium session 執行 `playwright-cli --session dance-backup-drill run-code --filename tests/browser/backup-drill.js`。函式只清除自己新建 context 的測試 origin（IndexedDB、cache 與 worker），不清除呼叫者或一般瀏覽器資料；清除前已透過產品下載 JSON 與六份媒體。先完整還原，再以六個獨立 context 逐檔缺片；補回前開啟其他筆記／可用 take，取消候選保留副本，預設 session-only 重連後重開仍須缺片。所有 canonical 關聯／時間／鏡像不變，恢復的原片與各案例 VS 下載比對 bytes／SHA-256。僅測資料恢復，不宣稱跨實體裝置、Safari、硬體相機或 G1–G7；獨立解碼下載檔後才另記成檔證據。
+
 驗收包含預覽不寫入、重匯與來源隔離、quota、metadata put 中取消、真實雙分頁衝突、危險輸入、同名裁切片拒絕、明確副本、重開與鍵盤／窄版。產物在 ignored output。`backup12-generated-vs.mp4` 與 `backup12-restored-vs.mp4` 應有相同 SHA256，再以 FFmpeg 完整解碼，並用 `download-playback.js` 在產品外完整重播。這驗證原始 bytes 被帶走／恢復，不把 JSON 冒充影片備份；結果見 [#12 證據](evidence/issue-12-backup-recovery.md)。
 
 
