@@ -381,6 +381,8 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 [完整版本、合成來源、數據與接手步驟](evidence/issue-3-safari-current.md)。`tests/browser/safari-storage-probe/serve.ts` 提供可重現的最小原生頁，只綁 loopback、不讀產品資料；其 timeout 不冒充產品已恢復。短片已失敗，暫不擴跑 Safari 九組／十輪矩陣，不改原護欄或宣稱手機失敗。
 
+後續不同頻率的原生對照已分辨來源第一聲缺失及後續延遲；已解碼音訊的1×／0.5×對照和一份15秒完整VS原型通過。完整VS另核對原生頁面執行識別與controller=none，排除舊SW供應舊程式；同輪先前兩份無此證明的結果不歸因新候選。這仍是私有小檔可行性，正式runtime／Safari支援未改，長來源記憶體、取消及完整矩陣待工程化，見[原型範圍與原v5數據](evidence/issue-3-safari-current.md#可辨來源秒碼與已解碼音訊的原型2026-10-29)。
+
 
 ## 更新分頁數的證據邊界（2026-10-29 補查）
 
