@@ -5,6 +5,8 @@
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
+#3 的真正 macOS Safari 同步／私人視窗副本失敗與原生對照見 [Safari 證據](docs/evidence/issue-3-safari-feasibility.md)。共用時鐘改善仍未解除成檔凍結，七個未通過候選已還原；保留原護欄，下一步一般設定檔初始化待使用者同意。Chrome 同靜態版本的通過結果不延伸到 Safari。
+
 ## 1. 架構結論
 
 第一候選：**TypeScript + Vite + Svelte，靜態 Web／PWA，原生媒體 API，IndexedDB（透過 Dexie）保存筆記。** 不需要 SSR、登入、SQL 雲端、付費影片平台或訂閱表。

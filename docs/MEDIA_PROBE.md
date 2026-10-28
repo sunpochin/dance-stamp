@@ -60,6 +60,8 @@ ffmpeg -v error -i output/media-probe/dance-vs.mp4 -f null -
 
 G1–G7 沿用 [RECORD_COMPARE.md](RECORD_COMPARE.md)；JS 播放位置差與循環假相機不是實際成檔 G2 證據。桌面 Web 先行是使用者明確決定，不宣告手機支援，也不因未測手機觸發 iOS。
 
+真正 macOS Safari 的前景選片／同步／副本診斷見 [#3 Safari 證據](evidence/issue-3-safari-feasibility.md)：同版匯出被 250ms 護欄拒絕，失敗片段逐格證實凍結，原生格式對照也未通過；私人視窗副本另有儲存錯誤。七個 runtime 候選均已還原，一般專用設定檔需先經使用者同意初始化。這是有界失敗紀錄，不能從 Chrome 成檔、Safari 的 API／playing 或共用時鐘改善宣告通過；先隔離環境與根因，再投入完整矩陣。
+
 API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)與[Web Audio 輸出節點](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination)。
 
 `markers.js` 請用全新 session，量實際顯示的 mediaTime，另驗證 CRUD、逆序拒絕、草稿保護與多分頁失敗恢復。此結果只適用受測素材，不是 G2 聲畫同步證據。
