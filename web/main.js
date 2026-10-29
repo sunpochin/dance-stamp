@@ -3,7 +3,7 @@ import { comparison, positions, contain, validateMarkerRange, captureDuration } 
 import { event, normalizedVideo, mediaAction, presentedFrame, seek, load, record, extension, cameraError } from './recorder.js';
 import { validateBackup, parseBackup, planBackupImport, createShare, mediaInventory, videoLabels, planDeletion, moveStatuses, searchLibrary, practiceHistory } from './library.js';
 import { startOffline } from './offline.js';
-import { safariAudio, decodeLocalAudio, audioReady } from './local-audio.js';
+import { safariAudio, decodeLocalAudio } from './local-audio.js';
 import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './beats.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
 
@@ -241,7 +241,7 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
     await Promise.all([...frames, Promise.resolve().then(() => reference.play()), Promise.resolve().then(() => self.play())]);
     // 先喚醒解碼與音訊，再回到配方起點；不能靠錄晚一點而省略自拍開頭。
     if (exporting) await align(value, 0, starting.signal, localAudio);
-    // 本機音訊須等原生 recorder start 才排程；等待完成後才啟播兩側畫面。
+    // 錄製先接受輸入再啟播；不能等依賴後續影格的 start 通知，否則彼此等待。
     abortIfNeeded(signal); await startOutput(); abortIfNeeded(signal);
     if (exporting) await Promise.all([reference.play(), self.play()]);
   } finally { starting.abort(); signal.removeEventListener('abort', cancelStart); }
@@ -578,11 +578,8 @@ $('export').addEventListener('click', () => operation(async signal => {
           bufferSource.buffer = buffer; bufferSource.playbackRate.value = value.rate; bufferSource.connect(destination);
           destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
         }
-        const nativeStart = new Promise((resolve, reject) => {
-          // 只讓相容音訊的比較匯出選已實測 WebM；相機 chunks 與 Chrome 不套此選項。
-          recording = record(stream, () => {}, resolve, { webmOnly: true }); recording.done.catch(reject);
-        });
-        await audioReady(nativeStart, signal); abortIfNeeded(signal);
+        // start 事件可依賴後續影格，不能等它才啟播；start() 已成功回傳才啟動音畫，仍用原偏移護欄拒絕失步。
+        recording = record(stream, undefined, undefined, { webmOnly: true });
         // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
         audioStartedAt = audio.currentTime + 0.01;
         bufferSource?.start(audioStartedAt);
