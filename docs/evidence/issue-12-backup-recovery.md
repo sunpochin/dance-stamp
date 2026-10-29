@@ -59,6 +59,42 @@ macOS 27.0.1、Chrome 156.0.8078.49 **無視窗**（User-Agent 含 HeadlessChrom
 
 共用媒體／桌面／效能鎖由主聊天持有，本輪未取得或變更鎖，未執行瀏覽器、Safari、媒體或效能矩陣。跨裝置／完整支援範圍、Claude Code 或使用者獨立審查仍未完成；iPhone 依指示暫緩，#12 保持開啟，未合併或發布。不新增後續票或擴張 #18 分享範圍。
 
+## 2026-10-30：備份容量邊界修正
+
+本輪從最新 main `c0ab39bcf68354cc29d7048a0d81e56d626efcf1` 的獨立 clone，沿實際 `validateBackup`／`planBackupImport` → UI 確認 → `writeLibrary`、動作／拍點保存與取消、未確認狀態 → `downloadBackup` 追查資料流。#17／#18／#19 已有實作；有界程式稽核與下列單元測試未重現新的關聯、白名單、ID 冪等或取消接線缺陷，不重寫功能。精確最終來源由本節所屬 PR 的 head 綁定，不把 main 或舊瀏覽器收據當成新來源已測。
+
+找到並先重現 #12 的容量邊界缺陷：530 個合成標記，每筆 note 仍 ≤20,000 字，完整原始 metadata 為 10 MiB 減 128 bytes，通過原驗證；實際 `downloadBackup` 加縮排後產生 **10,521,284 bytes**，超過 `parseBackup` 的 **10,485,760 bytes** 上限，因此無法還原。反例在修正前失敗，沒有改上限或刪短內容換取通過。
+
+修正只讓共用下載函式先驗證新 exportedAt，輸出不加縮排的 JSON。正常備份與保存未確認的救援使用同一路徑；schema、分享白名單、匯入 ID、原生交易、Blob 與草稿保護不變。新回歸直接執行產品下載函式，只替換 DOM／URL 出口，實際 Blob bytes 不超限且可經 `parseBackup` 再匯入：逐表保留 Video／Move→Marker／take／recipe／VS 描述、獨立拍點快照、來源 ID，重匯不新增且原始 state 不變。救援仍只含最後確認的筆記，不含未保存草稿或影片。
+
+Bun 1.4.4 的六份相關單元（backupImport、library、moves、share、beats、storageCompletion）**41 tests／582 expects／0 fail**；原完整 `bun run check` **409 tests／1581 expects／0 fail**，包含公開掃描、型別、原 lint 與 build，靜態版本 `9ef2b8488982695f`。原 19 項 lint info 保留。首次受限執行環境的完整檢查在既有 HTTP 單元開啟本機主機時失敗；允許 loopback 後從頭執行相同 check 全過，未修改測試或品質門檻。其餘證據屬修正工作樹；原 hooks、最終乾淨 head／CI 的結果由 PR 綁定。
+
+本輪沒有啟動瀏覽器、相機、媒體或效能量測，也沒有取得／變更共用媒體鎖。這是純資料及實際控制器函式的證據，不能代替原生 IndexedDB／quota／Stop、下載落盤、媒體 bytes、Safari／私人模式、真人／跨實體裝置或發布驗收；既有相關瀏覽器函式只作流程核對，未在本輪重跑。iPhone 暫緩，#12／#17／#18／#19 保持開啟，Claude Code 或使用者最終審查待完成。完整檢查、受測來源與結果另由 PR 記錄。
+
+### 日期與零餘裕 UTF-8 續審
+
+續審來源為 PR #75 原 head `1dc8aef343f6aa961b90b7a3d7b2a5c157b8829b`；本次只補測試與文件，產品 `web/` 與靜態 `9ef2b8488982695f` 不變。原先保留 128 bytes 的案例不足以證明零餘裕；因此移除此餘裕並改用漢字及 emoji（`舞💃`，UTF-8 為 7 bytes、JS 為 3 個字元），仍逐筆遵守 20,000 字上限。
+
+實際可達性核對：
+
+- `validateBackup`／`parseBackup` 接受並保留 `2026-10-30`（10 字元）及 `2026-10-30T00:00:00Z`（20 字元）；但 UI 匯入不是把此物件直接存入。本機初始值由 `newLibrary` 建立，最初 v1 來源 `814312c` 與目前都用 24 字元的 `new Date().toISOString()`；`mergeBackup` 複製本機封裝，`planBackupImport` 空庫只採來源 library ID，沒有複製匯入時間。正常編輯、讀回與 v1→v2 migration 保留本機時間。
+- v1／v2 × 上述兩個短日期共四案，經產品 `parseBackup` → `planBackupImport` → `writeLibrary` → `readLibrary` → 實際 `saveData` → 再讀回。匯入檔分別為 **10,485,746／10,485,756 bytes**，匯入後與後續保存快照都恰好 **10,485,760 bytes**，本機日期保持原 24 字元。正常及救援共用 `downloadBackup` 的八次 Blob 都恰好到上限，可 `parseBackup`、空庫重建、逐表比對及重匯冪等，不改 state、不另讀寫 DB。交易使用既有事件測試後端，並非原生 IndexedDB／真正 UI 點擊或未知事件驗收。
+- 另將短日期原檔補到整整 10 MiB：外部 parser 接受，但既有合併封裝增加 14／4 bytes，使 `planBackupImport` 在預覽前拒絕；測試確認尚無 metadata 寫入。這是既有匯入容量界線，並非本次新增拒絕或成功恢復，不以此假裝短日期已進入本機。未在目前產品入口重現「短日期被保存後，匯出改 24 字元而超限」，因此沒有新增日期 fallback 或修改匯入政策。
+
+零餘裕首輪另揭露原共用 `graph()` 簡化 fixture 省略 `mediaIncluded:false`，白名單補欄後會額外增加 24 bytes，造成測試失敗；該失敗收據保留。核對所有目前 asset 建立 owner、外部 parser 與最初 v1 owner 都必定填此欄後，邊界 fixture 明確帶入相同欄位，再從頭執行，沒有改產品或放寬斷言來掩蓋失敗。合法零餘裕產品形狀的完整 v2 關聯案例亦通過。最終檢查、head／CI 由 PR 綁定，不把這些函式回歸升格為裝置或原生瀏覽器驗收。
+
+### 讀回狀態與可攜容量的獨立續審
+
+2026-10-30 Asia/Taipei，另一個作者在獨立 clone 核對 PR #75 最新 `87e04e85813bbf02452ee57bfba71910b4904cb6`，沿實際 `parseBackup` → `planBackupImport` → `writeLibrary` → `readLibrary` → `saveData`／共用 `downloadBackup` 追查。沒有重做已完成的短日期結論，也沒有啟動瀏覽器或碰共用媒體鎖。
+
+先建立完整 Video／Move→Marker／reference／take／recipe／VS 關聯，包含合法 interrupted take、影片拍點及 `mediaIncluded:false`；以真正合併後的大小填入 UTF-8 漢字／emoji 筆記，每筆仍 ≤20,000 字元。外部檔小於上限，經原 parser 與合併 owner 後 metadata 恰好 **10,485,760 bytes**，成功保存。讀回沒有媒體副本時，原 owner 把該 take 的 asset 從 missing 改為 interrupted，完整 state 變成 **10,485,764 bytes**。在未修產品時，直接執行原 `downloadBackup` 因 `validateBackup` 白名單前的大小檢查拋錯，得到 **1 fail／4 expects**；沒有下載，也沒有人工塞入不可能的短日期或 runtime 狀態。這是 #75 尚未解決的既有容量缺口，不是縮排修正新增的資料遺失。
+
+修正僅把共用 `validateBackup` 的 10 MiB 檢查移到白名單重建之後，檢查真正可攜內容。`parseBackup` 的原始 UTF-8 檔案檢查及 UI file.size 檢查完全保留；沒有提高外部上限、刪減筆記、移除本機狀態、改 schema 或重寫交易。所有允許欄位／關聯／危險鍵仍逐項驗證，分享白名單不變。只在下載排除狀態不能處理讀回後的初始化、保存與重匯，因此改在所有呼叫者共用的驗證 owner。
+
+新回歸沿相同可達匯入／保存／讀回後，再執行產品 `saveData` 將可攜內容補到恰好 10 MiB，重讀超過該大小的本機 runtime state，確認狀態完整保留。正常／未確認救援兩次產品 `downloadBackup` 的實際 Blob 均恰好 10 MiB，包含新的 exportedAt；逐表、來源 ID、空庫還原與同庫重匯冪等均成立，下載不修改 state 或開交易。另確認允許內容多 1 byte 時驗證／保存拒絕且不開交易；即使超出的只是未知欄位，超大外部原檔仍由 parser 先拒絕。此單一完整關聯案例 **1 test／51 expects／0 fail**；DOM／URL 與交易事件仍用既有替身，不宣稱原生 UI、IndexedDB、下載落盤或 Safari 驗收。
+
+修正工作樹的原完整 `bun run check` 通過 **411 tests／1833 expects／0 fail**、公開掃描 236 檔、型別、原 lint 與 build，靜態 **0e9c7c7af09286e2**；19 項原 lint info 保留。提交／推送 hooks 與最終 head／CI 另由交付 PR 綁定。本輪工程審查與純邏輯回歸不代替 Claude Code／使用者最終審查，也不承接其他聊天的原生備份 UI 結果；產品 UI／真實傳檔、真人／跨實體裝置與發布驗收仍保留，iPhone 暫緩，未合併、部署、發布或關閉未驗收票。
+
 ## 限制
 
 這是桌面 Chrome 合成資料的還原演練，不是手機／Safari、真實相機、永久儲存或全 G1–G7 證據。清空測試使用新的隔離瀏覽器資料，沒有清除使用者儲存。JSON 不含影片，手動重連不能憑檔名／大小／時長證明原檔身分。跨裝置、完整發布與重要變更人工審查仍待完成；iPhone 依使用者要求暫緩。沒有合併或發布。

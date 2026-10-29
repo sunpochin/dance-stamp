@@ -338,3 +338,58 @@ Chrome 合成結果、程式／包相同、CI 及測試替身都不能代替 Saf
 修正先保留本次 spawn error 與固定 child，再只對「明確 error、無 PID、仍是本次 handle」清除已確認不存在的程序；主循環回傳原錯誤，finally 沿既有 nonce 檢查釋放自己的鎖，測試仍標失敗。正常 Chrome 強制中斷／原生 quota 的歷史證據維持原版本歸屬，本輪只做非媒體檢查，未重跑原生瀏覽器或影音矩陣；最終提交／完整check／CI由PR另綁。
 
 原生 Safari 的最新直接證據另屬 [PR #67 的98fb551](https://github.com/sunpochin/dance-stamp/pull/67)：一般視窗已解鎖續測，半速啟播、尾端長度及起點等待候選仍有原門檻拒絕／逾時，私人儲存恢復仍待驗。不要覆蓋為「等待 Mac 解鎖」，也不將本工具收尾修正視為產品或 Safari 品質通過。Web 優先、iPhone 暫緩；不合併、不發布、不關未驗收票。
+
+## 2026-10-30 候選整合與恰好容量上限的原生 UI
+
+本輪只建立任務分支候選，未合併 main／來源 PR。從乾淨 main `c0ab39bcf68354cc29d7048a0d81e56d626efcf1` 建立 `integrate/web-candidate-20261030`，固定下列已推送且各自 CI 通過的來源；#75 等日期／UTF-8 續審穩定後才納入，後續確認中斷媒體讀回缺口後再更新為 #78。
+
+| 來源 | 固定 head | 包含關係 |
+| --- | --- | --- |
+| PR #74 | `57e3fa18e83a92e7656a6d15f6c6fbebb97805d6` | 已含 #73 `27d72ef`、工具修正 `fa6e69e` 及其後匿名原生補驗文件；只合一次 |
+| PR #75 | `87e04e85813bbf02452ee57bfba71910b4904cb6` | 功能 `1dc8aef` 與日期／零餘裕續審，經 #78 的祖先保留，不另套用 |
+| PR #78 | `c46f0b537b501d1d5e1c9cf9da93f9fdbfddc38f` | 包含 #75；解決 runtime 狀態被算入容量而誤擋備份，外部原檔上限不變 |
+| PR #76 | `f95a2564a06d6d7f2e5dd0a9dd785a83e300e3ca` | 八處來源連結修正及隨包文件的相對連結檢查 |
+
+採保留來源父提交的單次合併，三個有效來源自動合併無衝突。Web 全部來源檔精確等於 #78，低空間工具／收尾回歸等於 #74，文件連結回歸等於 #76；除整合說明外不新增產品邏輯。最終祖先檢查、CI、乾淨包與全部 payload 校驗由交付 PR 綁定，不把來源各自綠燈相加當整合結果。
+
+### 最新實際受測來源與包
+
+Bun 1.4.4、macOS 27.0.1、Chrome 156 headless、既有 Playwright CLI 0.1.22。最新原生 UI 執行時 HEAD 仍為 main、合併尚未提交，受測完整工作樹 tree 為 `d86304f8a332bb8fb4085bd7032eaec1682f6dd6`，後續只修正並補入整合文件；不是乾淨最終 head 另測。靜態 `0e9c7c7af09286e2`，main.js SHA256 `0bafd36b8fd62da309fe86cf8702a750f21630408a3a6bde7556674f3de74a92`、library.js `d521a66eedf1c601c9e5067f970a9e0d9f7ed5806f75f09c3a6349f7675dc510`、低空間工具 `02094a83ac64bb1dfe8cb56acceabe5e721c922daa7df2aa3e4435367a5fd1e3`。
+
+原 `bun run check` 在這份整合內容通過 **433 tests／2023 expects／0 fail**，236 檔公開掃描、17 份 harness 指紋、型別、原 lint 與 build，保留 19 項既有 lint info。package／check:package 通過；受測工作樹包 **58 檔／289,954 bytes**，sourceRevision=c0ab39b、trackedChanges=true，SHA256 `feb9355f1537f6f473b9b800c4a45c2968e54662ef67900d7836bedf6f6b701f`。實際解到 repo／Git／node_modules 外的新目錄，只用 Bun 啟動隨包主機，原生 tar、57 份 checksum、56 份 payload 與官方 checker 通過。
+
+43 項最新 HTTP 檢查通過：13 個應用資源各 GET／HEAD 的 SHA／空 HEAD／MIME／四份共用政策；六個非公開路徑各 GET／HEAD 與五種非讀取方法回 404。白名單未擴張，QA runner、影片、profile、raw、Git 及非公開 manifest 沒有出現在公開路由。
+
+### 五組真正產品入口與磁碟下載
+
+每案在同一自有 browser 的全新隔離 context，透過真正 file input、匯入預覽／確認、開啟課程、保存標題、重載、產品備份按鈕與瀏覽器下載實際落盤。成功匯入與保存都有 trusted native transaction complete；沒有替換 IndexedDB 後端或直接塞入內部 state。素材只有合成筆記，沒有影片 Blob。
+
+| 案例 | 外部輸入 bytes | 原生保存的 data bytes | 正常下載 bytes |
+| --- | ---: | ---: | ---: |
+| v1 × 10 字元日期 | 10,485,746 | 10,485,760 | 10,485,760 |
+| v1 × 20 字元日期 | 10,485,756 | 10,485,760 | 10,485,760 |
+| v2 × 10 字元日期 | 10,485,746 | 10,485,760 | 10,485,760 |
+| v2 × 20 字元日期 | 10,485,756 | 10,485,760 | 10,485,760 |
+| v2 × 完整中斷媒體關聯 | 10,485,760 | 10,485,889（含本機狀態） | 10,485,760 |
+
+四種日期都保留本機 24 字元時間，沒有任意額外 headroom；每案 530 筆 marker 的漢字／emoji 內容仍遵守原單筆上限。完整關聯案有 Video、三類 asset、interrupted take、recipe、VS、Move→Marker，並保留老師與 take 不同的拍點。正常下載後在另一新 context 以真實 file input 再匯入，逐表／來源 ID 相同、重載後完整原生 metadata JSON 不變、再匯入冪等而不寫入。
+
+每案另將合法 JSON 以尾端空白補到 **10,485,761 bytes**，實際 File.size 超限，產品在預覽前拒絕且尚無 metadata；不因白名單整理後較小就允許超大原始檔。這是產品外部入口拒絕證據，不提高上限。
+
+同一輪附加核對救援入口：在真正 metadata.put 成功而交易尚 pending 時用原生 get 延長交易，只丟棄該交易對產品的 complete／abort 通知；QA 仍旁聽原生事件。真正點 Stop 後 QA 取得 trusted native abort、沒有 complete，產品因受控缺通知轉未確認、退出 busy，原生完整舊 metadata JSON 及表單草稿保留。再用真正可見的「另存本頁筆記備份」下載，每案亦恰好 10 MiB，包含最後確認內容、排除未保存標題；另在新 context 匯入、重載及重匯同樣通過。這是明示通知故障注入，不是自然 Safari／低空間或一般 Stop 應轉未確認的驗收。
+
+共五個資料案例、十份正常／同輪附加救援 JSON；以 runner 全文斷言保留 canonical 表及原生 metadata，未另外序列化完整 native metadata raw。十份實際磁碟檔另由獨立 Python 讀取核對 bytes／SHA／JSON；每對正常／救援除 exportedAt 外全部相同，asset 不含 runtime 欄位，完整關聯及兩份不同拍點均在。完整關聯正常／救援 SHA256 分別 `53ce91439520418f210b9cda79e74f455711a4e3f293a794ab4471fa905e15d4`／`1adfc8fc1d2eb571d702775a6607b21ac7bbad9fc48e8f1e55a86e9770084b4f`。不與其他聊天的 8 KiB 餘裕、既存媒體或注入救援案例相加為額外驗收。
+
+### 保留的前階段與收尾
+
+初版整合 #74 fa6e69e／#75 87e04e8／#76 f95a256，index tree `b8db1d6019c38c66cc4eb6327a6ab46d83e4d267`、靜態 `9ef2b8488982695f`，原 check 432 tests／1971 expects；58 檔／284,961-byte 裸包 SHA256 `82020e23ad7700009fbf8e91429c76af7be9abf231b8bb9e38dcb6987aa440e6`。原 package-entry、accessibility-focus、accessibility-layout、backup-keyboard 全有 Result 且無 Error：保存／quota／停止焦點、列表重繪、取消返回、busy 收尾、五 viewport × 100%／200% 共十組、44px／無橫向溢出／焦點不遮蔽及原生 modal／session-only／候選釋放通過。備份鍵盤用新 context 保留空資料前置，匯入／重連截圖已目視核對；八個已知自有 Chrome PID、主機與 nonce 收尾。這些 UI 函式未改，不因 #78 容量修正而重跑或改標新靜態；新版只重跑上述受影響容量入口與包／HTTP。
+
+#78 前另有四組無媒體日期案例、八份恰好 10 MiB 的原生 UI 成功，仍屬 9ef2b8488982695f，不能覆蓋中斷媒體缺陷。第一輪在重載後才讀 QA 陣列，遺失重載前的成功收據而 failed；第二輪改在重載前保存真正 complete 紀錄，四案從頭通過。首輪 profile／兩份下載／失敗原收據及後續所有成功保留，不把工具錯誤改為產品通過。
+
+原子取得共用鎖前的 EEXIST 拒絕未啟動瀏覽器、不碰他人鎖。初版 smoke、QA 失敗、舊四案成功及最新五案，各自核對 8／9／7／7 個已知自有 Chrome PID 全退出、自己的主機停止，nonce 相符才放鎖；raw、profiles、JSON／截圖、原工作樹包與私有 runner 全留 ignored output，不上傳。更新尚未提交的整合來源時，Git 曾因本輪未暫存文件拒絕 abort；先備份 patch、整理自有 index 後才成功更新，舊來源 check 保留原歸屬。語法檢查初次只排除套件引用，仍嘗試解析 browser 的絕對 import 而失敗；保留所有外部引用後成功，沒有改低空間工具。
+
+### 未驗項
+
+本聊天沒有重跑低空間／配額正向矩陣、影音成檔／同步品質、原生 Safari、產品外播放、全 G1–G7、既存影片 Blob 的跨程序保留或完整缺片救援。#74 的原生補驗仍屬 fa6e69e／其原靜態；#75、#76、#77、#79 及其他聊天的舊版成功不移記為本候選重跑。新版容量／JSON UI 證據不代替私人模式自然故障、真人／實體／跨裝置或媒體品質。
+
+讀屏實聽、五位舞者及 4/5 核心操作、實體觸控／safe area、真人相機／聲音、既定保存 Stop／私人模式缺口、Claude Code／使用者最終審查、公開 origin／HTTPS／標頭及發布核准保持原條件。iPhone 暫緩；來源 PR／未驗收票保持開啟，不合併 main、不部署或發布。

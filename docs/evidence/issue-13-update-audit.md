@@ -7,8 +7,8 @@
 
 ## 已核對的來源與版本
 
-- [`web/sw.js`](../../web/sw.js)：install 依 manifest 逐份驗證 SHA256 並保存；網路、HTTP、雜湊或 Cache.put 失敗拒絕候選，只清該候選 cache。fetch 仍需符合當前版本雜湊；cache open／match／put 失敗不阻止正確在線資源。CHECK_OFFLINE 逐份讀實際 cache，缺檔、損壞或 API 例外不報完整。
-- [`web/offline.js`](../../web/offline.js)：向 controller（初次則 active worker）查完整性，首次未受控制時提示重開；只監看 installing／waiting／controllerchange 來更新文字，不執行 skipWaiting、claim 或 reload。容量估計與 persist 失敗獨立於筆記開啟。
+- [來源庫 `web/sw.js`，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/web/sw.js)：install 依 manifest 逐份驗證 SHA256 並保存；網路、HTTP、雜湊或 Cache.put 失敗拒絕候選，只清該候選 cache。fetch 仍需符合當前版本雜湊；cache open／match／put 失敗不阻止正確在線資源。CHECK_OFFLINE 逐份讀實際 cache，缺檔、損壞或 API 例外不報完整。
+- [來源庫 `web/offline.js`，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/web/offline.js)：向 controller（初次則 active worker）查完整性，首次未受控制時提示重開；只監看 installing／waiting／controllerchange 來更新文字，不執行 skipWaiting、claim 或 reload。容量估計與 persist 失敗獨立於筆記開啟。
 - [#44 固定版本證據](https://github.com/sunpochin/dance-stamp/blob/e3e3382ace38e234d91c777ada2f3740285201bb/docs/evidence/issue-13-media-size.md)：20／100／200 MiB 的六份副本跨程序重啟、移開合成原輸入及斷網後保留完整下載 bytes。這是舊版容量／媒體保存證據，不是本輪重測或更新中斷證據。
 - [#54 固定版本證據](https://github.com/sunpochin/dance-stamp/blob/85b1ba6e5cf431902d7814f74fd1032c17352bd5/docs/MEDIA_PROBE.md#p1-整合候選的正式同版桌面證據2026-10-28)：正式媒體來源 `587689d`／靜態 `db129e273cf0039b`；真正 SW 損壞候選拒絕、錄影／匯出時新版 waiting、不重載或換 controller、舊頁關閉後啟用，既有資料與無關 cache 保留。舊 24 組／十輪數字不列為本輪通過。
 - 已核對 #55、#56、#57、#58；它們的 Safari、備份及主機交付不重報為本票新增成果，也未併入本分支。

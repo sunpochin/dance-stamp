@@ -1,6 +1,8 @@
 <!-- 檔案用途：記錄下載包、免費主機、來源邊界及發布前缺口。所在層：#15 發布準備。主要關聯：START_HERE.md、LICENSING_AND_COST.md、ACCEPTANCE.md。 -->
 # Web 下載包與發布準備
 
+2026-10-30：整合候選固定 #74 `57e3fa1`（含 #73）、#78 `c46f0b5`（含 #75 `87e04e8`）與 #76 `f95a256`，靜態 `0e9c7c7af09286e2`。原 check、裸包 HTTP、五組恰好 10 MiB 的產品正常下載／還原及原始檔超限拒絕已實際重跑，來源與注入救援界線見[整合證據](evidence/p0-safari-reliability-integration.md)。這不是合併 main 或發布；下方舊版 Chrome／Safari／低空間結果保持原來源，不移記為本候選重跑。
+
 2026-10-29 更新支援狀態；下方主機比較保留2026-10-28的查核資料，發布前仍須重查。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
 本輪以桌面Web為優先，iPhone暫緩。最新功能99a2169／422c70c3633b8e88補上明確metadata保存的Stop接線；[乾淨同版title／copy Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)已通過。另有修正工作樹九個取消入口與獨立佇列例外，以及原capture／drain必要回歸；不把工作樹當clean-head，也不改標舊完整影音／Safari數據。從main38e6cf9建立一般PR #72，保留#64、#65、#66、#67、#69與#70的來源；629a98b新增擷取完整性保護及未完成原片另存，9e6f0ef合入pending-write工具且保留#66程序／nonce保護。失敗新片不替換舊自拍／VS，救援下載只在明確成功刪除對應媒體後撤銷，詳見[擷取證據](evidence/issue-9-capture-recovery.md#擷取完整性續審)。
@@ -27,6 +29,8 @@ bun run check:package
 產物為 `dist/dance-stamp-web.tar.gz`、同名 `.sha256` 及可檢視的 `dist/package/`。包內 `release.json` 記靜態版本、來源 commit、是否有未提交修改及每檔 SHA256；`SHA256SUMS` 另含 manifest 的校驗。正式交付應在提交完成的乾淨來源重新產出，核對 commit／trackedChanges=false，再把整包雜湊綁到交付紀錄。雜湊只證明 bytes 一致，不能代替可信任的下載來源、人工審查或簽章。
 
 白名單取代遞迴壓縮 repo，拒絕未知檔案／目錄、符號／硬連結、缺檔、內容竄改及公開掃描命中；建置寫入前也檢查，不自動刪除可疑檔案來換取成功。包內只有應用程式、共用本機主機、使用說明、資料／媒體契約、驗收與必要授權資料；沒有 node_modules、Git、私人媒體、資料庫、JSON 備份或測片。所有發佈 bytes 先校驗，再以 [Bun 原生 Archive](https://bun.sh/docs/runtime/archive) 壓縮並讀回核對，不新增壓縮套件。
+
+隨包指南、證據與根目錄授權文件的相對連結都必須指向隨包檔案。技術索引、原始碼與需要完整來源庫的手機測試清單改以固定版本 GitHub 連結提供，標示「需連網」；離線可讀操作／恢復指南與匿名支援證據，完整開發文件仍須連網或另取得來源庫。這不新增手機支援或發布驗收結果。
 
 最外層 `.tar.gz` 與 `.tar.gz.sha256` 也必須是不存在的路徑或獨立的一般檔案；工具在任何打包寫入前同時檢查兩者，拒絕符號／硬連結、懸空連結及目錄，保留異常路徑供人工確認。請在專用來源資料夾建包，避免其他本機工作同時改動輸出；這不是對本機其他程式的安全隔離。
 
