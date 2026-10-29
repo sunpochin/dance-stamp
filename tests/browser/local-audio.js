@@ -7,6 +7,9 @@ async page => {
   assert(await page.evaluate(async () => (await import('/local-audio.js')).safariAudio()), '需明確選取工程用 WebKit 分支，不冒充原生 Safari');
   await page.evaluate(() => {
     const Native = AudioDecoder, closed = AudioDecoder.prototype.close, audit = window.audioAudit = { created: 0, closed: 0, frames: 0, sources: [], tracks: [] };
+    // chooseFile 完成後會清空 input；先在擷取階段保留原 File，才可在成檔後核對完整 bytes。
+    audit.files = new Map();
+    document.addEventListener('change', event => { const input = event.target; if (input instanceof HTMLInputElement && ['reference-file', 'self-file'].includes(input.id) && input.files?.[0]) audit.files.set(input.id, input.files[0]); }, true);
     // 只拒絕 WebM，MP4 仍宣稱支援；若產品偷偷退回 MP4，這個負向控制必須抓到。
     const Recorder = MediaRecorder; audit.formats = []; audit.formatChecks = []; audit.formatFault = '';
     globalThis.MediaRecorder = class extends Recorder {
@@ -45,8 +48,11 @@ async page => {
   const before = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length);
   assert((await page.locator('#output-download').getAttribute('download')).endsWith('.webm'), '相容匯出未使用真正 WebM 檔名');
   const fingerprints = () => page.evaluate(async () => {
-    const urls = [document.getElementById('reference').src, document.getElementById('self').src, document.getElementById('output-download').href];
-    return Promise.all(urls.map(async url => { const bytes = await (await fetch(url)).arrayBuffer(); return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(v => v.toString(16).padStart(2, '0')).join(''); }));
+    // 原 CSP 禁止 fetch(blob:)；直接讀選入 File 與已保存 VS 的 bytes，不能放寬策略讓工具過關。
+    const store = await import('/storage.js'), library = await store.readLibrary(), latest = library.data.exports.at(-1);
+    const blobs = [window.audioAudit.files.get('reference-file'), window.audioAudit.files.get('self-file'), await store.readMedia(latest.assetId)];
+    const hashes = await Promise.all(blobs.map(async blob => { if (!(blob instanceof Blob)) throw new Error('來源或舊 VS 不可讀'); const bytes = await blob.arrayBuffer(); return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(v => v.toString(16).padStart(2, '0')).join(''); }));
+    return { hashes, urls: [document.getElementById('reference').src, document.getElementById('self').src, document.getElementById('output-download').href] };
   });
   const preserved = await fingerprints(), webmRejections = [];
   for (const mode of ['unsupported', 'construct', 'start']) {

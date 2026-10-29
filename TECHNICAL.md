@@ -571,3 +571,8 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 採小型明確選項而非全域更改候選或 UA 分流到第二套 recorder，才能保留相機／Chrome 的既有序列、編碼 error、原生自動停止、尾塊、取消與重試的同一份清理。兩個格式回歸在 eb21064 原碼副本先失敗，修正後驗證選項只作用當次、普通 MP4→WebM 退回仍可用、專用拒絕不試 MP4及編碼 error 後 head／tail完整。原 local-audio 瀏覽器回歸另加入三種原生格式拒絕、原片／舊 VS 指紋、資源釋放及專用候選斷言；是否實際執行另列，語法／單元不冒充 Chrome 或 Safari 媒體證據。
 
 此前停止輸入軌、取消 timeslice、立即重畫起點的私有原生對照均失敗，未納入正式 runtime；原 v5、100ms／250ms、90秒完整耗時及覆蓋／漂移門檻完全保留。完整失敗與原型來源見[證據](docs/evidence/issue-3-bounded-audio.md)。iPhone 暫緩，不合併、部署或關閉 P0 gates。
+
+
+41b3023／f81d1c69861fa21e在真正Chrome156.0.8078.49原聲路另完成無相機入口、三速度自然音高及匯出失敗／WebM重試回歸，14份新下載逐檔完整解碼；四份失敗後舊VS與基準bytes相同，原片前後指紋相同。WebKit工程分支則在該Chrome引擎等待native start逾時，原生事件於stop呼叫後才出現；這不等同Safari失敗。首格、音訊及兩者prime的私有對照仍逾時，移除start gate的私有對照只到基準成檔，後續工具fetch(blob:)遭原CSP阻擋，未全過，全部未採用。正式web/維持41b3023；後續僅修正測試工具直接讀File／已保存Blob做相同bytes及URL斷言，不放寬CSP，也未聲稱工程分支已跑通。原生Safari矩陣／十輪仍由主聊天續驗。
+
+整合續審另以隔離 Chrome 的真正 FileList 執行原 chooseFile（只替換解碼邊界、不啟動媒體）：input 在 finally 從1件變0件，證明 QA 於成檔後再讀 input.files 仍會失去來源。local-audio 回歸改在原生 change 擷取階段保留 File，之後直接讀該 File 及已存 VS Blob，URL／完整 bytes 斷言不變；不改 CSP 或產品選片。這個 DOM 邊界重現不代替仍未過的 Chrome WebKit-UA 完整工程分支。

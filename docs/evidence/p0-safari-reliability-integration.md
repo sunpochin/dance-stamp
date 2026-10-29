@@ -7,7 +7,7 @@
 
 | 已保留的來源 | 固定提交與範圍 |
 | --- | --- |
-| PR #64 | `41b3023916ac3cfa330708fb6a53eae12cf9cba7`，正式起點等待與相容音訊 VS 的單次 WebM 格式選項；沒有納入私有啟動對照 |
+| PR #64 | `9151ce4eaffe7b62e85363d878c56710e22f4230`，產品 runtime 仍為41b3023的正式起點等待與相容音訊 VS 單次 WebM選項；納入三項原聲路與失敗工程分支證據，沒有納入私有啟動對照 |
 | PR #65 | `f72cb2ff2b500530692c81fadfb8d86ce83aeb36`，獨立配額重跑的匿名收據，原生數據仍屬舊 runtime |
 | PR #66 | `b8dd611333f95bb4d75d8192bac2e186900a7b60`，保留未確認程序的自有鎖、只釋放已確認未啟動的 spawn error |
 | PR #67 | `72aed830b60f595794d178b715fae78e60ff0b09`，保留 e0acf88／f88c28d／eb21064 及三份私有對照的實際結果 |
@@ -18,6 +18,8 @@ TECHNICAL 同位置追加衝突保留配額歷史及未確認契約兩邊內容�
 [最新未確認保存證據](issue-13-unconfirmed-storage.md)中的原生 Safari 私人／一般結果只屬99e862d；[獨立 quota 重跑](issue-13-native-quota-repeat.md)仍屬其原 runtime。指南新增記憶體筆記救援與原頁重開步驟，兩份匿名證據明列入包；沿用既有指南連結回歸，不新增遞迴收集或影片附件。
 
 Safari 正式41b的原生矩陣／十輪、整合 head 的原生與 Chrome 原24組、新 VS 未確認救援、原生在途取消及人工／實體／跨裝置仍待各自證據。工程 Chrome 模擬 UA 分支的 WebM native start互等失敗另保留，不偽造start、不省略格式回歸，也不由該工程輪斷定真正Safari失敗。私有 WebM 1×30秒單輪不能移記正式或整合 head；後續根聊天持鎖驗證，這一整合步驟未啟動媒體或取得共用鎖。
+
+Safari QA 指紋續審：9151ce4已避免被 CSP 拒絕的 fetch(blob:)，但成檔後讀 input.files 仍會取不到來源。隔離 Chrome 真 FileList 配合原 chooseFile 直接重現1→0件；於原生 change 擷取階段保留 File 後，完整原 bytes 仍可讀。這一修正只改測試工具，不改產品或 CSP；原工程分支仍有 native start 互等失敗，沒有宣稱完整回歸已因此通過。
 
 ## 以下為先前整合的歷史紀錄
 

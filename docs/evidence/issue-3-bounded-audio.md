@@ -212,3 +212,22 @@ PR #64 續修只移除回零時對 metadata.mediaTime 的精確條件，仍需 s
 產品實際下載 `dance-vs.webm` 與原生chunks組成檔逐byte相同，SHA256=`8a593e06a33a86e40389c1e3fb98509ebb8ed3c41d306145c4581afdfc315ba7`。raw、analysis與下載指紋保留於主聊天的該execution輸出目錄；本聊天沒有操作此輪Safari。這不是相機capture、產品外原生重播、半速、新正式head、完整九組或十輪60秒通過。若後續結果不同，仍按原門檻記錄，不重新定義成功。
 
 正式候選只讓localAudio的VS透過record的單次選項使用此明確WebM組合；Chrome、相機及復原維持原格式序列。支援查詢、建構或start失敗均拒絕，不回退MP4；原音訊／編碼／取消／stop尾塊清理沿用。單元包含專用選項不影響下次普通錄影、原一般格式退回、三種拒絕與error後完整尾塊／重試；擴充原local-audio瀏覽器回歸核對拒絕後原片／舊VS指紋及資源釋放。此次依協調先不啟server、取影音鎖或操作UI，相關Chrome媒體回歸與正式新head的Safari完整矩陣／十輪交由持鎖工作串安排，不能寫成已重跑。iPhone暫緩，不合併或部署。
+
+
+## 41b3023 的實際 Chrome 短回歸與工程分支失敗（2026-10-29）
+
+受測乾淨來源41b3023916ac3cfa330708fb6a53eae12cf9cba7、靜態f81d1c69861fa21e、真正Chrome156.0.8078.49 headless／靜音輸出。自有隨機loopback入口固定13份回應資源指紋，controller=none；相機／麥克風由主機政策禁止，未操作Safari或更改瀏覽器設定。所有下載使用新的ignored output目的地，只調下載路徑，不改原測試斷言或來源素材。此處不是新的完整24組或原生Safari證據。
+
+Chrome原聲路（無UA覆寫）三項通過：
+
+- `existing-no-camera.js`：完全沒有相機API，正式雙片入口、共同預覽及五秒真正成檔，無對外請求。
+- `comparison-pitch.js`：三份三秒實檔完整解碼，0.5／0.75／1×分別330／495／660Hz，排除自己880Hz；取消、成檔及繪製失敗後恢復一般練習。原音高分析只在記憶體中改下載輸入路徑，原檔與全部分析邏輯／門檻未改。
+- `export-failure.js`：真正無法建構、非同步編碼error、原生讀回解碼失敗、讀回途中取消均保留舊VS、原資料及停止tracks；四份重下載舊VS與基準SHA256相同。之後同頁讓MP4建構失敗，走原格式退回到真正VP8／Opus WebM，90格、視訊跨度3.0秒；基準H.264／AAC MP4為91格、3.032533秒。原分析器全格fit／鏡像／留邊、單一老師聲源與音訊增益均通過，原片before／after與來源逐byte相同。
+
+14份實際新下載（1份無相機VS＋3份音高VS＋10份失敗／重試流程檔）每份均經FFmpeg全片解碼無錯，另保留bytes／SHA256／真容器／codec清單。此輪WebM重試是正常Chrome原格式備援，不冒充Safari專用候選的矩陣；聽感、低階裝置及G7仍未驗證。
+
+同版在真正Chrome用UA明確選WebKit工程分支，原`local-audio.js`基準輸出失敗，產品訊息為音訊準備逾時；唯讀原生觀測：start-call=731.8、stop-call=10733、native start=10733.9、dataavailable／stop=10734，相機／兩側原片均未啟播。只送首格、只先排音訊、同時prime兩者的私有對照仍未通過。最後移除native start gate的私有對照能基準成檔（JS讀回VP8／Opus、888,693bytes、2998ms），但接著指紋工具fetch(blob:)被既有`connect-src 'self'`明確阻擋，整項仍未全過，亦未取得可供獨立品質分析的該基準下載檔。各輪錯誤、metadata、事件及console紀錄皆保留，不把它們寫成Safari原生壞掉、媒體品質通過或正式修正。
+
+沒有把任何prime／移除gate改動納入正式web/；目前產品仍是41b3023的原生WebM選項與原start順序。後續測試工具改用已選File與IndexedDB已保存VS Blob做原bytes／URL比較，修正CSP不相容的讀法，原政策／產品／門檻不變；該工程分支完整瀏覽器流程仍未通過，不宣稱因工具修正已全綠。`local-audio-clock.js`未繼續跑，因工程分支基準已失敗；原單元的100ms拒絕仍保留。
+
+全部自有具名Chrome已有關閉回執，最後主機pid4226及nonce a74fe7b6-d315-47cd-b09d-d3a2602d6d8c正常退出／釋放，檢查當下共用鎖不存在；沒有清掉別人的鎖或程序。raw、原私有失敗、14份下載及分析留在本聊天ignored output。Web原生矩陣／十輪60秒交回主聊天；iPhone暫緩，不合併或部署。
