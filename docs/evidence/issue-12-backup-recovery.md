@@ -95,6 +95,34 @@ Bun 1.4.4 的六份相關單元（backupImport、library、moves、share、beats
 
 修正工作樹的原完整 `bun run check` 通過 **411 tests／1833 expects／0 fail**、公開掃描 236 檔、型別、原 lint 與 build，靜態 **0e9c7c7af09286e2**；19 項原 lint info 保留。提交／推送 hooks 與最終 head／CI 另由交付 PR 綁定。本輪工程審查與純邏輯回歸不代替 Claude Code／使用者最終審查，也不承接其他聊天的原生備份 UI 結果；產品 UI／真實傳檔、真人／跨實體裝置與發布驗收仍保留，iPhone 暫緩，未合併、部署、發布或關閉未驗收票。
 
+### c46f0b5 原生正常／注入救援的獨立補驗
+
+2026-10-30 Asia/Taipei。固定乾淨 [PR #78](https://github.com/sunpochin/dance-stamp/pull/78) `c46f0b537b501d1d5e1c9cf9da93f9fdbfddc38f`、靜態 `0e9c7c7af09286e2`、來源 CI #151 success；此來源已含 #75 的 87e04e8，沒有重複合入 #75。[PR #79](https://github.com/sunpochin/dance-stamp/pull/79) 的舊 87e04e8／8 KiB 餘裕結果保持原版本，本輪從頭重跑，不移記或合併次數。這次沒有重現新產品缺陷，之後只補本節匿名文件。
+
+macOS 27.0.1／Chrome 156.0.8078.49 headless、Bun 1.4.4，獨立 clone、全新 profiles 與隨機 loopback origin，SW 禁用。受測 14 份建置資源各留 SHA256，產品程式、CSP、parser／UI 上限與交易未改；測試開始 trackedChanges 為空，相機／麥克風／畫面擷取呼叫 0。影音鎖只原子取得自己的 nonce，不操作 Safari 設定或日常瀏覽器。
+
+本線負責正常／注入救援、既有資料／媒體保留；整合包的恰好 10 MiB 普通下載由第四線另驗，外部信任邊界由第三線另審，不能把那些結果加進本輪。
+
+| 本線實際產品流程 | c46f0b5 的結果 |
+| --- | --- |
+| 8 KiB 餘裕正常及救援 | 使用同一個完整 v2 合成形狀：1 video、3 asset、260 marker、1 take、1 recipe、1 export、1 move，含漢字、emoji、換行、分類與獨立拍點。真正點產品按鈕，兩份磁碟下載各 **10,477,568 UTF-8 bytes／4,229,598 UTF-16 code units**，全部 canonical 欄位及來源身分等於預期，沒有截斷或提高上限。 |
+| 實際下載檔還原 | 兩份檔各經產品 file input → 預覽 → 確認保存至獨立 persistent profile；預覽及取消不寫入，重匯冪等。reload 及同 profile 新 Chrome 程序重開後，完整原生 metadata 相同；JSON 沒有媒體，三類副本仍 missing。 |
+| 已存在筆記／原片 | 先經產品匯入小型完整資料、預覽重連並保存兩片，再匯入大檔。舊記錄與 **1,789,027／1,630,207-byte** 原片逐 byte 保留；獨立逐欄比對全部 268 筆新記錄、重建後 typed 關聯、時間／鏡像／拍點。取消、重匯及 reload 皆保留。VS 只有描述、未提供媒體，不宣稱驗了 VS 成檔。 |
+| 滿額 interrupted take 的救援 | 另建原始 UTF-8 JSON 恰好 **10,485,760 bytes**，經產品預覽／確認及 reload，take 保持 interrupted，缺片 asset 讀回也為 interrupted。只點注入後的救援入口，真正下載 **10,485,760 bytes／4,237,790 UTF-16 code units**；七張表與來源 ID 完整相同，未保存的新標題不混入。 |
+| 滿額救援的取回 | 救援後明確同頁重開，原生 metadata 完整相同；實際救援檔再經新 profile 的產品預覽／確認、重匯、reload 及同 profile 新程序重開，完整保存相同，media keys=[]。本線沒有執行滿額普通下載或第四線整合候選的瀏覽器測試。 |
+
+本輪滿額 fixture 的三種大小分開記錄：原生 metadata.data 為 **10,485,889 bytes**（包含 129 bytes 本機副本欄位），`readLibrary` 再把 missing 改為 interrupted，runtime 變成 **10,485,893 bytes**，可攜白名單內容仍恰好 **10,485,760 bytes**。這證明本輪可達的滿額可攜資料及讀回 +4 bytes；與上節原工程反例「metadata 本身恰好滿額再 +4」是不同 fixture，不替換原反例數字。滿額 UI 的未保存標題只換同 UTF-8 大小的一字，確實到達 metadata put，沒有讓超額預驗證誤當注入成功。
+
+兩個救援案例都明示注入：對真正 metadata 交易拋同步 UnknownError，並抑制產品 complete／abort listener；QA 原生 listener 仍收到 isTrusted=true 的真正 abort。產品因缺收據進入 StorageUnconfirmedError 並顯示救援，實際下載只含最後確認資料；下載前後交易計數各維持 1，沒有重新讀寫 DB。接受產品同頁重開的原生確認／離頁提示後，unknown=false、完整舊值及原片 bytes 保留。Chrome 在這些注入案實際已 abort，不能當成 Safari 真正沒有結束通知、自然 UnknownError 或未知交易當下已證明回滾。
+
+三份真正下載 SHA256：正常 `4c504742396581905156a83daf15d58a9a97eea2972adee91b019c121bc802ad`；8 KiB 餘裕救援 `dd3b044da022279f380dbfbf23b8bf3bb9d6888edb0c0f8824fcf7af9e4c3b46`；滿額救援 `64f0cabbd8576b6a4ac24da29305d9a0f4eab1eb9b36e8ac896e368c9911d104`。
+
+56 份完整原生 metadata／keys／Blob 快照、14 次產品預覽與所有原片 binary 另以獨立讀取逐欄／逐 byte 核對，未清庫或替換下載函式。原始總收據 SHA256 `fac9bc3452da2876a6d63702c7174e13eecf670207d9025a8fd9aa5e1ec666ad`，獨立核對 `7c9b7eff64ef2ce029e33ed42deac678cc9f2d6d10c8c305dec62da13e97e9a4`，私有 runner `646855690fa404e59c9d04642bf5a366b54ea5a8d6733a9af56b11f809212dc2`。raw、合成媒體、profiles 及私有 QA 只留本聊天 ignored output。
+
+九次 browser 關閉、65 個已知自有 PID／六個精確 profiles 核對無殘留；程序查詢 stderr 必須為空，自己的 server 回 connection refused，僅按自有 nonce 釋鎖。交叉清理收據 SHA256 `abe83ab1746cb59e94aba76bc252e7ba7c686bde34194155f1c5d74526342bae`。沒有停止其他聊天或日常瀏覽器。原 `bun run check` 同版通過 **411 tests／1833 expects／0 fail**、公開掃描、型別、原 lint 與 build；19 項原 lint info 保留，文件 head／hooks／CI 與包另由交付 PR 綁定，14 份 runtime 須逐 byte 等於受測 c46f0b5。
+
+本輪不代替外部超限／未知欄位的獨立審查、零餘裕普通下載／整合包、Safari／私人模式、真正未結束交易、永久保存／低磁碟、真人／實體／跨裝置或 Claude Code／使用者最終審查。Web 優先、iPhone 暫緩；未合併 main、部署、發布或關閉未驗收票。
+
 ## 限制
 
 這是桌面 Chrome 合成資料的還原演練，不是手機／Safari、真實相機、永久儲存或全 G1–G7 證據。清空測試使用新的隔離瀏覽器資料，沒有清除使用者儲存。JSON 不含影片，手動重連不能憑檔名／大小／時長證明原檔身分。跨裝置、完整發布與重要變更人工審查仍待完成；iPhone 依使用者要求暫緩。沒有合併或發布。
