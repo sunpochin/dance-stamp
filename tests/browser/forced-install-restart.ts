@@ -44,8 +44,15 @@ const waitFor = async (check: () => any, message: string) => {
   while (!await check()) { assert(Date.now() < deadline, message); await Bun.sleep(50) }
 }
 async function stop(signal: 'SIGKILL' | 'SIGTERM') {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return
+  if (!child) return
   const owned = child, pid = owned.pid!
+  assert(Number.isInteger(pid) && pid > 0, '缺少自有程序 PID，無法確認收尾')
+  // 主程序已退出仍可能留下子程序；整個已知群組都消失，才可交回共用鎖。
+  if (owned.exitCode !== null || owned.signalCode !== null) {
+    assert.equal(members(pid).length, 0, '自有瀏覽器主程序已退出，但群組仍有程序')
+    child = undefined
+    return
+  }
   const group = members(pid)
   assert(group.some(line => Number(line.trim().split(/\s+/)[0]) === pid && line.includes(`--user-data-dir=${profile}`)), 'PID／profile provenance 不符，拒絕發訊號')
   // detached 建立獨立群組；只終止本次 child 及其群組，不能用名稱掃殺日常瀏覽器。
@@ -67,10 +74,16 @@ async function launch(phase: string) {
   if (existsSync(address)) unlinkSync(address)
   const args = [`--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-background-networking', '--deny-permission-prompts', '--mute-audio', 'about:blank']
   child = spawn(resolve(executable), args, { detached: true, stdio: ['ignore', 'ignore', 'pipe'] })
-  child.stderr!.on('data', data => { appendFileSync(join(run, `${phase}-chromium.log`), data) })
-  child.once('error', error => event('spawn-error', { message: String(error) }))
-  event('spawn', { phase, pid: child.pid, executable: resolve(executable), args })
-  await waitFor(() => { assert(child!.exitCode === null && child!.signalCode === null, '專用瀏覽器啟動失敗'); return existsSync(address) }, '專用瀏覽器除錯入口逾時')
+  const owned = child
+  let spawnError: Error | undefined
+  owned.once('error', error => {
+    spawnError = error; event('spawn-error', { message: String(error) })
+    // 明確 spawn error 且沒有 PID 才能證明未產生自有程序；已有 PID 的失敗仍須由 stop 查群組。
+    if (child === owned && owned.pid === undefined) child = undefined
+  })
+  owned.stderr?.on('data', data => { appendFileSync(join(run, `${phase}-chromium.log`), data) })
+  event('spawn', { phase, pid: owned.pid, executable: resolve(executable), args })
+  await waitFor(() => { if (spawnError) throw spawnError; assert(owned.exitCode === null && owned.signalCode === null, '專用瀏覽器啟動失敗'); return existsSync(address) }, '專用瀏覽器除錯入口逾時')
   const port = Number(readFileSync(address, 'utf8').split('\n')[0])
   assert(Number.isInteger(port) && port > 0 && port < 65536)
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
@@ -192,8 +205,14 @@ try {
   event('failure', { error: String(error) }); process.exitCode = 1
 } finally {
   try { await stop('SIGTERM') } catch (error) { evidence.status = 'failed'; evidence.cleanupError = String(error); process.exitCode = 1 }
-  // 只有本輪 nonce 相符才釋放；失敗日誌與 profile 不刪除，供核對故障基線。
-  if (ownsLock && JSON.parse(readFileSync(ownerFile, 'utf8')).nonce === nonce) { unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true }
+  // 清理未確認必須留鎖；nonce 讀取失敗也只記錯誤，不能略過後面的自有主機收尾。
+  if (ownsLock) {
+    try {
+      assert(!child, 'browser cleanup unverified; own lock retained')
+      assert.equal(JSON.parse(readFileSync(ownerFile, 'utf8')).nonce, nonce, 'nonce changed; did not remove')
+      unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true
+    } catch (error) { evidence.lockReleaseError = String(error); evidence.status = 'failed'; process.exitCode = 1 }
+  }
   for (const release of pending) release()
   server?.stop(true)
   evidence.finishedAt = new Date().toISOString(); save()
