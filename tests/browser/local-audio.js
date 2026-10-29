@@ -4,8 +4,16 @@ async page => {
   await page.evaluate(() => { window.confirm = () => true; });
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
+  assert(await page.evaluate(async () => (await import('/local-audio.js')).safariAudio()), '需明確選取工程用 WebKit 分支，不冒充原生 Safari');
   await page.evaluate(() => {
     const Native = AudioDecoder, closed = AudioDecoder.prototype.close, audit = window.audioAudit = { created: 0, closed: 0, frames: 0, sources: [], tracks: [] };
+    // 只拒絕 WebM，MP4 仍宣稱支援；若產品偷偷退回 MP4，這個負向控制必須抓到。
+    const Recorder = MediaRecorder; audit.formats = []; audit.formatChecks = []; audit.formatFault = '';
+    globalThis.MediaRecorder = class extends Recorder {
+      static isTypeSupported(type) { audit.formatChecks.push(type); return audit.formatFault === 'unsupported' && type === 'video/webm;codecs=vp8,opus' ? false : Recorder.isTypeSupported(type); }
+      constructor(stream, options) { audit.formats.push(options?.mimeType || ''); if (audit.formatFault === 'construct' && options?.mimeType === 'video/webm;codecs=vp8,opus') throw new Error('synthetic WebM constructor failure'); super(stream, options); }
+      start(...args) { if (audit.formatFault === 'start' && this.mimeType.startsWith('video/webm')) throw new Error('synthetic WebM start failure'); return super.start(...args); }
+    };
     const createSource = AudioContext.prototype.createBufferSource, createDestination = AudioContext.prototype.createMediaStreamDestination;
     AudioContext.prototype.createBufferSource = function() { const source = createSource.call(this); audit.sources.push(source); return source; };
     AudioContext.prototype.createMediaStreamDestination = function() { const destination = createDestination.call(this); audit.tracks.push(...destination.stream.getTracks()); return destination; };
@@ -35,6 +43,25 @@ async page => {
   await page.locator('#export').click(); await idle();
   const previous = await page.locator('#output-download').getAttribute('href'); assert(previous?.startsWith('blob:'), '首次輸出失敗');
   const before = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length);
+  assert((await page.locator('#output-download').getAttribute('download')).endsWith('.webm'), '相容匯出未使用真正 WebM 檔名');
+  const fingerprints = () => page.evaluate(async () => {
+    const urls = [document.getElementById('reference').src, document.getElementById('self').src, document.getElementById('output-download').href];
+    return Promise.all(urls.map(async url => { const bytes = await (await fetch(url)).arrayBuffer(); return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(v => v.toString(16).padStart(2, '0')).join(''); }));
+  });
+  const preserved = await fingerprints(), webmRejections = [];
+  for (const mode of ['unsupported', 'construct', 'start']) {
+    await page.evaluate(mode => { window.audioAudit.formatFault = mode; }, mode);
+    try {
+      await page.locator('#export').click(); await idle();
+      assert(await page.locator('#output-download').getAttribute('href') === previous, mode + ' 破壞前次 VS');
+      assert((await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length)) === before, mode + ' 新增假完成輸出');
+      assert((await page.locator('#status').textContent()).includes('WebM'), mode + ' 未明確拒絕專用格式');
+      assert(JSON.stringify(await fingerprints()) === JSON.stringify(preserved), mode + ' 改變原片或舊 VS bytes');
+      assert(await page.evaluate(() => window.audioAudit.sources.every(s => s.buffer === null) && window.audioAudit.tracks.every(t => t.readyState === 'ended') && document.getElementById('reference').paused && document.getElementById('self').paused), mode + ' 未釋放本輪音訊或停止播放');
+      webmRejections.push({ mode, retained: true, resourcesReleased: true });
+    } finally { await page.evaluate(() => { window.audioAudit.formatFault = ''; }); }
+  }
+
   await page.evaluate(() => { window.originalSupport = AudioDecoder.isConfigSupported; AudioDecoder.isConfigSupported = async () => ({ supported: false }); });
   await page.locator('#export').click(); await idle();
   assert(await page.locator('#output-download').getAttribute('href') === previous, '格式拒絕破壞前次 VS');
@@ -55,7 +82,8 @@ async page => {
   await page.locator('#self-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
   await change('end', '3'); await page.locator('#export').click(); await idle();
   assert(await page.locator('#output-download').getAttribute('href') !== afterRetry, '無音軌來源未成檔');
-  const audit = await page.evaluate(() => { const a = window.audioAudit; return { created: a.created, closed: a.closed, frames: a.frames, buffersReleased: a.sources.every(s => s.buffer === null), tracksStopped: a.tracks.every(t => t.readyState === 'ended') }; });
+  const audit = await page.evaluate(() => { const a = window.audioAudit; return { created: a.created, closed: a.closed, frames: a.frames, buffersReleased: a.sources.every(s => s.buffer === null), tracksStopped: a.tracks.every(t => t.readyState === 'ended'), formats: a.formats, formatChecks: a.formatChecks }; });
+  assert(audit.formats.length > 0 && [...audit.formats, ...audit.formatChecks].every(type => type === 'video/webm;codecs=vp8,opus'), '相容匯出走到 MP4 或其他未驗證候選');
   assert(audit.created === audit.closed && audit.frames > 0 && audit.buffersReleased && audit.tracksStopped, '錯誤／成功後仍佔用音訊資源');
-  return { nativeWebCodecs: decoded, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
+  return { nativeWebCodecs: decoded, webmRejections, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
 }

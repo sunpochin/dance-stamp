@@ -112,10 +112,11 @@ export function assembleChunks(rows) {
   return new Blob(rows.map(row => row.blob), { type: mime });
 }
 
-/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk @param {(timeMs: number) => void} onStart */
-export function record(stream, onChunk = () => {}, onStart = () => {}) {
+/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk @param {(timeMs: number) => void} onStart @param {{webmOnly?: boolean}} [options] */
+export function record(stream, onChunk = () => {}, onStart = () => {}, { webmOnly = false } = {}) {
   if (!globalThis.MediaRecorder) throw new Error('此瀏覽器沒有錄影能力。');
-  const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm', ''];
+  // Safari VS 的 MP4 成檔仍超出覆蓋門檻；專用選項不能默退該路徑，也不能改掉相機／Chrome 順序。
+  const candidates = webmOnly ? ['video/webm;codecs=vp8,opus'] : ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm', ''];
   let recorder;
   for (const mimeType of candidates) {
     if (mimeType && !MediaRecorder.isTypeSupported(mimeType)) continue;
@@ -127,7 +128,7 @@ export function record(stream, onChunk = () => {}, onStart = () => {}) {
       break;
     } catch { recorder = null; }
   }
-  if (!recorder) throw new Error('裝置無法啟動任何候選錄影格式。');
+  if (!recorder) throw new Error(webmOnly ? '此瀏覽器無法啟動 WebM（VP8／Opus）比較匯出，請改用 Chrome；原片、設定及前次 VS 保留。' : '裝置無法啟動任何候選錄影格式。');
   const chunks = [];
   let resolveDone, rejectDone, resolveStopped, rejectStopped, failure, finished = false, timer;
   const done = /** @type {Promise<Blob>} */ (new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; }));

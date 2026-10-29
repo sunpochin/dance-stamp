@@ -579,7 +579,8 @@ $('export').addEventListener('click', () => operation(async signal => {
           destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
         }
         const nativeStart = new Promise((resolve, reject) => {
-          recording = record(stream, () => {}, resolve); recording.done.catch(reject);
+          // 只讓相容音訊的比較匯出選已實測 WebM；相機 chunks 與 Chrome 不套此選項。
+          recording = record(stream, () => {}, resolve, { webmOnly: true }); recording.done.catch(reject);
         });
         await audioReady(nativeStart, signal); abortIfNeeded(signal);
         // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
