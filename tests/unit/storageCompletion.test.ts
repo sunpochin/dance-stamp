@@ -2,7 +2,7 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
-import { newLibrary, validateBackup, migrateLibrary } from '../../web/library.js'
+import { newLibrary, validateBackup, migrateLibrary, parseBackup, planBackupImport, tables } from '../../web/library.js'
 import { assembleChunks } from '../../web/recorder.js'
 
 type Mode = 'complete' | 'error-abort' | 'error-stuck' | 'pending' | 'cancel-stuck'
@@ -76,6 +76,131 @@ async function fixture(behavior: Mode) {
   return { db, storage, next, assetId }
 }
 const outcome = (promise: Promise<unknown>) => promise.then(value => ({ value, name: 'resolved' }), error => ({ error, name: error.name }))
+
+test('合法中斷錄影備份在讀回補齊 runtime 狀態後，仍可正常與未確認救援下載', async () => {
+  const { db, storage } = await fixture('complete'); db.record = undefined; db.media.clear()
+  const local = await storage.readLibrary(), incoming = newLibrary(), limit = 10 * 1024 * 1024
+  const videoId = crypto.randomUUID(), referenceId = crypto.randomUUID(), selfId = crypto.randomUUID(), vsId = crypto.randomUUID(), takeId = crypto.randomUUID(), recipeId = crypto.randomUUID(), moveId = crypto.randomUUID()
+  incoming.videos.push({ id: videoId, title: '合成關聯備份', durationMs: 60000, revision: 1, beatGrid: { bpm: 120, firstBeatMs: 0, countInBeats: 4 } })
+  incoming.moves.push({ id: moveId, name: '合成步伐', danceStyle: 'Salsa', status: 'practicing', revision: 1 })
+  for (const [id, kind] of [[referenceId, 'reference'], [selfId, 'take'], [vsId, 'vs']]) incoming.assets.push({ id, ...(kind === 'reference' ? { videoId } : {}), kind, byteLength: 3, mimeType: 'video/webm', durationMs: 15000, mediaIncluded: false })
+  incoming.takes.push({ id: takeId, referenceVideoId: videoId, cameraAssetId: selfId, referenceStartMs: 0, referenceEndMs: 15000, rate: 1, state: 'interrupted', createdAt: incoming.exportedAt })
+  incoming.recipes.push({ id: recipeId, takeId, offsetMs: 0, referenceMirror: false, selfMirror: false, layout: 'side-by-side', audioSource: 'reference', revision: 1 })
+  incoming.exports.push({ id: crypto.randomUUID(), recipeId, recipeRevision: 1, assetId: vsId, mimeType: 'video/webm', state: 'ready', createdAt: incoming.exportedAt })
+  incoming.markers = Array.from({ length: 530 }, () => ({ id: crypto.randomUUID(), videoId, moveId, startMs: 0, title: '合成拍點', note: '', revision: 1 }))
+  // 依真正合併後的大小填滿；來源檔仍少於上限，沒有直接塞入人工 runtime state。
+  const emptyPlan = await planBackupImport(local.data, parseBackup(JSON.stringify(incoming)))
+  let remaining = limit - new Blob([JSON.stringify(emptyPlan.data)]).size
+  for (const marker of incoming.markers) {
+    const count = Math.min(Math.floor(remaining / 7), 6666)
+    marker.note = '舞💃'.repeat(count); remaining -= count * 7
+    const ascii = Math.min(remaining, 20_000 - marker.note.length)
+    marker.note += 'x'.repeat(ascii); remaining -= ascii
+  }
+  expect(remaining).toBe(0)
+  const original = parseBackup(JSON.stringify(incoming)), plan = await planBackupImport(local.data, original)
+  expect(new Blob([JSON.stringify(plan.data)]).size).toBe(limit)
+  await storage.writeLibrary(plan.data, local.revision)
+  const read = await storage.readLibrary()
+  expect(read.data.assets.find(a => a.id === selfId)!.state).toBe('interrupted')
+  expect(new Blob([JSON.stringify(read.data)]).size).toBe(limit + 4)
+  let exported: Blob | undefined, unconfirmed = false, downloaded = 0
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const source = ['saveData', 'downloadBackup'].map(name => main.match(new RegExp('(?:async )?function ' + name + '\\([^]*?\\n}'))![0]).join('\n')
+  const context: any = { state: read, writeLibrary: storage.writeLibrary, validateBackup, Blob, Date, structuredClone, renderLibrary() {},
+    $: () => ({ open: false }), urlFor: (_key: string, blob: Blob) => { exported = blob; return 'blob:synthetic-backup' },
+    document: { createElement: () => ({ click() { downloaded++ } }) }, storageUnconfirmed: () => unconfirmed, status() {},
+  }
+  const ui = runInNewContext(source + '\n;({ saveData, downloadBackup })', context)
+  // 讀回後再走真正保存入口，將可攜內容補到零餘裕；runtime 欄位須保留在本機，不能刪欄換取可備份。
+  const canonicalBytes = new Blob([JSON.stringify(validateBackup(read.data))]).size
+  await ui.saveData(data => { data.markers.at(-1).note += 'x'.repeat(limit - canonicalBytes) })
+  const reopened = await storage.readLibrary(), before = structuredClone(reopened), expected = validateBackup(reopened.data), transactions = db.transactions.length
+  expect(reopened).toEqual(context.state)
+  expect(new Blob([JSON.stringify(expected)]).size).toBe(limit)
+  expect(new Blob([JSON.stringify(reopened.data)]).size).toBeGreaterThan(limit)
+  const oversized = structuredClone(reopened.data); oversized.markers.at(-1).note += 'x'
+  expect(() => validateBackup(oversized)).toThrow('10 MiB')
+  await expect(storage.writeLibrary(oversized, reopened.revision)).rejects.toThrow('10 MiB')
+  expect(db.transactions).toHaveLength(transactions)
+  for (const rescue of [false, true]) {
+    unconfirmed = rescue; ui.downloadBackup()
+    const restored = parseBackup(await exported!.text())
+    expect(exported!.size).toBe(limit)
+    for (const table of tables) expect(restored[table]).toEqual(expected[table])
+    expect(restored.sourceLibraryId).toBe(incoming.sourceLibraryId)
+    const fresh = await planBackupImport(newLibrary(), restored)
+    for (const table of tables) expect(validateBackup(fresh.data)[table]).toEqual(expected[table])
+    expect((await planBackupImport(reopened.data, restored)).added).toBe(0)
+    expect(context.state).toEqual(before)
+    expect(db.transactions).toHaveLength(transactions)
+    // 即使超出的只是會被白名單丟掉的外部欄位，也須先以原檔 bytes 拒絕。
+    expect(() => parseBackup(JSON.stringify({ ...restored, extra: 'x' }))).toThrow('10 MiB')
+  }
+  expect(downloaded).toBe(2)
+})
+
+test('v1／v2 短日期匯入保留本機時間，零餘裕 UTF-8 筆記保存重讀後仍可正常／救援備份', async () => {
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const controllers = ['saveData', 'downloadBackup'].map(name => main.match(new RegExp('(?:async )?function ' + name + '\\([^]*?\\n}'))![0]).join('\n')
+  const limit = 10 * 1024 * 1024
+  for (const schemaVersion of [1, 2]) for (const exportedAt of ['2026-10-30', '2026-10-30T00:00:00Z']) {
+    const { db, storage } = await fixture('complete'); db.record = undefined; db.media.clear()
+    const local = await storage.readLibrary(), incoming = newLibrary(), videoId = crypto.randomUUID()
+    incoming.schemaVersion = schemaVersion; incoming.exportedAt = exportedAt
+    incoming.videos.push({ id: videoId, title: '合成邊界課程', durationMs: 60000, revision: 1, beatGrid: { bpm: 120, firstBeatMs: 350, countInBeats: 4 } })
+    incoming.markers = Array.from({ length: 530 }, () => ({ id: crypto.randomUUID(), videoId, startMs: 0, title: '合成拍點', note: '', revision: 1 }))
+    // 匯入 owner 保留本機日期；以實際差額填滿合併後快照，不能用 128 bytes 餘裕避開問題。
+    const dateGrowth = local.data.exportedAt.length - exportedAt.length
+    let remaining = limit - dateGrowth - new Blob([JSON.stringify(incoming)]).size
+    for (const marker of incoming.markers) {
+      const count = Math.min(Math.floor(remaining / 7), 6666)
+      marker.note = '舞💃'.repeat(count); remaining -= count * 7
+      const ascii = Math.min(remaining, 20_000 - marker.note.length)
+      marker.note += 'x'.repeat(ascii); remaining -= ascii
+    }
+    expect(remaining).toBe(0)
+    const parsed = parseBackup(JSON.stringify(incoming))
+    expect(parsed.exportedAt).toBe(exportedAt)
+    const oversized = structuredClone(incoming); oversized.markers.at(-1)!.note += 'x'.repeat(dateGrowth)
+    expect(new Blob([JSON.stringify(oversized)]).size).toBe(limit)
+    // 已滿上限的短日期檔在既有合併驗證就遭拒；不能把人工塞入的短日期 state 冒稱正常匯入結果。
+    await expect(planBackupImport(local.data, parseBackup(JSON.stringify(oversized)))).rejects.toThrow('10 MiB')
+    expect(db.record).toBeUndefined()
+    const plan = await planBackupImport(local.data, parsed)
+    expect(plan.data.exportedAt).toBe(local.data.exportedAt)
+    expect(plan.data.exportedAt).toHaveLength(24)
+    expect(new Blob([JSON.stringify(plan.data)]).size).toBe(limit)
+    await storage.writeLibrary(plan.data, local.revision)
+    const read = await storage.readLibrary()
+    let exported: Blob | undefined, unconfirmed = false, downloaded = 0
+    const context: any = {
+      state: read, writeLibrary: storage.writeLibrary, validateBackup, Blob, Date, structuredClone, renderLibrary() {},
+      $: () => ({ open: false, textContent: '' }), urlFor: (_key: string, blob: Blob) => { exported = blob; return 'blob:synthetic-backup' },
+      document: { createElement: () => ({ click() { downloaded++ } }) }, storageUnconfirmed: () => unconfirmed, status() {},
+    }
+    // 執行產品 saveData／writeLibrary／readLibrary；只用既有事件後端，不宣稱原生 IndexedDB 或實際 UI 驗收。
+    const ui = runInNewContext(controllers + '\n;({ saveData, downloadBackup })', context)
+    await ui.saveData(data => { data.markers.at(-1).revision++ })
+    const reopened = await storage.readLibrary(), before = structuredClone(reopened), transactions = db.transactions.length
+    expect(reopened).toEqual(context.state)
+    expect(reopened.data.exportedAt).toBe(local.data.exportedAt)
+    expect(new Blob([JSON.stringify(reopened.data)]).size).toBe(limit)
+    for (const rescue of [false, true]) {
+      unconfirmed = rescue; ui.downloadBackup()
+      expect(exported!.size).toBe(limit)
+      const restored = parseBackup(await exported!.text())
+      for (const table of tables) expect(restored[table]).toEqual(reopened.data[table])
+      const fresh = await planBackupImport(newLibrary(), restored)
+      for (const table of tables) expect(fresh.data[table]).toEqual(reopened.data[table])
+      expect(fresh.data.sourceLibraryId).toBe(reopened.data.sourceLibraryId)
+      expect((await planBackupImport(reopened.data, restored)).added).toBe(0)
+      expect(context.state).toEqual(before)
+      expect(db.transactions).toHaveLength(transactions)
+    }
+    expect(downloaded).toBe(2)
+  }
+})
 
 test('error 後即使取消也沒有 abort/complete：結束等待但只回報保存狀態未確認', async () => {
   const { db, storage, next, assetId } = await fixture('error-stuck'), before = structuredClone(db.record), controller = new AbortController()

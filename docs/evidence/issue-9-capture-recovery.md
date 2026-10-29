@@ -1,6 +1,8 @@
 <!-- 檔案用途：記錄 #9 桌面錄影、失敗恢復與真機缺口。所在層：版本驗收證據。主要關聯：capture.js、capture-matrix.js、TECHNICAL.md。 -->
 # #9 錄影與中斷恢復
 
+2026-10-30：目前 main `c0ab39b` 的原 capture-integrity／capture-drain 已獨立重跑；早停、真短片拒絕、同頁重試、救援刪除及尾塊鎖保護通過，五份實際下載在網站停止後由新 Chrome/file 播至 ended。完整來源、時間戳訊息及 Safari 操作前置限制見[本輪有界稽核](issue-3-current-protection-audit.md)，不改標下方歷史來源或宣稱 Safari／實體相機驗收。
+
 2026-10-28，Asia/Taipei。macOS 27.0.1、Chrome 156（UA）、Bun 1.4.4。受測靜態內容 `b52e552869eb154c`，精確提交見 PR。只用合成 H.264 示範、Y4M 假相機與模擬失敗；沒有真人相機／私人音樂。
 
 ## 已重現並修正

@@ -226,6 +226,16 @@ bun --no-env-file scripts/verify-native-quota.ts "$playwright_core_index_mjs" "$
 
 工具原子取得共用媒體鎖，使用固定約11MiB不可播放合成Blob，不填滿硬碟。每次縮限先排除既有可用空間快取，再以真正trusted abort／QuotaExceededError判定，不能只看CDP或estimate；capture listener不改寫put或事件。失敗也解除自有override、關閉已知自有程序／主機並保留raw；未確認程序退出便不釋放自己的鎖。這是儲存函式證據，不是UI或真實低磁碟驗收；版本、失敗基線與限制見[原生配額證據](evidence/issue-13-native-quota.md)。
 
+macOS 可另加 `--low-space`，改用工具新建的 256 MiB HFS+ 映像；工具不接收既有磁碟或 profile 路徑。需允許本機映像掛載、臨時 HTTP 及專用瀏覽器，宿主需有至少 1 GiB 可用空間：
+
+```sh
+bun --no-env-file scripts/verify-native-quota.ts "$playwright_core_index_mjs" "$chromium_executable" --low-space
+```
+
+此模式不設定 origin quota override。先確認真正 IndexedDB 位於該獨立小磁碟，再只填工具自己的檔案直到原生 ENOSPC；要求真正交易 abort、產品拒絕與完整舊資料保留。磁碟 Blob I/O 可回 DataError；預設配額模式仍要求原 QuotaExceededError。刪除自己的填充檔後，同一候選重試並同 profile 跨程序重開。收尾先核對自有瀏覽器退出才卸載自己的映像；不能確認啟動／退出或卸載時留鎖，不強制卸載。所有映像、profile、完整 bytes 與成功／失敗收據都留在 ignored output。這是小型檔案系統的真實低空間測試，不代表宿主磁碟、Safari、手機、斷電或產品畫面驗收；實際版本與結果記在同一份原生配額證據。
+
+`hdiutil attach` 回報錯誤仍可能已建立裝置；此時 raw 記 `volumeAttachUnconfirmed=true`，保留自有鎖且不猜測卸載目標。需先核對 raw 的本輪映像與實際掛載狀態，確認自有資源收尾後才能人工放行；不可只看指令失敗就刪鎖。程序稽核也必須沒有 stderr 診斷，帶權限錯誤的空 ps 結果不算退出證據。
+
 #### 部分安裝時強制結束瀏覽器
 
 `forced-install-restart.ts` 是需程序控制的獨立 Bun 工具，使用既有 Playwright core 連到自己啟動的 Chromium；不新增產品依賴，不經 CLI 正常 close 來冒充強制終止。先用 Bun 1.4.4 建置，傳入已安裝瀏覽器與 Playwright core 的完整路徑：
@@ -322,7 +332,7 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 若產品版本完全未變，且中斷原因已釐清、前段已用同一分析器確認，可用 `--start-index 7` 從第七組未執行案例接續。它仍拒絕覆寫既有案例；產品有改動須用新 session／標籤重跑，不能用接續功能跳過未解決失敗。
 
-手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [手機清單](PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
+手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [完整來源庫的手機清單，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/docs/PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
 
 分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
 

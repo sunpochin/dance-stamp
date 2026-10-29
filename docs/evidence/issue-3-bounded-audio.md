@@ -5,7 +5,7 @@
 
 原工程輪狀態：2026-10-29，尚待 Claude Code／使用者獨立審查；當時不合併／發布，不關閉 #1／#3／#11。來源基線 main `918d8d7aa814533823522e3d4e0ab18df75cb212`。
 
-本輪把已知能保留來源起點的 AudioBufferSource 原型轉成有界 AAC 封包解碼。規格、索引／PCM／queue 預算與拒絕行為見 [TECHNICAL 第 33 節](../../TECHNICAL.md)。Chrome 原路徑不變；Safari 不支援的來源明確拒絕，不默默回退已知漏音的元素來源，也不重置資料。
+本輪把已知能保留來源起點的 AudioBufferSource 原型轉成有界 AAC 封包解碼。規格、索引／PCM／queue 預算與拒絕行為見 [來源庫 TECHNICAL 第 33 節，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/TECHNICAL.md)。Chrome 原路徑不變；Safari 不支援的來源明確拒絕，不默默回退已知漏音的元素來源，也不重置資料。
 
 ## 探索結果，不算乾淨 head 的正式矩陣
 
