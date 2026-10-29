@@ -5,7 +5,7 @@
 
 2026-10-29 解鎖後的真正Safari續測見[最新起點候選與私有對照](evidence/issue-3-bounded-audio.md#eb21064-續測與三份私有收尾對照)：eb21064解除所測等待逾時，0.5×／15秒原v5單輪通過；1×／30秒仍因30.105秒容器長度失敗，三份私有收尾對照也未採用。歷史e0acf88／f88c28d失敗各保留來源；不再等待已完成的解鎖前置，也不把單元／成檔或原型改善當完整驗收。
 
-2026-10-29 儲存候選的原生收據另見[未確認保存與救援](evidence/issue-13-unconfirmed-storage.md)：99e862d 私人模式有界退出及同頁重開、一般模式保存與重開已有直接對照；未產新 VS／未驗原生在途取消，不承接為整合 head 通過。Chrome [獨立配額重跑](evidence/issue-13-native-quota-repeat.md)保持舊 runtime 歸屬。
+2026-10-29 儲存候選的原生收據另見[未確認保存與救援](evidence/issue-13-unconfirmed-storage.md)：99e862d 私人模式有界退出及同頁重開、一般模式保存與重開已有直接對照；當輪未產新 VS；後續原生取消只有一般儲存API單輪，產品Stop／私人取消仍待驗，不承接為整合 head 通過。Chrome [獨立配額重跑](evidence/issue-13-native-quota-repeat.md)保持舊 runtime 歸屬。
 
 核心不用 FFmpeg 或 Playwright 套件；兩者只供開發測試。使用本機 FFmpeg（lavfi、libx264、AAC）與 Bun 1.4.4：
 
