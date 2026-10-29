@@ -215,3 +215,44 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
   expect(node('restore').disabled).toBe(true)
   expect(db.transactions.length).toBe(count)
 })
+
+test('佇列等待期間轉為未確認，真正「準備下一段」控制器不得清掉自拍', async () => {
+  for (const gate of ['comparisonSave', 'ready']) {
+    const { storage, next, assetId } = await fixture('error-stuck')
+    const saving = storage.writeLibrary(next, 1, { id: assetId, blob: new Blob(['new']) }).catch(() => {})
+    const nodes = new Map<string, any>(), revoked: string[] = []
+    const node = (id: string): any => {
+      if (!nodes.has(id)) nodes.set(id, { disabled: false, hidden: false, attributes: new Map(), handlers: new Map(),
+        setAttribute(name: string, value: string) { this.attributes.set(name, value) }, querySelectorAll: () => [],
+        addEventListener(name: string, handler: unknown) { this.handlers.set(name, handler) },
+      })
+      return nodes.get(id)
+    }
+    const original = new Blob(['synthetic self']), urls = new Map([['self', 'blob:synthetic-self']])
+    let confirmations = 0, sourceChanges = 0
+    const context: any = { storageUnconfirmed: storage.storageUnconfirmed, storageUnconfirmedMessage: storage.storageUnconfirmedMessage,
+      $: node, active: null, document: { activeElement: null, body: {}, documentElement: {} },
+      ready: gate === 'ready' ? saving : Promise.resolve(), comparisonSave: gate === 'comparisonSave' ? saving : Promise.resolve(),
+      AbortController, Error, operationTrigger: null, operationFocus: null, diagnostics: {}, monitor: null, audio: null,
+      reference: { pause() {}, controls: true }, self: { pause() {}, removeAttribute() { sourceChanges++ }, load() { sourceChanges++ }, controls: true },
+      stopPractice() {}, releaseCamera() {}, status() {}, showStorageRecovery() {}, applyPracticeSettings() {}, drawPractice() {}, updateControls() {}, report() {}, focusControl() {},
+      takeBlob: original, selfDurationMs: 15000, activeTakeId: 'synthetic take', pendingTakeId: null, urls,
+      URL: { revokeObjectURL(url: string) { revoked.push(url) } }, confirm() { confirmations++; return true },
+    }
+    // 直接觸發真正的 new-take handler；任意回呼通過不足以證明自拍 Blob／播放 URL 沒被清除。
+    const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+    const operation = source.match(/async function operation\([^]*?\n}/)![0]
+    const newTake = source.slice(source.indexOf("$('new-take').addEventListener"), source.indexOf("$('camera').addEventListener"))
+    runInNewContext(operation + '\n' + newTake, context)
+    await node('new-take').handlers.get('click')()
+    expect(storage.storageUnconfirmed()).toBe(true)
+    expect(context.takeBlob).toBe(original)
+    expect(context.activeTakeId).toBe('synthetic take')
+    expect(context.selfDurationMs).toBe(15000)
+    expect(urls.get('self')).toBe('blob:synthetic-self')
+    expect(revoked).toEqual([]); expect(sourceChanges).toBe(0); expect(confirmations).toBe(0)
+    expect(context.active).toBeNull()
+    expect(node('controls').attributes.get('aria-busy')).toBe('false')
+    expect(context.diagnostics.lastError).toBe('storage-unconfirmed')
+  }
+})

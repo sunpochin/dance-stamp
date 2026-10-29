@@ -151,7 +151,12 @@ async function operation(task) {
   reference.controls = false; self.controls = false;
   $('practice').disabled = true;
   for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = true;
-  try { await ready; await comparisonSave; await task(controller.signal); }
+  try {
+    await ready; await comparisonSave;
+    // 等待期間也可能轉為未確認；已排隊的換片不能越過封鎖，否則仍會清掉當次自拍。
+    if (storageUnconfirmed()) throw new Error(storageUnconfirmedMessage);
+    await task(controller.signal);
+  }
   catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
     releaseCamera();
     status(storageUnconfirmed() ? storageUnconfirmedMessage : error.name === 'AbortError' ? '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);

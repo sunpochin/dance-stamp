@@ -292,6 +292,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 UI 退出忙碌後暫停可能換掉影片或寫入的操作，保留當次原片、已成檔 VS 的 Blob／下載 URL、最後確認的筆記與表單輸入；獨立救援入口從記憶體匯出最後確認的 JSON（不含未保存草稿及影片），待使用者確認另存後才重開同一頁讀回。私人分頁不能假定共用同一 storage partition。排除只 reject 後照常重試、把固定延遲當回滾證據、換空分頁當恢復、清庫與新增儲存後端。原生缺陷來源、單元／控制器覆蓋與待驗收界線見 [未確認保存證據](docs/evidence/issue-13-unconfirmed-storage.md)；修正後 Safari 原生驗收由主聊天另行完成。
 
+操作在等待初始化與比較保存結束後、執行任何動作前再次檢查未確認旗標；只在入口檢查仍會讓已排隊的「準備下一段」越過等待期間才發生的封鎖，清掉當次自拍。拒絕走既有 catch／finally，確保忙碌狀態收尾與救援提示照常執行；不依賴按鈕 disabled 或個別動作自行補判斷。
+
 個別刪除先由純資料 planDeletion 計算關聯及計數，原生 modal 預設取消焦點；確認前不寫入。副本只移除該 media Blob，保留描述、筆記及配方，本次已載入 File 可繼續使用，重開則缺片。單一 VS 只移除該輸出與無人引用的 asset；刪 take 包含其 recipes／exports；整份影片筆記包含所屬標記、take 及下游。原相簿／原始檔從不刪除。仍被其他 take 或輸出共用的媒體保留。
 
 刪除先按固定 ID 順序取得所有受影響 take 的原生鎖，再以全庫 revision 核對；另一頁錄製／恢復或預覽後更新會拒絕。metadata、無關聯的 media 及 chunks 在同一原生交易提交，取消或 abort 全數回滾；chunks 按 cameraAssetId 清理，不是 take.id，共用原片未失去所有引用時不清分段。UI 及下載 URL 僅在成功後清理；等待缺片重連的 take 被刪除時也釋放 pending 狀態，下一次選片可新建配對。
