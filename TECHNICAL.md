@@ -278,6 +278,10 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 另一輪獨立審查在 `87e04e8` 重現合法中斷錄影備份的可達缺口：合併後 metadata 可恰好 10 MiB，`readLibrary` 再把 asset 的 missing 改為 interrupted，多 4 bytes，導致白名單之前的容量檢查連正常／未確認救援備份都拒絕。內部 `validateBackup` 現在以白名單完成後的可攜內容計算容量；外部 `parseBackup` 與 UI 的原檔 10 MiB 檢查不變，含未知欄位的超大外部檔仍拒絕。本機 asset 狀態、來源 ID、完整關聯及儲存交易保留；排除只在下載刪欄、提高上限或改讀回狀態，因為讀回後的初始化、保存與重匯也共用同一驗證入口。可達反例與正常／救援零餘裕回歸見[讀回狀態續審](docs/evidence/issue-12-backup-recovery.md#讀回狀態與可攜容量的獨立續審)。
 
+### 大型匯入在規劃中停止（2026-10-30，#12／#18）
+
+追查 `restore` → `parseBackup` → `planBackupImport` → 預覽／確認 → `writeLibrary` 後，沒有重現新的取消接線缺陷；只補規劃期間的回歸。外來源／分享的 ID 配置及衝突閉包的副本配置共用 `backupUUID`，原生 hash await 前後檢查同一個操作訊號；規劃完成才建立預覽草稿，確認才寫入。測試在已有 hash／副本配置進度後明示暫扣下一個原生 hash 結果，再取消，不以預先取消或交易內 Stop 代替此階段。合法大檔、完整舊圖、同檔重試及重匯冪等的[精確證據與重跑方式](docs/evidence/issue-12-import-planning-stop.md)分開記錄純邏輯與真正 Chrome Stop；不新增執行緒、效能毫秒門檻或改動產品 runtime。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。
