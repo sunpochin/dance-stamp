@@ -1,6 +1,27 @@
 <!-- 檔案用途：記錄真正部分安裝時強制終止及同設定檔離線重啟的匿名證據。所在層：#13 桌面驗收。主要關聯：forced-install-restart.ts、MEDIA_PROBE.md、sw.js。 -->
 # #13：候選部分安裝時強制終止瀏覽器
 
+## Linux 原生補驗（2026-10-29）
+
+受測來源 `a75148d460b1dd0f2a0909af6fc6e19eaded5aa6`，基線 main `38e6cf96793cf7250e4adb86a1156e6e6e0fe08e`；[Harness CI #120 的 Linux job](https://github.com/sunpochin/dance-stamp/actions/runs/40830047664/job/123301983652) 原始 JSON／Chromium 日誌保留直接收據。這次是真正隔離 Ubuntu 24.04 runner，`platform=linux`、x64、核心 `7.0.0-1017-azure`、Chrome `156.0.8078.47` headless、Bun 1.4.4、Playwright core 1.64.1；實際共用鎖為 `/tmp/dance-stamp-p0-media-test.lock`。沒有使用 macOS 平台模擬或建立假的 `/private/tmp`。
+
+產品靜態舊版 `adbe8eb1d6acfd09`，本輪候選 `adbe8eb1d6acfd09-forced-297fefd1`；manifest 有12份資源。測試來源 SHA256 `2e30c5271eb3ed0c1bfb6fb5ad911ef7789f0f76b2eb9cecbda8c42293fab443`、建置後舊 worker SHA256 `e8bffdacb06b2f7cc5b27749325c0c9a9cea4d4fd33ba21bc21b5e1c26b7741f`。後續僅補文件時保持此輪來源歸屬，不將它改寫為新 head 重跑。
+
+2026-10-29 14:35:09–14:35:20（Asia/Taipei）：
+
+1. 以工具自有 spawn 的 PID／PGID `2704`、全新 persistent profile 及自有 loopback 主機備妥舊版；原生 CacheStorage 12／12份符合 manifest，產品短交易已提交合成筆記、標記及不可播放的 sentinel Blob。全部 metadata、ID、庫 revision 1、影片 revision 3、標記 revision 2及媒體 key 另存基線。
+2. 14:35:19.385 前，真正第二份 CSS HTTP 回應保持未完成；候選原生 cache 只有不同於舊殼的 HTML，為1／12份。`registration.installing.state=installing`、waiting null、舊 active activated，舊 controller 回覆 `adbe8eb1d6acfd09`／complete true。候選 HTML SHA256 `9871b8e46676fa40a20b930654fc34223d9d5b2665c649def96504750b935871`。
+3. 先保存 barrier、PID／PPID／PGID／開始時間及15個群組成員的 provenance；14:35:19.394只對該自有群組送 SIGKILL，14:35:19.423取得實際 signal SIGKILL、exit code null、剩餘群組程序0。之前沒有呼叫 browser.close，也沒有偽造 lifecycle 或 Cache／IDB 例外。
+4. 14:35:19.424用**相同 profile**新啟動 PID／PGID `2909`，導航前設定 context offline。14:35:20.159舊頁由真正 SW 提供、HTML bytes SHA256仍為 `1ae8198da59a5497a09f807d90719b5a314c6bc00cdc131083e3af01c112efa4`；12份舊cache完整，active舊版且installing／waiting null。原生 navigator.onLine=false、未快取probe失敗，主機probe及斷網重開資源請求均0。
+5. 全部筆記 JSON／ID／revision、原生 metadata／media keys及Blob size／type不變；1,048,613 bytes每一byte比對與完整SHA256 `6ef72dcccd9b51e3a7f384632a9dff22af4c12372f3396fe557011d42e867971`均一致。沒有清庫、匯入重建、切換profile或補寫資料；候選仍只殘留HTML，未冒充已啟用。
+6. 14:35:20.214重啟群組經自有SIGTERM實際退出0、剩餘群組程序0；主機停止、自有nonce鎖釋放，相機／麥克風／畫面擷取API呼叫0。job結束後一次性runner回收profile，僅合成JSON與瀏覽器錯誤保留在日誌。
+
+原品質入口及下載包檢查、此Linux job均通過；本機Bun1.4.4原check／pre-commit通過382 tests／1309 expects／0 fail。最初本機受限入口的HTTP listen失敗紀錄保留，允許本機連線後原入口通過。Linux原生首次執行即通過，未發現產品bug；Chromium的非致命D-Bus診斷原樣保留，沒有掩蓋或關閉sandbox來換取通過。新增CI重跑及平台／鎖位置收據，產品runtime、schema、依賴與門檻不變。
+
+這只補上**已提交筆記／Blob於SW部分安裝中遭程序強制終止**的Linux證據，不涵蓋寫入交易／migration／chunks中斷、實際低磁碟、停電、磁碟損毀、媒體品質或長片效能。Safari、實體／跨裝置、系統飛航、人工審查與完整P0／發布驗收保持待驗；iPhone暫緩，沒有合併、部署或關閉#13／#1。下方macOS結果保留其原版本與日期，不累加成Linux量測。
+
+## 原 #61 macOS 證據
+
 2026-10-29 Asia/Taipei。結果：受測 Chromium 在新版只保存第一份資源、第二份 HTTP 回應未完成時被 SIGKILL；同一 persistent profile 的新瀏覽器程序離線重開後，舊殼、舊筆記與合成 Blob 完整取回。沒有發現產品 bug；原 #61 新增可重跑的瀏覽器測試，本整合續測只補證據與文件，不修改產品 runtime 或資料格式。
 
 ## 版本與資料
