@@ -104,3 +104,20 @@ sentinel 不可播放，不是影片品質、長片效能、20／100／200 MiB �
 兩情境mediaCalls=0；原工具及交叉清理收據確認51個已知自有PID／5個群組退出、精確profile程序0、兩個主機埠拒絕連線、自有nonce釋放。pending-write與default原始收據SHA256分別`eece2e28f3cf4a9cc58723ff826182704435d607725ef32392e1b46cb6b639aa`、`7f68cab420695a3ba1010c3e9a33dc1d740d329e40bf82170edd1ad953513ab0`；清理總收據`de12a047257762af60b60fb1e9156726c6c52e0617254092039dde23712137f9`。profile、程序命令、raw端點及操作識別不公開。
 
 這是人為延長未提交交易與更新下載中的函式／SW證據；不可播放sentinel不代表新VS救援、媒體品質、產品Stop、chunks提交、提交瞬間、斷電、真正低磁碟／quota、永久保存、Safari或裝置驗收。原EEXIST拒絕與16bd歷史default保留各自來源，不把本次兩案擴寫為整張#13完成。
+
+## 9e69034 新授權 manifest 的兩情境補驗
+
+2026-10-30 Asia/Taipei，PR #80 納入 #82 及匿名證據後，以乾淨 `9e69034ef59a4ef5e641c049e98e008cc9fa3cce`／靜態 `4651fae419d8d9c8` 沿原 `forced-install-restart.ts` 入口各跑一次 default 與 `--pending-write`，兩次 exit 0、status passed。兩份原收據的 trackedChanges 均為空字串；先核對該候選包含 #82 `e6e086f`、產品 web bytes 等於 #78 `c46f0b5`、建置／授權副本 bytes 來源等於 #82，並核對候選自己的 CI 兩項成功，沒有把 #74 或舊整合 manifest 的結果移記過來。
+
+固定指紋：runner SHA256 `1633bc967fcdc8e4f8875704a1de45e339a5846a18346e31d761a9817ea01227`；實際建置 worker SHA256 `7b1645c7e6dcde031292699b066451f5f71eb1c5bbc0cc9a2aec622b306d9352`；storage.js SHA256 `d470fecd1c030878ae2e1750f68d3ad130e84d8393bdfaafb99dbd68a98b2e8a`。建置後 source／dist storage 逐 byte 相同，12 個 manifest 項目逐份符合實際 bytes，含已轉換連結的授權副本。環境為 macOS 27.0.1／arm64、Darwin 27.0.0、Chrome 156.0.8078.49 headless、Bun 1.4.4 與既有 Playwright core `1.64.0-alpha-1790635538000`。
+
+- **default**：候選只保存新 HTML **1／12**，第二份 CSS 的真正 HTTP 回應仍卡住、原生 worker installing、waiting null；舊版 **12／12** 全部 hash 符合 manifest。原工具先保存收據，再對自有群組發真正 SIGKILL，確認實際 signal 與群組退出。相同 profile 的新程序在導航前離線，由舊 SW 取得完整舊 HTML／cache、原生 metadata、產品 JSON／revision、media keys 及 1,048,613-byte sentinel；before／after 全欄位相同。原生 onLine false，未快取 probe 失敗、serverProbeHits=0，重啟後沒有資源請求碰到測試主機。
+- **pending-write**：原生 metadata／media 兩個 trusted put 成功，交易內讀到候選值，兩次 barrier 的 keep-alive ticks 前進且產品 Promise／complete／abort 均未結束，才對自有群組 SIGKILL。同 profile 新程序讀回完整舊資料，before／afterInterruptedWrite 全欄位相同；相同候選筆記與 Blob 重試 revision **1→2**，新內容每 byte 符合新公式、native metadata 精確等於候選。正常退出後第三個程序重開的整份 snapshot equality 與 committed-restart-verified 事件通過。**第三份 snapshot 仍未另序列化**，不宣稱另有可逐欄比對的第三份 raw。
+
+原工具逐 byte 核對兩個 1,048,613-byte 公式，舊／新 SHA256 分別仍為 `6ef72dcccd9b51e3a7f384632a9dff22af4c12372f3396fe557011d42e867971`／`bf53d764260842712bdcd2741340db837b4885e87d9fc23e62500135b4650e5c`。本線另讀原始收據，核對已序列化快照的全部 JSON／keys／revision／Blob 屬性、候選與原生提交內容，並獨立生成完整公式 bytes 重算 SHA；這不冒稱 raw 內另存了完整 Blob bytes。原 snapshot 的 allBytesMatch 固定檢查舊公式，替換後的 false 不算失敗，新公式由 retry.everyByteMatches=true 另驗。
+
+default 的兩組程序數為 13／10，pending-write 的三組為 10／10／8。兩案共 **51 個已知自有 PID／5 群組**，原工具及獨立查核均確認無殘留；ps 無診斷、兩個自有 loopback 埠拒絕連線，媒體 API 呼叫均為 0。兩輪都由原工具原子取得自己的共用鎖，核對同 nonce 才釋放；收尾獨立觀察時鎖不存在，沒有刪除或接管他人的鎖、profile 或程序。
+
+default 原收據 SHA256 `c784d057e88975c176eb5a13f59fd22d4b6b5eff713eac781d6299120e98e7d9`；pending-write 原收據 SHA256 `f7ee39111d3179e601eb08b2471dba715f61696fc962fc325877c696d24b939f`。兩次原生入口沒有失敗或環境拒絕；raw、profile、瀏覽器日誌與獨立查核只留 ignored output，所有歷史失敗與舊來源數據保持原歸屬。
+
+本次只補新 manifest 的更新下載及未提交交易中斷，沒有重跑低空間／配額或影音矩陣，也不涵蓋錄影 chunks、提交瞬間、斷電、永久保存、Safari／私人模式、實體／跨裝置或真實影片品質。後續提交只補本節與技術索引，工具及產品 bytes 仍綁定受測 9e69034，不把文件 head 冒充另一次原生重跑。Claude Code／使用者最終審查與 #13／#1 等未完成驗收保持開啟；iPhone 暫緩，未合併 main、部署、發布或關票。
