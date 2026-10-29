@@ -556,3 +556,14 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 
 
 正式6f7f89a／14f503e0971a9ab8的真正Chrome短回歸已全過：延後真正start通知後音畫仍先供給、三種WebM同步拒絕與取消／重試、獨立編碼error恢復、原100ms時鐘護欄拒絕及普通Chrome無相機5秒入口。8份成功輸出全片解碼，其中6份有聲工程WebM沿原v5全過（最大聲畫50ms／完整匯出3562ms），1份無聲及普通Chrome原聲路另完整解碼；產品下載與native chunks相同，負向raw保留。36個自有程序及4個profiles退出後已釋放服務／nonce。這不是正式Safari九組／十輪，完整原生驗收仍由主聊天續跑，細節見同一證據文件。
+
+
+## 37. #3／#11 WebM 尾部完整性與保存前片長守門
+
+整合ef114988／c895264的原生Safari正式矩陣前六案通過，第7案1×15秒被原v5拒絕：451次requestFrame、約15.024秒timeline，下載卻只有422格／14.055秒，尾部來源覆蓋-1033.333／-1000ms、15音14閃。產品load讀回14056ms仍成功保存，因為只驗可解碼與正片長，沒有對照配方交集；新修正不能覆寫這份正式失敗或把後續私有結果接成矩陣。通過的第1、4案也有空尾dataavailable，因此不以空事件本身判壞，不拿BlobEvent.timecode當成檔末PTS。
+
+主聊天精確私有recorder SHA256 0e463ca1020e201aeaf13bed36473c22a8b5cccb866f75e84671f397fb0d8824只讓webmOnly呼叫start()，其餘仍start(1000)。同頁1×15→30→60秒原v5全過，下載與native chunks相同；這是WebM寫入器自己的新證據，不能借用先前失敗的MP4 no-timeslice假說，也不代表穩定性通過。正式候選採此最小條件，VS不需要逐秒持久化，相機／普通Chrome及WebM格式備援仍逐秒落盤；沿原stop／error／最後dataavailable收集，不加requestData、固定等待、補長或第二套停止策略。
+
+新VS讀回後、清除驗證播放器及替換／保存舊VS前，核對未取整validationVideo.duration毫秒與comparison(value).durationMs；非有限值或差超過原100ms就拒絕。診斷整數沿舊格式，不能把四捨五入當額外容差，也不能用timeline實際耗時取代配方合法交集。原finally清掉新URL／播放器、音源與tracks，舊outputBlob、連結及保存資料還未修改。此為必要片長守門，不能取代獨立全片解碼、視訊首尾覆蓋、聲畫、漂移或250ms內容時鐘門檻。
+
+回歸使用前次真正成檔的3秒WebM bytes替換本輪4秒輸出的資料，讓原生播放器正常讀出較短片長，沒有偽造duration；拒絕後比較兩側File／舊VS完整SHA256與URL、保存筆數及資源釋放，同頁重試真正4秒成功。先在乾淨4bd48ca的精確私有候選以真正Chrome跑原本機音訊／格式／取消回歸及新短片拒絕，4份輸出全解碼，其中3份有聲原v5全過，無音軌來源仍無聲；每次start前驗證合成Canvas stream及禁止真實媒體要求。正式版本的原check／hooks與必要Chrome回歸另記，原生完整矩陣／十輪仍待凍結後重跑。

@@ -124,7 +124,8 @@ export function record(stream, onChunk = () => {}, onStart = () => {}, { webmOnl
       recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined);
       // start() 呼叫與原生 start 事件分開觀測，不能冒充影格同步證據。
       recorder.addEventListener('start', () => onStart(Math.round(performance.now())), { once: true });
-      recorder.start(1000);
+      // Safari VS 的週期切塊曾在 stop 遺失整段尾部；只此路徑一次收檔，相機／Chrome 仍逐秒落盤。
+      if (webmOnly) recorder.start(); else recorder.start(1000);
       break;
     } catch { recorder = null; }
   }

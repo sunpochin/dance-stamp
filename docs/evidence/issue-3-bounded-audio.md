@@ -231,3 +231,26 @@ Chrome原聲路（無UA覆寫）三項通過：
 本機ignored `output/chrome-nogate-formal-6f7f89a-941c` 保留原生chunks、實際下載、操作／事件、原v5報告、全部成功與負向原檔、complete-analysis.json。關閉後按程序樹核對36個自有PID及4個精確profile均無殘留，再停止自有server16362並釋放nonce 49518c3a-620e-447e-b68e-f9113f1d9de0；process-cleanup.json與cleanup.json記錄來源乾淨及當刻無鎖。本輪未操作Safari。
 
 這是新正式來源的Chrome短回歸，並非完整矩陣或十輪。真正Safari完整九組、十輪60秒及新檔產品外重播由主聊天以凍結整合候選續跑；不得借用私有5b、舊41b或整合PR其他head結果。原失敗、門檻、iPhone暫緩、獨立審查及不合併／部署的界線保持原樣。
+
+
+## 正式整合矩陣第七案缺尾與單塊WebM續修來源（2026-10-29）
+
+主聊天的正式整合ef11498882c62c71874c94f9185dff1683a2329b／靜態c895264、execution native-final-05416e156a50，同頁依序0.5×15／30／60及0.75×15／30／60六案原v5均通過。第7案1×15秒產品顯示成功並保存，但下載2,333,655 bytes（SHA256 58bcf03d9300ec3dd15852fd851f52711a507e6c9ea41d1aecf0a09f4f9e0bad）與native chunks相同且共同缺尾：422格、14.055秒，尾部覆蓋-1033.333／-1000ms，15音14閃，原v5 exit1。timeline約15.024秒／451次requestFrame，最後有效塊約native start後14.022秒，stop後尾事件0 bytes；load讀回14056ms仍被產品保存，確定缺少對照共同片長的守門。矩陣立即停下，8／9及十輪未跑。第1／4案也有空尾塊但完整通過，不把空事件或timecode當成片長判定。
+
+正式七案、下載收據與停止摘要由主聊天留在ignored output/safari-final-ef11498-v2；本聊天只讀核對，沒有操作該Safari或刪改失敗。主聊天自有服務／nonce已釋放，之後私有對照另用新origin及execution，不能沿用六案或覆蓋第七案。
+
+精確私有recorder SHA256 0e463ca1020e201aeaf13bed36473c22a8b5cccb866f75e84671f397fb0d8824只在webmOnly改成start()、default仍start(1000)，沒有requestData、停止延遲、補償或改來源。真正Safari同頁1×15→30→60秒，execution84534500816f，原v5三案全過：
+
+| 指標 | 15秒 | 30秒 | 60秒 |
+| --- | --- | --- | --- |
+| 全片解碼末端／影格 | 15.023／452 | 30.020／901 | 60.026／1801 |
+| 音／閃、最大聲畫差ms | 15／15、43 | 30／30、46 | 60／60、48 |
+| 三點配方ms | [0, 0, 33.333] | [0, 0, 0] | [0, 0, 0] |
+| 原覆蓋／合成目標 | true／true | true／true | true／true |
+| 完整匯出上界ms | 15467 | 30551 | 60802 |
+
+產品下載與native chunks逐byte相同，SHA256分別83a6ab9b6146eb4f06e8cfe9e4fb6c0b896d03c17c60928e45f00acf0152dc95、f1766a8452b8848818bc6c91970459edb5830899d466c737ebdd389b31051652、112c0df31f40206d7105ae4e07f17b3757df08e49248f125d17d5aa517530681；原檔／報告／verified-native-singleblob-three-cases.json保留在主聊天ignored output/safari-webm-singleblob-ef11498。這是WebM私有三案，先前MP4 no-timeslice失敗仍保留，也不是正式矩陣或十輪。
+
+採用前，本聊天在乾淨4bd48ca的私有精確兩檔候選以真正Chrome156.0.8078.49驗證：WebM專用start無參數、每份至多一次有效dataavailable；原本機AAC／格式拒絕／取消／重試，以及新「4秒配方注入先前真正3.017秒WebM」回歸全過。原生播放器成功讀出3017ms，片長守門拒絕後兩側原片與舊VS完整bytes／URL、保存筆數保留，buffer／tracks釋放，同頁4秒重試成功。4份成功輸出全片解碼，其中3份有聲沿未改原v5通過、最大聲畫60ms，1份預期無音軌仍無音軌。合成Canvas stream在每次start前強制確認，真實相機／麥克風要求禁止；9個自有程序與1個profile退出，私有服務19308及nonce1d5c808e已釋放。原始回歸、raw與分析留在本聊天ignored output/chrome-singleblob-private-4bd48ca-b2f4，來源仍標私有，不冒充正式新head。
+
+正式候選只採專用VS不帶timeslice，及load後／替換或保存前的原100ms未取整片長守門，非有限值也拒絕；不變更共用停止政策、時間戳、邊界、聲音或分析器。新增格式呼叫參數回歸在改動前失敗，改動後與原check／hooks及必要Chrome回歸另記。新正式完整原生矩陣與十輪仍由主聊天在整合凍結後重跑；iPhone暫緩，不合併、部署或關閉P0。

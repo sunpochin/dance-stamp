@@ -5,7 +5,7 @@ import { record, extension } from '../../web/recorder.js'
 const mp4 = 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', webm = 'video/webm;codecs=vp8,opus'
 
 test('WebM VS 明確選 VP8/Opus；一般錄影仍先 MP4，原生建構失敗沿原順序退回', async () => {
-  const original = globalThis.MediaRecorder, checks: string[] = [], attempts: string[] = [], slices: number[] = []
+  const original = globalThis.MediaRecorder, checks: string[] = [], attempts: string[] = [], slices: Array<number | undefined> = []
   let failMp4 = false
   class FakeRecorder extends EventTarget {
     static isTypeSupported(type: string) { checks.push(type); return true }
@@ -14,7 +14,7 @@ test('WebM VS 明確選 VP8/Opus；一般錄影仍先 MP4，原生建構失敗�
       super(); this.mimeType = options?.mimeType || 'video/mp4'; attempts.push(this.mimeType)
       if (failMp4 && this.mimeType.startsWith('video/mp4')) throw new Error('synthetic MP4 constructor failure')
     }
-    start(timeslice: number) { slices.push(timeslice); this.state = 'recording'; queueMicrotask(() => this.dispatchEvent(new Event('start'))) }
+    start(timeslice?: number) { slices.push(timeslice); this.state = 'recording'; queueMicrotask(() => this.dispatchEvent(new Event('start'))) }
     stop() { this.state = 'inactive'; queueMicrotask(() => { this.dispatchEvent(Object.assign(new Event('dataavailable'), { data: new Blob(['encoded'], { type: this.mimeType }) })); this.dispatchEvent(new Event('stop')) }) }
   }
   globalThis.MediaRecorder = FakeRecorder as unknown as typeof MediaRecorder
@@ -31,7 +31,8 @@ test('WebM VS 明確選 VP8/Opus；一般錄影仍先 MP4，原生建構失敗�
     failMp4 = true; checks.length = 0; attempts.length = 0
     const fallback = record({} as MediaStream), blob = await fallback.stop()
     expect(checks).toEqual([mp4, 'video/mp4', webm]); expect(attempts).toEqual(checks)
-    expect(blob.type).toBe(webm); expect(slices).toEqual([1000, 1000, 1000, 1000])
+    // WebM 專用 VS 一次收檔；一般流程即使最後選到 WebM，也不能失去相機的逐秒落盤。
+    expect(blob.type).toBe(webm); expect(slices).toEqual([1000, undefined, 1000, 1000])
   } finally { globalThis.MediaRecorder = original }
 })
 
