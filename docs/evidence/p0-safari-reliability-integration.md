@@ -17,13 +17,62 @@ TECHNICAL 同位置追加衝突保留配額歷史及未確認契約兩邊內容�
 
 [最新未確認保存證據](issue-13-unconfirmed-storage.md)中的原生 Safari 私人／一般結果只屬99e862d；[獨立 quota 重跑](issue-13-native-quota-repeat.md)仍屬其原 runtime。指南新增記憶體筆記救援與原頁重開步驟，兩份匿名證據明列入包；沿用既有指南連結回歸，不新增遞迴收集或影片附件。
 
-Safari 正式41b的原生矩陣／十輪、整合 head 的原生與 Chrome 原24組、新 VS 未確認救援、產品Stop／UI在途取消及人工／實體／跨裝置仍待各自證據。工程 Chrome 模擬 UA 分支的 WebM native start互等失敗另保留，不偽造start、不省略格式回歸，也不由該工程輪斷定真正Safari失敗。私有 WebM 1×30秒單輪不能移記正式或整合 head；後續根聊天持鎖驗證，這一整合步驟未啟動媒體或取得共用鎖。
+整合16bd7ca的Chrome原24組、網站外Chrome檔案播放與兩項原生儲存／更新工具已補驗，見下節；Safari正式41b的完整原生矩陣／十輪、整合版Safari、新VS未確認救援、產品Stop／私人UI取消及人工／實體／跨裝置仍待各自證據。工程 Chrome 模擬 UA 分支的 WebM native start互等失敗另保留，不偽造start、不省略格式回歸，也不由該工程輪斷定真正Safari失敗。私有 WebM 1×30秒單輪不能移記正式或整合 head；後續根聊天持鎖驗證，這一整合步驟未啟動媒體或取得共用鎖。
 
 儲存原生取消收據另屬81bd2c9的五份原樣儲存模組：真正 trusted abort 後1ms回AbortError、unknown=false，完整舊metadata／sentinel bytes保留，正常重試complete。只涵蓋儲存API，不代替本整合head、產品Stop、新VS或私人取消。
 
 正式41b3023的Safari半速15秒已有自己的原v5單輪通過：VP8／Opus15.026秒、454格、聲畫80ms、完整覆蓋true、完整匯出15,399ms，產品下載2,221,513 bytes等於native chunks。最大逐格配方差100ms、內容時鐘差133.333ms仍完整保留；此結果只屬41b來源，不移記為本整合head、新檔網站外播放或矩陣／十輪通過。整合產品組成固定，靜態為fe23327aa3da26c5，與文件／QA續補前相同；精確最後head、check與包由交付PR綁定。
 
 Safari QA 指紋續審：9151ce4已避免被 CSP 拒絕的 fetch(blob:)，但成檔後讀 input.files 仍會取不到來源。隔離 Chrome 真 FileList 配合原 chooseFile 直接重現1→0件；於原生 change 擷取階段保留 File 後，完整原 bytes 仍可讀。這一修正只改測試工具，不改產品或 CSP；原工程分支仍有 native start 互等失敗，沒有宣稱完整回歸已因此通過。
+
+### 16bd7ca 同版補驗
+
+2026-10-29，根聊天在乾淨 `16bd7ca64f797c937fb4cf5153fce688e8ea8602`／靜態 `fe23327aa3da26c5` 真正重跑。本聊天只讀核對原始案例、原分析、完整下載、儲存快照及清理收據，沒有代跑或修改原測試。後續只補文件；受測head保持16bd7ca，新的文件head及乾淨包另由PR綁定，不能寫成新版重新跑過影音。
+
+#### Chrome 24組與48份下載
+
+macOS27.0.1／原生安裝Chrome156.0.8078.49 headless、一般UA、Bun1.4.4、FFmpeg8.1.2。真正程序參數已核對只用自製假相機，沒有真人相機／麥克風；14份受測資源與本候選逐檔相同。沿用未改的 `media-feasibility.js`、`run-media-feasibility.py` 與分析器v5：矩陣9、穩定性10、WebM1、正負校正2、恢復1、長輸出1，共24組全過。24份原始紀錄均sourceDirty=false，所有fullDecode／完整覆蓋／合成目標／完整耗時驗證為true，影格訂閱pending=0。
+
+| 原24組量測（只屬16bd7ca） | 結果 |
+| --- | ---: |
+| 最大聲畫差 | 60ms |
+| 最大配方差 | 71.533ms |
+| 新增漂移最大絕對值 | 63.234ms |
+| 最長重複畫面 | 71.567ms |
+| 最低平均fps | 29.984 |
+| 完整匯出最高上界 | 64,076ms |
+
+48份實際原片／VS都由原流程完整解碼並留指紋；本聊天另重算全部202,261,876 bytes的下載SHA，與收據相同。最後24份take／24份export，預期48份媒體均存在可讀、missing=0。這是原案例的存在／可讀檢查及下載指紋，**不是新增一次逐份最終IndexedDB全bytes比對**。十輪使用同context／IndexedDB，但原腳本每輪仍導航；不宣稱無重載生命週期、實體裝置或無資源洩漏。
+
+原瀏覽器函式SHA256 `cf8f8f02bb6cacb7e6d894b40c2a7dd7064bd9b931cb74e76228585e83ea1c03`；原run-media腳本 `8de3caec2a246c0fb40df52431515f59e7b876b4277439a5591070fe492af881`；原v5 `3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa`。最終收據SHA256 `0ff3d0d95775c350eff1e64df24757925b6f2c8b315462fa4494b242f379831e`，verified-results為 `5471c72d181039a3b5b5b9a6b9ed8fd2bb7869ee0e8611ce1b3672b8e6ad7dfa`；raw與媒體留根聊天本機，不進包或公開附件。
+
+#### 網站外真正檔案播放
+
+產品主機及原瀏覽器先停止，再以全新隔離Chrome156、`file:`入口執行原 `download-playback.js`。下列三份均為上述24組的實際下載，完整bytes／SHA相同，原生play到ended、error=0、mediaCalls=0：
+
+| 檔案 | bytes | 呈現frames／dropped | 已解碼audio bytes |
+| --- | ---: | --- | ---: |
+| 正常MP4 | 2,322,713 | 449／9 | 22,667 |
+| WebM | 3,435,488 | 450／0 | 163,402 |
+| 校正MP4 | 2,297,167 | 444／0 | 20,171 |
+
+這是靜音headless Chrome的原生播放／解碼收據，不代表Safari、人工聽感、Files／相簿或跨裝置保存。原播放函式未改，SHA256 `737e4be2d69c9f6c60da1c20c73754558b8d4b2416793bfaa989bc5a2c7c2ba1`。
+
+#### 新整合版原生配額與更新中斷
+
+同一乾淨16bd7ca以原 `verify-native-quota.ts`（SHA256 `1489d1e546587eceee7373458a82aa8834900915df28c57b5a8a6e889e66cdbb`）及storage.js（`d470fecd1c030878ae2e1750f68d3ad130e84d8393bdfaafb99dbd68a98b2e8a`）真正重跑。512KiB origin配額下，新增／替換皆有trusted readwrite交易abort／QuotaExceededError，產品拒絕；非空video／marker／move／take／recipe／export、三份media及chunks全保留。11份完整快照逐物件相等關係、47筆Blob記錄的完整base64／長度／SHA均獨立重算，拒絕後再等1秒仍相同。解除override後同候選重試revision3→4→5，原生metadata與完整Blob匹配；正常關閉後同profile新程序讀回完整相同。此工具直接旁聽error／abort，不另宣稱捕捉到trusted complete事件。兩次自有程序清理各核對7／6個PID歸零，override已解除、主機及自有nonce鎖收尾通過。result收據SHA256 `1e61ab51f3d5449e9b6f8aa0ade5ed5aa173b7ea6227980db9948e10638bbf11`。
+
+原 `forced-install-restart.ts`（SHA256 `f4c8eb229e55dca2e62f00f7c3f5b80d66e1aee278ac83060358382dccaa9953`）亦在16bd7ca／fe23327aa3da26c5重跑：完整舊cache12份，候選僅1／12且CSS真正HTTP回應未完成時，向自有群組SIGKILL。確認群組為0後，同profile新程序在導航前離線，取回舊完整shell／manifest、全部筆記與原生metadata、keys及1,048,613-byte sentinel，每byte／SHA相同。重新導航的主機probe=0、nativeOnline=false、fromServiceWorker=true，mediaCalls=0；兩個自有群組最終皆0，自有鎖釋放。worker SHA256 `18df1e0d6794df412b491f8d9c09208316e5b1b0c6897a1b1292ac682157df18`，收據SHA256 `da567e3a8fac7fe81e78978b71b7b874cdd55939dc071a37855104d9b9cd515c`。
+
+配額與強制中斷使用不可播放的合成sentinel，不是新VS、真低磁碟、停電、寫入提交中強殺或永久保存驗收。兩個工具的新結果屬16bd7ca，先前#65／#66及舊worker收據仍各自保留，不相互移記。
+
+#### G7稀疏觀測與剩餘界線
+
+只有一筆活躍G7取樣：自有QA daemon＋Chrome的RSS加總1,359,088KiB，可能重複計shared pages，不是app獨占footprint、峰值、最低或無洩漏證明。AC供電；同時系統工具回報整體記憶體free50%，不能歸因於此程式。熱狀態原文為「No thermal warning level has been recorded／No performance warning level has been recorded／No CPU power status has been recorded」，不代表實際溫度或無降頻。關瀏覽器後RSS=0及free53%僅支持清理，不納入活躍最低值。溫度、電池消耗、低記憶體／熱壓力、手機與長時間常駐仍未量測；原G7收據SHA256 `3b59c13d0caf287916f7cf3159c85c219e652d0a7f5e2a7dbf705d8177d57725`。
+
+捕捉流程的自有瀏覽器／主機／nonce及網站外播放器的6個已知程序／nonce均已收尾；沒有清理其他聊天的程序。正式41b／99組成未變，16bd7ca的Chrome WebKit-UA分支原native-start等待失敗仍單列。後續私有no-start-gate（5b）雖由根聊天回報完整Chrome工程／clock／錯誤重試通過，仍未採用；真正Safari兩個短配方因桌面鎖定尚未執行，不由本輪Chrome或先前Safari半速單輪推定通過。
+
+完整整合版Safari矩陣／十輪、新VS未確認救援、產品Stop／私人取消、真人五人／讀屏／聽感、實體相機／跨裝置及Claude Code／使用者最終審查繼續保留。Web優先、iPhone暫緩；不關票、合併、部署或發布。
 
 ## 以下為先前整合的歷史紀錄
 

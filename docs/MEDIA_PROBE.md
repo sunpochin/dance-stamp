@@ -1,7 +1,7 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
-2026-10-29：#58 資料／主機保護與 #62 Safari 有界音訊的本次整合、14份執行資源核對及驗證界線見[整合證據](evidence/p0-safari-reliability-integration.md)。下方歷史媒體數據保持原受測來源，不移記為整合 head 新測。
+2026-10-29：乾淨16bd7ca／fe23327aa3da26c5的原Chrome24組、48份實際下載、三份網站外Chrome播放及新同版quota／更新中斷收據見[同版補驗](evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。只補文件，未在文件head重跑影音。下方#58／#62及各歷史媒體數據保持原受測來源，不移記為本輪新測。
 
 2026-10-29 真正Safari續測見[正式41b半速15秒單輪](evidence/issue-3-bounded-audio.md#正式41b3023原生safari半速15秒單輪2026-10-29)：原v5聲畫／完整覆蓋通過，仍未完成矩陣與十輪。歷史eb21064的1×／30秒MP4長度失敗、三份否決原型及e0acf88／f88c28d失敗都保留來源；私有WebM30秒與Chrome工程UA失敗分開，不再等待已完成的解鎖前置，也不把來源單輪移記為整合head驗收。
 

@@ -580,3 +580,10 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 整合續審另以隔離 Chrome 的真正 FileList 執行原 chooseFile（只替換解碼邊界、不啟動媒體）：input 在 finally 從1件變0件，證明 QA 於成檔後再讀 input.files 仍會失去來源。local-audio 回歸改在原生 change 擷取階段保留 File，之後直接讀該 File 及已存 VS Blob，URL／完整 bytes 斷言不變；不改 CSP 或產品選片。這個 DOM 邊界重現不代替仍未過的 Chrome WebKit-UA 完整工程分支。
 
 正式41b3023／f81d1c69861fa21e已由主聊天完成自己的原生Safari27.0.1半速15秒單輪：14份資源與目前建置指紋相同、產品下載與native chunks逐byte相同；原v5全解碼454格、15.026秒、8音／8閃、最大聲畫80ms、三點[0,-33.333,0]ms／新漂移0及完整覆蓋通過，完整匯出上界15,399ms。仍保留逐格配方最大100ms、內容時鐘差133.333ms與各版本失敗，不擴寫成每格≤100ms或整體穩定。本檔網站外播放、正式完整矩陣／十輪仍待驗，與私有30秒原型及Chrome工程分支分開；runtime保持41b3023，詳見同一證據文件的新正式單輪段落。
+
+
+## 37. 整合16bd7ca的同版Chrome與儲存證據
+
+乾淨16bd7ca／fe23327aa3da26c5由根聊天用原media-feasibility／run-media／v5完成24組、48份下載，並用原download-playback在產品程序停止後，以新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended。原quota及部分安裝強制SIGKILL亦在同版重跑；本聊天只讀核對原案例、全部下載SHA、11份完整儲存快照與兩個工具來源，不改runtime或分析器。數據、來源指紋與清理界線見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。
+
+只補匿名文件及指南，14份Web資源保持受測版；排除把文件head冒充影音重跑、下載指紋代替最終IDB逐份bytes、每輪導航的十輪宣稱無重載常駐，以及RSS加總當峰值／無洩漏。正式WebKit-UA分支失敗與尚未採用的私有5b另列；Safari／新VS救援、人工／實體／跨裝置與iPhone暫緩的界線不變。後續乾淨包／check／CI識別由PR72綁定。
