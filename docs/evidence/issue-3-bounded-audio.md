@@ -319,3 +319,18 @@ Chrome原聲路（無UA覆寫）三項通過：
 採用前，本聊天在乾淨4bd48ca的私有精確兩檔候選以真正Chrome156.0.8078.49驗證：WebM專用start無參數、每份至多一次有效dataavailable；原本機AAC／格式拒絕／取消／重試，以及新「4秒配方注入先前真正3.017秒WebM」回歸全過。原生播放器成功讀出3017ms，片長守門拒絕後兩側原片與舊VS完整bytes／URL、保存筆數保留，buffer／tracks釋放，同頁4秒重試成功。4份成功輸出全片解碼，其中3份有聲沿未改原v5通過、最大聲畫60ms，1份預期無音軌仍無音軌。合成Canvas stream在每次start前強制確認，真實相機／麥克風要求禁止；9個自有程序與1個profile退出，私有服務19308及nonce1d5c808e已釋放。原始回歸、raw與分析留在本聊天ignored output/chrome-singleblob-private-4bd48ca-b2f4，來源仍標私有，不冒充正式新head。
 
 正式候選只採專用VS不帶timeslice，及load後／替換或保存前的原100ms未取整片長守門，非有限值也拒絕；不變更共用停止政策、時間戳、邊界、聲音或分析器。新增格式呼叫參數回歸在改動前失敗，改動後與原check／hooks及必要Chrome回歸另記。新正式完整原生矩陣與十輪仍由主聊天在整合凍結後重跑；iPhone暫緩，不合併、部署或關閉P0。
+
+
+### 正式9bb26d0的單塊WebM與片長拒絕回歸
+
+乾淨來源9bb26d001a956d7bdf95819464c46dbcfcad1a99／靜態16a65c24d89bb5df，main SHA256 93ebd1ec25507df453a97e954da0e72dcb5afe6e2ce75cb3c038ecce67654ac4、recorder SHA256 7bce4af8beb23882124bba31ed0b99d13b020a6ec695e6550b235059fafbbf6f。原check及提交／推送hooks389 tests／1377 expects／0 failures，該head CI #133成功。格式參數回歸修改前為1 fail／1 pass，修正後通過；負向log保留。
+
+真正Chrome156.0.8078.49四個全新隔離context依序跑正式local-audio、獨立非同步encoder error／retry、原local-audio-clock、普通Chrome existing-no-camera，全部通過。工程分支使用明確QA UA，controller=none，camera／microphone禁止；每次Native start前均強制確認__danceSyntheticCameraOnly、零真實媒體要求與受控Canvas captureStream。被動記錄顯示工程分支所有start參數為空、每輪至多一個有效dataavailable；普通Chrome仍start(1000)，相機／一般WebM備援的原參數另由格式單元保護。
+
+新短片回歸沒有偽造duration：前次真正3.016秒成功WebM，609,753 bytes／SHA256 09ca9341c5cb0c06b1ef45b3f5511736ab4e0f9700bbea8a7a6c5c3c6251a5fe，作為本輪4秒配方的注入bytes；原生load成功讀回3016ms後由新片長守門拒絕。拒絕後兩側原片與舊VS全bytes SHA256／URL、保存筆數、paused與buffer／tracks清理斷言均通過；同頁真正4秒重試只新增一份VS。三種格式拒絕、解碼拒絕、準備／合成取消及靜音來源交換均保留；100ms時鐘測試的延後play與短停頓仍拒絕且重試成功，編碼error仍保留舊片並釋放本輪資源。
+
+9份成功原生輸出全部FFmpeg全片解碼，其中7份有聲工程WebM沿未改原v5通過（最大聲畫60ms、完整匯出上界4206ms），1份預期無音軌WebM仍無音軌，普通Chrome5秒MP4亦全解碼。實際產品WebM重試與普通Chrome下載均與native chunks逐byte相同；5份故意拒絕raw另留，不列為品質通過。新短片故障僅在QA把本輪原生event資料換為前次短WebM，原始本輪native chunks與實際注入bytes分開保留；不把其差異誤寫成瀏覽器成檔缺尾。
+
+本聊天ignored output/chrome-singleblob-formal-9bb26d0-2f4b保存完整原生／下載／record／v5／complete-analysis.json。無unhandled rejection、舊VS連結可見且未撤銷、所有自有stream停止；36個精確自有PID及4個profiles核對均退出後，服務20386停止並釋放nonced1d85ac6，cleanup.json確認來源乾淨及當刻無鎖。本輪沒有操作Safari。最初私有準備把缺TC註解的等價改動拿去比對含註解的native完整hash而在啟服務前失敗，另以preparation-assertion-failure.json保留，唯讀diff確認後才按分開記錄的新hash續測，沒有改門檻或重分類產品失敗。
+
+正式完整原生矩陣／十輪仍由主聊天整合凍結後從頭重跑；ef114988第7案失敗、私有原生三案及本Chrome正式短回歸各自保留版本，不承接成新整合head的全平台通過。iPhone暫緩，不合併、部署或關閉P0，重要變更仍待獨立Claude Code／使用者審查。

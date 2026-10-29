@@ -39,7 +39,7 @@ let existingMode = false, outputRecipe, comparisonSave = Promise.resolve(), comp
 const diagnostics = { stage: 'idle', camera: null, capture: null, export: null, audioPath: localAudio ? 'bounded-aac-v1' : 'media-element' };
 /** @type {import('./types').LibraryState} */
 let state;
-let ready, currentVideoId, currentReferenceFile, pendingLinkId, pendingTakeId, activeTakeId, markerEditingId;
+let ready, currentVideoId, currentReferenceFile, pendingLinkId, pendingTakeId, activeTakeId, partialAssetId, markerEditingId;
 let markerVideoId;
 let moveEditingId, moveDirty = false;
 let metadataVideoId;
@@ -89,7 +89,7 @@ function mediaFilename(blob, prefix, output = false) {
   const suffix = output ? extension(blob.type) : originalSuffix || (blob.type.includes('quicktime') ? 'mov' : blob.type.startsWith('video/mp4') ? 'mp4' : blob.type.startsWith('video/webm') ? 'webm' : blob.type.includes('matroska') ? 'mkv' : 'bin');
   return `${prefix}.${suffix}`;
 }
-/** @param {'reference-download' | 'take-download' | 'output-download'} id @param {Blob} blob @param {string} prefix */
+/** @param {'reference-download' | 'take-download' | 'output-download' | 'partial-download'} id @param {Blob} blob @param {string} prefix */
 function download(id, blob, prefix) {
   const link = $(id); link.href = urlFor(id, blob); link.download = mediaFilename(blob, prefix, id === 'output-download'); link.hidden = false;
 }
@@ -476,11 +476,11 @@ $('camera').addEventListener('click', () => operation(async signal => {
 $('capture').addEventListener('click', () => operation(async signal => {
   if (!camera) throw new Error('請先開啟相機。');
   if (beatDirty) throw new Error('請先保存或取消拍點編輯，再開始錄影。');
-  const value = recipe(); captureDuration(value);
+  const value = recipe(), expectedDurationMs = captureDuration(value);
   // 確認框的取消也會關閉預覽，避免使用者退出重錄後相機仍持續開啟。
   if (takeBlob && !confirm('請先下載目前自拍與 VS。重錄會建立新 take，已保存的舊段仍會保留，確定繼續？')) { releaseCamera(); status('已取消新錄影，原自拍與已保存的舊段都保留。'); return; }
   const info = /** @type {import('./types').CaptureInfo} */ ({ rate: value.rate, interrupted: true }); diagnostics.capture = info;
-  let recording, take, chunkQueue = Promise.resolve(), chunkError, persistenceError, chunkIndex = 0;
+  let recording, take, partialBlob, captureIntegrityError, stopRequested = false, chunkQueue = Promise.resolve(), chunkError, persistenceError, chunkIndex = 0;
   try {
     take = await beginTake(value);
     // 與恢復操作共用原生鎖，避免另一分頁把尚在錄製的 take 當成中斷接管。
@@ -500,7 +500,13 @@ $('capture').addEventListener('click', () => operation(async signal => {
             if (active?.signal === signal && !signal.aborted) { active.abort(new Error('錄影片段保存失敗，請先下載原片。')); stop(); }
           });
         }, startedMs => { info.recorderStartedMs = startedMs; });
-        recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) { active.abort(error); stop(); } });
+        // 原生也可能提早成功 stop；只有本輪明確要求的停止才可進完整錄影收尾。
+        recording.done.then(() => {
+          if (!stopRequested && active?.signal === signal && !signal.aborted) {
+            captureIntegrityError = new Error('錄影未完成：錄製提早停止。未完成原片可另存；舊自拍與 VS 保留。');
+            active.abort(captureIntegrityError); stop();
+          }
+        }, error => { if (active?.signal === signal && !signal.aborted) { active.abort(error); stop(); } });
         const began = performance.now();
         await reference.play();
         info.referencePlayResolvedMs = Math.round(performance.now()); info.referenceAtPlayMs = Math.round(reference.currentTime * 1000); info.interrupted = false;
@@ -516,14 +522,25 @@ $('capture').addEventListener('click', () => operation(async signal => {
         if (recording) {
           info.interrupted = signal.aborted || reference.currentTime * 1000 < value.endMs - 100;
           try {
+            // 必須先標記，再 stop／關相機；否則正常完成的 done 也會被誤當提早停止。
+            stopRequested = true;
             const stopped = recording.stop(); releaseCamera();
-            const blob = await stopped;
-            // 先提供原片下載，再讀回驗證；解碼失敗也不能讓已錄下的資料消失。
+            const blob = await stopped; partialBlob = blob;
+            info.mime = blob.type;
+            const durationMs = await loadCandidate(blob, self, 'self', undefined, candidate => {
+              info.durationMs = candidate.duration;
+              if (captureIntegrityError) throw captureIntegrityError;
+              // 沿原 media-feasibility 的 expected−500ms 下限；驗證前不能撤銷舊播放器／下載或清 chunks。
+              if (!info.interrupted && candidate.duration <= expectedDurationMs - 500) {
+                info.interrupted = true;
+                captureIntegrityError = new Error('錄影未完成：原片長度不足。未完成原片可另存；舊自拍與 VS 保留。');
+                throw captureIntegrityError;
+              }
+              return Promise.resolve();
+            });
             download('take-download', blob, 'dance-self');
-            const durationMs = await loadCandidate(blob, self, 'self');
             // 新原片解碼成功才切換關聯；倒數取消或壞檔不能把舊畫面綁到新 take。
             takeBlob = blob; selfDurationMs = durationMs; activeTakeId = take.id; pendingTakeId = null; $('confirm-take').hidden = true; $('offset').value = '0';
-            info.mime = blob.type; info.durationMs = durationMs;
             await chunkQueue;
             info.interrupted ||= signal.aborted || !!chunkError;
             const captureTiming = info.recorderRequestedMs === undefined ? undefined : { recorderRequestedMs: info.recorderRequestedMs, ...Object.fromEntries(['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs'].filter(key => info[key] !== undefined).map(key => [key, info[key]])) };
@@ -542,7 +559,10 @@ $('capture').addEventListener('click', () => operation(async signal => {
       status('自拍已錄好。先下載原片，再校正與合成。'); updateIntersection();
     });
   } catch (error) {
+    // 失敗原片另給下載，不能為了保全新片覆蓋舊自拍連結；chunks 留待明確恢復。
+    if (partialBlob && takeBlob !== partialBlob) { download('partial-download', partialBlob, 'dance-self-incomplete'); partialAssetId = take?.cameraAssetId; }
     if (take) await markStoppedTake(take, recording ? 'interrupted' : 'failed').catch(() => { diagnostics.lastError = '錄影狀態無法更新；原片與 chunks 保留，請下載原片後重開。'; });
+    if (captureIntegrityError) throw captureIntegrityError;
     if (persistenceError) throw new Error(`自拍無法保存在此瀏覽器，請立即下載自拍原片。${persistenceError.message}`);
     throw error;
   } finally { releaseCamera(); await chunkQueue; }
@@ -859,6 +879,11 @@ $('delete-confirm').addEventListener('click', () => operation(async signal => {
   for (const id of plan.mediaIds) if (plan.kind !== 'copy') {
     sessionMedia.delete(id);
     const key = `inventory:${id}`, url = urls.get(key); if (url) URL.revokeObjectURL(url); urls.delete(key);
+  }
+  // 只在明確刪到這份原片後撤銷救援 URL；取消、無關刪除或一般換片仍須保留。
+  if (partialAssetId && plan.kind !== 'copy' && plan.mediaIds.includes(partialAssetId)) {
+    const url = urls.get('partial-download'); if (url) URL.revokeObjectURL(url); urls.delete('partial-download');
+    $('partial-download').hidden = true; $('partial-download').removeAttribute('href'); partialAssetId = null;
   }
   if (currentVideoId && !state.data.videos.some(v => v.id === currentVideoId)) {
     clearDeletedPlayer('reference', ['reference', 'reference-download']); $('reference-download').hidden = true;

@@ -604,6 +604,9 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 
 回歸使用前次真正成檔的3秒WebM bytes替換本輪4秒輸出的資料，讓原生播放器正常讀出較短片長，沒有偽造duration；拒絕後比較兩側File／舊VS完整SHA256與URL、保存筆數及資源釋放，同頁重試真正4秒成功。先在乾淨4bd48ca的精確私有候選以真正Chrome跑原本機音訊／格式／取消回歸及新短片拒絕，4份輸出全解碼，其中3份有聲原v5全過，無音軌來源仍無聲；每次start前驗證合成Canvas stream及禁止真實媒體要求。正式版本的原check／hooks與必要Chrome回歸另記，原生完整矩陣／十輪仍待凍結後重跑。
 
+
+正式9bb26d0／16a65c24d89bb5df的必要Chrome回歸已全過：單塊WebM、真實較短bytes讀回拒絕／全指紋及保存筆數保留／同頁重試、原格式與取消／靜音、時鐘拒絕、編碼error恢復及普通Chrome5秒原MP4流程。9份成功輸出全解碼，其中7份有聲工程WebM原v5全過（最大聲畫60ms／完整匯出4206ms），實際產品下載與native chunks一致；每次start前確認受控合成stream，普通Chrome仍傳1000。36個自有PID及4個profiles退出後已釋放server／nonce。正式原生完整矩陣／十輪仍待整合凍結後另跑，全部原失敗及私有來源界線見同一證據文件。
+
 ## 38. 整合16bd7ca的同版Chrome與儲存證據
 
 本節維持16bd7ca受測與84a85fd文件交付時的歸屬；其後的6f7f89a啟動順序續修另依新整合head驗證。
@@ -611,3 +614,18 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 乾淨16bd7ca／fe23327aa3da26c5由根聊天用原media-feasibility／run-media／v5完成24組、48份下載，並用原download-playback在產品程序停止後，以新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended。原quota及部分安裝強制SIGKILL亦在同版重跑；本聊天只讀核對原案例、全部下載SHA、11份完整儲存快照與兩個工具來源，不改runtime或分析器。數據、來源指紋與清理界線見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。
 
 只補匿名文件及指南，14份Web資源保持受測版；排除把文件head冒充影音重跑、下載指紋代替最終IDB逐份bytes、每輪導航的十輪宣稱無重載常駐，以及RSS加總當峰值／無洩漏。正式WebKit-UA分支失敗與尚未採用的私有5b另列；Safari／新VS救援、人工／實體／跨裝置與iPhone暫緩的界線不變。後續乾淨包／check／CI識別由PR72綁定。
+
+## 39. #1／#3／#9 擷取完整性與未完成原片保護
+
+345b2d1／fe4bf7952cad2421的新Chrome原24組在矩陣9案及穩定前5輪通過後，第6輪停於原save的「輸出長度不足」。實際相機take是876,089 bytes、H.264無音軌28.030933秒／841格；沿原分析器影格函式讀出素材碼93→933連續，素材本身1950格／65秒，停在素材中途。原工具在斷言前未回傳diagnostics，尚未下載該VS；隔離context已關閉，不能假稱取得原失敗VS或captureTiming。另一次有完整觀測的60秒控制實際UI為0→60秒／1×，正常錄59.996秒並通過原v5；它不證明原截斷根因已排除，也不拿來補十輪。
+
+獨立的原生早停控制已證明保護缺口：同一舊版15秒配方，原生stop真正結束在1.197秒，仍被標ready與「已錄好」。capture原先只看老師到終點／取消／chunk錯誤，recording.done只處理拒絕，沒有處理提早成功；VS以實際自拍交集輸出可能正確，不能靠改匯出等待、格式或音畫門檻掩蓋原片不足。
+
+修正只在新擷取owner處理成功done：本輪尚未要求stop且未取消時，中止該輪並標未完成；stopRequested先於recording.stop及releaseCamera，仍等最後資料與chunkQueue。片長依captureDuration(recipe)預期，沿原media-feasibility.js的decodedDurationMs > seconds×1000−500下限；不是G1規格新增的±500ms，也沒有新增超長上限。loadCandidate的beforeCommit先確認新片，短缺達原下限時不替換舊self URL、take／下載／配方或finalize ready；全域load與合法短中斷片段恢復不改。
+
+拒絕後保留原始chunks與中斷工作記錄，另以「下載未完成原片」保留本輪bytes，避免為保全新片而撤銷舊take下載或VS。救援連結只綁本次asset；明確且成功刪到該asset的take／video才撤銷URL，取消、無關刪除、普通換片或重試都保留。排除重置資料、替換舊片後回補、先finalize再降級狀態、全域改load及更換相機編碼／Safari VS管線；finalize會清chunks且markStoppedTake不降ready，必須先拒絕。
+
+回歸以真正native early-stop與其成檔短bytes作控制，不假造duration或完成事件；檢查舊筆記／take／recipe／VS完整指紋及URL、chunks與部分原片相同、原生停止與資源釋放、同頁重新錄完整，另驗救援刪除生命週期。執行結果與精確版本另記[擷取證據](docs/evidence/issue-9-capture-recovery.md#擷取完整性續審)。原格式、1000ms相機分塊、時間映射、Safari VS與原v5不變。新乾淨head仍須從頭跑24組，#69 pending-write未驗不由舊default中斷通過替代；iPhone暫緩，不合併／發布。
+
+
+同一工作樹的針對性完整性回歸、原capture與capture-drain已全過；前者同頁依序原生早停、真短bytes、正常15.001秒重試及救援刪除生命週期。新QA每take唯一檔名，四份實際檔逐次Node完整hash與頁內Blob相同並完整解碼；原命名碰撞／被覆蓋的首early證據缺口仍記錄，不補造下載收據。原check408／1551通過；這些來源標dirty，不承接成乾淨head24組或Safari產品驗收。

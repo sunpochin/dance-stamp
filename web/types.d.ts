@@ -151,6 +151,7 @@ export interface Elements {
   "canvas": HTMLCanvasElement;
   "progress": HTMLProgressElement;
   "take-download": HTMLAnchorElement;
+  "partial-download": HTMLAnchorElement;
   "output-download": HTMLAnchorElement;
   "share": HTMLButtonElement;
   "output": HTMLVideoElement;

@@ -144,3 +144,24 @@ PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交�
 ## 未完成
 
 真實相機、實體指示燈、前後鏡頭硬體可用性、鎖屏／來電、G1 與錄影相關 G6 真機證據仍未驗證。#8 播放與本票合成相機的真正桌面切分頁 gates 已各自補驗，不能代替硬體或其他裝置。Safari、手機與人工 review 未驗證，不關 #9；依使用者要求以一般 PR 交付供審查，未驗證項目明列。使用者仍指定先做桌面 Web，不因此判 Web 失敗或啟動 iOS；本輪尾塊互斥修正未合併、發布或新增外部服務，前面各 PR 的實際合併狀態見本輪查核。
+
+
+## 擷取完整性續審
+
+2026-10-29，固定345b2d1的原Chrome重跑：矩陣9／9、穩定前5輪通過，第6輪原take只有28.030933秒／841格，在原save檢查停止，後續四輪、WebM、校正、恢復、performance與獨立三檔未執行。失敗原片SHA256 4fe0f800b842995ca8d7a0de6799d4cabec74574b67012cc5c0b2e49a84a2257；14組成功28份下載及失敗紀錄全部保留。不能把單輪後續60秒控制的成功湊成十輪。
+
+另以舊345作原生early-stop負向控制，15秒配方原生只錄1.197秒，仍顯示已錄好、metadata take ready。真下載41,141 bytes／SHA256 924ecfd97d831f202401cc7fccab2090ead2e51804d5825895f14c933fe29d65。這是有意故障證明owner／讀回保護不足，不是原平台截斷根因的重現；原失敗事件未被原工具收齊，根因仍未知。
+
+本次修正新增新擷取成功done提前停止保護，及beforeCommit的既有500ms片長下限；拒絕不finalize、不清chunks，原片另存連結與舊take／VS分開，明確刪除對應take或video才撤銷該連結。工作樹針對性回歸與既有測試結果如下；固定乾淨head的完整24／離站三檔仍待執行，不預填通過。Safari345一般十九案／正常重載保持原來源，私人新VS救援及pending-write仍未驗；Web優先、iPhone暫緩，不合併、部署或關票。
+
+
+### 本次工作樹回歸結果
+
+產品main.js SHA256 `cb530301f6d159190bfa11dbd85535d4dc31c0ba720f2b2ba3f30bd882be2f54`，靜態`1aa1ae164c31d690`；Chrome 156.0.8078.49 原生UA、隔離profile、明確核對合成相機旗標，未開麥克風。這是345b2d1之上的未提交修正測試，不冒充乾淨head的正式24組。
+
+- 新`capture-integrity.js`：原生early-stop及真正短bytes兩案均標interrupted，未finalize、chunks與救援Blob全bytes／SHA256相同；舊筆記／take／recipe／VS完整指紋、播放器及下載URL不變。同頁重試15.001秒／471,413 bytes完成，舊VS保留。取消刪除、刪無關take均保留救援；刪對應take或video才撤銷救援URL。
+- 下載證據曾有QA命名碰撞：同run第二次early覆蓋首early實際檔；原responses及碰撞狀態保留，不能用short檔冒充首early下載。已改每take唯一檔名並只重跑受影響targeted case。新輪四份實際下載每次saveAs後立即以Node核對完整檔案bytes／SHA256等於頁內Blob，再以ffmpeg完整解碼全過；兩次early分別1.200／1.197秒，短bytes1.200秒，正常重試15.001秒。這是QA保存修正，不是新平台故障或原截斷根因證明。
+- 未修改的`capture.js`通過：權限／占用／後鏡頭失敗重試、確認框及倒數取消、mute／編碼error／五種合成中斷、chunks／media quota保留原片、連續片段恢復、缺號與壞片保留；恢復take皆不標ready。合成事件不等於真實鎖屏／來電或硬體驗收。
+- 未修改的`capture-drain.js`通過：真正chunks交易未提交時收到stop且tracks ended，另一分頁仍拿不到take鎖；提交後才釋放並恢復111,353 bytes，舊片／配方與重載後資料不變。各session核對全部已知自有PID與精確profile程序退出、server停止及nonce相符後釋鎖。
+
+原`bun run check`已通過408 tests／1551 expects／0 fail、型別、公開掃描、lint及build（原19項lint info保留）；最終提交仍走原hooks。上述是合成桌面Web回歸，沒有實體相機、人工音樂聽感、Safari／私人新VS救援或手機驗收；#9、G1／G6及原失敗繼續保留。協作只讀review不代替Claude Code或使用者最終審查。
