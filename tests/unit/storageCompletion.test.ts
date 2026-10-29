@@ -2,7 +2,7 @@
 import { expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
-import { newLibrary, validateBackup, migrateLibrary } from '../../web/library.js'
+import { newLibrary, validateBackup, migrateLibrary, parseBackup, planBackupImport, tables } from '../../web/library.js'
 import { assembleChunks } from '../../web/recorder.js'
 
 type Mode = 'complete' | 'error-abort' | 'error-stuck' | 'pending' | 'cancel-stuck'
@@ -76,6 +76,68 @@ async function fixture(behavior: Mode) {
   return { db, storage, next, assetId }
 }
 const outcome = (promise: Promise<unknown>) => promise.then(value => ({ value, name: 'resolved' }), error => ({ error, name: error.name }))
+
+test('v1／v2 短日期匯入保留本機時間，零餘裕 UTF-8 筆記保存重讀後仍可正常／救援備份', async () => {
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const controllers = ['saveData', 'downloadBackup'].map(name => main.match(new RegExp('(?:async )?function ' + name + '\\([^]*?\\n}'))![0]).join('\n')
+  const limit = 10 * 1024 * 1024
+  for (const schemaVersion of [1, 2]) for (const exportedAt of ['2026-10-30', '2026-10-30T00:00:00Z']) {
+    const { db, storage } = await fixture('complete'); db.record = undefined; db.media.clear()
+    const local = await storage.readLibrary(), incoming = newLibrary(), videoId = crypto.randomUUID()
+    incoming.schemaVersion = schemaVersion; incoming.exportedAt = exportedAt
+    incoming.videos.push({ id: videoId, title: '合成邊界課程', durationMs: 60000, revision: 1, beatGrid: { bpm: 120, firstBeatMs: 350, countInBeats: 4 } })
+    incoming.markers = Array.from({ length: 530 }, () => ({ id: crypto.randomUUID(), videoId, startMs: 0, title: '合成拍點', note: '', revision: 1 }))
+    // 匯入 owner 保留本機日期；以實際差額填滿合併後快照，不能用 128 bytes 餘裕避開問題。
+    const dateGrowth = local.data.exportedAt.length - exportedAt.length
+    let remaining = limit - dateGrowth - new Blob([JSON.stringify(incoming)]).size
+    for (const marker of incoming.markers) {
+      const count = Math.min(Math.floor(remaining / 7), 6666)
+      marker.note = '舞💃'.repeat(count); remaining -= count * 7
+      const ascii = Math.min(remaining, 20_000 - marker.note.length)
+      marker.note += 'x'.repeat(ascii); remaining -= ascii
+    }
+    expect(remaining).toBe(0)
+    const parsed = parseBackup(JSON.stringify(incoming))
+    expect(parsed.exportedAt).toBe(exportedAt)
+    const oversized = structuredClone(incoming); oversized.markers.at(-1)!.note += 'x'.repeat(dateGrowth)
+    expect(new Blob([JSON.stringify(oversized)]).size).toBe(limit)
+    // 已滿上限的短日期檔在既有合併驗證就遭拒；不能把人工塞入的短日期 state 冒稱正常匯入結果。
+    await expect(planBackupImport(local.data, parseBackup(JSON.stringify(oversized)))).rejects.toThrow('10 MiB')
+    expect(db.record).toBeUndefined()
+    const plan = await planBackupImport(local.data, parsed)
+    expect(plan.data.exportedAt).toBe(local.data.exportedAt)
+    expect(plan.data.exportedAt).toHaveLength(24)
+    expect(new Blob([JSON.stringify(plan.data)]).size).toBe(limit)
+    await storage.writeLibrary(plan.data, local.revision)
+    const read = await storage.readLibrary()
+    let exported: Blob | undefined, unconfirmed = false, downloaded = 0
+    const context: any = {
+      state: read, writeLibrary: storage.writeLibrary, validateBackup, Blob, Date, structuredClone, renderLibrary() {},
+      $: () => ({ open: false, textContent: '' }), urlFor: (_key: string, blob: Blob) => { exported = blob; return 'blob:synthetic-backup' },
+      document: { createElement: () => ({ click() { downloaded++ } }) }, storageUnconfirmed: () => unconfirmed, status() {},
+    }
+    // 執行產品 saveData／writeLibrary／readLibrary；只用既有事件後端，不宣稱原生 IndexedDB 或實際 UI 驗收。
+    const ui = runInNewContext(controllers + '\n;({ saveData, downloadBackup })', context)
+    await ui.saveData(data => { data.markers.at(-1).revision++ })
+    const reopened = await storage.readLibrary(), before = structuredClone(reopened), transactions = db.transactions.length
+    expect(reopened).toEqual(context.state)
+    expect(reopened.data.exportedAt).toBe(local.data.exportedAt)
+    expect(new Blob([JSON.stringify(reopened.data)]).size).toBe(limit)
+    for (const rescue of [false, true]) {
+      unconfirmed = rescue; ui.downloadBackup()
+      expect(exported!.size).toBe(limit)
+      const restored = parseBackup(await exported!.text())
+      for (const table of tables) expect(restored[table]).toEqual(reopened.data[table])
+      const fresh = await planBackupImport(newLibrary(), restored)
+      for (const table of tables) expect(fresh.data[table]).toEqual(reopened.data[table])
+      expect(fresh.data.sourceLibraryId).toBe(reopened.data.sourceLibraryId)
+      expect((await planBackupImport(reopened.data, restored)).added).toBe(0)
+      expect(context.state).toEqual(before)
+      expect(db.transactions).toHaveLength(transactions)
+    }
+    expect(downloaded).toBe(2)
+  }
+})
 
 test('error 後即使取消也沒有 abort/complete：結束等待但只回報保存狀態未確認', async () => {
   const { db, storage, next, assetId } = await fixture('error-stuck'), before = structuredClone(db.record), controller = new AbortController()

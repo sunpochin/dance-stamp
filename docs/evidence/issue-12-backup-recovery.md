@@ -71,6 +71,18 @@ Bun 1.4.4 的六份相關單元（backupImport、library、moves、share、beats
 
 本輪沒有啟動瀏覽器、相機、媒體或效能量測，也沒有取得／變更共用媒體鎖。這是純資料及實際控制器函式的證據，不能代替原生 IndexedDB／quota／Stop、下載落盤、媒體 bytes、Safari／私人模式、真人／跨實體裝置或發布驗收；既有相關瀏覽器函式只作流程核對，未在本輪重跑。iPhone 暫緩，#12／#17／#18／#19 保持開啟，Claude Code 或使用者最終審查待完成。完整檢查、受測來源與結果另由 PR 記錄。
 
+### 日期與零餘裕 UTF-8 續審
+
+續審來源為 PR #75 原 head `1dc8aef343f6aa961b90b7a3d7b2a5c157b8829b`；本次只補測試與文件，產品 `web/` 與靜態 `9ef2b8488982695f` 不變。原先保留 128 bytes 的案例不足以證明零餘裕；因此移除此餘裕並改用漢字及 emoji（`舞💃`，UTF-8 為 7 bytes、JS 為 3 個字元），仍逐筆遵守 20,000 字上限。
+
+實際可達性核對：
+
+- `validateBackup`／`parseBackup` 接受並保留 `2026-10-30`（10 字元）及 `2026-10-30T00:00:00Z`（20 字元）；但 UI 匯入不是把此物件直接存入。本機初始值由 `newLibrary` 建立，最初 v1 來源 `814312c` 與目前都用 24 字元的 `new Date().toISOString()`；`mergeBackup` 複製本機封裝，`planBackupImport` 空庫只採來源 library ID，沒有複製匯入時間。正常編輯、讀回與 v1→v2 migration 保留本機時間。
+- v1／v2 × 上述兩個短日期共四案，經產品 `parseBackup` → `planBackupImport` → `writeLibrary` → `readLibrary` → 實際 `saveData` → 再讀回。匯入檔分別為 **10,485,746／10,485,756 bytes**，匯入後與後續保存快照都恰好 **10,485,760 bytes**，本機日期保持原 24 字元。正常及救援共用 `downloadBackup` 的八次 Blob 都恰好到上限，可 `parseBackup`、空庫重建、逐表比對及重匯冪等，不改 state、不另讀寫 DB。交易使用既有事件測試後端，並非原生 IndexedDB／真正 UI 點擊或未知事件驗收。
+- 另將短日期原檔補到整整 10 MiB：外部 parser 接受，但既有合併封裝增加 14／4 bytes，使 `planBackupImport` 在預覽前拒絕；測試確認尚無 metadata 寫入。這是既有匯入容量界線，並非本次新增拒絕或成功恢復，不以此假裝短日期已進入本機。未在目前產品入口重現「短日期被保存後，匯出改 24 字元而超限」，因此沒有新增日期 fallback 或修改匯入政策。
+
+零餘裕首輪另揭露原共用 `graph()` 簡化 fixture 省略 `mediaIncluded:false`，白名單補欄後會額外增加 24 bytes，造成測試失敗；該失敗收據保留。核對所有目前 asset 建立 owner、外部 parser 與最初 v1 owner 都必定填此欄後，邊界 fixture 明確帶入相同欄位，再從頭執行，沒有改產品或放寬斷言來掩蓋失敗。合法零餘裕產品形狀的完整 v2 關聯案例亦通過。最終檢查、head／CI 由 PR 綁定，不把這些函式回歸升格為裝置或原生瀏覽器驗收。
+
 ## 限制
 
 這是桌面 Chrome 合成資料的還原演練，不是手機／Safari、真實相機、永久儲存或全 G1–G7 證據。清空測試使用新的隔離瀏覽器資料，沒有清除使用者儲存。JSON 不含影片，手動重連不能憑檔名／大小／時長證明原檔身分。跨裝置、完整發布與重要變更人工審查仍待完成；iPhone 依使用者要求暫緩。沒有合併或發布。

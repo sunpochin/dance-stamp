@@ -274,6 +274,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 完整備份與未確認保存的救援入口共用 `downloadBackup`，先連同新 exportedAt 驗證，再輸出不加縮排的 JSON。原 10 MiB 上限按實際 UTF-8 bytes 計算；接近上限的合法筆記加縮排後可能被自己的匯入入口拒絕。排除提高匯入上限、截短筆記或只在救援入口另做格式，避免放寬信任邊界、遺失內容或兩條路徑漂移。schema、白名單、關聯與媒體交易不變；反例與驗證界線見 [#12 證據](docs/evidence/issue-12-backup-recovery.md#2026-10-30備份容量邊界修正)。
 
+日期續審核對實際 owner：`newLibrary` 從最初 v1 即用 `toISOString()` 建立本機時間，`mergeBackup` 保留本機封裝、`planBackupImport` 在空庫只接來源 ID；`saveData`／migration／讀回不採用匯入檔的 exportedAt。短日期雖可通過外部驗證，並不經這些入口存成本機日期。以 v1／v2、日期字串／無毫秒 ISO、恰好 10 MiB 的 UTF-8 筆記補匯入→保存→重讀→正常／救援備份回歸；不為不可達的人工短日期 state 增加縮短時間或截字 fallback。已滿上限的短日期檔仍可能因既有合併封裝增加 bytes 而在預覽前被拒，不能將此拒絕稱作成功還原或本次新修正。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。

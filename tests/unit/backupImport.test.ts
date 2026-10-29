@@ -14,16 +14,24 @@ function graph() {
   data.exports.push({ id: crypto.randomUUID(), recipeId, recipeRevision: 1, assetId: vsId, mimeType: 'video/mp4', state: 'ready', createdAt: '2026-10-28T00:00:01Z' })
   return data
 }
-test('接近容量上限的正常／救援備份仍可還原，保留全部 v2 關聯且不修改本機', async () => {
+test('恰好容量上限的 UTF-8 正常／救援備份仍可還原，保留全部 v2 關聯且不修改本機', async () => {
   const data = graph(), moveId = crypto.randomUUID(), limit = 10 * 1024 * 1024
+  // 各產品 asset owner 與匯入白名單都會設定此欄，不能以漏欄的人工 state 冒稱可達邊界。
+  for (const asset of data.assets) asset.mediaIncluded = false
   data.moves.push({ id: moveId, name: '合成腳步', danceStyle: 'Salsa', status: 'practicing', revision: 1 })
   data.videos[0].beatGrid = { bpm: 120, firstBeatMs: 350, countInBeats: 4 }
   data.takes[0].beatGrid = { bpm: 124, firstBeatMs: 450, countInBeats: 8 }
   data.markers = Array.from({ length: 530 }, () => ({ ...data.markers[0], id: crypto.randomUUID(), moveId, note: '' }))
-  // 每筆筆記仍在原 20,000 字上限內；總量逼近合法邊界，才會揭露縮排造成的不可還原備份。
-  let remaining = limit - new Blob([JSON.stringify(data)]).size - 128
-  for (const marker of data.markers) { const length = Math.min(remaining, 20_000); marker.note = 'x'.repeat(length); remaining -= length }
+  // 不預留容量；漢字與代理對共 7 bytes／3 個 JS 字元，避免字數測試掩蓋 UTF-8 邊界。
+  let remaining = limit - new Blob([JSON.stringify(data)]).size
+  for (const marker of data.markers) {
+    const count = Math.min(Math.floor(remaining / 7), 6666)
+    marker.note = '舞💃'.repeat(count); remaining -= count * 7
+    const ascii = Math.min(remaining, 20_000 - marker.note.length)
+    marker.note += 'x'.repeat(ascii); remaining -= ascii
+  }
   expect(remaining).toBe(0)
+  expect(new Blob([JSON.stringify(data)]).size).toBe(limit)
   const before = structuredClone(data), canonical = validateBackup(data)
   const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8').match(/function downloadBackup\([^]*?\n}/)![0]
   for (const unconfirmed of [false, true]) {
