@@ -618,7 +618,12 @@ $('export').addEventListener('click', () => operation(async signal => {
     const temporary = URL.createObjectURL(blob), validationVideo = document.createElement('video');
     validationVideo.muted = true; validationVideo.playsInline = true;
     // 用獨立元素驗證新檔，取消或壞檔不能破壞上一個成功輸出的播放器。
-    try { diagnostics.export.decodedDurationMs = await load(validationVideo, temporary, signal); }
+    try {
+      diagnostics.export.decodedDurationMs = await load(validationVideo, temporary, signal);
+      // 可播放不代表錄完整；沿原 100ms 覆蓋容差，確認共同片長後才能替換舊 VS 並保存新檔。
+      const rawDurationMs = validationVideo.duration * 1000;
+      if (!Number.isFinite(rawDurationMs) || Math.abs(rawDurationMs - comparison(value).durationMs) > 100) throw new Error('匯出片長與共同區間不符，未完成合成；原片與前次 VS 保留。');
+    }
     finally { validationVideo.removeAttribute('src'); validationVideo.load(); URL.revokeObjectURL(temporary); }
     abortIfNeeded(signal);
     outputBlob = blob; outputAssetId = null; outputRecipe = recipeSignature(value); download('output-download', blob, 'dance-vs');

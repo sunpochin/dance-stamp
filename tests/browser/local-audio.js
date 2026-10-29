@@ -22,6 +22,15 @@ async page => {
         audit.formats.push(options?.mimeType || ''); if (audit.formatFault === 'construct' && options?.mimeType === 'video/webm;codecs=vp8,opus') throw new Error('synthetic WebM constructor failure'); super(stream, options);
         this.audit = { deliveries: [] }; audit.recordings.push(this.audit);
         EventTarget.prototype.addEventListener.call(this, 'start', event => { this.audit.native = { at: performance.now(), trusted: event.isTrusted }; }, { once: true });
+        // 注入上次真正成檔的較短 WebM bytes，讓原生播放器讀出長度；不能假造 duration getter。
+        if (audit.formatFault === 'short-readable') {
+          let sent = false;
+          this.addEventListener('dataavailable', event => {
+            audit.shortInjected++;
+            Object.defineProperty(event, 'data', { value: sent ? new Blob([], { type: this.mimeType }) : audit.shortBlob });
+            sent = true;
+          });
+        }
       }
       addEventListener(name, listener, options) {
         // 只延後真正 start 通知的交付，不製造事件或影格；音畫資料須在通知前已啟動，才能抓到互等回歸。
@@ -110,12 +119,34 @@ async page => {
   await page.locator('#export').click(); await idle();
   assert(await page.locator('#output-download').getAttribute('href') !== previous, '取消後不能重試');
   const afterRetry = await page.locator('#output-download').getAttribute('href');
+  const beforeShort = await fingerprints(), savedBeforeShort = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length);
+  const shorter = await page.evaluate(async () => {
+    const a = window.audioAudit, store = await import('/storage.js'), library = await store.readLibrary();
+    a.shortBlob = await store.readMedia(library.data.exports.at(-1).assetId); a.shortInjected = 0;
+    return { bytes: a.shortBlob.size, durationMs: JSON.parse(document.getElementById('diagnostics').textContent).export.decodedDurationMs };
+  });
+  await change('end', '4');
+  await page.evaluate(() => { window.audioAudit.formatFault = 'short-readable'; });
+  let shortReadback;
+  try {
+    await page.locator('#export').click(); await idle();
+    shortReadback = await page.evaluate(() => ({ injected: window.audioAudit.shortInjected, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent).export, status: document.getElementById('status').textContent }));
+    assert(shortReadback.injected > 0 && shorter.bytes > 0 && shortReadback.diagnostics.decodedDurationMs === shorter.durationMs && shorter.durationMs < 3900, '未用真正可播放的較短 bytes 完成原生讀回');
+    assert(shortReadback.status.includes('片長') && await page.locator('#output-download').getAttribute('href') === afterRetry, '片長不符仍替換舊 VS 或回報成功');
+    assert(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length) === savedBeforeShort, '較短成檔新增假完成輸出');
+    assert(JSON.stringify(await fingerprints()) === JSON.stringify(beforeShort), '片長拒絕改變兩側原片或舊 VS bytes／URL');
+    assert(await page.evaluate(() => window.audioAudit.sources.every(s => s.buffer === null) && window.audioAudit.tracks.every(t => t.readyState === 'ended') && document.getElementById('reference').paused && document.getElementById('self').paused), '片長拒絕未停止播放或釋放本輪資源');
+  } finally { await page.evaluate(() => { window.audioAudit.formatFault = ''; window.audioAudit.shortBlob = null; }); }
+  await page.locator('#export').click(); await idle();
+  const afterShortRetry = await page.locator('#output-download').getAttribute('href');
+  assert(afterShortRetry !== afterRetry && (await page.locator('#status').textContent()).includes('已成檔'), '片長拒絕後無法同頁重試');
+  assert(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length) === savedBeforeShort + 1, '片長重試沒有只新增一份成功輸出');
   await page.locator('#reference-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
   await page.locator('#self-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
   await change('end', '3'); await page.locator('#export').click(); await idle();
-  assert(await page.locator('#output-download').getAttribute('href') !== afterRetry, '無音軌來源未成檔');
+  assert(await page.locator('#output-download').getAttribute('href') !== afterShortRetry, '無音軌來源未成檔');
   const audit = await page.evaluate(() => { const a = window.audioAudit; return { created: a.created, closed: a.closed, frames: a.frames, buffersReleased: a.sources.every(s => s.buffer === null), tracksStopped: a.tracks.every(t => t.readyState === 'ended'), formats: a.formats, formatChecks: a.formatChecks }; });
   assert(audit.formats.length > 0 && [...audit.formats, ...audit.formatChecks].every(type => type === 'video/webm;codecs=vp8,opus'), '相容匯出走到 MP4 或其他未驗證候選');
   assert(audit.created === audit.closed && audit.frames > 0 && audit.buffersReleased && audit.tracksStopped, '錯誤／成功後仍佔用音訊資源');
-  return { nativeWebCodecs: decoded, delayedStart, webmRejections, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
+  return { nativeWebCodecs: decoded, delayedStart, shortReadback: { ...shortReadback, original: shorter, previousBytesAndUrlsRetained: true, samePageRetry: true }, webmRejections, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
 }

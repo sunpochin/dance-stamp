@@ -5,6 +5,18 @@
 
 本輪從同步 main `38e6cf96793cf7250e4adb86a1156e6e6e0fe08e` 建立本聊天專用 `chore/p0-web-final-candidate`，以一般 PR 供後續審查；不修改來源分支、不合併 main、發布或關票。下方早期 #58／#62 整合數據保留歷史來源，不能當本輪新測。iPhone 持續暫緩。
 
+### 9bb26d0 尾部完整性與保存前片長拒絕續修
+
+從凍結整合ef11498882c62c71874c94f9185dff1683a2329b接續合入PR #64正式來源9bb26d001a956d7bdf95819464c46dbcfcad1a99。只在webmOnly使用不帶timeslice的start()，相機、普通Chrome及一般WebM備援仍start(1000)；沿用原生stop／error／尾塊收集。所有新VS在load後、清除驗證元素及替換或保存前，核對未取整且有限的validationVideo.duration與comparison(value).durationMs，差超過原100ms即拒絕。整數metadata、來源邊界、時間戳、音訊、250ms及原v5均不變。
+
+正式ef11498／靜態c89526422abc77a3的原生Safari矩陣保留原結論：同頁0.5／0.75×各15／30／60秒前六案原v5通過，第七案1×15秒失敗即停止，尚未執行第八、第九案及十輪。第七案451次擷取請求只成422格／14.055秒，尾部覆蓋-1033.333／-1000ms、15音14閃；產品已讀回14056ms仍保存。2,333,655-byte下載與native chunks逐byte相同，SHA256 58bcf03d9300ec3dd15852fd851f52711a507e6c9ea41d1aecf0a09f4f9e0bad，不能歸因下載遺漏。本聊天已獨立核對七案檔案、分析及實際載入的產品指紋；第七案收據SHA256 5ec21fbd0d902dc8810f2abf98d93327fe0e4e0308400c694e40e7ce0b26f40f，原raw為dbf3ba2fab5c4be321f23c2e554f6a4fa7d273c6dbc8312b6e3f51d307b038c8。
+
+後續私有recorder SHA256 0e463ca1020e201aeaf13bed36473c22a8b5cccb866f75e84671f397fb0d8824只改專用WebM的timeslice；base仍ef、靜態標記仍c895，不能當乾淨ef重跑。新execution native-final-84534500816f同頁1×15／30／60秒原v5三案通過，下載各2,519,623／4,699,499／9,410,435 bytes與native chunks完整相同，片長15.023／30.020／60.026秒、影格452／901／1801、最大聲畫43／46／48ms。主程式仍為ef，當時尚無新片長護欄；本聊天獨立重算下載SHA並核對原報告，沒有重跑媒體。完整指紋、原失敗與來源採用理由見[尾部來源證據](issue-3-bounded-audio.md#正式整合矩陣第七案缺尾與單塊webm續修來源)。
+
+根聊天回報兩輪自有服務與nonce已收尾、兩個原生頁已關閉；Safari WebContent 17856仍被OS保留為約60MB的spare cache，不能宣稱原生瀏覽器所有程序已退出，也未kill Safari或操作無關私人分頁。此項與來源Chrome工具自己的36個程序／4個profiles收尾分開記錄。
+
+來源9bb26d0的四項Chrome短回歸與CI #133已由來源聊天回報通過，正式head的離線全片解碼收據待後補，不轉記為新整合head受測。此輪只整合與跑原check／hooks，不啟瀏覽器、服務或媒體鎖；新乾淨head／靜態交根聊天優先原生九案、十輪及新VS未確認救援，最終包待同版證據整理後再建。TECHNICAL保留全部兩邊內容，新尾部設計為第37節，舊16bd／84證據順延第38節；下方6f及所有歷史數據仍維持其來源。
+
 ### 6f7f89a 啟動順序續修
 
 從84a85fd接續合入已推送的PR #64 `6f7f89a54b0914ebf9d93250d39c18e21b75bc0c`。產品差異僅localAudio VS同步完成record(stream, undefined, undefined, {webmOnly:true})後，直接沿原10ms排程／兩側播放，移除main unused audioReady import及舊等待註解。共用recorder、相機／Chrome原聲路、#70 storage／救援及全部品質門檻不變；QA保留change capture File Map，另核對真正native start延後交付時輸入仍已開始。
@@ -17,7 +29,7 @@ TECHNICAL衝突保留新啟動設計及整個第37節的16bd證據；QA衝突採
 
 | 已保留的來源 | 固定提交與範圍 |
 | --- | --- |
-| PR #64 | `6f7f89a54b0914ebf9d93250d39c18e21b75bc0c`，保留41b起點等待／WebM選項，續修為localAudio VS直接建立recorder；私有兩短結果與正式新head驗收分開 |
+| PR #64 | `9bb26d001a956d7bdf95819464c46dbcfcad1a99`，保留起點／啟播歷史，採專用WebM無timeslice及保存前原100ms片長拒絕；各正式失敗與私有改善保持來源 |
 | PR #65 | `f72cb2ff2b500530692c81fadfb8d86ce83aeb36`，獨立配額重跑的匿名收據，原生數據仍屬舊 runtime |
 | PR #66 | `b8dd611333f95bb4d75d8192bac2e186900a7b60`，保留未確認程序的自有鎖、只釋放已確認未啟動的 spawn error |
 | PR #67 | `72aed830b60f595794d178b715fae78e60ff0b09`，保留 e0acf88／f88c28d／eb21064 及三份私有對照的實際結果 |
