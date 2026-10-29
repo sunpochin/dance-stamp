@@ -5,16 +5,19 @@ import { dirname, join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { packageInputs, readAllowed, sealPackage, verifyPackage } from '../../scripts/package-web'
 
-test('包內指南引用的本機媒體證據必須隨包，離線也能查支援限制', () => {
+test('隨包指南、證據與授權來源文件的相對連結都必須有目標', () => {
   let references = 0
-  // 所有隨包操作指南都要核對；check 在 build 前執行，須讀來源指南，不能依賴尚未產生的 notice 副本。
-  const guides = packageInputs.filter(name => name.endsWith('.md') && (name === 'START_HERE.md' || name.startsWith('docs/')) && !name.startsWith('docs/evidence/') && !name.startsWith('docs/ai/'))
+  const packaged = [...packageInputs, 'release.json', 'SHA256SUMS']
+  // 不只證據檔；完整來源庫的文件／程式不在裸包內，不能讓相對連結冒充可離線閱讀。
+  // check 在 build 前執行，須讀來源文件；dist 的純文字 notice 副本由同一根文件產生。
+  const guides = packageInputs.filter(name => name.endsWith('.md') && !name.startsWith('dist/'))
   for (const guide of guides) {
     const source = readFileSync(resolve(import.meta.dir, '../..', guide), 'utf8')
     for (const match of source.matchAll(/\]\(([^\s)]+)\)/g)) {
-      const target = posix.normalize(posix.join(posix.dirname(guide), match[1].split('#')[0]))
-      if (!target.startsWith('docs/evidence/') || !target.endsWith('.md')) continue
-      references++; expect(packageInputs).toContain(target)
+      const link = match[1].split('#')[0]
+      if (!link || /^[a-z][a-z\d+.-]*:/i.test(link) || link.startsWith('//')) continue
+      const target = posix.normalize(posix.join(posix.dirname(guide), link))
+      references++; expect(packaged, `${guide} → ${link}`).toContain(target)
     }
   }
   expect(references).toBeGreaterThan(0)

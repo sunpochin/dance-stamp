@@ -322,7 +322,7 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 
 若產品版本完全未變，且中斷原因已釐清、前段已用同一分析器確認，可用 `--start-index 7` 從第七組未執行案例接續。它仍拒絕覆寫既有案例；產品有改動須用新 session／標籤重跑，不能用接續功能跳過未解決失敗。
 
-手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [手機清單](PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
+手機依最新安排暫停，先完成桌面 G3 與同版矩陣／十輪；後續才使用 [完整來源庫的手機清單，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/docs/PHONE_MEDIA_CHECK.md)。修正前數據見 [基線](evidence/issue-3-media-feasibility.md)，修正與重跑見 [G3 證據](evidence/issue-3-g3-composition.md)。
 
 分析器 v4 保留音訊 PTS，將量測 PCM 補到共同時間原點，不把容器延遲歸零；90 秒依完整匯出上界判定，缺此資料標未驗證。自查包含僅移動音軌 PTS 與完整匯出 100 秒的負例。保存檢查依 take／export 關聯驗證預期 Blob，不跳過 missing；recovery 會實際移除並 finally 還原一份合成副本，最後須再核對全庫指紋。
 

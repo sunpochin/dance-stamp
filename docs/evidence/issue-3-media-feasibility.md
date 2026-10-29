@@ -89,4 +89,4 @@
 
 HTTPS 測試 CA／伺服器憑證七天有效、私鑰 mode 600、不入 Git，不自動安裝信任。憑證鏈、可信 CA 下的 HTTPS、合成測片位元一致、拒絕 POST／.env／Git／路徑跳脫已實測；無 TLS 的區網入口、不完整 TLS、非法 port／IP、憑證覆寫均拒絕。實際手機連線仍待使用者操作。
 
-需要使用者先做的最小流程見 [手機操作](../PHONE_MEDIA_CHECK.md)：先提供型號／系統、信任測試 CA、跑 15 秒 1× 並在 Files 重新開啟原片／VS。**九組長度／速度、十輪長錄影與主畫面完整矩陣留待 G3 修正後再投入。** 背景／鎖屏／來電／旋轉／藍牙、LED、HEVC／HDR 與實體熱／電池仍分開記錄。#3 保持開啟，Web 需修正，不宣告手機支援或觸發 iOS fallback。
+需要使用者先做的最小流程見 [完整來源庫的手機操作，需連網](https://github.com/sunpochin/dance-stamp/blob/c0ab39bcf68354cc29d7048a0d81e56d626efcf1/docs/PHONE_MEDIA_CHECK.md)：先提供型號／系統、信任測試 CA、跑 15 秒 1× 並在 Files 重新開啟原片／VS。**九組長度／速度、十輪長錄影與主畫面完整矩陣留待 G3 修正後再投入。** 背景／鎖屏／來電／旋轉／藍牙、LED、HEVC／HDR 與實體熱／電池仍分開記錄。#3 保持開啟，Web 需修正，不宣告手機支援或觸發 iOS fallback。
