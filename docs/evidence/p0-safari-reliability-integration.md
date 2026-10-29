@@ -83,3 +83,15 @@ Chrome 合成結果、程式／包相同、CI 及測試替身都不能代替 Saf
 這次只改兩個 QA 工具、其單元回歸與技術證據；14份產品 Web 資源仍須與13976bb逐byte相同，下載包仍只明列匿名指南／證據，不加入 QA 工具。Safari 未過項目、真人／實體／跨裝置與最終獨立審查繼續保留，iPhone 暫緩；不合併、發布或關票。
 
 本輪原check於 main38e6cf9 上的修正工作樹通過：391 tests／1361 expects／0 fail、229檔公開掃描、原型別／lint／build通過。修正後強制中斷工具另在相同工作樹真正執行成功，仍為adbe8eb1d6acfd09：候選部分安裝、SIGKILL、自有群組退出、同profile離線重啟與已提交資料保留通過，媒體API呼叫0、自有nonce鎖釋放。首次碰到另一輪quota工具持鎖時正確EEXIST拒絕，未啟動瀏覽器或更動原鎖；原拒絕及成功紀錄都保留。原生quota收尾的正常／故障分支由上述真正程式碼回歸涵蓋，本輪未重跑其完整原生配額實驗；舊2d31302容量證據維持原歸屬。測試工具SHA、最終提交與CI由後續PR綁定，不將未提交工作樹來源冒充乾淨main的新測。
+
+## PR #66 續審的啟動失敗邊界（2026-10-29）
+
+審查固定於當時最新 head `b423027ef29d75e3eabb819aafc6cfddda7b0095`；確認一項 P2 QA 邊界：OS 以 EACCES 拒絕 spawn、ChildProcess 從未取得 PID 時，原先收尾仍認為有未確認程序，留下自有鎖，阻擋後續測試。既有自動 code review 的零 findings 只是一份原 head 收據，不取代這輪直接重現。
+
+用不可執行的自有合成文字檔實際核對 Bun1.4.4 的 EACCES／pid undefined／close code −13；沒有瀏覽器、HTTP 主機、相機／麥克風或真正媒體鎖操作。新增無 PID error 單元在修正前失敗，修正後連同原回歸12 tests／73 expects／0 fail。兩個保護情境另驗：error 已有 PID 而群組未確認時，以及只有無 PID、未收到 error 時，都仍保留鎖，不向未確認群組送訊號。
+
+另直接執行完整原工具的 EACCES 路徑，來源為 b423027 上的修正工作樹，工具 SHA-256 `f4c8eb229e55dca2e62f00f7c3f5b80d66e1aee278ac83060358382dccaa9953`、靜態 adbe8eb1d6acfd09：實際取得共用鎖後未產生瀏覽器 PID，保持 failed／exit 1，無 signal／connected 事件，自有 nonce 鎖釋放，原本機 HTTP 入口停止接收連線。此案例沒有啟動瀏覽器或媒體，不能當作正常強制中斷／重啟新測。修正工作樹完整原check亦通過394 tests／1382 expects／0 fail、229檔公開掃描、型別／原lint／build；最終提交與CI由PR綁定。
+
+修正先保留本次 spawn error 與固定 child，再只對「明確 error、無 PID、仍是本次 handle」清除已確認不存在的程序；主循環回傳原錯誤，finally 沿既有 nonce 檢查釋放自己的鎖，測試仍標失敗。正常 Chrome 強制中斷／原生 quota 的歷史證據維持原版本歸屬，本輪只做非媒體檢查，未重跑原生瀏覽器或影音矩陣；最終提交／完整check／CI由PR另綁。
+
+原生 Safari 的最新直接證據另屬 [PR #67 的98fb551](https://github.com/sunpochin/dance-stamp/pull/67)：一般視窗已解鎖續測，半速啟播、尾端長度及起點等待候選仍有原門檻拒絕／逾時，私人儲存恢復仍待驗。不要覆蓋為「等待 Mac 解鎖」，也不將本工具收尾修正視為產品或 Safari 品質通過。Web 優先、iPhone 暫緩；不合併、不發布、不關未驗收票。

@@ -75,3 +75,27 @@ for (const mode of ['audit-error', 'ps-error', 'clean']) test(`原生 quota 工�
   expect(state.report.passed).toBe(mode === 'clean')
   if (mode !== 'clean') expect(state.report.browserCloseError).toBeTruthy()
 })
+
+for (const mode of ['no-pid', 'pid-unverified', 'no-pid-unverified']) test(`瀏覽器 spawn 被拒絕 ${mode}，只釋放確定沒有程序的自有鎖`, async () => {
+  const state = harness(), native = Object.assign(new EventEmitter(), { pid: mode.startsWith('no-pid') ? undefined : 123, exitCode: null as number | null, signalCode: null, stderr: new EventEmitter() })
+  Object.assign(state, { ownsLock: true, evidence: { status: 'running' }, child: undefined, executable: '/synthetic/not-executable', probes: 0, mkdirSync() {}, appendFileSync() {} })
+  state.server = { stop: () => { state.serverStopped = true } }
+  state.existsSync = () => false
+  state.members = () => { state.probes++; return ['123 1 123 synthetic survivor'] }
+  state.spawn = () => {
+    // error 是未成功啟動的直接證據；有 PID 的錯誤仍不能推論整個群組已退出。
+    if (mode !== 'no-pid-unverified') queueMicrotask(() => { native.exitCode = -13; native.emit('error', new Error('synthetic spawn EACCES')) })
+    return native
+  }
+  state.waitFor = async (check: () => boolean) => { await Promise.resolve(); assert(check(), 'synthetic startup timeout') }
+  const stop = forced.slice(forced.indexOf('async function stop('), forced.indexOf('\nasync function launch('))
+  const launch = forced.slice(forced.indexOf('async function launch('), forced.indexOf('\nconst ready ='))
+  await runInNewContext(transpiler.transformSync(`(async () => { ${stop}\n${launch}\ntry { await launch('prepare') } catch (error) { evidence.status = 'failed'; evidence.error = String(error); process.exitCode = 1 }\n${cleanup(forced)} })()`), state)
+  expect(state.evidence.status).toBe('failed')
+  expect(state.evidence.lockReleased === true).toBe(mode === 'no-pid')
+  expect(state.removed.length > 0).toBe(mode === 'no-pid')
+  expect(state.probes).toBe(mode === 'pid-unverified' ? 1 : 0)
+  expect(state.signals).toHaveLength(0)
+  expect(state.serverStopped).toBe(true)
+  expect(state.events.some(([name]: string[]) => name === 'spawn-error')).toBe(mode !== 'no-pid-unverified')
+})

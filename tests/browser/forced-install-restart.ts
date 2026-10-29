@@ -74,10 +74,16 @@ async function launch(phase: string) {
   if (existsSync(address)) unlinkSync(address)
   const args = [`--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-background-networking', '--deny-permission-prompts', '--mute-audio', 'about:blank']
   child = spawn(resolve(executable), args, { detached: true, stdio: ['ignore', 'ignore', 'pipe'] })
-  child.stderr!.on('data', data => { appendFileSync(join(run, `${phase}-chromium.log`), data) })
-  child.once('error', error => event('spawn-error', { message: String(error) }))
-  event('spawn', { phase, pid: child.pid, executable: resolve(executable), args })
-  await waitFor(() => { assert(child!.exitCode === null && child!.signalCode === null, '專用瀏覽器啟動失敗'); return existsSync(address) }, '專用瀏覽器除錯入口逾時')
+  const owned = child
+  let spawnError: Error | undefined
+  owned.once('error', error => {
+    spawnError = error; event('spawn-error', { message: String(error) })
+    // 明確 spawn error 且沒有 PID 才能證明未產生自有程序；已有 PID 的失敗仍須由 stop 查群組。
+    if (child === owned && owned.pid === undefined) child = undefined
+  })
+  owned.stderr?.on('data', data => { appendFileSync(join(run, `${phase}-chromium.log`), data) })
+  event('spawn', { phase, pid: owned.pid, executable: resolve(executable), args })
+  await waitFor(() => { if (spawnError) throw spawnError; assert(owned.exitCode === null && owned.signalCode === null, '專用瀏覽器啟動失敗'); return existsSync(address) }, '專用瀏覽器除錯入口逾時')
   const port = Number(readFileSync(address, 'utf8').split('\n')[0])
   assert(Number.isInteger(port) && port > 0 && port < 65536)
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
