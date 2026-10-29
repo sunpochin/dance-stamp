@@ -231,3 +231,27 @@ Chrome原聲路（無UA覆寫）三項通過：
 沒有把任何prime／移除gate改動納入正式web/；目前產品仍是41b3023的原生WebM選項與原start順序。後續測試工具改用已選File與IndexedDB已保存VS Blob做原bytes／URL比較，修正CSP不相容的讀法，原政策／產品／門檻不變；該工程分支完整瀏覽器流程仍未通過，不宣稱因工具修正已全綠。`local-audio-clock.js`未繼續跑，因工程分支基準已失敗；原單元的100ms拒絕仍保留。
 
 全部自有具名Chrome已有關閉回執，最後主機pid4226及nonce a74fe7b6-d315-47cd-b09d-d3a2602d6d8c正常退出／釋放，檢查當下共用鎖不存在；沒有清掉別人的鎖或程序。raw、原私有失敗、14份下載及分析留在本聊天ignored output。Web原生矩陣／十輪60秒交回主聊天；iPhone暫緩，不合併或部署。
+
+
+## 正式41b3023原生Safari半速15秒單輪（2026-10-29）
+
+主聊天操作真正Safari27.0.1／macOS27.0.1，受測乾淨來源[41b3023916ac3cfa330708fb6a53eae12cf9cba7](https://github.com/sunpochin/dance-stamp/commit/41b3023916ac3cfa330708fb6a53eae12cf9cba7)、靜態f81d1c69861fa21e、execution `native-41b-8d9e9f9c66`，prototype=false。一般新origin、頁面controller=none、initialVideos=0由主聊天核對；產品模組原樣，QA只旁聽，沒有真人相機／麥克風、設定變更或新增影格請求。本聊天唯讀核對manifest的14份資源SHA256皆與目前建置相同，並直接比對實際產品下載與原生chunks組成檔bytes完全相同。
+
+來源為同一65秒自製雙片，A=0、end=7500ms、r=0.5、selfDuration=65000ms、offset=0、兩側mirror=false；這次只做半速15秒單例。未修改`analyze-media.py` v5，原全片解碼與全部既有門檻exit0：
+
+| 指標 | 正式來源單輪結果 |
+| --- | --- |
+| 真實輸出／產品下載 | VP8／Opus WebM，`dance-vs-2.webm`，2,221,513 bytes |
+| 全片解碼末端／視訊跨度 | 15.026／15.026秒；durationSource=decoded audio/video end，沿原v5既有WebM規則 |
+| 解碼影格／平均fps | 454／30.214 |
+| 提示音／閃光與最大聲畫差 | 8／8，80ms |
+| 三點配方／新增漂移 | [0, -33.333, 0]ms／0ms |
+| 來源起末覆蓋差 | [0, 0, 0, -33.334]ms |
+| 最長重複老師／自己畫面 | 154／125ms |
+| 最大逐格配方差／內容時鐘差 | 100／133.333ms |
+| 完整匯出上界 | 15,399ms |
+| completeRecipeCoverage／withinSyntheticTargets | true／true |
+
+下載與native chunks相同的SHA256為`4d26004fbf9bdc817baac13eca71894407d891b73a0a38bcc492470d794b5f3a`。原record、raw、完整WebM、原v5報告、manifest及產品下載收據均留於主聊天`output/safari-native-41b3023`；本聊天沒有操作該原生輪次或重跑影音測試。133.333ms內容時鐘差仍按原v5的250ms限制判定，不能擴寫成每一格誤差均小於100ms，亦不隱去100ms逐格配方差的邊界觀察。
+
+這是正式來源的單輪半速通過，與eb21064私有1×／30秒原型、舊MP4失敗和Chrome工程分支失敗各自歸屬，不混成整體通過。本新檔尚未做網站外原生播放／聽感、正式完整九組與十輪60秒；先前原型30秒的網站外UI播放不能轉記到此檔。原100ms／250ms、完整覆蓋、90秒耗時及全部品質門檻保持原樣，runtime仍凍結41b3023，不納入未全過的Chrome UA私有啟動改動。既有Chrome原聲路三項／14份全解碼及所有失敗證據保留。完整原生矩陣由主聊天在整合候選凍結後續跑；iPhone暫緩，不合併、部署或關閉P0 gates。
