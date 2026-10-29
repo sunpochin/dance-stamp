@@ -661,13 +661,23 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 | 明確UI資料編輯／選片／連結、預覽／匯出準備 | 傳本輪signal；abort前不換state／清草稿，取消保留舊metadata與bytes。 |
 | changeComparison獨立佇列 | 不借用active；新操作會先等它，不能因新操作Stop而取消前次編輯。 |
 | beginTake／finalizeTake／markStoppedTake、chunks落盤與清理 | 維持原保全契約；取消錄製仍須保存已收到的片段及中斷狀態。 |
-| 成檔後persistExport | 本次不變；新VS已可下載，保存階段Stop仍是獨立未驗條件，不用metadata準備交易證據代替。 |
+| 成檔後persistExport | 保全契約不變；新VS已可下載。一般Chrome的真Stop後保全完成另見第43節；Safari／私人模式仍未驗，不用metadata準備交易證據代替。 |
 
 排除把saveData的signal全域預設為active.signal：active在等待舊comparisonSave前就建立，可能誤綁別次操作；錄影取消後的finally保全也會被同一取消訊號截斷。不改operation控制器、writeLibrary／schema、時間映射、編碼、原100ms／250ms／v5或新增套件。原Chrome24＋3及Safari十九案保持原受測來源，不因本次UI接線而改標新版重跑。
 
-新增可重用metadata-stop瀏覽器回歸，以原生get延長真正put後的pending時段，只讓真正UI Stop發取消；核對trusted abort／無complete、完整舊metadata／Blob bytes／URL及六份實際下載、busy退出／unknown=false、同輸入重試complete及reload。另驗獨立比較佇列持續完成、新操作才取消；選片重試按產品重新產生ID，以相同來源bytes／語意核對。修正工作樹的完整十案已通過：九個可取消UI及一個獨立佇列例外，119份native binary／57份實際下載逐byte核對。第一輪原生confirm QA與第二輪fieldset判斷／Play屏障不足的失敗保留，第三輪從頭全過。原capture與drain亦通過，尾塊pending期間鎖仍持有、111,252 bytes恢復及重載保留；各自已知PID／精確profile、server與nonce收尾確認。這些是工作樹／ba parent結果，不冒稱乾淨head；新head及獨立title／copy Stop、manifest更新證據另綁。Safari私人／VS保存Stop、人工／實體／iPhone等未驗項繼續保留。
+新增可重用metadata-stop瀏覽器回歸，以原生get延長真正put後的pending時段，只讓真正UI Stop發取消；核對trusted abort／無complete、完整舊metadata／Blob bytes／URL及六份實際下載、busy退出／unknown=false、同輸入重試complete及reload。另驗獨立比較佇列持續完成、新操作才取消；選片重試按產品重新產生ID，以相同來源bytes／語意核對。修正工作樹的完整十案已通過：九個可取消UI及一個獨立佇列例外，119份native binary／57份實際下載逐byte核對。第一輪原生confirm QA與第二輪fieldset判斷／Play屏障不足的失敗保留，第三輪從頭全過。原capture與drain亦通過，尾塊pending期間鎖仍持有、111,252 bytes恢復及重載保留；各自已知PID／精確profile、server與nonce收尾確認。這些是工作樹／ba parent結果，不冒稱乾淨head；新head及獨立title／copy Stop、manifest更新證據另綁。Safari／私人模式的成檔VS保存Stop、人工／實體／iPhone等未驗項繼續保留。
 
 
 乾淨99a2169／422c70c3633b8e88已由獨立來源重跑title／copy真正Stop、native abort、完整舊bytes／metadata／URL、重試與reload，另以原default驗新manifest部分安裝SIGKILL／同profile離線舊殼保留。兩案24份native檔／12份實際下載核對相同，三案45個已知PID／4群組、三profile／埠／nonce全數清理。default的sentinel由原runner逐byte斷言，raw未另序列化全部bytes，不冒稱另讀字節檔。本節工作樹十案與獨立clean-head兩入口分開歸屬；最終只補匿名文件，14份runtime逐byte等於99功能版，舊24＋3／Safari十九案不改標新head。原check／hooks、最終CI與58檔本機包由PR綁定；所有未驗收條件不變。
 
 最後匿名文件原check通過408 tests／1555 expects／0 fail、235檔公開掃描、型別、原lint與build，靜態仍422c70c3633b8e88；原19項lint info保留。原hooks與最終文件head的CI／乾淨包另由PR綁定，未啟動新瀏覽器或服務。
+
+## 43. 成檔VS保存Stop的原生保全觀察
+
+2026-10-30 Asia/Taipei，乾淨14128c2606029f5f11d438965ca001a84be4caed／422c70c3633b8e88、一般Chrome156.0.8078.49，獨立單案例只用既有合成雙片。真正Stop發生在新VS已成檔、metadata／media雙put成功但未提交後；256.1ms觀察仍pending、無abort。僅解除QA自有get hold後取得trusted complete，busy=false／unknown=false並完整reload。這符合完成檔保全契約，不是取消回滾，沒有重現需改runtime的bug；不為要求abort而把active.signal接進persistExport。
+
+基準revision12；匯出準備另有資料不變的complete13，新VS交易才complete14。14份native快照檔、候選Blob及7份實際下載逐byte核對，舊metadata只追加一asset／export；新83,137-byte VS三次下載與原生讀回相同，舊VS由產品清單取回也相同。Stop前後recorder已inactive、影格訂閱0，但串流音／視tracks在pending仍live，真正complete後才全ended；不能宣稱Stop立即釋放、硬體相機或音訊節點圖驗收。
+
+原analyze-media.py的fullDecode命令exit0，兩筆null輸出DTS訊息完整保留；私有QA額外要求stderr空的失敗亦保留。後續只讀原檔的原生packet／frame時間戳均嚴格遞增，91格及原48000Hz stereo音訊完整解碼，兩對DTS碰撞與null輸出timebase量化吻合；未改檔、重封裝、重採樣或放寬原門檻，不升格成新G2–G4或完整品質矩陣。
+
+來源函式、raw、解碼／時間戳收據與限制見[14128c2保存Stop證據](docs/evidence/issue-13-unconfirmed-storage.md#14128c2-成檔vs保存stop的保全觀察)。本次只補三份匿名文件，14份runtime維持14128c2；不重跑影音或取得媒體鎖。Safari／私人模式保存Stop、私人新VS救援、實體／五人操作／讀屏聽感及iPhone等未驗項保留；最終文件head、CI與58檔乾淨包另由PR綁定，不合併、發布或關票。

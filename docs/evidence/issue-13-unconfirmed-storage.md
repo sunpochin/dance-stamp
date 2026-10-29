@@ -81,7 +81,7 @@ ba89487／靜態1aa1ae164c31d690已由正常Chrome原生重現save-title取消�
 
 第三輪raw SHA256 `045a64c054b59e10a3bde640a1072d82ebdef8c43ae3f250ace19e55fc46833f`，main SHA256 `25f0b175af76f5c4d0c7f375beceb6ce925606f808c0610c9eb924fb6af03b62`、回歸函式SHA256 `779d5b35d8b650ab8ceaed1369f016cde5f51686cf31b8f39e7c155949fbe41c`。20個已知自有PID／程序群組與精確profile退出、十個自有主機停止及nonce相符釋放，擷取API呼叫0。原檔、profiles、raw端點及操作識別不公開。
 
-原capture及capture-drain已在同一修正工作樹通過：取消／編碼error／合成中斷、quota／缺號／壞片保留及連續片段恢復均符合原斷言；尾塊未提交期間仍持take鎖，提交後恢復111,252 bytes、舊片／配方及reload不變。兩個全新合成相機session分別核對10／11個已知自有程序與精確profile退出、服務停止及nonce釋放；沒有真實硬體相機或中斷宣稱。最後原check／hooks與乾淨feature head由PR另綁。新manifest的獨立default更新重驗另綁乾淨新head；原9e6的24＋3、345的Safari十九案及各原失敗保留原版本。不宣稱Safari私人／成檔VS保存Stop、產品全Stop、永久保存、真實低磁碟、實體／人工／跨裝置或iPhone通過；未合併、發布或關閉未驗收票。
+原capture及capture-drain已在同一修正工作樹通過：取消／編碼error／合成中斷、quota／缺號／壞片保留及連續片段恢復均符合原斷言；尾塊未提交期間仍持take鎖，提交後恢復111,252 bytes、舊片／配方及reload不變。兩個全新合成相機session分別核對10／11個已知自有程序與精確profile退出、服務停止及nonce釋放；沒有真實硬體相機或中斷宣稱。最後原check／hooks與乾淨feature head由PR另綁。新manifest的獨立default更新重驗另綁乾淨新head；原9e6的24＋3、345的Safari十九案及各原失敗保留原版本。該工作樹回歸不宣稱Safari／私人模式保存Stop、產品全Stop、永久保存、真實低磁碟、實體／人工／跨裝置或iPhone通過；未合併、發布或關閉未驗收票。
 
 
 ## 99a2169 同版獨立 Stop 與 manifest 重驗
@@ -101,4 +101,36 @@ ba89487／靜態1aa1ae164c31d690已由正常Chrome原生重現save-title取消�
 
 三案的總OS／profile／埠／nonce收據已完成：45個已知自有PID、4群組全退出，三個精確profile無活程序、三個自有埠拒絕、三個nonce釋放，共用鎖不存在、mediaCalls=0。總收據SHA256`07a88cc73fb6b14d12b7ebe2c98a2efa32872925cea7e6e0722db59a46a0ad7a`；原ba helper、負向與兩個工作樹QA失敗保留，沒有清庫或處理無關程序。本輪只核對三案自有程序與服務，不宣稱其他本機預覽或所有瀏覽器程序都已退出。
 
-本次只改UI metadata取消接線與其SW版本／manifest，另12份runtime與ba相同；錄影保全、成檔後persistExport、獨立comparisonSave、storage／schema、時間／編碼／原100ms／250ms／v5不變。原9e6的完整Chrome24＋3與345的Safari十九案保持原來源，本輪沒有重跑大矩陣，也不把這三案當成完整P0、Safari私人／成檔VS保存Stop、真正低磁碟、實體／人工／跨裝置或iPhone驗收。最終文件head／包另綁，14份runtime須逐byte等於99功能版；不合併、發布或關未驗收票。
+本次只改UI metadata取消接線與其SW版本／manifest，另12份runtime與ba相同；錄影保全、成檔後persistExport、獨立comparisonSave、storage／schema、時間／編碼／原100ms／250ms／v5不變。原9e6的完整Chrome24＋3與345的Safari十九案保持原來源，本輪沒有重跑大矩陣，也不把這三案當成完整P0、成檔VS保存Stop、真正低磁碟、實體／人工／跨裝置或iPhone驗收。一般Chrome的成檔保存Stop由下節14128c2獨立補驗，Safari／私人模式仍未驗。最終文件head／包另綁，14份runtime須逐byte等於99功能版；不合併、發布或關未驗收票。
+
+## 14128c2 成檔VS保存Stop的保全觀察
+
+2026-10-30 Asia/Taipei，固定乾淨head `14128c2606029f5f11d438965ca001a84be4caed`、靜態 `422c70c3633b8e88`、一般Chrome156.0.8078.49。獨立私有單案例以合成雙片操作正式產品；未改產品、時鐘或品質門檻，未偽造abort，也沒有重跑完整影音矩陣。本聊天只讀核對原收據與完整檔案。
+
+### 真Stop後繼續保存已完成檔案
+
+基準revision12，包含非空筆記、兩側已保存原片與舊VS。匯出準備先有獨立trusted complete13且data不變；目標新VS交易才是metadata／media雙put真正成功、新VS已可下載但尚未commit。QA只用同交易原生get延長pending，不替換產品保存或結束事件。
+
+真正點產品Stop後256.1ms仍pending、無abort／complete，下載連結保持可用；這不是已取消或回滾成功。僅解除QA自己的get hold後才取得trusted complete14；busy=false、unknown=false，reload完整相同。舊metadata除了追加一asset及一export外不變，舊媒體全部保留。符合成檔後persistExport的保全契約，未重現需改runtime的bug，不為要求Stop必abort改動保全。
+
+14份原生快照binary（舊媒體12份、新VS2份）、另1份候選Blob及7份真正下載逐byte與完整SHA核對。新VS83,137 bytes、SHA256 `4b35b02a9f1d4bf8c600dcfe50b22183547dce1dd84393c158f974a69464baea`，Stop前／後與native complete後三次下載均與原生新Blob相同；舊VS由產品庫存清單真正下載，與舊bytes相同，不靠原URL相同推論可取回。
+
+Stop前後recorder均inactive、既有影格訂閱0；原canvas串流音／視tracks在pending仍live，真正complete後才全ended。沒有額外影格訂閱、QA代停tracks、直接AudioContext節點圖觀測或真實硬體相機；不得寫成Stop立即釋放所有資源。
+
+### 原解碼結果與DTS診斷分開記錄
+
+沿原analyze-media.py（SHA256 `3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa`）的fullDecode命令得到exit0；stderr保留兩筆null muxer的DTS碰撞39／87，不能寫stderr乾淨。初版私有QA另加「stderr必空」斷言，該斷言失敗且啟動稽核未完成；failed收據與原命令保留，不改成產品失敗或抹去工具失敗。
+
+後續只讀同一原檔，原生packet／decoded frame的PTS／DTS均嚴格遞增；按原v5解碼方法取得全部91格、2,912灰階bytes。原48000Hz stereo AAC有139frames、每channel142,336samples，解為1,138,688 PCMbytes。由原生timebase 1/30000換算null輸出1001/30000，兩對量化DTS恰為39／87，符合debug log的29.97tbn及decoder 0 errors。檔案SHA不變，沒有重封裝、改PTS或重採樣；這是全解碼及時間戳診斷，不是新增G2–G4、音畫品質矩陣、人工播放或聽感通過。
+
+### 收據指紋與清理界線
+
+- 原生raw SHA256：`2c51a72d0c27dcb840764d0e8411ce13ca09bb8013d76d08197087d1dc5b9cec`。
+- 私有單案例函式SHA256：`6eeade99f4dd936a5c75861f6320005b1fd76b1e76bbc0a26c3d5bef195c2890`；runner：`dd90ab095fc527133764e25c46be1703f7b76d389f81cb04cefb6f98553c3cae`，harness base仍為`6e6eb60bab8e995fd580d4e6fb89842be8847f7ebe25fe64d9fb3c937e7de08b`。
+- 原fullDecode收據SHA256：`b11c07195efc4e4abcd77435b76cadb6d7f399d96bf0e3a45bbec0fd2f3478c8`。
+- 私有QA failed收據SHA256：`9f7a0c10e881711854193de0b1d84623900aa3e86d58a0acafb86452dc06d15b`。
+- 時間戳診斷收據SHA256：`74ef978a13dd9afb86db11bd44d26e569e6730735f6a639d579706fe188ddc6c`。
+
+原生輪11個已知自有子PID／1群組，加上failed解碼1／1、原命令解碼1／1、時間戳診斷6／6，共19個已知自有子PID／9群組、4個ownnonce釋放。精確profile無活程序、自有server拒絕連線、共用鎖不存在、mediaCalls=0。較早彙整僅13／3／3，不涵蓋最後時間戳診斷；本段使用完整交叉清理範圍，不宣稱所有瀏覽器或其他預覽已退出。
+
+本次只補匿名文件與包，14份runtime維持14128c2／99a2169相同來源；原工作樹十案、乾淨99三案、9e6 Chrome24＋3及345 Safari十九案不改標新版重跑。一般Chrome的此保存Stop觀察已完成；Safari／私人模式保存Stop、私人新VS保存失敗／未確認救援、永久保存、真低磁碟、實體／五人操作／讀屏聽感／跨裝置及iPhone仍未驗。原始媒體、profiles、raw與操作識別留本機，不入Git或包；不合併、發布或關未驗收票。
