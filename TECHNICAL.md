@@ -653,6 +653,8 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 
 #13 後續沿用同一個程序所有權／重啟工具，以選用 `--pending-write` 補原生筆記＋Blob 交易未提交時的中斷案例。原生 keep-alive 讀取只延長待提交時段，必須先看到兩個 trusted put 成功、交易內候選 metadata、產品 Promise 未完成，才強制終止；同 profile 重啟比對舊資料，再以相同候選重試並重新開啟。排除另建程序管理器、以正常 close／注入 abort 冒充崩潰，以及由更新下載中斷推論資料交易可靠性的方案；這項不改產品儲存實作，也不證明提交瞬間、chunks、斷電或低磁碟。各情境的來源、結果與限制見[強制中斷證據](docs/evidence/issue-13-forced-install.md)。
 
+乾淨 `9e69034`／`4651fae419d8d9c8` 已沿原 runner 從頭完成 default 與 pending-write：新版授權 manifest 的候選 1／12 真正 SIGKILL 後，同 profile 離線取回完整舊殼及資料；兩個 trusted put 未提交時 SIGKILL 後舊值保留，同候選重試與第三程序重開斷言通過。51 個已知自有 PID／5 群組、兩個服務與 nonce 均獨立核對收尾。原始指紋、逐 byte 檢查及第三份 snapshot 未另序列化的限制見同一證據新增段落；只補受影響的更新／交易中斷，不承接舊 manifest、低空間或媒體矩陣，也不修改 runner／產品。
+
 
 整合精確來源566f04a時逐段保留PR #66既有PID有效性、spawn error／無PID證據、已退出主程序仍查群組、nonce失敗後主機收尾等保護；沒有整檔覆蓋。摘要使用已記錄的scenario／candidateVersion，不把情境判斷摻入共用finally。產品web／schema／套件與靜態1aa1ae164c31d690不變。整合當時原生pending-write與此工具修改後的default情境均待固定乾淨head另驗，不由16bd7ca歷史default通過替代；沿原check及真實收尾故障單元驗證整合結果。
 
