@@ -629,3 +629,11 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 
 
 同一工作樹的針對性完整性回歸、原capture與capture-drain已全過；前者同頁依序原生早停、真短bytes、正常15.001秒重試及救援刪除生命週期。新QA每take唯一檔名，四份實際檔逐次Node完整hash與頁內Blob相同並完整解碼；原命名碰撞／被覆蓋的首early證據缺口仍記錄，不補造下載收據。原check408／1551通過；這些來源標dirty，不承接成乾淨head24組或Safari產品驗收。
+
+
+## 40. #13 未提交寫入中斷工具整合
+
+#13 後續沿用同一個程序所有權／重啟工具，以選用 `--pending-write` 補原生筆記＋Blob 交易未提交時的中斷案例。原生 keep-alive 讀取只延長待提交時段，必須先看到兩個 trusted put 成功、交易內候選 metadata、產品 Promise 未完成，才強制終止；同 profile 重啟比對舊資料，再以相同候選重試並重新開啟。排除另建程序管理器、以正常 close／注入 abort 冒充崩潰，以及由更新下載中斷推論資料交易可靠性的方案；這項不改產品儲存實作，也不證明提交瞬間、chunks、斷電或低磁碟。各情境的來源、結果與限制見[強制中斷證據](docs/evidence/issue-13-forced-install.md)。
+
+
+整合精確來源566f04a時逐段保留PR #66既有PID有效性、spawn error／無PID證據、已退出主程序仍查群組、nonce失敗後主機收尾等保護；沒有整檔覆蓋。摘要使用已記錄的scenario／candidateVersion，不把情境判斷摻入共用finally。產品web／schema／套件與靜態1aa1ae164c31d690不變。原生pending-write與此工具修改後的default情境均待固定乾淨head另驗，不由16bd7ca歷史default通過替代；沿原check及真實收尾故障單元驗證整合結果。

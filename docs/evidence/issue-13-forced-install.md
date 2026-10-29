@@ -50,3 +50,22 @@
 這是受測 Chrome 在**更新下載／寫入部分 cache**時的程序強制終止。既有筆記／Blob 已成功提交，沒有宣稱錄影中、媒體交易提交中、schema migration 中或任意其他時刻也通過。SIGKILL 不等於斷電、實際磁碟損毀、填滿空間、瀏覽器回收／清除或永久保存；殘留候選 cache 未在本次要求自動清除。
 
 sentinel 不可播放，不是影片品質、長片效能、20／100／200 MiB 媒體矩陣或下載解碼證據。沒有重新承接先前正常退出的大檔數據，也不外推為 Safari、實體裝置、系統飛航或跨裝置結論。iPhone 暫緩，Claude Code／使用者最終審查、完整 P0 與發布 gates 保持待驗；不勾原驗收、不關 #13／#1、不合併或部署。
+
+## 筆記與影片副本交易尚未提交時的中斷
+
+2026-10-29 新增選用的 `--pending-write` 情境，沿用本檔前述程序群組、nonce 鎖、全新 profile 與動態 loopback。產品程式、儲存 schema、套件與品質門檻未改；這項原生驗證仍待取得自有共用鎖後執行，不能由程式存在便宣稱通過。
+
+案例先以真正 `writeLibrary` 保存一份非空筆記／標記與 1,048,613-byte 合成 Blob。候選同時改筆記及原片 bytes；原生 readwrite 交易只額外加入 keep-alive get，不替換 put、不偽造成功事件、不發出 abort。兩個 put 的 trusted success、交易內候選 metadata、持續處理請求且產品 Promise 未結束都記錄後，才對自有程序群組發 SIGKILL。
+
+同 profile 新程序不清庫、不匯入備份，需逐一核對原生 metadata、完整產品 JSON、revision、media keys 與 Blob 全部 bytes／SHA256 仍為舊值；接著用相同候選與固定 Blob 內容重試成功，再正常退出並以同 profile 第三個程序讀回已提交的新資料。結果與實際來源在原生驗證後補入。
+
+候選工具的 Bun 1.4.4 原完整 check 已通過：382 tests／1310 expects／0 fail，型別、lint、公開掃描與 build 通過。新增分支的原生正向流程尚未驗證：第一次執行因另一個仍在運行的原生 Safari 觀測持有共用鎖而取得 EEXIST，未啟動瀏覽器、未改動原鎖；該失敗輪保留，不列為交易中斷成功。
+
+範圍限刻意延長的未提交交易，不涵蓋提交瞬間、錄影 chunk 交易、schema migration、實際磁碟滿、斷電、瀏覽器回收、Safari、裝置或影片可播放性。此案例不替代前段更新下載中的強制終止，也不關閉整張 #13。
+
+
+### PR #72 整合候選
+
+精確採用566f04a的選用情境並保留其來源關係；衝突只合併必要流程及文件，PR #66的spawn／PID／程序群組／nonce保護保留。未改產品runtime、schema、原始門檻或另建一套程序管理器。既有工具修改後的default與新增pending-write都必須在最終乾淨head實際重跑；目前仍未驗證，先前16bd7ca只證明當時default情境，不能承接為新增寫入中斷通過。原生執行、清理與獨立核對結果待取得共用鎖並完成後補記。
+
+整合後原check通過408 tests／1551 expects／0 fail、型別、公開掃描、lint及build；靜態仍1aa1ae164c31d690。stop、launch與finally收尾主體逐byte等於整合前629a98b，直接執行真實收尾的故障單元亦通過；摘要僅沿收據的scenario／candidateVersion列示。這些不是原生正向執行結果。
