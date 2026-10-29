@@ -5,7 +5,7 @@ import { validateBackup, parseBackup, planBackupImport, createShare, mediaInvent
 import { startOffline } from './offline.js';
 import { safariAudio, decodeLocalAudio, audioReady } from './local-audio.js';
 import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './beats.js';
-import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock } from './storage.js';
+import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock, storageUnconfirmed, storageUnconfirmedMessage } from './storage.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -48,6 +48,17 @@ let beatEditorVideoId, beatDirty = false;
 let looping = false, practiceStarting = false, practiceController, practiceSeek, practiceFrame, practiceFrameUsesVideo, practiceToken = 0;
 
 function status(message) { $('status').textContent = message; }
+function showStorageRecovery() {
+  if (!storageUnconfirmed()) return;
+  // 使用記憶體中的原片／VS 與最後確認的筆記另存；不重新讀取可能仍卡住的 DB。
+  const first = $('storage-recovery').hidden;
+  $('storage-recovery').hidden = false;
+  $('storage-status').textContent = storageUnconfirmedMessage; status(storageUnconfirmedMessage);
+  // modal 會讓外面的救援控制無法操作；只關視窗，不清預覽 File、表單或現有下載 URL。
+  for (const id of /** @type {const} */ (['import-dialog', 'media-dialog', 'delete-dialog', 'share-dialog'])) if ($(id).open) $(id).close();
+  releaseCamera(); stopPractice();
+  if (first) focusControl($('storage-backup'));
+}
 function focusControl(element) {
   if (!(element instanceof HTMLElement)) return;
   // 先等 fieldset 重新啟用；直接 focus 停用中的輸入不會生效。
@@ -117,9 +128,16 @@ function updateControls() {
   for (const id of /** @type {const} */ (['start', 'end', 'rate'])) $(id).disabled = !!selfDurationMs && !existingMode;
   $('practice').disabled = !currentVideoId || !!active;
   for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = !!active;
+  if (storageUnconfirmed()) {
+    // 停止接受可能改寫或換掉當次影片的操作；原生下載連結及救援備份在 fieldset 外，仍可使用。
+    for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'inventory-controls', 'import-controls', 'relink-controls', 'delete-controls', 'share-controls'])) $(id).disabled = true;
+    for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
+    showStorageRecovery();
+  }
 }
 async function operation(task) {
   if (active) return;
+  if (storageUnconfirmed()) { showStorageRecovery(); return; }
   const controller = new AbortController(), trigger = document.activeElement;
   operationTrigger = trigger; operationFocus = null;
   active = controller;
@@ -136,9 +154,9 @@ async function operation(task) {
   try { await ready; await comparisonSave; await task(controller.signal); }
   catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
     releaseCamera();
-    status(error.name === 'AbortError' ? '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);
+    status(storageUnconfirmed() ? storageUnconfirmedMessage : error.name === 'AbortError' ? '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);
     // 原生錯誤可能含檔名／裝置資訊；可帶走的診斷只留分類，詳細說明留在本機狀態。
-    diagnostics.lastError = error.name === 'AbortError' ? 'cancelled' : error.name === 'QuotaExceededError' ? 'storage-full' : 'operation-failed';
+    diagnostics.lastError = storageUnconfirmed() ? 'storage-unconfirmed' : error.name === 'AbortError' ? 'cancelled' : error.name === 'QuotaExceededError' ? 'storage-full' : 'operation-failed';
   } finally {
     reference.pause(); self.pause();
     if (monitor) monitor.gain.value = 1;
@@ -606,7 +624,10 @@ $('export').addEventListener('click', () => operation(async signal => {
     try {
       await persistExport(blob, diagnostics.export.decodedDurationMs);
       status('VS 影片已成檔並保存在此瀏覽器。請下載，離開本站後重新播放驗證。');
-    } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); status(`VS 已成檔但無法保存到此瀏覽器：${error.message} 請立即下載；原片仍保留。`); }
+    } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
+      if (storageUnconfirmed()) $('output-status').textContent = 'VS 已成檔可下載；這次保存狀態未確認。';
+      status(storageUnconfirmed() ? `VS 已成檔可下載。${storageUnconfirmedMessage}` : `VS 已成檔但無法保存到此瀏覽器：${error.message} 請立即下載；原片仍保留。`);
+    }
   } finally {
     reference.pause(); self.pause();
     reference.muted = muted;
@@ -637,8 +658,9 @@ window.addEventListener('pagehide', e => {
   audio?.close().catch(() => {});
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
-window.addEventListener('pageshow', e => { if (e.persisted) status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); });
-window.addEventListener('beforeunload', e => { if (active || beatDirty || moveDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
+// BFCache 仍是原模組與原連線；返回上一頁不能解除未確認旗標，必須真正重新導航讀回。
+window.addEventListener('pageshow', e => { if (e.persisted) { status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); updateControls(); } });
+window.addEventListener('beforeunload', e => { if (storageUnconfirmed() || active || beatDirty || moveDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
 
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
@@ -1204,13 +1226,19 @@ $('marker-form').addEventListener('submit', e => {
     clearMarkerEditor(); focusControl($('mark')); status('時間標記已保存；點「跳到這裡」即可回看。');
   });
 });
-$('backup').addEventListener('click', () => operation(async () => {
+function downloadBackup() {
   $('media-inventory').open = true;
   const data = validateBackup(state.data); data.exportedAt = new Date().toISOString();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = urlFor('backup', blob); a.download = 'notes.dance-stamp.json'; a.click();
-  status('筆記與配方備份已下載，不含影片。請另存示範、自拍與 VS。');
-}));
+  status(storageUnconfirmed() ? '已交給瀏覽器另存本頁最後確認的筆記；不含未保存的表單草稿或影片。請確認下載完成，並另存原片與 VS。' : '筆記與配方備份已下載，不含影片。請另存示範、自拍與 VS。');
+}
+// 救援備份只讀記憶體，刻意繞過已封鎖的操作佇列；不把未確認的交易結果合進備份。
+$('backup').addEventListener('click', () => { if (storageUnconfirmed()) downloadBackup(); else operation(async () => downloadBackup()); });
+$('storage-backup').addEventListener('click', downloadBackup);
+$('storage-reopen').addEventListener('click', () => {
+  if (confirm('請先確認筆記、原片與 VS 已下載完成。未保存的表單草稿不會自動帶回。要重新開啟同一頁讀回保存結果嗎？')) location.reload();
+});
 $('share-notes').addEventListener('click', () => operation(async () => {
   if (keepMarkerDraft()) return;
   invalidateShare(); $('share-items').replaceChildren();
@@ -1467,6 +1495,7 @@ reference.addEventListener('ended', async () => {
 });
 // ended 只保留上方可取消的循環 owner；重複掛舊 handler 會在停止後重新播放。
 function changeComparison(change) {
+  if (storageUnconfirmed()) { showStorageRecovery(); return; }
   if (active || pendingTakeId) return;
   change(); $('scrub').value = '0'; updateIntersection();
   if (!activeTakeId) return;
@@ -1490,6 +1519,7 @@ function changeComparison(change) {
   }, error => {
     if (version !== comparisonSaveVersion) return;
     $('compare').setAttribute('aria-busy', 'false'); status(`${error.message} 原片與目前輸入仍保留。`);
+    updateControls();
   });
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror'])) $(id).addEventListener('change', () => changeComparison(() => {}));

@@ -31,6 +31,12 @@
     </details>
     <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
+  <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
+    <h2 id="storage-recovery-title">保存狀態未確認</h2>
+    <p role="alert">瀏覽器沒有確認這次保存是否完成或回復。本頁暫停儲存，保留目前原片與可下載的 VS，請先使用下方影片下載連結另存。</p>
+    <p>筆記備份只含本頁最後確認的筆記，不含未保存的表單草稿或任何影片。請保持這個分頁，確認下載完成後再重開同一頁讀回；私人模式不要改開新分頁代替，也不要先關閉私人視窗。</p>
+    <div class="actions"><button id="storage-backup" type="button">另存本頁筆記備份</button><button id="storage-reopen" type="button">已另存，重新開啟同一頁讀回</button></div>
+  </section>
   <fieldset id="controls" tabindex="-1"><legend>01 · 準備片段</legend>
     <label>示範影片<input id="reference-file" type="file" accept="video/*"></label>
     <div class="settings">
