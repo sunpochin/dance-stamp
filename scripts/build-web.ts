@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { webFiles as files, notices, pagesHeaders } from './web-assets'
+import { webFiles as files, notices, pagesHeaders, webNotice } from './web-assets'
 import { readAllowed } from './package-web'
 const root = resolve(import.meta.dir, '..'), target = resolve(root, 'dist/web')
 // 必須先檢查才寫入；打包後才拒絕，已可能沿輸出連結改到別處的檔案。
@@ -11,20 +11,24 @@ if (lstatSync(target, { throwIfNoEntry: false })) readAllowed(target, [...files,
 const result = await Bun.build({ entrypoints: files.filter(f => f.endsWith('.js') && f !== 'sw.js').map(f => resolve(root, 'web', f)), target: 'browser', write: false })
 if (!result.success) { console.error(result.logs); process.exit(1) }
 const digest = createHash('sha256')
+// 版本、manifest 與實際輸出共用轉換後的 bytes，避免修好授權連結卻讓離線校驗仍期待根文件內容。
+const resourceBytes = new Map([...files, ...notices].map(file => [file, notices.includes(file)
+  ? new TextEncoder().encode(webNotice(file, readFileSync(resolve(root, file), 'utf8')))
+  : readFileSync(resolve(root, 'web', file))]))
 // 授權也是離線資源；只改 notice 時也必須用新 cache，不能改寫仍被舊分頁使用的內容。
-for (const file of [...files, ...notices]) digest.update(readFileSync(resolve(root, notices.includes(file) ? file : `web/${file}`)))
+for (const bytes of resourceBytes.values()) digest.update(bytes)
 // 離線回應也保存標頭；政策改變時要建立新版，不能繼續使用舊快取的政策。
 digest.update(pagesHeaders)
 const version = digest.digest('hex').slice(0, 16)
 // 新舊資源混用可能破壞資料操作；SW 安裝與檢查都核對這次建置的實際 bytes。
 const resources = [...files.filter(f => f !== 'sw.js'), ...notices]
-const manifest = Object.fromEntries(resources.map(file => [file === 'index.html' ? '/' : `/${file}`, createHash('sha256').update(readFileSync(resolve(root, notices.includes(file) ? file : `web/${file}`))).digest('hex')]))
+const manifest = Object.fromEntries(resources.map(file => [file === 'index.html' ? '/' : `/${file}`, createHash('sha256').update(resourceBytes.get(file)!).digest('hex')]))
 mkdirSync(target, { recursive: true })
 for (const file of files) {
-  const source = readFileSync(resolve(root, 'web', file), 'utf8')
+  const source = new TextDecoder().decode(resourceBytes.get(file)!)
   writeFileSync(resolve(target, file), file === 'sw.js' ? source.replace('__BUILD__', version).replace('/* __MANIFEST__ */ {}', JSON.stringify(manifest)) : source)
 }
 // 產物可獨立分發時也要帶授權，不能只在來源 repo 找得到。
-for (const notice of notices) writeFileSync(resolve(target, notice), readFileSync(resolve(root, notice)))
+for (const notice of notices) writeFileSync(resolve(target, notice), resourceBytes.get(notice)!)
 writeFileSync(resolve(target, '_headers'), pagesHeaders)
 console.log(`靜態 Web 建置完成：dist/web，版本 ${version}；無 runtime 套件依賴。`)

@@ -1,7 +1,7 @@
 /* 檔案用途：只打包明列的公開程式與說明，並驗證每個 bytes。所在層：下載包工具。主要關聯：web-assets.ts、START_HERE.md、releasePackage.test.ts。 */
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname, posix, resolve } from 'node:path'
 import { publicProblems } from './publicSafety'
 import { webFiles, notices } from './web-assets'
 
@@ -58,6 +58,12 @@ export function readAllowed(root: string, allowed: string[], complete = true): M
 export function sealPackage(payload: Map<string, Uint8Array>, metadata: { version: string; sourceRevision: string; trackedChanges: boolean }) {
   if (!samePaths(payload.keys(), packageInputs) || !/^[a-f0-9]{16}$/.test(metadata.version) || !/^[a-f0-9]{40}$/.test(metadata.sourceRevision)) throw new Error('下載包來源或白名單不完整')
   for (const [name, bytes] of payload) if (publicProblems(name, new TextDecoder('utf-8', { fatal: true }).decode(bytes)).length) throw new Error('下載包未通過公開內容掃描')
+  // 直接核對將封裝／校驗的 Markdown bytes；不能以來源檔通過代替 dist/web 副本在新位置仍有目標。
+  for (const [name, bytes] of payload) if (name.endsWith('.md')) for (const match of new TextDecoder().decode(bytes).matchAll(/\]\(([^\s)]+)\)/g)) {
+    const link = match[1].split('#')[0]
+    if (!link || /^[a-z][a-z\d+.-]*:/i.test(link) || link.startsWith('//')) continue
+    if (!packagePaths.includes(posix.normalize(posix.join(posix.dirname(name), link)))) throw new Error(`下載包文件連結缺少目標：${name} → ${link}`)
+  }
   // 固定字元順序，不依檔案系統列舉或作業系統語系，讓另一台電腦也可校驗。
   const ordered = new Map(packageInputs.map(name => [name, payload.get(name)!]))
   const files = Object.fromEntries([...ordered].map(([name, bytes]) => [name, hash(bytes)]))

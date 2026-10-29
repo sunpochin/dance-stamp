@@ -2,6 +2,11 @@
 // 拍點與有界音訊都沿用同一白名單，建置、離線快取及下載包才不會漏掉依賴。
 export const webFiles = ['index.html', 'style.css', 'main.js', 'timeline.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js']
 export const notices = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
+export function webNotice(file: string, source: string) {
+  // 授權 Markdown 副本位於 dist/web；根文件保留原連結，副本須回到同一包根目錄找實際檔案。
+  return !file.endsWith('.md') ? source : source.replace(/\]\(([^\s)]+)\)/g, (match, link) =>
+    link.startsWith('#') || /^[a-z][a-z\d+.-]*:/i.test(link) || link.startsWith('//') ? match : `](../../${link})`)
+}
 export const webPaths = new Map([...webFiles, ...notices].map(file => [file === 'index.html' ? '/' : `/${file}`, file]))
 export const webHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
