@@ -21,6 +21,8 @@ function harness() {
     run: '/synthetic/run', profile: '/synthetic/profile', oldVersion: 'synthetic-old', candidateVersion: 'synthetic-next',
     process: { exitCode: 0, kill: (...args: unknown[]) => signals.push(args) },
     pending: [], server: undefined, cdp: undefined, origin: undefined,
+    // 映像案例仍執行真正 finally；舊配額案例預設沒有掛載，避免只因缺狀態而提早拋錯。
+    lowSpace: false, attached: false, ownsFiller: false, launchUnconfirmed: false, volume: '/synthetic/volume',
     waitFor: async (check: () => boolean, message: string) => assert(check(), message),
   }
   return state
@@ -67,13 +69,30 @@ for (const mode of ['audit-error', 'ps-error', 'clean']) test(`原生 quota 工�
   }
   state.Bun = { spawnSync: () => ({ exitCode: mode === 'ps-error' ? 2 : 1, stdout: Buffer.from('') }), sleep: async () => {} }
   const close = quota.slice(quota.indexOf('const closeOwnedBrowser = async'), quota.indexOf('\ntry {', quota.indexOf('const closeOwnedBrowser = async')))
+  const release = quota.slice(quota.indexOf('const releaseVolume = () => {'), quota.indexOf('\nconst closeOwnedBrowser = async'))
   // 重現主流程已 close context、後續核對失敗才進 finally，不能只測 finally 自己呼叫 close 的分支。
-  await runInNewContext(transpiler.transformSync(`(async () => { ${close}\ntry { await closeOwnedBrowser() } catch (error) { report.error = { message: String(error) }; process.exitCode = 1 }\n${cleanup(quota)} })()`), state)
+  await runInNewContext(transpiler.transformSync(`(async () => { ${release}\n${close}\ntry { await closeOwnedBrowser() } catch (error) { report.error = { message: String(error) }; process.exitCode = 1 }\n${cleanup(quota)} })()`), state)
   expect(state.closed).toBe(1)
   expect(state.report.lockReleased === true).toBe(mode === 'clean')
   expect(state.removed.length > 0).toBe(mode === 'clean')
   expect(state.report.passed).toBe(mode === 'clean')
   if (mode !== 'clean') expect(state.report.browserCloseError).toBeTruthy()
+})
+
+for (const mode of ['clean', 'detach-error', 'launch-unknown', 'audit-error']) test(`低空間工具收尾 ${mode} 只卸載自有映像，未確認時留鎖`, async () => {
+  const state = harness(), calls: unknown[] = []
+  Object.assign(state, { locked: true, attached: true, context: undefined, report: { passed: true }, launchUnconfirmed: mode === 'launch-unknown' })
+  if (mode === 'audit-error') state.report.browserCloseError = 'synthetic browser cleanup unverified'
+  state.execFileSync = (...args: unknown[]) => { calls.push(args); if (mode === 'detach-error') throw new Error('synthetic volume busy') }
+  const release = quota.slice(quota.indexOf('const releaseVolume = () => {'), quota.indexOf('\nconst closeOwnedBrowser = async'))
+  // 只替換 OS 卸載邊界；不能把不確定的瀏覽器或忙碌磁碟假定為已清理。
+  await runInNewContext(transpiler.transformSync(`(async () => { ${release}\n${cleanup(quota)} })()`), state)
+  expect(calls).toEqual(['clean', 'detach-error'].includes(mode) ? [['hdiutil', ['detach', state.volume]]] : [])
+  expect(state.report.volumeDetached === true).toBe(mode === 'clean')
+  expect(state.report.lockReleased === true).toBe(mode === 'clean')
+  expect(state.removed.length > 0).toBe(mode === 'clean')
+  if (mode !== 'clean') expect(state.report.lockReleaseError).toBeTruthy()
+  if (mode === 'detach-error') expect(state.process.exitCode).toBe(1)
 })
 
 for (const mode of ['no-pid', 'pid-unverified', 'no-pid-unverified']) test(`瀏覽器 spawn 被拒絕 ${mode}，只釋放確定沒有程序的自有鎖`, async () => {

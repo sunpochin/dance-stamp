@@ -482,6 +482,8 @@ P1 受測 `587689d143bb1417ef48f083e5fe983a81af2c02`／靜態 `db129e273cf0039b`
 
 `verify-native-quota.ts` 補真正Chromium配額拒絕，而非再注入put例外；替換及新增交易均須trusted abort／QuotaExceededError、原生全庫／Blob完整保留，解除限制後同資料重試及同profile重開。31秒空間快取前置不能冒充拒絕證據，capture事件亦避免Promise先結束而漏收原生收據；原失敗輪保留。這項只新增工具與[匿名證據](docs/evidence/issue-13-native-quota.md)，不修改產品儲存行為，不宣稱UI／低磁碟／裝置通過；證據沿既有下載包白名單提供。
 
+2026-10-30 另加選用 `--low-space`，沿用同一份 fixture、原生快照、失敗保留、重試與跨程序重開斷言。以本輪新建且上限 256 MiB 的 HFS+ 映像容納全新 profile，確認原生 IndexedDB 裝置歸屬，再寫自有 filler 取得 ENOSPC；不設定配額 override。磁碟 Blob I/O 的原生 DataError 與配額 QuotaExceededError 分開要求，不改預設配額斷言。排除填滿宿主磁碟、接受任意既有磁碟／profile、mock throw 與以 estimate 代替真實拒絕。啟動狀態不明或程序稽核／卸載失敗保留鎖；只在自有程序確認退出後正常卸載本輪映像。這是 QA 的有界檔案系統證據，沒有修改產品、資料格式、依賴、媒體門檻或支援範圍；實測結果與失敗輪沿上列證據分版記錄。
+
 ## 33. #3／#11 Safari 有界本機音訊候選
 
 目前不是可合併的 Safari P0 完成證據：1×／0.75× 的 15 秒成檔通過；1×／30 秒仍觸發 250ms 畫面同步護欄，0.5×／15 秒仍被原 v5 的覆蓋／漂移檢查拒絕。音訊提示音已完整，但不能用它取代畫面與完整矩陣驗收。

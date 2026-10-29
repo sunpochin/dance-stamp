@@ -5,18 +5,24 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFile
 import { resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
+import { execFileSync } from 'node:child_process'
+import { closeSync, fsyncSync, openSync, readdirSync, statfsSync, statSync, writeSync } from 'node:fs'
 import { webHeaders, webPaths } from './web-assets'
 
 // 使用已安裝的 QA 工具；不替產品新增 Playwright 依賴或自動下載瀏覽器。
 const modulePath = process.argv[2], executablePath = process.argv[3]
 if (!modulePath || !executablePath) throw new Error('用法：bun --no-env-file scripts/verify-native-quota.ts <playwright module> <Chromium executable>')
+const lowSpace = process.argv[4] === '--low-space'
+ok(process.argv.length === (lowSpace ? 5 : 4), '只接受選用的 --low-space；不接受使用者磁碟或 profile 路徑')
+ok(!lowSpace || process.platform === 'darwin', '小型測試映像目前僅支援 macOS')
 const { chromium } = await import(pathToFileURL(resolve(modulePath)).href)
 const root = resolve(import.meta.dir, '..'), output = resolve(root, 'output/native-quota')
 mkdirSync(output, { recursive: true })
-const run = mkdtempSync(resolve(output, 'run-')), profile = resolve(run, 'profile')
+const run = mkdtempSync(resolve(output, 'run-')), volume = resolve(run, 'volume'), image = resolve(run, 'volume.dmg')
+const profile = resolve(lowSpace ? volume : run, 'profile'), filler = resolve(volume, 'owned-filler')
 // 兩支儲存工具須使用同一個平台暫存目錄，才能互斥，不能各建一份測試鎖。
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
-const report: any = { startedAt: new Date().toISOString(), scope: 'product storage functions; no product UI or playable media', run, profile }
+const report: any = { startedAt: new Date().toISOString(), mode: lowSpace ? 'bounded-filesystem' : 'origin-quota', scope: 'product storage functions; no product UI or playable media', run, profile }
 const save = () => writeFileSync(resolve(run, 'result.json'), JSON.stringify(report, null, 2) + '\n')
 const hash = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex')
 // 原生 Promise 卡住也是失敗；工具逾時只進清理，不能偽稱資料已回滾。
@@ -26,8 +32,31 @@ const observe = async <T>(work: Promise<T>): Promise<T> => {
   finally { clearTimeout(timer!) }
 }
 let locked = false, server: ReturnType<typeof Bun.serve> | undefined, context: any, cdp: any, origin: string
+let attached = false, ownsFiller = false, launchUnconfirmed = false
+const diskSpace = () => { const fs = statfsSync(volume); return { bytes: fs.blocks * fs.bsize, available: fs.bavail * fs.bsize, device: statSync(volume).dev } }
+const fillVolume = () => {
+  const before = diskSpace()
+  // 只能填本輪新建的小型獨立映像；容量或裝置不符就停，絕不填宿主磁碟。
+  ok(attached && before.device !== statSync(run).dev && before.bytes <= 256 * 1048576 && before.bytes > 32 * 1048576, '不是本輪小型測試 volume')
+  const fd = openSync(filler, 'wx'), block = new Uint8Array(65536).fill(83)
+  ownsFiller = true
+  let bytes = 0, diskFull = false
+  try {
+    while (bytes <= 256 * 1048576) {
+      try { bytes += writeSync(fd, block) }
+      catch (error) { if (error.code !== 'ENOSPC') throw error; diskFull = true; break }
+    }
+    fsyncSync(fd)
+  } finally { closeSync(fd) }
+  const result = { before, after: diskSpace(), bytes, diskFull }
+  ;(report.diskFills ??= []).push(result); save()
+  ok(diskFull && result.after.available < block.length, '沒有真正 ENOSPC，不能宣稱低空間通過')
+}
+const releaseVolume = () => {
+  if (ownsFiller) { unlinkSync(filler); ownsFiller = false; report.diskReleased = diskSpace(); save() }
+}
 const closeOwnedBrowser = async () => {
-  // 先標為未驗證；context.close 後若 CDP／ps 核對失敗，finally 也不能因 handle 已清空就誤放鎖。
+  // 關閉或程序稽核失敗時須保留鎖與映像，避免另一輪測試碰到仍在使用的 profile。
   report.browserClosed = false
   report.browserCloseError = 'browser cleanup unverified; own lock retained'
   // CDP 僅列出自己啟動的瀏覽器程序；關閉後只查這些 PID，不掃描或終止其他程序。
@@ -57,6 +86,16 @@ try {
   // 原子取得且只釋放同 nonce 的鎖；既有檔案即拒絕，不猜測或刪除其他測試的鎖。
   writeFileSync(lockPath, JSON.stringify({ nonce, pid: process.pid, task: 'issue-13-native-quota' }), { flag: 'wx' })
   locked = true
+  if (lowSpace) {
+    // 建立全新的固定上限映像；不接收既有 device，失敗時也不強制卸載或格式化其他磁碟。
+    const host = statfsSync(run)
+    ok(host.bavail * host.bsize > 1073741824, '宿主至少需保留 1 GiB 可用空間')
+    mkdirSync(volume)
+    execFileSync('hdiutil', ['create', '-size', '256m', '-fs', 'HFS+', '-volname', 'DanceStampSynthetic', '-type', 'UDIF', '-nospotlight', image])
+    execFileSync('hdiutil', ['attach', '-nobrowse', '-owners', 'off', '-mountpoint', volume, image])
+    attached = true
+    report.volume = diskSpace(); save()
+  }
   report.source = { head: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), trackedChanges: !!Bun.spawnSync(['git', 'status', '--porcelain', '--untracked-files=no'], { cwd: root }).stdout.toString().trim(), testSha256: hash(readFileSync(import.meta.path)), storageSha256: hash(readFileSync(resolve(root, 'dist/web/storage.js'))) }
   deepStrictEqual(readFileSync(resolve(root, 'dist/web/storage.js')), readFileSync(resolve(root, 'web/storage.js')), '受測儲存模組必須與來源逐 byte 相同')
   report.staticVersion = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([a-f0-9]{16})'/)?.[1]
@@ -74,7 +113,10 @@ try {
   } })
   origin = server.url.origin
   const launch = async () => {
+    // 啟動若拋錯但未交回 handle，不能假設子程序不存在而釋放鎖或卸載 profile。
+    launchUnconfirmed = true
     context = await chromium.launchPersistentContext(profile, { executablePath, headless: true, serviceWorkers: 'block', permissions: [], args: ['--disable-sync', '--disable-background-networking', '--mute-audio'] })
+    launchUnconfirmed = false
     await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort())
     await context.addInitScript(() => {
       (window as any).mediaCalls = []
@@ -127,6 +169,12 @@ try {
   })
   report.seed = seed
   ok(seed.syntheticBlobBytes < 32 * 1048576)
+  if (lowSpace) {
+    const indexedDB = resolve(profile, 'Default/IndexedDB')
+    report.databaseFiles = readdirSync(indexedDB).map(name => ({ name, device: statSync(resolve(indexedDB, name)).dev }))
+    ok(report.databaseFiles.length && report.databaseFiles.every(file => file.device === diskSpace().device), 'IndexedDB 不在本輪測試映像')
+    save()
+  }
   const snapshot = async (label: string) => {
     const value = await page.evaluate(async () => {
       const storage = await import('/storage.js'), db = await storage.openStore()
@@ -161,17 +209,18 @@ try {
     const baseline = await snapshot('before-scenario-' + index)
     const quotaBefore = await cdp.send('Storage.getUsageAndQuota', { origin }), quotaSize = 524288
     ok(quotaBefore.usageBreakdown.some(entry => entry.storageType === 'indexeddb' && entry.usage > quotaSize), '原生 IndexedDB 應已保存非空原件')
-    await cdp.send('Storage.overrideQuotaForOrigin', { origin, quotaSize })
+    if (lowSpace) { ok(!quotaBefore.overrideActive, '低空間測試不得使用配額 override'); fillVolume() }
+    else await cdp.send('Storage.overrideQuotaForOrigin', { origin, quotaSize })
     const quotaRestricted = await cdp.send('Storage.getUsageAndQuota', { origin })
     const estimateRestricted = await page.evaluate(async () => await navigator.storage.estimate())
-    ok(quotaRestricted.overrideActive && quotaRestricted.quota === quotaSize, 'CDP override 未實際啟用')
+    ok(lowSpace ? !quotaRestricted.overrideActive : quotaRestricted.overrideActive && quotaRestricted.quota === quotaSize, '配額模式不符')
     // Chromium 可暫存先前核准的空間30秒；立即縮限不等於下一筆已重新詢問配額。
     // https://chromium.googlesource.com/chromium/src/+/c0811f657d5ae8c42a9fb827e7e36e7e58a16bab/content/browser/indexed_db/instance/bucket_context.h
     // 等待只排除這個工具前置，仍須後續 trusted quota error／abort 才能判定成功。
     report.quotaCacheBarrierMs = 31_000; save()
     await Bun.sleep(report.quotaCacheBarrierMs)
     const quotaAfterBarrier = await cdp.send('Storage.getUsageAndQuota', { origin })
-    ok(quotaAfterBarrier.overrideActive && quotaAfterBarrier.quota === quotaSize)
+    ok(lowSpace ? !quotaAfterBarrier.overrideActive : quotaAfterBarrier.overrideActive && quotaAfterBarrier.quota === quotaSize)
     const result = await observe(page.evaluate(async index => {
       const storage = await import('/storage.js'), candidate = (window as any).quotaFixture.candidates[index], saved = await storage.readLibrary()
       ;(window as any).nativeEvents.length = 0
@@ -181,14 +230,20 @@ try {
       return { name: candidate.name, reply, events: [...(window as any).nativeEvents] }
     }, index))
     report.failures.push({ ...result, quotaBefore, quotaRestricted, estimateRestricted, quotaAfterBarrier }); save()
-    ok(!result.reply.resolved && result.reply.name === 'QuotaExceededError', '產品必須收到原生容量拒絕')
-    ok(result.events.some(e => e.trusted && ['IDBRequest', 'IDBTransaction'].includes(e.target) && e.error?.name === 'QuotaExceededError'), '缺少真正 native quota error/abort')
+    // 真磁碟的 Blob I/O 失敗可回 DataError；配額模式仍嚴格要求原來的 QuotaExceededError。
+    const refused = result.reply.name === 'QuotaExceededError' || (lowSpace && result.reply.name === 'DataError' && result.reply.message === 'Failed to write blobs (IOError)')
+    ok(!result.reply.resolved && refused, '產品必須收到本模式的原生空間拒絕')
+    ok(result.events.some(e => e.trusted && ['IDBRequest', 'IDBTransaction'].includes(e.target) && e.error?.name === result.reply.name), '缺少與產品回覆一致的 native error/abort')
     ok(result.events.some(e => e.type === 'abort' && e.trusted && e.target === 'IDBTransaction'), '缺少真正原生交易 abort')
     deepStrictEqual(await snapshot('after-' + result.name + '-refusal'), baseline, '拒絕後原生 keys／JSON／每個 Blob byte 不同')
     // 等待後再查原生 stores，避免只在 Promise 拒絕瞬間觀察、漏掉延遲提交。
     await Bun.sleep(1000)
     deepStrictEqual(await snapshot('after-' + result.name + '-settled'), baseline)
-    await cdp.send('Storage.overrideQuotaForOrigin', { origin })
+    if (lowSpace) {
+      releaseVolume()
+      // 真正釋放空間後仍排除瀏覽器的短期空間快取，成功重試才算恢復。
+      await Bun.sleep(31_000)
+    } else await cdp.send('Storage.overrideQuotaForOrigin', { origin })
     const quotaReleased = await cdp.send('Storage.getUsageAndQuota', { origin })
     ok(!quotaReleased.overrideActive, '未解除 quota override')
     const retry = await page.evaluate(async index => {
@@ -235,16 +290,21 @@ try {
   report.passed = false; report.error = { name: error.name, message: error.message, stack: error.stack }
   process.exitCode = 1
 } finally {
+  try { releaseVolume() } catch (error) { report.diskReleaseError = String(error); process.exitCode = 1 }
   // 無論測試在哪一段失敗，都先重設自己的 origin 配額，再關自己的 browser／服務；raw 與 profile 保留。
-  if (cdp && origin) try { await cdp.send('Storage.overrideQuotaForOrigin', { origin }); report.cleanupQuota = await cdp.send('Storage.getUsageAndQuota', { origin }); ok(!report.cleanupQuota.overrideActive) } catch (error) { report.cleanupError = String(error); process.exitCode = 1 }
+  if (cdp && origin) try { if (!lowSpace) await cdp.send('Storage.overrideQuotaForOrigin', { origin }); report.cleanupQuota = await cdp.send('Storage.getUsageAndQuota', { origin }); ok(!report.cleanupQuota.overrideActive) } catch (error) { report.cleanupError = String(error); process.exitCode = 1 }
   if (context) try { await closeOwnedBrowser() } catch (error) { report.browserCloseError = String(error); process.exitCode = 1 }
   if (server) {
     await server.stop(true)
     try { await fetch(origin); report.serverStopped = false; process.exitCode = 1 }
     catch { report.serverStopped = true }
   }
+  if (attached && !report.browserCloseError && !launchUnconfirmed) {
+    try { execFileSync('hdiutil', ['detach', volume]); attached = false; report.volumeDetached = true }
+    catch (error) { report.volumeDetachError = String(error); process.exitCode = 1 }
+  }
   if (locked) {
-    if (report.browserCloseError) report.lockReleaseError = 'browser cleanup incomplete; own lock retained'
+    if (report.browserCloseError || attached || launchUnconfirmed) report.lockReleaseError = 'browser or volume cleanup incomplete; own lock retained'
     else if (JSON.parse(readFileSync(lockPath, 'utf8')).nonce === nonce) { unlinkSync(lockPath); report.lockReleased = !existsSync(lockPath) }
     else { report.lockReleaseError = 'nonce changed; did not remove'; process.exitCode = 1 }
   }
