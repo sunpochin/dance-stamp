@@ -4,8 +4,21 @@ import { newLibrary, validateBackup, migrateLibrary } from './library.js';
 /** @type {Promise<IDBDatabase> | null} */
 let database = null;
 const stores = ['metadata', 'media', 'chunks'];
+// 一旦缺少交易結束收據，本頁不能靠重開連線或重試覆蓋來猜測結果；重新導航後才重新讀回。
+const storageFailure = new AbortController();
+export const storageUnconfirmedMessage = '保存狀態未確認，不能確認這次寫入已完成或已回滾。本頁已暫停儲存；請先另存筆記、原片與 VS，再重新開啟同一頁讀回。';
+export function storageUnconfirmed() { return storageFailure.signal.aborted; }
 /** @template T @param {IDBRequest<T>} req @returns {Promise<T>} */
-function request(req) { return new Promise((resolve, reject) => { req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+function request(req) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { req.onsuccess = null; req.onerror = null; storageFailure.signal.removeEventListener('abort', unknown); };
+    const unknown = () => { cleanup(); reject(storageFailure.signal.reason); };
+    req.onsuccess = () => { cleanup(); resolve(req.result); };
+    req.onerror = () => { cleanup(); reject(req.error); };
+    storageFailure.signal.addEventListener('abort', unknown, { once: true });
+    if (storageUnconfirmed()) unknown();
+  });
+}
 /** @param {IDBDatabase} db @param {number} oldVersion */
 export function upgradeSchema(db, oldVersion) {
   // 目前只有 0→1；未知升級必須回滾，不能猜 schema 或刪庫來繞過 migration。
@@ -13,6 +26,7 @@ export function upgradeSchema(db, oldVersion) {
   for (const name of stores) db.createObjectStore(name);
 }
 export async function openStore() {
+  storageFailure.signal.throwIfAborted();
   if (database) return database;
   database = new Promise((resolve, reject) => {
     let blocked = false, upgradeError;
@@ -34,8 +48,40 @@ export async function openStore() {
   });
   return database;
 }
-/** @param {IDBTransaction} tx @returns {Promise<void>} */
-function completed(tx) { return new Promise((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error || new Error('資料未寫入，請保留草稿後重試。')); tx.onerror = () => {}; }); }
+/** @param {IDBTransaction} tx @param {AbortSignal} [signal] */
+function completed(tx, signal) {
+  let abort = () => {};
+  /** @type {Promise<void>} */
+  const done = new Promise((resolve, reject) => {
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      tx.removeEventListener('complete', complete); tx.removeEventListener('abort', aborted); tx.removeEventListener('error', watch, true);
+      signal?.removeEventListener('abort', abort); storageFailure.signal.removeEventListener('abort', unknown);
+    };
+    const complete = () => { cleanup(); resolve(); };
+    const aborted = () => { cleanup(); reject(tx.error || new Error('資料未寫入，請保留草稿後重試。')); };
+    const unknown = () => { cleanup(); reject(storageFailure.signal.reason); };
+    const watch = () => {
+      // error／取消後等一段結束通知寬限；期限只代表「未確認」，絕不代表成功或回滾。
+      timer ??= setTimeout(() => {
+        const error = new Error(storageUnconfirmedMessage); error.name = 'StorageUnconfirmedError';
+        storageFailure.abort(error);
+        // 盡力停止原生寫入；abort 返回也不是結束收據，不能改稱已回滾。
+        try { tx.abort(); } catch { /* 未確認狀態保持到本頁重新導航。 */ }
+        // close 只停止接受新交易，不能證明卡住的交易已結束，也不清除資料。
+        try { tx.db.close(); } catch { /* 本頁仍以共同旗標阻止重用連線。 */ }
+      }, 1000);
+    };
+    abort = () => { watch(); try { tx.abort(); } catch { /* 仍等原生收據；沒有收據就回報未確認。 */ } };
+    tx.addEventListener('complete', complete); tx.addEventListener('abort', aborted); tx.addEventListener('error', watch, true);
+    signal?.addEventListener('abort', abort, { once: true });
+    storageFailure.signal.addEventListener('abort', unknown, { once: true });
+    if (signal?.aborted) abort();
+  });
+  return { done, abort };
+}
 /** @returns {Promise<import('./types').LibraryState>} */
 export async function readLibrary() {
   const db = await openStore(), tx = db.transaction(['metadata', 'media']);
@@ -66,15 +112,14 @@ export async function writeLibrary(next, expectedRevision, mediaChange, signal, 
   }
   const db = await openStore(); signal?.throwIfAborted();
   const tx = db.transaction(cleanup ? ['metadata', 'media', 'chunks'] : ['metadata', 'media'], 'readwrite');
-  const done = completed(tx), store = tx.objectStore('metadata');
+  const { done, abort } = completed(tx, signal), store = tx.objectStore('metadata');
   // 取消匯入或重連須取消同一個原生交易，不能只關畫面後仍偷偷寫入。
-  const abort = () => { try { tx.abort(); } catch { /* 已完成的交易不能再回滾。 */ } };
-  signal?.addEventListener('abort', abort, { once: true });
   let failure;
   const req = store.get('library');
   req.onsuccess = () => {
     // revision 與 metadata／Blob 在同一交易；失敗不能留下半份配方或蓋過其他分頁。
-    if ((req.result?.revision || 0) !== expectedRevision) { failure = new Error('另一分頁已更新筆記。請先保留草稿，再重新開啟此頁。'); tx.abort(); return; }
+    if (storageUnconfirmed()) { abort(); return; }
+    if ((req.result?.revision || 0) !== expectedRevision) { failure = new Error('另一分頁已更新筆記。請先保留草稿，再重新開啟此頁。'); abort(); return; }
     try {
       store.put({ revision: expectedRevision + 1, data: next }, 'library');
       if (mediaChange) mediaChange.blob ? tx.objectStore('media').put(mediaChange.blob, mediaChange.id) : tx.objectStore('media').delete(mediaChange.id);
@@ -83,10 +128,10 @@ export async function writeLibrary(next, expectedRevision, mediaChange, signal, 
         for (const id of cleanup.mediaIds) tx.objectStore('media').delete(id);
         for (const id of cleanup.chunkIds) tx.objectStore('chunks').delete(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER]));
       }
-    } catch (error) { failure = error; tx.abort(); }
+    } catch (error) { failure = error; abort(); }
   };
-  try { await done; } catch (error) { throw signal?.aborted ? signal.reason : failure || error; }
-  finally { signal?.removeEventListener('abort', abort); }
+  try { await done; } catch (error) { throw storageUnconfirmed() ? storageFailure.signal.reason : signal?.aborted ? signal.reason : failure || error; }
+  finally { req.onsuccess = null; }
   return { revision: expectedRevision + 1, data: next };
 }
 /** @param {string} id @returns {Promise<Blob | undefined>} */
@@ -95,9 +140,11 @@ export async function readMediaKeys() { const db = await openStore(); return req
 /** @param {string} id @param {number} index @param {Blob} blob */
 export async function saveChunk(id, index, blob) {
   if (!Number.isSafeInteger(index) || index < 0 || !(blob instanceof Blob) || !blob.size) throw new Error('錄影片段的順序或內容無效，未寫入。');
-  const db = await openStore(), tx = db.transaction('chunks', 'readwrite'), done = completed(tx);
+  const db = await openStore(), tx = db.transaction('chunks', 'readwrite'), { done, abort } = completed(tx);
   // 同一塊不能覆寫；重複通知必須保留第一份並回報錯誤。
-  tx.objectStore('chunks').add(blob, [id, index]); await done;
+  let failure;
+  try { tx.objectStore('chunks').add(blob, [id, index]); } catch (error) { failure = error; abort(); }
+  try { await done; } catch (error) { throw storageUnconfirmed() ? storageFailure.signal.reason : failure || error; }
 }
 /** @param {string} id */
 export async function recoverChunks(id) {
@@ -107,8 +154,10 @@ export async function recoverChunks(id) {
 }
 /** @param {string} id */
 export async function clearChunks(id) {
-  const db = await openStore(), tx = db.transaction('chunks', 'readwrite'), done = completed(tx);
-  tx.objectStore('chunks').delete(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])); await done;
+  const db = await openStore(), tx = db.transaction('chunks', 'readwrite'), { done, abort } = completed(tx);
+  let failure;
+  try { tx.objectStore('chunks').delete(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])); } catch (error) { failure = error; abort(); }
+  try { await done; } catch (error) { throw storageUnconfirmed() ? storageFailure.signal.reason : failure || error; }
 }
 /** @template T @param {string} id @param {() => Promise<T>} action @returns {Promise<T>} */
 export async function withTakeLock(id, action) {

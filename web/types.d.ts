@@ -1,5 +1,8 @@
 /* 檔案用途：固定資料契約與 DOM 控制型別。所在層：Web 靜態型別。主要關聯：index.html、library.js、main.js。 */
 export interface Elements {
+  "storage-recovery": HTMLElement;
+  "storage-backup": HTMLButtonElement;
+  "storage-reopen": HTMLButtonElement;
   "library-keyword": HTMLInputElement;
   "library-style": HTMLInputElement;
   "library-teacher": HTMLInputElement;
