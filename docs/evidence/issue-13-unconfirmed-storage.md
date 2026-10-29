@@ -61,3 +61,24 @@
 基準 sentinel 71 bytes／SHA256 `7ab1e33dbb7966a923d5aa2841dc317143f88cd59c34ff0615e17fc6b71209db`；正常重試後替換 sentinel 72 bytes／SHA256 `d5d7ccf42196153ae5c6cfa2b654391c36f20d1394363510e3a62eda3fe8ddb4`。兩者都不是可播放媒體。本輪只證明該一般模式的取消 API／原生交易及後續重試，不代表產品 Stop 按鈕、VS／播放、真低磁碟、跨分頁或私人模式取消驗收；不擴大先前的媒體證據。
 
 本次後續只補匿名文件，產品 runtime 與 `99e862d` 相同，沒有重新啟動瀏覽器或取得媒體鎖。仍需獨立審查及剩餘原生／主 P0 gates；無 error／取消訊號的任意永久 pending 亦不屬已驗證範圍。iPhone 暫緩，#13／#1 保持開啟，不合併、部署或發布。
+
+
+## 明確metadata UI保存的真正Stop續修
+
+ba89487／靜態1aa1ae164c31d690已由正常Chrome原生重現save-title取消缺口：metadata put真正成功、交易尚未提交時實際點Stop，255.5ms觀察沒有abort／complete且busy仍true；解除QA自有get hold後才trusted complete、revision11→12，UI稱標題與分類已保存，reload仍為新標題。舊媒體完整bytes與URL保留，所以是取消接線失效，不是媒體遺失，也不能把diagnosticCompleted或negative-confirmed當產品通過。原始負向收據SHA256 `cb50553a0e515f0d77f0f5f0dafd6e792045185c890de3d23fdc958ea8a541c0`保留。
+
+原offline-storage.js已用程式DOM.click涵蓋copy-reference取消；本輪另有ba相同版本的真正按鈕控制，兩trusted put未提交時實點Stop取得原生abort15.5ms／無complete、舊非空筆記／兩片／VS完整bytes與六份實際下載保留，同File重試revision11→12及reload相同。正向收據SHA256 `edf16dbac964eaae9be7eb59c1dbc25d19dea07f8b5a91b823ebb8fa32ec6b8e`只屬ba的copy-reference，不宣稱原先所有產品入口都沒有取消覆蓋，也不代替metadata、私人或VS保存階段Stop。
+
+本次修正只由明確可取消入口傳本輪signal：標題／分類、標記保存／刪除、動作保存、兩側選片beforeCommit、缺示範asset的確認連結，以及預覽／匯出準備的saveCurrentRecipe。saveData不預設active；changeComparison獨立佇列、錄影工作建立／finalize／中斷狀態、chunks保全及成檔後persistExport保持原契約。設計與排除方案見[TECHNICAL第42節](../../TECHNICAL.md)。
+
+### 修正工作樹的原生回歸
+
+基底ba89487上的工作樹、靜態422c70c3633b8e88、Chrome156.0.8078.49；不是clean-head驗收。可重用metadata-stop.js十案完成：九個可取消入口在native metadata put成功、原生get hold保持未提交時，真正點Stop後14.6–16.6ms取得trusted transaction abort／無complete；完整舊native metadata、產品JSON、revision／keys、Blob全部bytes／SHA及URL不變，busy退出、unknown=false，同輸入重試native complete並reload一致。重選檔／新增動作會由產品重新產生ID，核對同來源bytes／表單語意，不偽造固定ID。
+
+第十案在獨立比較佇列pending時，取得可信Play點按及operation忙碌屏障後實點Stop；舊交易仍pending，解除QA自己的hold才complete，新操作回cancelled且沒有第二份metadata put。原先已排隊的比較設定按自己的owner完成，不因新操作Stop被誤取消；原片／VS bytes及URL保留，reload相同。119份native binary與57份實際下載逐byte／完整SHA核對；九個取消入口各有六份實際下載，第十佇列例外另有三份基準下載，不混寫成六十份。
+
+第一輪刪除案例因QA未接受原生confirm而未進交易，第二輪前九案通過、最後佇列仍無abort／complete，但fieldset的Playwright isDisabled斷言失敗且欠Play／operation屏障；兩輪保持failed，原收據不刪。第三輪接受真正confirm、以原生disabled屬性及前後busy／可信Play屏障核對後，完整重跑十案全過，不拼前兩輪。沒有縮素材、偽造事件或改產品／品質門檻；這些QA缺口不冒稱新產品bug。
+
+第三輪raw SHA256 `045a64c054b59e10a3bde640a1072d82ebdef8c43ae3f250ace19e55fc46833f`，main SHA256 `25f0b175af76f5c4d0c7f375beceb6ce925606f808c0610c9eb924fb6af03b62`、回歸函式SHA256 `779d5b35d8b650ab8ceaed1369f016cde5f51686cf31b8f39e7c155949fbe41c`。20個已知自有PID／程序群組與精確profile退出、十個自有主機停止及nonce相符釋放，擷取API呼叫0。原檔、profiles、raw端點及操作識別不公開。
+
+原capture及capture-drain已在同一修正工作樹通過：取消／編碼error／合成中斷、quota／缺號／壞片保留及連續片段恢復均符合原斷言；尾塊未提交期間仍持take鎖，提交後恢復111,252 bytes、舊片／配方及reload不變。兩個全新合成相機session分別核對10／11個已知自有程序與精確profile退出、服務停止及nonce釋放；沒有真實硬體相機或中斷宣稱。最後原check／hooks與乾淨feature head由PR另綁。新manifest的獨立default更新重驗另綁乾淨新head；原9e6的24＋3、345的Safari十九案及各原失敗保留原版本。不宣稱Safari私人／成檔VS保存Stop、產品全Stop、永久保存、真實低磁碟、實體／人工／跨裝置或iPhone通過；未合併、發布或關閉未驗收票。

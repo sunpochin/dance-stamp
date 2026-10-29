@@ -648,3 +648,21 @@ Safari十九份合成、一般原生檔案播放／同origin重載與私人四�
 只補匿名文件與指南，最終包沿原58檔白名單；排除QA raw、profiles、合成媒體或內部操作識別。文件head／封裝sourceRevision與受測9e6f0ef分開綁定，14份runtime須逐byte相同，不把文件提交冒充重跑媒體。具體量測、完整下載與收據指紋、原生版本界線及未驗收條件見[整合證據](docs/evidence/p0-safari-reliability-integration.md)。iPhone暫緩，Claude Code／使用者最終審查、私人新VS救援與人工／實體／跨裝置仍保留；不合併、發布或關票。
 
 本輪匿名文件原check通過408 tests／1552 expects／0 fail、公開掃描、型別、原lint與build；原19項lint info保留。提交與推送沿原hooks，最終乾淨封裝與CI由PR綁定，runtime仍1aa1ae164c31d690。
+
+
+## 42. #13 明確UI保存的停止訊號與保全例外
+
+ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native metadata put成功後交易仍pending，實際點Stop未收到abort且busy仍true；解除QA自己的原生get hold後才complete，revision11→12、UI稱已保存，reload也讀到新標題。舊媒體完整bytes未遺失，這是取消接線缺口，不能把診斷成功寫成產品Stop通過。原copy-reference實點Stop的trusted abort／舊bytes／同File重試正向控制仍保持ba來源。
+
+只讓使用者發起且可取消的metadata入口傳自己的signal給saveData，再由writeLibrary第四參數取消同一原生交易：標題／分類、標記保存與刪除、動作保存、兩側選片beforeCommit metadata、缺示範asset時的確認連結。預覽／匯出準備呼叫saveCurrentRecipe時明確傳signal；changeComparison仍不傳，維持獨立佇列owner。選片的取消除了還原播放器，也必須中止尚未提交的metadata，不能留下已取消的新配對。
+
+| 呼叫者 | 決策與原因 |
+| --- | --- |
+| 明確UI資料編輯／選片／連結、預覽／匯出準備 | 傳本輪signal；abort前不換state／清草稿，取消保留舊metadata與bytes。 |
+| changeComparison獨立佇列 | 不借用active；新操作會先等它，不能因新操作Stop而取消前次編輯。 |
+| beginTake／finalizeTake／markStoppedTake、chunks落盤與清理 | 維持原保全契約；取消錄製仍須保存已收到的片段及中斷狀態。 |
+| 成檔後persistExport | 本次不變；新VS已可下載，保存階段Stop仍是獨立未驗條件，不用metadata準備交易證據代替。 |
+
+排除把saveData的signal全域預設為active.signal：active在等待舊comparisonSave前就建立，可能誤綁別次操作；錄影取消後的finally保全也會被同一取消訊號截斷。不改operation控制器、writeLibrary／schema、時間映射、編碼、原100ms／250ms／v5或新增套件。原Chrome24＋3及Safari十九案保持原受測來源，不因本次UI接線而改標新版重跑。
+
+新增可重用metadata-stop瀏覽器回歸，以原生get延長真正put後的pending時段，只讓真正UI Stop發取消；核對trusted abort／無complete、完整舊metadata／Blob bytes／URL及六份實際下載、busy退出／unknown=false、同輸入重試complete及reload。另驗獨立比較佇列持續完成、新操作才取消；選片重試按產品重新產生ID，以相同來源bytes／語意核對。修正工作樹的完整十案已通過：九個可取消UI及一個獨立佇列例外，119份native binary／57份實際下載逐byte核對。第一輪原生confirm QA與第二輪fieldset判斷／Play屏障不足的失敗保留，第三輪從頭全過。原capture與drain亦通過，尾塊pending期間鎖仍持有、111,252 bytes恢復及重載保留；各自已知PID／精確profile、server與nonce收尾確認。這些是工作樹／ba parent結果，不冒稱乾淨head；新head及獨立title／copy Stop、manifest更新證據另綁。Safari私人／VS保存Stop、人工／實體／iPhone等未驗項繼續保留。
