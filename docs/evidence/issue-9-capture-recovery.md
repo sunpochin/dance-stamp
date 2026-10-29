@@ -152,7 +152,7 @@ PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交�
 
 另以舊345作原生early-stop負向控制，15秒配方原生只錄1.197秒，仍顯示已錄好、metadata take ready。真下載41,141 bytes／SHA256 924ecfd97d831f202401cc7fccab2090ead2e51804d5825895f14c933fe29d65。這是有意故障證明owner／讀回保護不足，不是原平台截斷根因的重現；原失敗事件未被原工具收齊，根因仍未知。
 
-本次修正新增新擷取成功done提前停止保護，及beforeCommit的既有500ms片長下限；拒絕不finalize、不清chunks，原片另存連結與舊take／VS分開，明確刪除對應take或video才撤銷該連結。工作樹針對性回歸與既有測試結果如下；固定乾淨head的完整24／離站三檔仍待執行，不預填通過。Safari345一般十九案／正常重載保持原來源，私人新VS救援及pending-write仍未驗；Web優先、iPhone暫緩，不合併、部署或關票。
+本次修正新增新擷取成功done提前停止保護，及beforeCommit的既有500ms片長下限；拒絕不finalize、不清chunks，原片另存連結與舊take／VS分開，明確刪除對應take或video才撤銷該連結。工作樹針對性回歸與既有測試結果如下；當時固定乾淨head的完整24／離站三檔仍待執行；後續9e6f0ef結果另見下節，不把工作樹回歸冒充正式24組。Safari345一般十九案／正常重載保持原來源，私人新VS救援仍未驗；pending-write後續9e6f0ef同版通過另見[原生中斷證據](issue-13-forced-install.md#9e6f0ef-兩情境原生同版重跑)。Web優先、iPhone暫緩，不合併、部署或關票。
 
 
 ### 本次工作樹回歸結果
@@ -165,3 +165,8 @@ PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交�
 - 未修改的`capture-drain.js`通過：真正chunks交易未提交時收到stop且tracks ended，另一分頁仍拿不到take鎖；提交後才釋放並恢復111,353 bytes，舊片／配方與重載後資料不變。各session核對全部已知自有PID與精確profile程序退出、server停止及nonce相符後釋鎖。
 
 原`bun run check`已通過408 tests／1551 expects／0 fail、型別、公開掃描、lint及build（原19項lint info保留）；最終提交仍走原hooks。上述是合成桌面Web回歸，沒有實體相機、人工音樂聽感、Safari／私人新VS救援或手機驗收；#9、G1／G6及原失敗繼續保留。協作只讀review不代替Claude Code或使用者最終審查。
+
+
+### 9e6f0ef乾淨同版重跑
+
+9e6f0ef／1aa1ae164c31d690由原media-feasibility、run-media及v5從第一案完整重跑24／24通過，48份實際下載完整解碼；舊345第六輪28.030933秒失敗、未取得其VS與根因未知的界線保留。產品程序停止後，原download-playback在全新Chrome/file入口把本輪三份實際MP4／WebM／校正檔播至ended，指紋相同、mediaCalls=0，自有程序／profile、server／nonce收尾確認。詳細量測、狀態保存範圍及來源見[同版再驗證](p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)。合成Chrome通過不代表Safari真實相機、人工聽感、手機或G6真機驗收，也不證明舊版平台截斷根因已消除。

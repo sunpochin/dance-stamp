@@ -636,4 +636,15 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 #13 後續沿用同一個程序所有權／重啟工具，以選用 `--pending-write` 補原生筆記＋Blob 交易未提交時的中斷案例。原生 keep-alive 讀取只延長待提交時段，必須先看到兩個 trusted put 成功、交易內候選 metadata、產品 Promise 未完成，才強制終止；同 profile 重啟比對舊資料，再以相同候選重試並重新開啟。排除另建程序管理器、以正常 close／注入 abort 冒充崩潰，以及由更新下載中斷推論資料交易可靠性的方案；這項不改產品儲存實作，也不證明提交瞬間、chunks、斷電或低磁碟。各情境的來源、結果與限制見[強制中斷證據](docs/evidence/issue-13-forced-install.md)。
 
 
-整合精確來源566f04a時逐段保留PR #66既有PID有效性、spawn error／無PID證據、已退出主程序仍查群組、nonce失敗後主機收尾等保護；沒有整檔覆蓋。摘要使用已記錄的scenario／candidateVersion，不把情境判斷摻入共用finally。產品web／schema／套件與靜態1aa1ae164c31d690不變。原生pending-write與此工具修改後的default情境均待固定乾淨head另驗，不由16bd7ca歷史default通過替代；沿原check及真實收尾故障單元驗證整合結果。
+整合精確來源566f04a時逐段保留PR #66既有PID有效性、spawn error／無PID證據、已退出主程序仍查群組、nonce失敗後主機收尾等保護；沒有整檔覆蓋。摘要使用已記錄的scenario／candidateVersion，不把情境判斷摻入共用finally。產品web／schema／套件與靜態1aa1ae164c31d690不變。整合當時原生pending-write與此工具修改後的default情境均待固定乾淨head另驗，不由16bd7ca歷史default通過替代；沿原check及真實收尾故障單元驗證整合結果。
+
+
+## 41. 同版Chrome再驗證與匿名交付
+
+乾淨9e6f0ef／1aa1ae164c31d690已沿原media-feasibility、run-media、v5完成24組／48份實際下載，產品程序停止後再用原download-playback於新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended；兩階段全部已知自有PID／精確profile、server及ownnonce收尾確認。被動原生事件觀察不增加影格訂閱或改時鐘，原CLI每次回應留存；成功各輪未另存完整原生事件檔。各案保存／下載Blob比對不延伸為新增最終IDB逐份完整bytes掃描。
+
+Safari十九份合成、一般原生檔案播放／同origin重載與私人四次安全拒絕仍綁345b2d1，不改標新head的Safari相機驗收；原Chrome第六輪截斷、QA下載命名碰撞及全部原失敗保留。G7僅有兩次已知PID子集的RSS加總，可能重複shared且漏新增程序，不拿來宣稱峰值、無洩漏、溫度／耗電或低磁碟通過。原生pending-write與修改後default現已在同一乾淨9e6f0ef真正通過：未提交兩個trusted put後SIGKILL保留完整舊值、同候選重試及第三程序整份assert成立；候選1／12更新中斷後同profile離線取回完整舊殼與資料。第三次snapshot未另序列化，不能宣稱獨立重比第三份raw；51個已知自有PID／5群組、profile／埠／nonce交叉清理確認，mediaCalls=0。這是sentinel與函式／SW證據，不是VS、Stop、chunks或真正低磁碟驗收，未由舊default承接。
+
+只補匿名文件與指南，最終包沿原58檔白名單；排除QA raw、profiles、合成媒體或內部操作識別。文件head／封裝sourceRevision與受測9e6f0ef分開綁定，14份runtime須逐byte相同，不把文件提交冒充重跑媒體。具體量測、完整下載與收據指紋、原生版本界線及未驗收條件見[整合證據](docs/evidence/p0-safari-reliability-integration.md)。iPhone暫緩，Claude Code／使用者最終審查、私人新VS救援與人工／實體／跨裝置仍保留；不合併、發布或關票。
+
+本輪匿名文件原check通過408 tests／1552 expects／0 fail、公開掃描、型別、原lint與build；原19項lint info保留。提交與推送沿原hooks，最終乾淨封裝與CI由PR綁定，runtime仍1aa1ae164c31d690。

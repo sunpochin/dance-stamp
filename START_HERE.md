@@ -45,8 +45,8 @@ JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外
 
 | 組合 | 證據與限制 |
 | --- | --- |
-| macOS 27.0.1／Chrome 156 | 16bd7ca 已完成合成相機24組、48份下載與三份網站外檔案播放，另有配額拒絕／重試及更新中斷保留資料證據。見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)；不代表所有素材、真人相機、人工聽感或完整 G1–G7 通過 |
-| macOS Safari 27.0.1 | 不需改 Profiles 或日常設定；正式41b有半速15秒原生單輪，99e862d 的私人模式未確認退出／原頁重開與一般模式原片保存已有直接對照，仍未完成完整品質、私人新 VS 救援或裝置驗收。見[候選品質](docs/evidence/issue-3-bounded-audio.md)、[最新儲存與救援](docs/evidence/issue-13-unconfirmed-storage.md)及[歷史儲存對照](docs/evidence/issue-3-safari-current.md) |
+| macOS 27.0.1／Chrome 156 | 9e6f0ef 已完成合成相機24組、48份下載與三份網站外檔案播放，見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)。同版寫入中斷保留舊值／重試及更新中斷後離線重開亦通過；舊版容量證據另列來源。不代表所有素材、真人相機、人工聽感或完整 G1–G7 通過 |
+| macOS Safari 27.0.1 | 不需改 Profiles 或日常設定；345b2d1 一般模式已有合成九案／十輪、網站外播放與同origin重載證據。私人模式仍被原護欄拒絕，新 VS 失敗／未確認救援未驗；最新擷取保護也未由真實Safari相機驗證。見[原生與私人模式界線](docs/evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)及[儲存救援](docs/evidence/issue-13-unconfirmed-storage.md) |
 | iPhone Safari／主畫面安裝 | 依使用者決定暫緩，未驗證 |
 | Windows／Linux／其他瀏覽器 | 原始碼可取得，實機使用流程未驗證；CI 建置不算桌面／裝置驗收 |
 | 讀屏、五位舞者、喇叭／藍牙、背景／鎖屏／來電 | 未完成，不預填通過；未承諾背景錄製或永久離線 |

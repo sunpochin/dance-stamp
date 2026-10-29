@@ -66,6 +66,20 @@ sentinel 不可播放，不是影片品質、長片效能、20／100／200 MiB �
 
 ### PR #72 整合候選
 
-精確採用566f04a的選用情境並保留其來源關係；衝突只合併必要流程及文件，PR #66的spawn／PID／程序群組／nonce保護保留。未改產品runtime、schema、原始門檻或另建一套程序管理器。既有工具修改後的default與新增pending-write都必須在最終乾淨head實際重跑；目前仍未驗證，先前16bd7ca只證明當時default情境，不能承接為新增寫入中斷通過。原生執行、清理與獨立核對結果待取得共用鎖並完成後補記。
+精確採用566f04a的選用情境並保留其來源關係；衝突只合併必要流程及文件，PR #66的spawn／PID／程序群組／nonce保護保留。未改產品runtime、schema、原始門檻或另建一套程序管理器。既有工具修改後的default與新增pending-write都必須在最終乾淨head實際重跑；整合當時仍未驗證，後續結果見下方9e6f0ef同版段落；先前16bd7ca只證明當時default情境，不能承接為新增寫入中斷通過。原生執行、清理與獨立核對結果待取得共用鎖並完成後補記。
 
 整合後原check通過408 tests／1551 expects／0 fail、型別、公開掃描、lint及build；靜態仍1aa1ae164c31d690。stop、launch與finally收尾主體逐byte等於整合前629a98b，直接執行真實收尾的故障單元亦通過；摘要僅沿收據的scenario／candidateVersion列示。這些不是原生正向執行結果。
+
+
+## 9e6f0ef 兩情境原生同版重跑
+
+固定乾淨`9e6f0ef62ae52bd7841d3eaea84d501c71160cf4`／靜態`1aa1ae164c31d690`、真正Chrome156.0.8078.49，沿原工具兩個情境均通過；工具SHA256`6e6eb60bab8e995fd580d4e6fb89842be8847f7ebe25fe64d9fb3c937e7de08b`，worker／storage與本候選相同。本聊天只讀核對完整JSON、原工具及固定sentinel公式，不另啟動媒體或操作他人的鎖。
+
+- **pending-write**：真正metadata／media兩個trusted put已成功，交易內看見候選筆記，兩次barrier均settled／complete／abort=false，keep-alive ticks140→3344；此時對自有群組真正SIGKILL。同profile新程序未清庫、未匯入，完整native metadata、產品JSON、revision、keys與1,048,613-byte舊Blob快照與中斷前精確相同。相同候選重試revision1→2、每byte對新公式相同，原生新資料與候選相等；再正常退出，用第三程序重開的整份snapshot equality由原工具斷言及committed-restart-verified事件通過。**第三份snapshot未另序列化**，本聊天不宣稱獨立逐欄比對第三份raw。
+- **修改後default**：候選只寫入1／12資源、第二個HTTP回應尚未完成時真正SIGKILL；同profile新程序在導航前offline，由舊SW取回完整舊殼、manifest、metadata／keys／Blob。before與after整份快照精確相同；真正offline probe失敗且serverProbeHits=0，沒有以產品offline標籤代替網路證據。
+
+舊sentinel SHA256`6ef72dcccd9b51e3a7f384632a9dff22af4c12372f3396fe557011d42e867971`；重試新內容SHA256`bf53d764260842712bdcd2741340db837b4885e87d9fc23e62500135b4650e5c`，本聊天依原工具兩個公式重算相同。原snapshot的allBytesMatch固定檢查舊公式，替換後為false符合預期；新公式逐byte由retry.everyByteMatches=true另驗，不能把舊公式欄位誤當重試失敗。
+
+兩情境mediaCalls=0；原工具及交叉清理收據確認51個已知自有PID／5個群組退出、精確profile程序0、兩個主機埠拒絕連線、自有nonce釋放。pending-write與default原始收據SHA256分別`eece2e28f3cf4a9cc58723ff826182704435d607725ef32392e1b46cb6b639aa`、`7f68cab420695a3ba1010c3e9a33dc1d740d329e40bf82170edd1ad953513ab0`；清理總收據`de12a047257762af60b60fb1e9156726c6c52e0617254092039dde23712137f9`。profile、程序命令、raw端點及操作識別不公開。
+
+這是人為延長未提交交易與更新下載中的函式／SW證據；不可播放sentinel不代表新VS救援、媒體品質、產品Stop、chunks提交、提交瞬間、斷電、真正低磁碟／quota、永久保存、Safari或裝置驗收。原EEXIST拒絕與16bd歷史default保留各自來源，不把本次兩案擴寫為整張#13完成。

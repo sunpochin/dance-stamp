@@ -1,7 +1,7 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
-2026-10-29：乾淨16bd7ca／fe23327aa3da26c5的原Chrome24組、48份實際下載、三份網站外Chrome播放及新同版quota／更新中斷收據見[同版補驗](evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。只補文件，未在文件head重跑影音。下方#58／#62及各歷史媒體數據保持原受測來源，不移記為本輪新測。
+2026-10-29：最新乾淨9e6f0ef／1aa1ae164c31d690的原Chrome24組、48份下載與三份網站外Chrome播放見[同版再驗證](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)；Safari一般十九案、原生檔案播放／正常重載與私人四次拒絕仍屬345b2d1，詳見[原生界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)。原16bd7ca的quota／更新中斷及所有歷史數據保留原版本，不移記為新head；新pending-write與default結果按同版證據另列。文件提交不代表重新跑影音，私人新VS救援、實體與手機項目仍保留。
 
 2026-10-29 真正Safari續測見[正式41b半速15秒單輪](evidence/issue-3-bounded-audio.md#正式41b3023原生safari半速15秒單輪2026-10-29)：原v5聲畫／完整覆蓋通過，仍未完成矩陣與十輪。歷史eb21064的1×／30秒MP4長度失敗、三份否決原型及e0acf88／f88c28d失敗都保留來源；私有WebM30秒與Chrome工程UA失敗分開，不再等待已完成的解鎖前置，也不把來源單輪移記為整合head驗收。
 

@@ -1,5 +1,130 @@
-<!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34節、MEDIA_PROBE.md、RELEASE.md。 -->
+<!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–41節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
+
+本頁最新同版Chrome證據為9e6f0ef／1aa1ae164c31d690；Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。
+
+## 9e6f0ef 擷取完整性與同版 Chrome 再驗證
+
+固定受測`9e6f0ef62ae52bd7841d3eaea84d501c71160cf4`／靜態`1aa1ae164c31d690`，來源乾淨。629a98b先拒絕原生提前成功停止與可解碼但不足原片長下限的新擷取，再合入566f04a的選用pending-write工具；stop／launch／finally主體逐byte保留PR #66。Safari VS、相機1000ms分塊、音訊／時間映射、資料格式與原100ms／250ms／v5不變。新擷取保護、未完成原片另存及明確刪除生命週期的控制與既有capture／drain回歸見[擷取證據](issue-9-capture-recovery.md#擷取完整性續審)。
+
+345b2d1的原Chrome重跑曾在矩陣9及穩定前5輪通過後，第6輪只取得28.030933秒的相機take；原失敗保留，當時未取得該VS或完整captureTiming。另一次60秒控制成功不補十輪，也不能證明原截斷根因。修正前真正early-stop的1.197秒仍被標ready，是獨立可重現的保護缺口；本次修正先拒絕，保留舊片／筆記與chunks。新QA下載檔名碰撞另列為工具證據缺口，後續唯一檔名四份實際檔逐次hash／完整解碼，不能冒充乾淨head24組。
+
+### 原24組與48份實際下載
+
+macOS27.0.1／Chrome156.0.8078.49 headless、原生UA無覆寫、Bun1.4.4及FFmpeg8.1.2。啟動時核對自有程序及明確合成相機旗標；每次相機要求另沿原工具檢查合成標記與實際track label，未開真實相機或麥克風。原media-feasibility、run-media與v5不改；被動觀察原生recorder／track事件與UI配方，逐次保存原CLI回應，不增加影格訂閱或更改時鐘；失敗才在關頁前擷取事件現場，成功各輪未另存完整原生事件檔。
+
+矩陣9、連續穩定10、WebM1、校正2、恢復1、效能1，共24／24全過；每案sourceDirty=false、原v5 fullDecode／完整覆蓋／合成目標及完整耗時檢查通過，影格pending=0。48份實際下載均完整解碼，另逐份核對完整bytes／SHA256。各原案例在當時檢查本輪保存Blob與下載Blob相同，並逐份確認全部預期媒體可讀；未新增宣稱最終IDB的48份完整bytes再次掃描。
+
+| 原24組量測（只屬9e6f0ef） | 結果 |
+| --- | ---: |
+| 最大聲畫差 | 87.233ms |
+| 全影格最大配方差 | 58.333ms |
+| 首／中／末三點最大配方差 | 43.867ms |
+| 新增漂移最大絕對值 | 43.867ms |
+| 最長重複畫面 | 100.834ms |
+| 最低平均fps | 29.984 |
+| 完整匯出最高上界 | 61,887ms |
+
+最後原案例為24take／24export、預期48媒體、missing=0。十輪沿同context／IDB但每輪仍導航，不宣稱無重載壽命、硬體資源或裝置穩定性。原分析器SHA256仍`3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa`；24組彙整收據SHA256`c3b63802d512ac5a8918815c2f16f765155035da52e2c9f74d3df6365a1a355c`。
+
+### 三份實際檔案的網站外播放
+
+原產品server／browser先關閉，全部已知自有程序與精確profile核對退出後釋鎖，再開全新Chrome/file播放器，以未修改download-playback.js把本輪實際MP4、WebM與校正下載播至ended。完整檔案SHA與上述24組相同，三份分別450／454／448格、dropped全0、audioDecodedBytes22292／168197／20243，mediaCalls=0；不使用原產品頁、SW、IDB或Blob URL。這是靜音headless的原生解碼／播放，不是Safari、人工聽感或裝置驗收。
+
+播放器的六個已知自有程序及精確profile退出，兩階段server／ownnonce收尾均確認；不以close回傳成功代替退出，不處理其他聊天的程序或鎖。檔案播放收據SHA256`85357855ad2ac82c11ad7d818fca806ebdaa32054efae7015cc0b197b4767730`。原檔、逐案診斷／原CLI回應及完整下載指紋只留ignored output，不進Git或包。
+
+### G7稀疏觀察與限制
+
+根聊天只讀取得兩筆活躍已知PID子集的RSS加總1,048,576／1,064,528KiB；可能重複shared pages，也可能漏掉後來新增的子程序，不是峰值、最低、footprint或無洩漏證明。當時AC供電、系統未記thermal／performance warning不等於實際溫度、無降頻或耗電測試；磁碟可用量也不等於真正低磁碟故障驗收。低記憶體／熱壓力、手機、電池、五人操作、讀屏／聽感與實體相機／跨裝置仍未測。舊16bd及345稀疏觀察保留各自來源。
+
+本段不取代下一節345b2d1的原生SafariVS證據，也不把一般模式成檔／重載控制當作私人新VS失敗或未確認救援通過。iPhone暫緩，Claude Code或使用者最終審查保留，不合併、發布或關未驗收票。
+
+## 345b2d1 原生 Safari 的同版證據
+
+固定受測 head `345b2d1e46994a782bfad0e9be2f5f94872fe0bd`、靜態 `fe4bf7952cad2421`。原生一般 Safari 27.0.1，以既有合成雙片走產品比較入口；根聊天同頁依序完成三速度／三片長，無重載或重置，原始累積索引及 clickedAt 均連續遞增。本聊天只讀核對收據、已完成的原 v5 報告及檔案，未另重解碼、啟動瀏覽器／服務或取得媒體鎖。
+
+該受測345產品的14份建置資源與受測來源指紋清單相符，實際載入的HTML僅多被動QA標籤，其餘13份逐byte相同；QA與先前正式輪只差execution。產品主程式沒有私有改動，manifest prototype=false、來源乾淨。
+
+| 速度 | 預期秒 | 視訊跨度秒 | 解碼格數 | 最大聲畫ms | 首／中／末配方ms | 新增漂移ms | 完整匯出上界ms |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: |
+| 0.5× | 15 | 15.013 | 452 | 72 | 0.0/-33.333/-66.666 | -66.666 | 15383 |
+| 0.5× | 30 | 30.020 | 902 | 78 | 0.0/-66.666/-66.666 | -66.666 | 30463 |
+| 0.5× | 60 | 60.042 | 1802 | 85 | 0.0/-66.666/-33.334 | -33.334 | 60643 |
+| 0.75× | 15 | 15.018 | 452 | 76 | 0.0/-11.111/-44.444 | -44.444 | 15372 |
+| 0.75× | 30 | 30.020 | 902 | 84 | 0.0/-44.444/-22.222 | -22.222 | 30511 |
+| 0.75× | 60 | 60.026 | 1801 | 86 | 0.0/-22.222/-22.222 | -22.222 | 60728 |
+| 1.0× | 15 | 15.023 | 451 | 46 | 0.0/0.0/0.0 | 0 | 15397 |
+| 1.0× | 30 | 30.018 | 901 | 80 | 0.0/0.0/-33.334 | -33.334 | 30560 |
+| 1.0× | 60 | 60.018 | 1801 | 48 | 0.0/0.0/0.0 | 0 | 60880 |
+
+九案原v5均exit0；fullDecode、完整覆蓋、音／閃匹配、容器及完整匯出驗證皆true。最大聲畫86ms、首中末配方差絕對值66.666ms、新增漂移絕對值66.666ms、最低平均30.004fps、最長非預期重複152ms、完整匯出最高60880ms。最大逐格配方差100ms、內容時鐘差132.667ms分別保留，不將不同定義混寫為每項均低於100ms。
+
+9份實際產品下載共46,729,170 bytes，獨立重算完整SHA256，各自等於對應native chunks；每案只有一份有效dataavailable，原生stop後資料已收齊。各收據report與獨立分析JSON／九案總表相同，版本與執行輪次一致。原分析器SHA256 `3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa`不變。
+
+第七案1×15秒現在為15.023秒／451格／15音15閃，三點[0,0,0]、完整覆蓋成立；這是345的新同版回歸。ef11498的六案通過、第七案14.055秒缺尾失敗及私有WebM三案改善仍各保留原版本，不能覆寫或拼接成正式九案。
+
+九案總收據SHA256 `bffe57b1831eaa12e55aee45c4eae9f5bfdf8f00aaea377a17eca772c236af3e`；新第七案收據SHA256 `2aba2be245fd214b6cf929a6db6424955e2dffac2540a0e88d6c2532ce7599a9`。原檔、每案record／analysis／實際下載與raw保留根聊天ignored output，不進Git或下載包。
+
+### 同頁十輪60秒合成
+
+九案矩陣後沿用同頁、資料與執行輪次，連續十次1×60秒合成均由原v5通過；record／raw索引10至19及clickedAt跨九案後持續遞增，總表samePageAfterMatrix9=true。這是既有合成雙片的composition十輪，不是實體相機capture→export的G6。
+
+| 輪次／案例 | 實際視訊秒 | 解碼格數 | 最大聲畫ms | 首／中／末配方ms | 新增漂移ms | 完整匯出上界ms |
+| --- | ---: | ---: | ---: | --- | ---: | ---: |
+| 1／10 | 60.021 | 1802 | 78 | 0.0/0.0/-33.334 | -33.334 | 60837 |
+| 2／11 | 60.021 | 1803 | 48 | 0.0/0.0/0.0 | 0 | 60880 |
+| 3／12 | 60.018 | 1802 | 46 | 0.0/-33.334/0.0 | 0 | 60873 |
+| 4／13 | 60.018 | 1801 | 78 | 0.0/0.0/0.0 | 0 | 60899 |
+| 5／14 | 60.023 | 1802 | 48 | 0.0/-33.334/0.0 | 0 | 60820 |
+| 6／15 | 60.020 | 1801 | 80 | 0.0/-33.333/-33.333 | -33.333 | 60903 |
+| 7／16 | 60.020 | 1801 | 72 | 0.0/0.0/0.0 | 0 | 60847 |
+| 8／17 | 60.023 | 1801 | 86 | 0.0/-33.333/-33.333 | -33.333 | 60868 |
+| 9／18 | 60.023 | 1801 | 80 | 0.0/-33.333/-33.333 | -33.333 | 60850 |
+| 10／19 | 60.021 | 1804 | 48 | 0.0/0.0/0.0 | 0 | 60914 |
+
+十輪最大聲畫86ms、三點配方差絕對值33.334ms、新增漂移絕對值33.334ms、最低平均30.005fps、最長非預期重複120ms、完整匯出最高60914ms。最大逐格配方差66.667ms及內容時鐘差121.333ms另保留。十份皆60音／60閃，完整覆蓋、原v5目標、音訊匹配及全片解碼報告均true。
+
+新增十份實際下載共92,547,582 bytes；含矩陣共19份、139,276,752 bytes。本聊天只讀重算全部19份完整SHA及逐byte對照native副本，版本、diagnostics bytes、獨立report／receipt／總表一致；每案一份有效dataavailable並收到native stop。這是下載與成檔證據，不新增宣稱最終IndexedDB逐筆完整bytes或原生瀏覽器無洩漏。
+
+最後第19案產品9,296,081 bytes、SHA256 `3fcf302a299ae74faf0a0fb282de6573389fd7ce7c26e8cbc212ee412b60e281`；十輪總收據SHA256 `b58918ec5e6348a3d9f1bde56bead73d066f7a9ebb08cfd6ae255c62d35ab770`，第19案收據 `258511ab4ff911ddf10c6d5a32368eeb636159ab985a11e0a7b76808f008746e`。原檔仍只在根聊天ignored output保留。
+
+### 一般模式原生獨立檔案重播與重載控制
+
+根聊天先停產品服務並關QA頁，再用真正Safari的File > Open在新分頁打開第19案實際WebM檔；9,296,081 bytes／SHA256 `3fcf302a299ae74faf0a0fb282de6573389fd7ce7c26e8cbc212ee412b60e281`已獨立核對。原生MediaDocument進度0→20→60秒，最後Play及slider=1；20秒畫面兩側合成碼仍可見。此路徑不使用本站JS、SW、IDB或Blob URL；原生取消靜音與音量1的UI可見，不等於人工聽感或喇叭輸出已驗證。收據SHA256 `731eedb7d91c52e1f87616af57c78827b4844c1d7af7a3bbd237a31eb39cfb2a`。
+
+另一個一般Safari控制使用相同產品與兩個被動observer、來源可見且無QA預先雜湊，1×15秒原v5全過：15.020秒／451格、最大聲畫43ms、三點[0,0,-33.334]ms、完整匯出上界15,383ms。真正VS為2,509,757 bytes／SHA256 `0cddef66b747674d77bd9c2e6a30ee63652c25450ebd4135926383cc614d2438`，原生chunks、首次產品下載及重開後再次實際下載三份完整bytes相等。native metadata完成revision6後，同瀏覽器／同origin重載，兩次raw metadata／keys／完整Blob指紋快照均與最後native complete相同，11筆後續交易全readonly、沒有新寫入。UI實際重開非空標題／marker／筆記、從保存庫取回VS並重新下載；外部原片原為session-only，重載後顯示待重連符合原契約。這是同origin重載，不能外推新profile／程序重啟或私人模式。
+
+控制總收據SHA256 `addd158b10b3e2bb489c630ed4387a36b0c5e8a0dca1e01f58bf8777d32e860f`。初次QA預猜下載名下一號而停下，之後以真實Downloads項目及磁碟mtime核對重複下載沿用原檔名，沒有改產品或門檻；原中止紀錄保留。
+
+### 私人模式保留未通過項目
+
+同一固定產品在第一個私人origin兩次一般操作及一次來源可見對照均被原100ms音畫護欄拒絕；另一個全新私人origin維持來源可見、匯出前不做QA原片雜湊，仍被拒絕。兩個context的14份原產品指紋與345一致，只有HTML載入被動媒體／儲存observer。四次在寫新VS Blob之前停止、export診斷為null，沒有假成功；不能把未成檔raw算成功VS，也不能宣稱已走到unknown／新VS失敗救援。
+
+第一個origin的native revision4→5→6→7，三次增加來自匯出準備的正常完成配方確認，完整native data精確相同；新origin4→5亦相同。keys／exports均空，unknown=false、忙碌退出，兩側原片File指紋、非空筆記與marker保留。實際JSON備份依契約只更新exportedAt並移除兩筆asset的runtime state／storageKind，精確遞迴核對沒有其他差異。最初QA過嚴的raw與canonical直接相等斷言已記為工具中止，沒有當產品資料遺失或修改產品／門檻。
+
+來源可見或不做QA預雜湊均未消除拒絕，根因未定；不更改Safari隱私設定，不放寬100ms、偽造事件或推測舊WebKit缺陷。私人模式新VS保存失敗／未確認救援仍未驗證，不能標示私人完整支援；一般模式19案與重載控制不能代替它。兩份私人總收據SHA256分別 `7c2687780cb04436ebeb3f9219edfb865b2865e932f8f79b9b0ea14825f62d3f`、`e09b3573f54d357529e2a6e6da63832d88851efbfa49574eadae7126e6bd2515`。
+
+根聊天最後逐一關閉自有原生QA／file／normal-control頁及兩個精確私人測試視窗，無關私人頁未碰；五組自有holder皆terminal exit0、服務停且nonce已釋放。Safari app、舊頁與WebKit spare cache保留，不能宣稱原生所有程序已退出。最後控制頁close收據覆蓋較早「idle待關」的歷史描述；完整原生來源／收尾總收據SHA256 `79a9ed92419cf7625d257bb9e8abb225b9de0fd17ee140eb7377cf2a64e3010f`。
+
+實體相機、真人聽感、五人操作、讀屏、手機／跨裝置、G7未量測項與獨立Claude Code／使用者審查仍保留；Web優先、iPhone暫緩，不合併、發布或關未驗收票。
+
+
+此段只屬345b2d1／fe4bf7952cad2421的原生VS證據。後續629a98b新增擷取guard，9e6f0ef再合入QA工具；新runtime的Chrome與儲存結果另外列示，不能把這十九案改標為新head的相機或Safari重新驗收。
+
+## 9e6f0ef 原生寫入與更新中斷
+
+固定乾淨`9e6f0ef62ae52bd7841d3eaea84d501c71160cf4`／靜態`1aa1ae164c31d690`、真正Chrome156.0.8078.49，沿原工具兩個情境均通過；工具SHA256`6e6eb60bab8e995fd580d4e6fb89842be8847f7ebe25fe64d9fb3c937e7de08b`，worker／storage與本候選相同。本聊天只讀核對完整JSON、原工具及固定sentinel公式，不另啟動媒體或操作他人的鎖。
+
+- **pending-write**：真正metadata／media兩個trusted put已成功，交易內看見候選筆記，兩次barrier均settled／complete／abort=false，keep-alive ticks140→3344；此時對自有群組真正SIGKILL。同profile新程序未清庫、未匯入，完整native metadata、產品JSON、revision、keys與1,048,613-byte舊Blob快照與中斷前精確相同。相同候選重試revision1→2、每byte對新公式相同，原生新資料與候選相等；再正常退出，用第三程序重開的整份snapshot equality由原工具斷言及committed-restart-verified事件通過。**第三份snapshot未另序列化**，本聊天不宣稱獨立逐欄比對第三份raw。
+- **修改後default**：候選只寫入1／12資源、第二個HTTP回應尚未完成時真正SIGKILL；同profile新程序在導航前offline，由舊SW取回完整舊殼、manifest、metadata／keys／Blob。before與after整份快照精確相同；真正offline probe失敗且serverProbeHits=0，沒有以產品offline標籤代替網路證據。
+
+舊sentinel SHA256`6ef72dcccd9b51e3a7f384632a9dff22af4c12372f3396fe557011d42e867971`；重試新內容SHA256`bf53d764260842712bdcd2741340db837b4885e87d9fc23e62500135b4650e5c`，本聊天依原工具兩個公式重算相同。原snapshot的allBytesMatch固定檢查舊公式，替換後為false符合預期；新公式逐byte由retry.everyByteMatches=true另驗，不能把舊公式欄位誤當重試失敗。
+
+兩情境mediaCalls=0；原工具及交叉清理收據確認51個已知自有PID／5個群組退出、精確profile程序0、兩個主機埠拒絕連線、自有nonce釋放。pending-write與default原始收據SHA256分別`eece2e28f3cf4a9cc58723ff826182704435d607725ef32392e1b46cb6b639aa`、`7f68cab420695a3ba1010c3e9a33dc1d740d329e40bf82170edd1ad953513ab0`；清理總收據`de12a047257762af60b60fb1e9156726c6c52e0617254092039dde23712137f9`。profile、程序命令、raw端點及操作識別不公開。
+
+這是人為延長未提交交易與更新下載中的函式／SW證據；不可播放sentinel不代表新VS救援、媒體品質、產品Stop、chunks提交、提交瞬間、斷電、真正低磁碟／quota、永久保存、Safari或裝置驗收。原EEXIST拒絕與16bd歷史default保留各自來源，不把本次兩案擴寫為整張#13完成。
+
+
 
 ## 2026-10-29 最終 Web 候選整合續作
 
@@ -33,6 +158,7 @@ TECHNICAL衝突保留新啟動設計及整個第37節的16bd證據；QA衝突採
 | PR #65 | `f72cb2ff2b500530692c81fadfb8d86ce83aeb36`，獨立配額重跑的匿名收據，原生數據仍屬舊 runtime |
 | PR #66 | `b8dd611333f95bb4d75d8192bac2e186900a7b60`，保留未確認程序的自有鎖、只釋放已確認未啟動的 spawn error |
 | PR #67 | `72aed830b60f595794d178b715fae78e60ff0b09`，保留 e0acf88／f88c28d／eb21064 及三份私有對照的實際結果 |
+| PR #69 | `566f04ae7f312cfd3f29ff3b864fddc70c76f4ef`，選用未提交metadata／Blob交易的強制終止；整合保留#66程序／nonce保護，原生結果以同版段落為準 |
 | PR #70 | `d597e4ad5f23d8cc9c813b745df934c32d362ad3`，runtime 等於已獨立重審的99e862d，含未確認救援、排隊動作再檢查及真正取消 API／原生 abort 單輪收據 |
 
 TECHNICAL 同位置追加衝突保留配額歷史及未確認契約兩邊內容；整合 #70 的 merge `811d86a` 當時產品逐 byte 等於 PR #70，經原 check／hooks：401 tests／1477 expects／0 fail。之後納入正式41b3023；main.js 合併兩邊互不重疊的控制器修改，storage.js／index.html／types維持#70，recorder.js及呈現等待維持#64。這是中途非媒體檢查，最終 runtime、乾淨包及 CI 由後續交付另綁。

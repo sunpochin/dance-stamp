@@ -3,11 +3,13 @@
 
 2026-10-29 更新支援狀態；下方主機比較保留2026-10-28的查核資料，發布前仍須重查。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
-本輪以桌面 Web 為優先，iPhone 暫緩。Safari 不需改 Profiles 或日常設定；[品質證據](evidence/issue-3-bounded-audio.md)保留每個產品 head、失敗與私有原型。`99e862d` 的[私人未確認退出／原頁重開及一般原片保存](evidence/issue-13-unconfirmed-storage.md)已有直接原生收據，但未產生 VS，不能當作新 VS 救援或完整 P0 通過。真人相機／音訊、五人操作、跨裝置與最終審查仍須各自證據。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
+本輪以桌面Web為優先，iPhone暫緩。從main38e6cf9建立一般PR #72，保留#64、#65、#66、#67、#69與#70的來源；629a98b新增擷取完整性保護及未完成原片另存，9e6f0ef合入pending-write工具且保留#66程序／nonce保護。失敗新片不替換舊自拍／VS，救援下載只在明確成功刪除對應媒體後撤銷，詳見[擷取證據](evidence/issue-9-capture-recovery.md#擷取完整性續審)。
 
-目前從同步 main `38e6cf9` 建立獨立 #1 候選，保留 #65 配額收據、#66 QA 清理、#67 原生 Safari 證據及 #70 未確認保存修正的來源提交；另納入 #64 的起點等待／WebM分流、6f7f89a啟播續修及正式9bb26d0的專用WebM一次收檔／保存前片長拒絕；各私有原生證據保留來源，正式新整合head另驗。來源與驗證界線見[候選整合紀錄](evidence/p0-safari-reliability-integration.md#2026-10-29-最終-web-候選整合續作)。下載包明列救援與配額重跑的匿名文件，指南可離線查閱；不遞迴收集 output、raw 或 QA 工具。本機工程包仍待獨立審查及發布核准。
+最新乾淨受測9e6f0ef／1aa1ae164c31d690已完成原Chrome24組／48份下載、三份實際檔網站外播放，以及同版未提交寫入中斷／重試與更新部分安裝中斷後離線重開；[匿名同版數據與限制](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)分別記錄完整指紋與清理。不可播放sentinel、合成Chrome及三檔播放器不等於永久保存、真正低磁碟、真人相機、聽感或Safari救援；第三程序由原工具整份斷言通過但未另序列化快照。後續文件head與最終包sourceRevision另綁，14份runtime必須逐byte等於9e6受測版，不把文件提交當重新跑影音。
 
-16bd7ca／fe23327aa3da26c5已補Chrome原24組、三份實際下載網站外播放及兩個原生儲存／更新工具；[匿名同版數據與限制](evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)維持受測來源。84a85fd純文件head的14份runtime與16bd相同；之後6f啟動續修及9bb尾部／片長拒絕已有runtime差異。ef11498的Safari矩陣只到六案通過、第七案缺尾失敗即停；後續私有WebM三案改善不算正式矩陣。最新整合head待根聊天重新原生驗證，最終58檔包另建。舊16bd／84包、SHA與媒體來源保持原紀錄，不冒充新head重跑。
+Safari不需改Profiles或日常設定。345b2d1／fe4bf7952cad2421的一般模式合成九案／同頁十輪、原生實際檔播放及正常VS重載已通過；這些保持原版本，不改標最新Safari擷取驗收。私人四次仍被原護欄拒絕，未走到新VS保存失敗／未確認救援；[原生及私人模式界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)保留全部失敗。99e862d的[私人原頁救援與一般原片保存](evidence/issue-13-unconfirmed-storage.md)亦只屬其來源。Safari、人工／實體／跨裝置及Claude Code／使用者最終審查尚有未完成項目，不能宣稱P0或私人完整支援。
+
+最終本機包沿原58檔白名單，只收匿名指南、證據、程式與授權，指南可離線查閱；不收output、profiles、原始收據、測片或QA工具。舊16bd／84包、SHA及所有歷史成功／失敗均保留原歸屬。本機候選仍待獨立審查與發布核准；未合併main、部署、建立GitHub Release或關閉未驗收票，包內以START_HERE與release.json識別為準。
 
 ## 取得與重建
 
