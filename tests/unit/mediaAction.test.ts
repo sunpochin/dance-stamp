@@ -60,14 +60,27 @@ class PresentedVideo extends CountedTarget {
   }
 }
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve() }
-test('合成定位須等目標影格；seeked 與舊影格都不能提早完成', async () => {
-  const video = new PresentedVideo(); video.position = .04
+test('合成定位須同時等 seeked 與呈現通知，通知先到仍不能提早完成', async () => {
+  const video = new PresentedVideo(), controller = new AbortController(); video.position = .04; video.autoSeeked = false
   let complete = false
-  const pending = seek(video as unknown as HTMLVideoElement, 0, undefined, true).then(() => { complete = true })
-  await settle(); expect(complete).toBe(false)
-  video.present(.033333); await settle(); expect(complete).toBe(false)
-  video.present(0); await pending; expect(complete).toBe(true)
-  expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
+  const pending = seek(video as unknown as HTMLVideoElement, 0, controller.signal, true).then(() => { complete = true })
+  try {
+    await settle(); expect(complete).toBe(false)
+    video.present(.033333); await settle(); expect(complete).toBe(false)
+    video.dispatchEvent(new Event('seeked')); await settle(); expect(complete).toBe(true)
+    expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
+  } finally { controller.abort(); await pending.catch(() => {}) }
+})
+// 原生 Safari 在 seeked/currentTime=0 後僅送一次 mediaTime=.1；metadata 不能代替 Canvas 像素驗收。
+test('Safari 回零後的唯一呈現通知沿用舊 metadata 時不會永久等待', async () => {
+  const video = new PresentedVideo(), controller = new AbortController(); video.position = .1
+  let complete = false
+  const pending = seek(video as unknown as HTMLVideoElement, 0, controller.signal, true).then(() => { complete = true })
+  try {
+    await settle(); expect(video.currentTime).toBe(0); expect(complete).toBe(false)
+    video.present(.1); await settle(); expect(complete).toBe(true)
+    expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
+  } finally { controller.abort(); await pending.catch(() => {}) }
 })
 test('暖機要看到真正前進的影格；取消仍移除待呈現訂閱', async () => {
   const video = new PresentedVideo(), controller = new AbortController(); let complete = false

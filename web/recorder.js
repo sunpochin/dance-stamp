@@ -53,7 +53,7 @@ export async function presentedFrame(video, signal, accept = _frame => true) {
       try {
         id = video.requestVideoFrameCallback((_now, frame) => {
           id = undefined;
-          // 回零後仍可能先收到暖機舊格；只接受這次所需的來源位置，不能讓舊像素變成輸出首格。
+          // 暖機用來源時間確認播放確實前進；定位後則只把此通知當成呈現步驟屏障。
           try { if (accept(frame)) finish(); else watch(); } catch (error) { finish(error); }
         });
       } catch (error) { finish(error); }
@@ -75,8 +75,9 @@ export async function seek(video, seconds, signal, waitForFrame = false) {
   signal?.addEventListener('abort', cancel, { once: true });
   try {
     // 訂閱必須先於 seek；seeked 只代表播放位置完成，不能保證 Canvas 已讀到那一格。
-    // 影格與 seeked 的順序不固定；分別記住完成，不能因 seeking 尚為 true 丟掉唯一的目標格。
-    const frame = presentedFrame(video, waiting.signal, value => value.mediaTime <= seconds + 0.000001);
+    // Safari 暫停回零的唯一通知可能仍帶舊 mediaTime；再等 metadata 歸零會永久卡住。
+    // 通知與 seeked 分別等待，完成後由呼叫端重畫 Canvas；metadata 不當作像素正確的證據。
+    const frame = presentedFrame(video, waiting.signal);
     await Promise.all([frame, mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, waiting.signal)]);
   } finally { waiting.abort(); signal?.removeEventListener('abort', cancel); }
 }
