@@ -582,7 +582,17 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 正式41b3023／f81d1c69861fa21e已由主聊天完成自己的原生Safari27.0.1半速15秒單輪：14份資源與目前建置指紋相同、產品下載與native chunks逐byte相同；原v5全解碼454格、15.026秒、8音／8閃、最大聲畫80ms、三點[0,-33.333,0]ms／新漂移0及完整覆蓋通過，完整匯出上界15,399ms。仍保留逐格配方最大100ms、內容時鐘差133.333ms與各版本失敗，不擴寫成每格≤100ms或整體穩定。本檔網站外播放、正式完整矩陣／十輪仍待驗，與私有30秒原型及Chrome工程分支分開；runtime保持41b3023，詳見同一證據文件的新正式單輪段落。
 
 
+### 非同步 start 通知不可成為輸入閘門
+
+41b3023 的 Chrome 工程分支曾等到 stop 才收到 native start；MediaRecorder.start() 成功回傳只代表接受錄製，通知在平行收集資料後交付，不能讓音訊／影格等通知才開始供給。正式續修只在 localAudio VS 移除此等待，仍先同步完成原 record(stream, undefined, undefined, {webmOnly:true})，才沿既有10ms排程及兩側播放。同步不支援／建構／start拒絕、非同步error、done／stop尾塊與finally清理沿原路；未改共用recorder、相機回呼、Chrome聲路、時間戳、來源起訖或100ms／250ms護欄。只移除main未使用的audioReady匯入；解碼器內的有界等待保留。
+
+採用前，精確私有main SHA256 5b75942873f8202663badab32dabd4889243f8223d000131c9611aff720a568c 已在真正Chrome通過本機音訊、時鐘拒絕／恢復與非同步編碼錯誤短回歸，另由主聊天在真正Safari同頁依序完成1×30秒及0.5×15秒，均通過原v5。這些是私有來源證據，正式新增版本仍須各自重跑，不承接成矩陣／十輪通過。採用的產品變更只多清除unused import及過時註解，沒有加入prime影格、固定補償或新停止策略。
+
+瀏覽器回歸在原3秒基準延後交付真正native start通知一秒，原生資料流持續，斷言BufferSource.start與正式reference playing都先於通知交付，且事件isTrusted；不派發假start、不增加影格請求。舊VS與來源指紋在change擷取階段用Map保留File，避免產品正常清空input後誤判；沿用PR #72的最小QA修正，不放寬CSP。三種格式拒絕、解碼拒絕、取消及重試仍須通過；真實瀏覽器執行及限制另記證據。
+
 ## 37. 整合16bd7ca的同版Chrome與儲存證據
+
+本節維持16bd7ca受測與84a85fd文件交付時的歸屬；其後的6f7f89a啟動順序續修另依新整合head驗證。
 
 乾淨16bd7ca／fe23327aa3da26c5由根聊天用原media-feasibility／run-media／v5完成24組、48份下載，並用原download-playback在產品程序停止後，以新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended。原quota及部分安裝強制SIGKILL亦在同版重跑；本聊天只讀核對原案例、全部下載SHA、11份完整儲存快照與兩個工具來源，不改runtime或分析器。數據、來源指紋與清理界線見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。
 

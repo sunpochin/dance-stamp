@@ -9,16 +9,34 @@ async page => {
     const Native = AudioDecoder, closed = AudioDecoder.prototype.close, audit = window.audioAudit = { created: 0, closed: 0, frames: 0, sources: [], tracks: [] };
     // chooseFile 完成後會清空 input；先在擷取階段保留原 File，才可在成檔後核對完整 bytes。
     audit.files = new Map();
-    document.addEventListener('change', event => { const input = event.target; if (input instanceof HTMLInputElement && ['reference-file', 'self-file'].includes(input.id) && input.files?.[0]) audit.files.set(input.id, input.files[0]); }, true);
+    document.addEventListener('change', event => {
+      const input = event.target;
+      if (input instanceof HTMLInputElement && ['reference-file', 'self-file'].includes(input.id) && input.files?.[0]) audit.files.set(input.id, input.files[0]);
+    }, true);
     // 只拒絕 WebM，MP4 仍宣稱支援；若產品偷偷退回 MP4，這個負向控制必須抓到。
-    const Recorder = MediaRecorder; audit.formats = []; audit.formatChecks = []; audit.formatFault = '';
+    const Recorder = MediaRecorder; audit.formats = []; audit.formatChecks = []; audit.formatFault = ''; audit.recordings = []; audit.inputStarts = []; audit.playing = [];
+    document.getElementById('reference').addEventListener('playing', event => audit.playing.push({ at: performance.now(), trusted: event.isTrusted }));
     globalThis.MediaRecorder = class extends Recorder {
       static isTypeSupported(type) { audit.formatChecks.push(type); return audit.formatFault === 'unsupported' && type === 'video/webm;codecs=vp8,opus' ? false : Recorder.isTypeSupported(type); }
-      constructor(stream, options) { audit.formats.push(options?.mimeType || ''); if (audit.formatFault === 'construct' && options?.mimeType === 'video/webm;codecs=vp8,opus') throw new Error('synthetic WebM constructor failure'); super(stream, options); }
-      start(...args) { if (audit.formatFault === 'start' && this.mimeType.startsWith('video/webm')) throw new Error('synthetic WebM start failure'); return super.start(...args); }
+      constructor(stream, options) {
+        audit.formats.push(options?.mimeType || ''); if (audit.formatFault === 'construct' && options?.mimeType === 'video/webm;codecs=vp8,opus') throw new Error('synthetic WebM constructor failure'); super(stream, options);
+        this.audit = { deliveries: [] }; audit.recordings.push(this.audit);
+        EventTarget.prototype.addEventListener.call(this, 'start', event => { this.audit.native = { at: performance.now(), trusted: event.isTrusted }; }, { once: true });
+      }
+      addEventListener(name, listener, options) {
+        // 只延後真正 start 通知的交付，不製造事件或影格；音畫資料須在通知前已啟動，才能抓到互等回歸。
+        if (name === 'start' && audit.formatFault === 'delayed-start' && listener) {
+          return super.addEventListener(name, event => setTimeout(() => {
+            this.audit.deliveries.push({ at: performance.now(), trusted: event.isTrusted });
+            if (typeof listener === 'function') listener.call(this, event); else listener.handleEvent(event);
+          }, 1000), options);
+        }
+        return super.addEventListener(name, listener, options);
+      }
+      start(...args) { if (audit.formatFault === 'start' && this.mimeType.startsWith('video/webm')) throw new Error('synthetic WebM start failure'); this.audit.startCall = performance.now(); return super.start(...args); }
     };
     const createSource = AudioContext.prototype.createBufferSource, createDestination = AudioContext.prototype.createMediaStreamDestination;
-    AudioContext.prototype.createBufferSource = function() { const source = createSource.call(this); audit.sources.push(source); return source; };
+    AudioContext.prototype.createBufferSource = function() { const source = createSource.call(this), start = source.start; source.start = function(...args) { audit.inputStarts.push(performance.now()); return start.apply(this, args); }; audit.sources.push(source); return source; };
     AudioContext.prototype.createMediaStreamDestination = function() { const destination = createDestination.call(this); audit.tracks.push(...destination.stream.getTracks()); return destination; };
     // 只計生命週期，仍由瀏覽器真正解 AAC；這是工程回歸，不冒充 Safari 真機。
     globalThis.AudioDecoder = class extends Native {
@@ -43,7 +61,15 @@ async page => {
   await page.locator('#self-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
   const change = async (id, value) => { await page.locator(`#${id}`).fill(value); await page.locator(`#${id}`).dispatchEvent('change'); await idle(); };
   await change('end', '3');
+  await page.evaluate(() => { window.audioAudit.formatFault = 'delayed-start'; });
   await page.locator('#export').click(); await idle();
+  const delayedStart = await page.evaluate(() => {
+    const a = window.audioAudit, row = a.recordings[0];
+    return { ...row, inputStart: a.inputStarts[0], playing: a.playing.find(event => event.at > row.startCall) };
+  });
+  assert(delayedStart.native?.trusted && delayedStart.deliveries.length > 0 && delayedStart.deliveries.every(event => event.trusted), '延後測試未收到真正原生 start');
+  assert(delayedStart.inputStart >= delayedStart.startCall && delayedStart.playing?.trusted && delayedStart.deliveries.every(event => delayedStart.inputStart < event.at && delayedStart.playing.at < event.at), '音畫仍等待非同步 start 通知才啟動');
+  await page.evaluate(() => { window.audioAudit.formatFault = ''; });
   const previous = await page.locator('#output-download').getAttribute('href'); assert(previous?.startsWith('blob:'), '首次輸出失敗');
   const before = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length);
   assert((await page.locator('#output-download').getAttribute('download')).endsWith('.webm'), '相容匯出未使用真正 WebM 檔名');
@@ -91,5 +117,5 @@ async page => {
   const audit = await page.evaluate(() => { const a = window.audioAudit; return { created: a.created, closed: a.closed, frames: a.frames, buffersReleased: a.sources.every(s => s.buffer === null), tracksStopped: a.tracks.every(t => t.readyState === 'ended'), formats: a.formats, formatChecks: a.formatChecks }; });
   assert(audit.formats.length > 0 && [...audit.formats, ...audit.formatChecks].every(type => type === 'video/webm;codecs=vp8,opus'), '相容匯出走到 MP4 或其他未驗證候選');
   assert(audit.created === audit.closed && audit.frames > 0 && audit.buffersReleased && audit.tracksStopped, '錯誤／成功後仍佔用音訊資源');
-  return { nativeWebCodecs: decoded, webmRejections, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
+  return { nativeWebCodecs: decoded, delayedStart, webmRejections, formatRejection: true, preparationCancel: true, outputCancel: true, previousOutputRetained: true, retry: true, silentDifferentSource: true, audit };
 }

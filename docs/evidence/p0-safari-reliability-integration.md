@@ -5,9 +5,19 @@
 
 本輪從同步 main `38e6cf96793cf7250e4adb86a1156e6e6e0fe08e` 建立本聊天專用 `chore/p0-web-final-candidate`，以一般 PR 供後續審查；不修改來源分支、不合併 main、發布或關票。下方早期 #58／#62 整合數據保留歷史來源，不能當本輪新測。iPhone 持續暫緩。
 
+### 6f7f89a 啟動順序續修
+
+從84a85fd接續合入已推送的PR #64 `6f7f89a54b0914ebf9d93250d39c18e21b75bc0c`。產品差異僅localAudio VS同步完成record(stream, undefined, undefined, {webmOnly:true})後，直接沿原10ms排程／兩側播放，移除main unused audioReady import及舊等待註解。共用recorder、相機／Chrome原聲路、#70 storage／救援及全部品質門檻不變；QA保留change capture File Map，另核對真正native start延後交付時輸入仍已開始。
+
+TECHNICAL衝突保留新啟動設計及整個第37節的16bd證據；QA衝突採來源6f的多行Map與延後通知回歸，其原File保留與完整bytes／URL斷言不變。84a85fd以前的文件與來源提交全部保留。此後runtime已有啟動順序差異，**16bd7ca的Chrome24、網站外播放、quota／forced-install不得改寫為新整合head重跑**；舊84a85fd乾淨包亦維持其來源。
+
+本聊天只讀核對私有main 5b75942873f8202663badab32dabd4889243f8223d000131c9611aff720a568c的兩短Safari收據：同頁無重載／清庫的1×30秒及0.5×15秒原v5均過，兩份產品下載分別4,795,278／2,197,853 bytes，完整bytes等於native chunks。半速最大逐格配方100ms、內容時鐘125ms保留；收據SHA256 bc7ca06222d8befc69a01ec0223f98be76048c2a32f61a8a3cb2ca9c2a99a38e。這些是私有來源，不承接為正式6f或本整合head的矩陣／十輪通過。
+
+本輪不啟動媒體或取得鎖；原check／提交與推送後交付乾淨整合head，根聊天優先續做同版原生矩陣及新VS未確認救援。來源短回歸與後續純文件收據可再補；精確新head／靜態／CI由PR72綁定，最終包待同版證據整理後另建。下節各段保留先前受測版本當時的事實，不把私有改善或舊包當成新版驗收。
+
 | 已保留的來源 | 固定提交與範圍 |
 | --- | --- |
-| PR #64 | `1bbfd5b92d566a29a39f4a588f7c78d4ce6afd0b`，產品 runtime 仍為41b3023的正式起點等待與相容音訊 VS 單次 WebM選項；納入三項原聲路與失敗工程分支證據，沒有納入私有啟動對照 |
+| PR #64 | `6f7f89a54b0914ebf9d93250d39c18e21b75bc0c`，保留41b起點等待／WebM選項，續修為localAudio VS直接建立recorder；私有兩短結果與正式新head驗收分開 |
 | PR #65 | `f72cb2ff2b500530692c81fadfb8d86ce83aeb36`，獨立配額重跑的匿名收據，原生數據仍屬舊 runtime |
 | PR #66 | `b8dd611333f95bb4d75d8192bac2e186900a7b60`，保留未確認程序的自有鎖、只釋放已確認未啟動的 spawn error |
 | PR #67 | `72aed830b60f595794d178b715fae78e60ff0b09`，保留 e0acf88／f88c28d／eb21064 及三份私有對照的實際結果 |
@@ -21,7 +31,7 @@ TECHNICAL 同位置追加衝突保留配額歷史及未確認契約兩邊內容�
 
 儲存原生取消收據另屬81bd2c9的五份原樣儲存模組：真正 trusted abort 後1ms回AbortError、unknown=false，完整舊metadata／sentinel bytes保留，正常重試complete。只涵蓋儲存API，不代替本整合head、產品Stop、新VS或私人取消。
 
-正式41b3023的Safari半速15秒已有自己的原v5單輪通過：VP8／Opus15.026秒、454格、聲畫80ms、完整覆蓋true、完整匯出15,399ms，產品下載2,221,513 bytes等於native chunks。最大逐格配方差100ms、內容時鐘差133.333ms仍完整保留；此結果只屬41b來源，不移記為本整合head、新檔網站外播放或矩陣／十輪通過。整合產品組成固定，靜態為fe23327aa3da26c5，與文件／QA續補前相同；精確最後head、check與包由交付PR綁定。
+正式41b3023的Safari半速15秒已有自己的原v5單輪通過：VP8／Opus15.026秒、454格、聲畫80ms、完整覆蓋true、完整匯出15,399ms，產品下載2,221,513 bytes等於native chunks。最大逐格配方差100ms、內容時鐘差133.333ms仍完整保留；此結果只屬41b來源，不移記為本整合head、新檔網站外播放或矩陣／十輪通過。16bd7ca至84a85fd時的整合產品組成固定，靜態fe23327aa3da26c5；6f啟動續修後另綁新整合head／靜態，不沿用相同runtime宣稱。
 
 Safari QA 指紋續審：9151ce4已避免被 CSP 拒絕的 fetch(blob:)，但成檔後讀 input.files 仍會取不到來源。隔離 Chrome 真 FileList 配合原 chooseFile 直接重現1→0件；於原生 change 擷取階段保留 File 後，完整原 bytes 仍可讀。這一修正只改測試工具，不改產品或 CSP；原工程分支仍有 native start 互等失敗，沒有宣稱完整回歸已因此通過。
 
