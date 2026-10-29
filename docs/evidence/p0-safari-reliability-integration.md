@@ -1,7 +1,17 @@
-<!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–41節、MEDIA_PROBE.md、RELEASE.md。 -->
+<!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–42節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
 
-本頁最新同版Chrome證據為9e6f0ef／1aa1ae164c31d690；Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。
+目前UI取消功能版為99a2169／422c70c3633b8e88；最新完整Chrome影音24＋3仍屬9e6f0ef／1aa1ae164c31d690，Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。
+
+## 99a2169 明確UI保存取消續修
+
+目前功能head為99a21696e286bf54f3317087cb4796218be70b98／靜態422c70c3633b8e88。相對ba只變main與其SW版本／manifest，另外12份runtime相同；recorder、storage、音訊、timeline、schema、時間／品質門檻都沒改。原9e6的24＋3及345的Safari十九案保留各自版本，本次不改標新版完整影音驗收。
+
+舊ba真正Stop不能取消pending標題交易的負向收據，以及原copy-reference的正向控制保留。最小修復只從明確可取消UI傳自己的signal；原生交易成功前不換state或清草稿。獨立comparisonSave、錄影工作／finalize／中斷／chunks保全，以及成檔後persistExport不借用新操作的active.signal；後者保存階段Stop仍未驗，不能由準備metadata或copy Stop代替。詳見[保存取消證據](issue-13-unconfirmed-storage.md#明確metadata-ui保存的真正stop續修)。
+
+ba parent修正工作樹的完整十案全過：九個可取消入口trusted Stop→14.6–16.6ms native abort／無complete、完整舊metadata／keys／URL／bytes保留、同輸入重試及reload相符；第十案可信Play／operation屏障後，新Stop不取消原獨立佇列，解除QA自有hold才complete，新操作回cancelled且只一份metadata put。119份native binary及57份實際下載逐byte／SHA核對，保留兩個QA失敗，不拿工作樹冒充clean-head。原capture／drain必要回歸全過，尾塊pending仍持鎖、111252 bytes恢復及reload不變，全部自有程序／profile／server／nonce收尾。
+
+乾淨99的獨立title／copy Stop與新manifest default均已通過；兩案24份native binary及12份實際下載相同，45個已知PID／4群組／三profile／埠／nonce完成清理。title／copy各15.6／14.7ms trusted abort、舊revision11保留、同候選重試12及reload相同；default候選1／12真SIGKILL後同profile離線舊殼／資料保留，sentinel由原工具逐byte斷言，raw未另存全部sentinel bytes。完整來源與限制見[同版獨立收據](issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)。本輪CI139成功，原check408tests／1552expects、235檔公開掃描及原hooks通過。最終文件head、包sourceRevision與功能head分開綁，58檔白名單／14份runtime逐byte對功能版；原raw、profiles與操作識別不入Git或包。Safari私人／成檔VS保存Stop、人工／實體／跨裝置與iPhone等未驗項保留，未合併／發布／關票。
 
 ## 9e6f0ef 擷取完整性與同版 Chrome 再驗證
 

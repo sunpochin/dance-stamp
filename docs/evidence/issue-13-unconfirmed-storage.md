@@ -82,3 +82,23 @@ ba89487／靜態1aa1ae164c31d690已由正常Chrome原生重現save-title取消�
 第三輪raw SHA256 `045a64c054b59e10a3bde640a1072d82ebdef8c43ae3f250ace19e55fc46833f`，main SHA256 `25f0b175af76f5c4d0c7f375beceb6ce925606f808c0610c9eb924fb6af03b62`、回歸函式SHA256 `779d5b35d8b650ab8ceaed1369f016cde5f51686cf31b8f39e7c155949fbe41c`。20個已知自有PID／程序群組與精確profile退出、十個自有主機停止及nonce相符釋放，擷取API呼叫0。原檔、profiles、raw端點及操作識別不公開。
 
 原capture及capture-drain已在同一修正工作樹通過：取消／編碼error／合成中斷、quota／缺號／壞片保留及連續片段恢復均符合原斷言；尾塊未提交期間仍持take鎖，提交後恢復111,252 bytes、舊片／配方及reload不變。兩個全新合成相機session分別核對10／11個已知自有程序與精確profile退出、服務停止及nonce釋放；沒有真實硬體相機或中斷宣稱。最後原check／hooks與乾淨feature head由PR另綁。新manifest的獨立default更新重驗另綁乾淨新head；原9e6的24＋3、345的Safari十九案及各原失敗保留原版本。不宣稱Safari私人／成檔VS保存Stop、產品全Stop、永久保存、真實低磁碟、實體／人工／跨裝置或iPhone通過；未合併、發布或關閉未驗收票。
+
+
+## 99a2169 同版獨立 Stop 與 manifest 重驗
+
+固定乾淨`99a21696e286bf54f3317087cb4796218be70b98`／靜態`422c70c3633b8e88`、Chrome156.0.8078.49，另一個獨立來源重新建置並執行；trackedChanges為空，14資源與該head正式建置相同。main SHA256仍`25f0b175af76f5c4d0c7f375beceb6ce925606f808c0610c9eb924fb6af03b62`，title使用提交中的metadata-stop函式SHA256`779d5b35d8b650ab8ceaed1369f016cde5f51686cf31b8f39e7c155949fbe41c`。這是title／copy兩個明確入口的clean-head重驗，不把前節工作樹十案改標為clean-head全跑。
+
+| 入口 | 原生屏障與真正Stop | 保存／重試結果 |
+| --- | --- | --- |
+| title | 單一metadata put真正成功且未提交，實點Stop後15.6ms trusted transaction abort／無complete | revision11與完整舊非空筆記、keys、三份Blob全部bytes／URL保留；同候選重試12、native complete與reload相同，busy退出／unknown=false |
+| copy-reference | metadata／media兩個put真正成功且未提交，實點Stop後14.7ms trusted abort／無complete | revision11、舊notes／take／VS全部bytes／URL保留；同File重試12、native complete與reload相同，busy退出／unknown=false |
+
+兩案24份native binary及12份實際下載逐byte／SHA核對相同；title raw SHA256`24296db9ef048abeb9eb47d22661c326b93784d5b385758a7d5670899258815f`，copy raw`053a6d3f363b43afea9c30872f18aa756f675e938848af0311c0fac3fddfabe2`。既有offline-storage的程式觸發Stop、ba原copy控制與title負向仍各保留來源，不宣稱原先全無產品Stop測試。
+
+### 新manifest的原default更新中斷
+
+同一乾淨99沿原forced-install-restart（runner SHA256`6e6eb60bab8e995fd580d4e6fb89842be8847f7ebe25fe64d9fb3c937e7de08b`）真正重跑：422的12份manifest符合正式建置；候選僅1／12、第二CSS回應held且installing時真SIGKILL，同profile新程序在導航前offline，由舊SW取回完整舊殼。before／after原生及產品JSON、revision、keys、sentinel大小／SHA完全相同；1,048,613-byte已知pattern由原runner逐byte allBytesMatch=true，serverProbeHits=0／mediaCalls=0，兩群組退出remaining0。raw未另存sentinel全部bytes，本聊天只讀核對原程式、已知pattern hash與收據，不宣稱另讀原生byte檔。default raw SHA256`f022418ab9542e4fbcd44bfd18bd55c5842c67db3130d1b414a96921408b8430`。
+
+三案的總OS／profile／埠／nonce收據已完成：45個已知自有PID、4群組全退出，三個精確profile無活程序、三個自有埠拒絕、三個nonce釋放，共用鎖不存在、mediaCalls=0。總收據SHA256`07a88cc73fb6b14d12b7ebe2c98a2efa32872925cea7e6e0722db59a46a0ad7a`；原ba helper、負向與兩個工作樹QA失敗保留，沒有清庫或處理無關程序。本輪只核對三案自有程序與服務，不宣稱其他本機預覽或所有瀏覽器程序都已退出。
+
+本次只改UI metadata取消接線與其SW版本／manifest，另12份runtime與ba相同；錄影保全、成檔後persistExport、獨立comparisonSave、storage／schema、時間／編碼／原100ms／250ms／v5不變。原9e6的完整Chrome24＋3與345的Safari十九案保持原來源，本輪沒有重跑大矩陣，也不把這三案當成完整P0、Safari私人／成檔VS保存Stop、真正低磁碟、實體／人工／跨裝置或iPhone驗收。最終文件head／包另綁，14份runtime須逐byte等於99功能版；不合併、發布或關未驗收票。

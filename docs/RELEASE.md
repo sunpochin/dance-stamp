@@ -3,9 +3,9 @@
 
 2026-10-29 更新支援狀態；下方主機比較保留2026-10-28的查核資料，發布前仍須重查。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
-本輪以桌面Web為優先，iPhone暫緩。從main38e6cf9建立一般PR #72，保留#64、#65、#66、#67、#69與#70的來源；629a98b新增擷取完整性保護及未完成原片另存，9e6f0ef合入pending-write工具且保留#66程序／nonce保護。失敗新片不替換舊自拍／VS，救援下載只在明確成功刪除對應媒體後撤銷，詳見[擷取證據](evidence/issue-9-capture-recovery.md#擷取完整性續審)。
+本輪以桌面Web為優先，iPhone暫緩。最新功能99a2169／422c70c3633b8e88補上明確metadata保存的Stop接線；[乾淨同版title／copy Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)已通過。另有修正工作樹九個取消入口與獨立佇列例外，以及原capture／drain必要回歸；不把工作樹當clean-head，也不改標舊完整影音／Safari數據。從main38e6cf9建立一般PR #72，保留#64、#65、#66、#67、#69與#70的來源；629a98b新增擷取完整性保護及未完成原片另存，9e6f0ef合入pending-write工具且保留#66程序／nonce保護。失敗新片不替換舊自拍／VS，救援下載只在明確成功刪除對應媒體後撤銷，詳見[擷取證據](evidence/issue-9-capture-recovery.md#擷取完整性續審)。
 
-最新乾淨受測9e6f0ef／1aa1ae164c31d690已完成原Chrome24組／48份下載、三份實際檔網站外播放，以及同版未提交寫入中斷／重試與更新部分安裝中斷後離線重開；[匿名同版數據與限制](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)分別記錄完整指紋與清理。不可播放sentinel、合成Chrome及三檔播放器不等於永久保存、真正低磁碟、真人相機、聽感或Safari救援；第三程序由原工具整份斷言通過但未另序列化快照。後續文件head與最終包sourceRevision另綁，14份runtime必須逐byte等於9e6受測版，不把文件提交當重新跑影音。
+最近完整影音受測9e6f0ef／1aa1ae164c31d690已完成原Chrome24組／48份下載、三份實際檔網站外播放，以及同版未提交寫入中斷／重試與更新部分安裝中斷後離線重開；[匿名同版數據與限制](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)分別記錄完整指紋與清理。不可播放sentinel、合成Chrome及三檔播放器不等於永久保存、真正低磁碟、真人相機、聽感或Safari救援；第三程序由原工具整份斷言通過但未另序列化快照。後續文件head與最終包sourceRevision另綁，本次功能續修只變main／SW，其餘12份與ba相同；最終文件包的14份runtime必須逐byte等於99功能版，不把文件提交當重新跑影音。
 
 Safari不需改Profiles或日常設定。345b2d1／fe4bf7952cad2421的一般模式合成九案／同頁十輪、原生實際檔播放及正常VS重載已通過；這些保持原版本，不改標最新Safari擷取驗收。私人四次仍被原護欄拒絕，未走到新VS保存失敗／未確認救援；[原生及私人模式界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)保留全部失敗。99e862d的[私人原頁救援與一般原片保存](evidence/issue-13-unconfirmed-storage.md)亦只屬其來源。Safari、人工／實體／跨裝置及Claude Code／使用者最終審查尚有未完成項目，不能宣稱P0或私人完整支援。
 

@@ -33,6 +33,8 @@ Linux 可用 `sha256sum -c SHA256SUMS`，macOS 可用 `shasum -a 256 -c SHA256SU
 
 JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外保存老師原片、自己原片及 VS。影片清單的「本次連結」關頁後需要重選；「瀏覽器副本」仍可能被瀏覽器清除，不是永久備份。
 
+標題、標記或動作仍在保存時若想取消，請按「停止／取消」；確認顯示「已停止」後再重試。若狀態尚未確認，先照下方救援步驟另存，不要清除網站資料。
+
 若出現「保存狀態未確認」，請保持原分頁，先使用影片下載連結另存原片及可下載的 VS，再按「另存本頁筆記備份」。這份備份只有最後確認的筆記，不含未保存的表單草稿或影片；確認下載完成後才按「已另存，重新開啟同一頁讀回」。不要清除網站資料或另開私人分頁代替原頁，也不要把等待結束當作已保存或已回滾。詳見[未確認保存與救援界線](docs/evidence/issue-13-unconfirmed-storage.md)。
 
 換瀏覽器、網址或連接埠後：開啟新版本 → 匯入 JSON → 檢視預覽並明確確認 → 依影片清單逐份選回原片並預覽確認。只有想保留副本時才勾保存；同名不代表同一支片。衝突校正會另存可選的練習副本，不覆蓋原筆記。詳細契約見 [資料格式 v1／v2](docs/DATA_FORMAT.md)。
@@ -45,8 +47,8 @@ JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外
 
 | 組合 | 證據與限制 |
 | --- | --- |
-| macOS 27.0.1／Chrome 156 | 9e6f0ef 已完成合成相機24組、48份下載與三份網站外檔案播放，見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)。同版寫入中斷保留舊值／重試及更新中斷後離線重開亦通過；舊版容量證據另列來源。不代表所有素材、真人相機、人工聽感或完整 G1–G7 通過 |
-| macOS Safari 27.0.1 | 不需改 Profiles 或日常設定；345b2d1 一般模式已有合成九案／十輪、網站外播放與同origin重載證據。私人模式仍被原護欄拒絕，新 VS 失敗／未確認救援未驗；最新擷取保護也未由真實Safari相機驗證。見[原生與私人模式界線](docs/evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)及[儲存救援](docs/evidence/issue-13-unconfirmed-storage.md) |
+| macOS 27.0.1／Chrome 156 | 99a2169 已完成[標題／副本真正Stop與新版更新中斷重驗](docs/evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)。完整合成相機24組、48份下載與三份網站外播放仍屬[9e6f0ef](docs/evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)，未改標新版本。人工／實體相機、聽感及完整G1–G7仍未通過 |
+| macOS Safari 27.0.1 | 不需改 Profiles 或日常設定；345b2d1 一般模式已有合成九案／十輪、網站外播放與同origin重載證據。私人模式仍被原護欄拒絕，新 VS 失敗／未確認救援未驗；最新擷取保護未由真實Safari相機驗證，本次保存Stop也仍只有Chrome證據。見[原生與私人模式界線](docs/evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)及[儲存救援](docs/evidence/issue-13-unconfirmed-storage.md) |
 | iPhone Safari／主畫面安裝 | 依使用者決定暫緩，未驗證 |
 | Windows／Linux／其他瀏覽器 | 原始碼可取得，實機使用流程未驗證；CI 建置不算桌面／裝置驗收 |
 | 讀屏、五位舞者、喇叭／藍牙、背景／鎖屏／來電 | 未完成，不預填通過；未承諾背景錄製或永久離線 |

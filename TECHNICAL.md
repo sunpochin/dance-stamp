@@ -666,3 +666,8 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 排除把saveData的signal全域預設為active.signal：active在等待舊comparisonSave前就建立，可能誤綁別次操作；錄影取消後的finally保全也會被同一取消訊號截斷。不改operation控制器、writeLibrary／schema、時間映射、編碼、原100ms／250ms／v5或新增套件。原Chrome24＋3及Safari十九案保持原受測來源，不因本次UI接線而改標新版重跑。
 
 新增可重用metadata-stop瀏覽器回歸，以原生get延長真正put後的pending時段，只讓真正UI Stop發取消；核對trusted abort／無complete、完整舊metadata／Blob bytes／URL及六份實際下載、busy退出／unknown=false、同輸入重試complete及reload。另驗獨立比較佇列持續完成、新操作才取消；選片重試按產品重新產生ID，以相同來源bytes／語意核對。修正工作樹的完整十案已通過：九個可取消UI及一個獨立佇列例外，119份native binary／57份實際下載逐byte核對。第一輪原生confirm QA與第二輪fieldset判斷／Play屏障不足的失敗保留，第三輪從頭全過。原capture與drain亦通過，尾塊pending期間鎖仍持有、111,252 bytes恢復及重載保留；各自已知PID／精確profile、server與nonce收尾確認。這些是工作樹／ba parent結果，不冒稱乾淨head；新head及獨立title／copy Stop、manifest更新證據另綁。Safari私人／VS保存Stop、人工／實體／iPhone等未驗項繼續保留。
+
+
+乾淨99a2169／422c70c3633b8e88已由獨立來源重跑title／copy真正Stop、native abort、完整舊bytes／metadata／URL、重試與reload，另以原default驗新manifest部分安裝SIGKILL／同profile離線舊殼保留。兩案24份native檔／12份實際下載核對相同，三案45個已知PID／4群組、三profile／埠／nonce全數清理。default的sentinel由原runner逐byte斷言，raw未另序列化全部bytes，不冒稱另讀字節檔。本節工作樹十案與獨立clean-head兩入口分開歸屬；最終只補匿名文件，14份runtime逐byte等於99功能版，舊24＋3／Safari十九案不改標新head。原check／hooks、最終CI與58檔本機包由PR綁定；所有未驗收條件不變。
+
+最後匿名文件原check通過408 tests／1555 expects／0 fail、235檔公開掃描、型別、原lint與build，靜態仍422c70c3633b8e88；原19項lint info保留。原hooks與最終文件head的CI／乾淨包另由PR綁定，未啟動新瀏覽器或服務。
