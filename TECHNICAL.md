@@ -276,6 +276,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 日期續審核對實際 owner：`newLibrary` 從最初 v1 即用 `toISOString()` 建立本機時間，`mergeBackup` 保留本機封裝、`planBackupImport` 在空庫只接來源 ID；`saveData`／migration／讀回不採用匯入檔的 exportedAt。短日期雖可通過外部驗證，並不經這些入口存成本機日期。以 v1／v2、日期字串／無毫秒 ISO、恰好 10 MiB 的 UTF-8 筆記補匯入→保存→重讀→正常／救援備份回歸；不為不可達的人工短日期 state 增加縮短時間或截字 fallback。已滿上限的短日期檔仍可能因既有合併封裝增加 bytes 而在預覽前被拒，不能將此拒絕稱作成功還原或本次新修正。
 
+另一輪獨立審查在 `87e04e8` 重現合法中斷錄影備份的可達缺口：合併後 metadata 可恰好 10 MiB，`readLibrary` 再把 asset 的 missing 改為 interrupted，多 4 bytes，導致白名單之前的容量檢查連正常／未確認救援備份都拒絕。內部 `validateBackup` 現在以白名單完成後的可攜內容計算容量；外部 `parseBackup` 與 UI 的原檔 10 MiB 檢查不變，含未知欄位的超大外部檔仍拒絕。本機 asset 狀態、來源 ID、完整關聯及儲存交易保留；排除只在下載刪欄、提高上限或改讀回狀態，因為讀回後的初始化、保存與重匯也共用同一驗證入口。可達反例與正常／救援零餘裕回歸見[讀回狀態續審](docs/evidence/issue-12-backup-recovery.md#讀回狀態與可攜容量的獨立續審)。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。

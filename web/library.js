@@ -23,7 +23,6 @@ function rejectDangerous(value) {
 export function validateBackup(input) {
   check(input && typeof input === 'object');
   rejectDangerous(input);
-  check(new Blob([JSON.stringify(input)]).size <= 10 * 1024 * 1024, '筆記資料超過 10 MiB，請先保存備份。');
   check(input.format === 'dance-stamp' && [1, 2].includes(input.schemaVersion) && ['backup', 'share'].includes(input.kind), '不支援這個備份版本或種類，沒有改動本機資料。');
 
   check(id(input.sourceLibraryId) && text(input.exportedAt) && Number.isFinite(Date.parse(input.exportedAt)));
@@ -90,6 +89,8 @@ export function validateBackup(input) {
     out.exports.push({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: e.createdAt });
   }
   // 白名單重新建立物件，絕不把路徑、object URL 或任意外部欄位帶進資料庫。
+  // 容量屬於可攜內容；讀回補上的媒體狀態不能擋住合法筆記與救援。外部原檔仍由 parseBackup 先檢查 bytes。
+  check(new Blob([JSON.stringify(out)]).size <= 10 * 1024 * 1024, '筆記資料超過 10 MiB，請先保存備份。');
   return out;
 }
 export function parseBackup(source) {
