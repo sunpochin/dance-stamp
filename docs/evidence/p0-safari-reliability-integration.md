@@ -1,6 +1,8 @@
 <!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–43節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
 
+2026-10-30：目前 main `c0ab39b` 的[保存與救援有界稽核](issue-3-current-protection-audit.md)已補負向回歸、合成 Chrome 擷取保護及網站停止後實際檔案播放；原生 Safari 自動化入口因現有設定拒絕，沒有建立產品測試 session。一般／私人保存 Stop 與新 VS 未確認救援仍未驗，舊原生證據保持下列受測來源。
+
 目前UI取消功能版為99a2169／422c70c3633b8e88；一般Chrome成檔後保存Stop另在乾淨14128c2同runtime補驗。最新完整Chrome影音24＋3仍屬9e6f0ef／1aa1ae164c31d690，Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。
 
 ## 99a2169 明確UI保存取消續修
