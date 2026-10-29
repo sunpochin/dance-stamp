@@ -4,7 +4,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, unlinkSync, rmdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { tmpdir } from 'node:os'
+import { release, tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webPaths, webHeaders } from '../../scripts/web-assets'
 
@@ -35,6 +35,8 @@ candidateFiles.set('/sw.js', Buffer.from(source.replace(`'${oldVersion}'`, `'${c
 // macOS 沿用既有共用鎖；Linux 改用系統暫存目錄，避免不存在的 /private/tmp 阻止測試。
 const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), ownerFile = join(lock, 'owner.json')
 const evidence: any = { status: 'running', scenario: mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
+// 平台與真正鎖位置須隨收據保存，避免把 macOS 模擬路徑當成 Linux 原生驗證。
+evidence.environment = { platform: process.platform, architecture: process.arch, kernel: release(), lockPath: lock }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
 const event = (type: string, detail: any = {}) => { evidence.events.push({ at: new Date().toISOString(), type, ...detail }); save() }
 let ownsLock = false, server: ReturnType<typeof Bun.serve> | undefined, browser: any, child: ReturnType<typeof spawn> | undefined

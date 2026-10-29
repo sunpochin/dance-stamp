@@ -239,6 +239,8 @@ bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable"
 
 僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 或 `output/pending-write-*`、persistent profile 與自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
 
+Linux 自動重跑沿用 Harness CI 的 `linux-install-restart` job：原品質入口先通過，再於獨立 Ubuntu 24.04 runner checkout 真正 PR head，以 Bun 1.4.4、runner 既有 Chrome 及暫存安裝的 Playwright core 1.64.1 執行上方相同工具。環境、核心版本、實際鎖路徑及 source head 寫入收據；成功／失敗的原始 JSON 與兩階段瀏覽器錯誤保留於該 job 日誌，profile／資料庫不公開，工作結束由一次性 runner 回收。這是 [Playwright 官方 CI](https://playwright.dev/docs/ci) 支援的 Linux 瀏覽器環境，不把啟動失敗或路徑模擬當成正向通過。
+
 先經產品儲存交易保存筆記與 Blob，核對原生 IDB 與完整舊 cache。候選使用真實產品 worker 原碼、新版本及對應的新 HTML／CSS 雜湊；主機保持第二份 CSS 回應未完成。必須同時看到候選原生 cache 已有不同於舊版的 HTML、尚無其餘資源、registration.installing 為 installing、舊 active／controller 仍完整，才保存 barrier／PID／群組 provenance 並送出 SIGKILL。這裡沒有 Cache mock、throw 注入、skipWaiting、手動 activate 或資料庫重建。
 
 確認該自有程序群組全數退出，再以同一 profile 新程序啟動；在導航前設定隔離 context offline。核對頁面由 SW 回應、舊 HTML 全 bytes 雜湊、舊版完整狀態，且未快取的網路 probe 失敗、主機零收到重開請求。筆記全內容、ID、revision、原生 metadata／media keys 與 Blob 每一 byte／SHA256 都須相同。原始日誌、成功／失敗證據及 profile 保留本機，finally 只停止自有程序／主機並釋放 nonce 相同的自有鎖；失敗不可刪除後當同一輪通過。這不代替實際磁碟損毀、斷電、低空間、影片播放品質、Safari 或手機驗收。

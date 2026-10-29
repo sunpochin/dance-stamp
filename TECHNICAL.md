@@ -681,3 +681,7 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 原analyze-media.py的fullDecode命令exit0，兩筆null輸出DTS訊息完整保留；私有QA額外要求stderr空的失敗亦保留。後續只讀原檔的原生packet／frame時間戳均嚴格遞增，91格及原48000Hz stereo音訊完整解碼，兩對DTS碰撞與null輸出timebase量化吻合；未改檔、重封裝、重採樣或放寬原門檻，不升格成新G2–G4或完整品質矩陣。
 
 來源函式、raw、解碼／時間戳收據與限制見[14128c2保存Stop證據](docs/evidence/issue-13-unconfirmed-storage.md#14128c2-成檔vs保存stop的保全觀察)。本次只補三份匿名文件，14份runtime維持14128c2；不重跑影音或取得媒體鎖。Safari／私人模式保存Stop、私人新VS救援、實體／五人操作／讀屏聽感及iPhone等未驗項保留；最終文件head、CI與58檔乾淨包另由PR綁定，不合併、發布或關票。
+
+## 合併審查：保留 Linux 與交易中斷驗證
+
+最終候選納入 #71 的獨立 Linux CI，與既有部分安裝及 pending-write 共用同一支工具。衝突保留交易情境、dirty／storage 指紋及平台／核心／實際鎖位置兩組欄位，避免以選單邊檔案解衝突而丟失證據。產品 runtime 不變；新整合提交的 Linux 結果須由自己的 CI 產生，不能承接 #71 舊收據。
