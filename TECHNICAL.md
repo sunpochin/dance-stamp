@@ -4,14 +4,14 @@
 最新可及性決策見第 20 節，下載包與發布準備見第 21 節；前面標記原型階段的限制保留歷史版本歸屬。
 分類、動作庫、練習歷史與 v1→v2 相容決策見第 26 節。
 
-Safari 有界本機音訊候選的格式與資源取捨見第 33 節；這不是整體 Safari／P0 通過聲明。
+Safari 有界本機音訊候選的格式與資源取捨見第 33 節；這不是整體 Safari／P0 通過聲明。 Safari VS 的 WebM 專用匯出與原生原型界線見第 36 節。
 
 選定筆記分享的原始設計見第 27 節；整合格式取捨另記。
 
 
 狀態：2026-10-28；已加入桌面 Web 預覽版、既有影片比較與 AI harness；未完成整體 P0／手機驗收。工具測試與產品／真機驗收分開記錄。需求以 [PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) 為準。
 
-#3 的早期 macOS Safari 同步／私人副本失敗見[歷史證據](docs/evidence/issue-3-safari-feasibility.md)，各原生結果保持來源歸屬。一般新視窗不需改 Profiles，保存／關窗取回對照見第31節；有界音訊候選見第33節，與資料保護整合見第34節。Safari 完整品質及私人儲存仍未過，目前原生續測等待 Mac 解鎖，無須另選設定。
+#3 的早期 macOS Safari 同步／私人副本失敗見[歷史證據](docs/evidence/issue-3-safari-feasibility.md)，各原生結果保持來源歸屬。一般新視窗不需改 Profiles，保存／關窗取回對照見第31節；有界音訊候選見第33節，與資料保護整合見第34節。原生續測已解鎖，99e862d 的私人未確認退出／原頁重開及一般保存收據見第19節；完整 Safari 品質、新 VS 未確認救援與裝置驗收仍保留。最新候選來源及整合界線見[整合證據](docs/evidence/p0-safari-reliability-integration.md#2026-10-29-最終-web-候選整合續作)，不以來源實測移記整合 head。
 
 ## 1. 架構結論
 
@@ -284,7 +284,21 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 2026-10-29 [有界更新稽核](docs/evidence/issue-13-update-audit.md)補上「第一份已存，第二份才遇網路／HTTP／雜湊／quota 失敗」的候選回滾，以及 install 與 activate 的清理邊界純邏輯回歸；未重現需改 runtime 的 P0 缺陷。既有真正 SW 更新函式只開一個受控制產品頁，handler 單元測試不代替生命週期驗收。後續 `offline-multi-tab.js` 用兩個真正舊控制頁補缺：第一頁關閉後，第二頁可保存同一筆記，第三個新導航也仍用舊 active；剩餘舊頁關閉後才換版，完整資料／revision 與無關 cache 保留。測試沿用原 worker／主機及產品表單，實際版本回覆與 waiting 文字共同作屏障，不以固定等待、直接觸發 activate 或結果欄位名稱當證據；媒體 API 明確禁用，精確提交／結果見交付 PR。
 
-容量只顯示 navigator.storage.estimate 的估計 usage／quota／差額，不冒充裝置剩餘空間或寫入保證；缺值與例外顯示未知。持久保存僅點按才請求，分別回報允許、拒絕與失敗；手動清除不受保護。拒絕仍能使用，媒體副本與 JSON 仍應另存。估計可能變動，不以估計值繞過實際交易結果；quota、取消與中斷依同一原子寫入回滾。原片兩個保存入口也傳遞取消訊號。介面語義依 [WHATWG Storage](https://storage.spec.whatwg.org/)，不是本機容量保證。
+容量只顯示 navigator.storage.estimate 的估計 usage／quota／差額，不冒充裝置剩餘空間或寫入保證；缺值與例外顯示未知。持久保存僅點按才請求，分別回報允許、拒絕與失敗；手動清除不受保護。拒絕仍能使用，媒體副本與 JSON 仍應另存。估計可能變動，不以估計值繞過實際交易結果；只有真正 abort 才確認交易中止，缺少結束通知時依下述未確認契約處理。原片兩個保存入口也傳遞取消訊號。介面語義依 [WHATWG Storage](https://storage.spec.whatwg.org/)，不是本機容量保證。
+
+2026-10-29 的[原生配額獨立重跑收據](docs/evidence/issue-13-native-quota-repeat.md)補上另一個新 profile 的完整 bytes／JSON 指紋：真正 quota abort、舊資料原子保留、同候選重試及同 profile 新程序重開。該次 runtime 為 `db129e273cf0039b`；目前沿用 main 已有的配額工具，不另維護第二份，也不承接最新 Safari runtime 或 UI／真實低磁碟／裝置驗收。
+
+2026-10-29 #13 補正交易收尾契約：只有真正 complete 確認成功、真正 abort 確認中止。Safari 私人模式原生 Blob UnknownError 後可能沒有任一結束事件，連 abort 返回也不能證明中止；此時原本的 completed Promise 會永久忙碌。共用收尾器現在只在觀察到 error、要求取消或同步失敗後開始 1 秒結束通知寬限；正常大檔保存沒有新增總時限。期限到了只回報 `StorageUnconfirmedError`／「保存狀態未確認」，不回報成功、已回滾或已取消。正常 complete、quota／其他原生 abort 仍採原結果，清除通知監聽及寬限計時。
+
+未確認旗標在本頁維持到真正重新導航：拒絕重用 DB 的讀／寫、釋放本頁既有儲存等待，盡力 abort 並 close 自有連線。依 [IndexedDB 關閉規則](https://www.w3.org/TR/IndexedDB/#closing-connection)，close 只阻止新交易，仍需等既有交易完成，不能作回滾證明；不清庫、不自動重連／重試覆寫，也不因遲到 complete 或 BFCache 返回而解封。其他分頁／程序並無全域隔離保證。
+
+UI 退出忙碌後暫停可能換掉影片或寫入的操作，保留當次原片、已成檔 VS 的 Blob／下載 URL、最後確認的筆記與表單輸入；獨立救援入口從記憶體匯出最後確認的 JSON（不含未保存草稿及影片），待使用者確認另存後才重開同一頁讀回。私人分頁不能假定共用同一 storage partition。排除只 reject 後照常重試、把固定延遲當回滾證據、換空分頁當恢復、清庫與新增儲存後端。原生缺陷來源、單元／控制器覆蓋與驗收界線見 [未確認保存證據](docs/evidence/issue-13-unconfirmed-storage.md)。
+
+操作在等待初始化與比較保存結束後、執行任何動作前再次檢查未確認旗標；只在入口檢查仍會讓已排隊的「準備下一段」越過等待期間才發生的封鎖，清掉當次自拍。拒絕走既有 catch／finally，確保忙碌狀態收尾與救援提示照常執行；不依賴按鈕 disabled 或個別動作自行補判斷。
+
+受測 `99e862d`／靜態 `ba8397999a6d08f4` 已由主聊天補 Safari 27.0.1 真正產品儲存對照：私人模式原生 Blob UnknownError、缺 abort／complete，1006ms 轉未確認並退出忙碌，原片可下載、救援筆記可另存；原分頁確認重開後兩次原生 metadata 與原 revision 2／keys 完全相同。一般模式同片真正 complete 到 revision 3，1,789,027 bytes 的原生 Blob 與重載後兩次完整狀態／SHA 均一致。觀測器只旁聽原方法，QA 頁額外載入觀測程式，產品模組 bytes 保持受測版；後續文件提交不改 runtime。這只涵蓋該版／原分頁與合成原片，未產生 VS，當輪未驗原生在途取消／abort、其他程序或私人 partition 關窗後保留；不以舊 `782790a` 或歷史 quota 輪承接。完整方法與限制見同份證據，#13／主 P0 仍未完成。
+
+另以同版五份原樣儲存模組補一般 Safari 的取消 API／原生交易單輪：非空合成基準與不可播放 sentinel 正常 complete 後，在真正 media.put 回傳 pending request 的同一呼叫堆疊發 signal.abort，由產品 handler 中止交易。真正 trusted abort 後產品 1ms 回 AbortError、unknown=false，原生 metadata／revision／keys／完整 bytes／SHA 保留，正常重試再 complete 到 revision 2。這區分「已收到原生中止」與「缺收據而未確認」，不把取消 signal 或固定等待本身當成回滾證據；仍不代替產品 Stop、VS、低磁碟或跨分頁驗收。只補匿名文件，不改 runtime。
 
 個別刪除先由純資料 planDeletion 計算關聯及計數，原生 modal 預設取消焦點；確認前不寫入。副本只移除該 media Blob，保留描述、筆記及配方，本次已載入 File 可繼續使用，重開則缺片。單一 VS 只移除該輸出與無人引用的 asset；刪 take 包含其 recipes／exports；整份影片筆記包含所屬標記、take 及下游。原相簿／原始檔從不刪除。仍被其他 take 或輸出共用的媒體保留。
 
@@ -505,6 +519,10 @@ Safari 候選的相對驗證連結也必須能離線讀取，因此下載包明�
 
 13976bb／adbe8eb1d6acfd09另完成自己的Chrome headless原24組合成錄影→匯出回歸，原v5全通過，48份下載均完整解碼並留指紋；最大聲畫差88.333ms、最長完整匯出上界64,003ms。十輪保留同一資料庫並逐輪導航，沒有改排程或品質門檻。這補足新候選的Chrome完整回歸，不延伸為Safari、無重載常駐資源或實體驗收；來源、範圍與數據見上述證據。
 
+原生續測已排除只等Mac解鎖的前置：e0acf88的半速啟播兩次被原100ms護欄拒絕，30秒檔的完整覆蓋成立但完整耗時未量測；私有呈現等待原型修正首格後，容器尾端仍超出原容差。後續f88c28d候選以影格metadata判目標，在currentTime=0而metadata仍為舊0.1秒時原生逾時，未建立輸出。單元模型與真實呈現分開，沒有將私有時鐘假說或裁切當修復；細節與未過項見上述Safari音訊證據的新續測節。
+
+eb21064後續原生單輪0.5×／15秒通過，但兩側起點覆蓋仍貼100ms邊界；1×／30秒容器30.105秒仍失敗，不能承接為完整矩陣。私有先停輸出軌、取消timeslice、提前送起點影格三種對照皆否決：前後兩者未改善長度，無timeslice更只解碼到約16秒畫面。產品保持未採用這些猜測；精確來源、耗時及v5結果見同一證據，不裁片或放寬分析門檻。
+
 ## 34. #1 Safari 候選與可靠性修補整合
 
 從同步 main `918d8d7aa814533823522e3d4e0ab18df75cb212` 建立獨立候選，保留 #58 `2d313027c28ebc1d4f7cfd03177fbb8141fd7d23` 與 #62 `13976bb83e259be699f7c822cc125850e776f81e` 的完整提交／來源歸屬；交付前再納入 #62 新增的文件提交 `676ba501914f278ab1aa0d2c40990f9a0bff23ae`，不覆蓋較新證據。主機逐次拒絕連結、完整備份、編碼器停止、部分更新／強制終止及原生 quota 回歸全部保留；`local-audio.js` 仍由同一 `webFiles` 提供給建置、主機、SW 與下載包。空 edit 靜音與獨立音訊時鐘的100ms拒絕不變，不另設時間線、不改 G2／G3／v5 或資料格式。
@@ -516,3 +534,154 @@ Safari 候選的相對驗證連結也必須能離線讀取，因此下載包明�
 整合後新增音訊模組使 SW manifest 從11份增為12份，故排除僅由相同storage原碼承接舊更新測試的做法。主聊天在乾淨9d483e0以未修改工具重跑真正部分安裝／SIGKILL／同profile離線重啟，原生cache、舊殼、已提交筆記與完整sentinel保留；精確來源與限制見上述整合證據。沒有改動更新策略、清除殘留cache或把不可播放sentinel當成媒體品質通過。
 
 審查續修讓強制中斷與原生配額兩支 QA 工具共用平台適用的暫存位置：macOS 保留既有 `/private/tmp`，Linux 使用 `os.tmpdir()`。不建立不存在的 macOS 目錄，也不改成每輪各自的鎖；前者讓 Linux 在瀏覽器啟動前失敗，後者會失去跨工具互斥。原子取得、nonce 所有權與只清理自有程序的規則不變；產品 runtime 與資料格式未改。
+
+
+### PR #63 最新候選的 QA 收尾審查（2026-10-29）
+
+審查從 `e0acf88391c31ce75a5419d80a1e77691b316eb3` 開始；期間 PR #63 經來源更新至 `ebdbe5c` 後由其他操作合併為 main `38e6cf9`，本聊天未執行合併。本修正從同步 main 建後續分支，保留平台暫存目錄修正；兩個收尾缺陷仍存在。審查發現兩個共用鎖風險。強制中斷工具原本即使 `stop()` 查核／退出失敗也在 finally 刪鎖，且主程序已退出時未查殘留群組；原生 quota 工具則可能先清掉 context handle，再因 CDP／ps 查核失敗離開，讓 finally 誤判可以放鎖。兩者都會讓下一輪驗證與尚未確認退出的瀏覽器重疊。
+
+現在只在已知自有程序群組全數退出且 nonce 相符時放鎖；無法證明收尾便保留鎖、失敗狀態與原始紀錄，不掃殺其他程序。已退出主程序的群組只做唯讀查核，殘留時不再憑舊 PID 發訊號；owner 記錄讀取失敗亦須完成自己的主機收尾。排除以 `context.close()`、主程序 exit 或清掉 handle 代替全程序退出證據，也不以捕捉錯誤後繼續刪鎖來取得表面成功。
+
+`mediaProbeCleanup.test.ts` 直接執行兩支工具的真正收尾程式，僅替換 OS／檔案／CDP 邊界；涵蓋程序稽核失敗、主程序已退而群組殘留、正常結束、nonce 變更與 owner 讀取失敗。故障測試不啟動瀏覽器或操作真實共用鎖。產品 `web/`、媒體時間線、SW、資料格式與 G2／G3／v5 門檻均未改；Safari、人工、實體／跨裝置與發布驗收仍按各自證據保留，iPhone 暫緩。
+
+### PR #66 續審：已確認未啟動的程序不可留下空鎖（2026-10-29）
+
+`b423027` 的保守收尾在 spawn 被作業系統拒絕、從未取得 PID 時仍保留 child handle，導致下一輪被一份已無瀏覽器可清理的自有鎖擋住。本輪以 Bun1.4.4 對不可執行的合成文字檔實際取得 EACCES、pid undefined、close code −13；沒有啟動瀏覽器或 HTTP 主機。新增回歸先重現未放鎖，修正後明確拒絕仍標失敗並保留原始錯誤，只釋放確定沒有程序的自有鎖。
+
+啟動時固定追蹤本次 ChildProcess，先記錄 spawn error；只有該 handle 仍屬本輪且沒有 PID 才清掉它，waitFor 直接傳回原錯誤。已有 PID 的錯誤仍交 stop 查整個群組；只有無 PID、沒有 error 的未知狀態亦留鎖。排除「沒有 PID 就一律放鎖」以及清掉 handle 後繼續讀 global child 的方案，避免漏掉未確認程序或以 TypeError 掩蓋原生啟動失敗。正常啟動、群組退出及 nonce 驗證政策不變。 原工具另以修正工作樹實際跑過不可執行檔：EACCES 仍 exit 1，自有 nonce 鎖釋放、本機 HTTP 入口關閉、沒有瀏覽器或媒體啟動；工具 SHA-256 f4c8eb229e55dca2e62f00f7c3f5b80d66e1aee278ac83060358382dccaa9953，歷史正常強制中斷結果不移植為本次新測。
+
+續審只改 QA 啟動／收尾與直接回歸，產品 Web、SW、資料格式及 G2／G3／v5 不變。原生 Safari 已解鎖續測，新的直接結果依 [PR #67／98fb551](https://github.com/sunpochin/dance-stamp/pull/67) 的獨立版本證據；不能把本次單元或 CI 當作已修好原生起點等待、尾端長度或私人儲存。整合候選後續須保留該新證據，不回寫「等待 Mac 解鎖」的舊現況；iPhone 仍暫緩。
+
+## 35. #3／#11 起點影格等待候選（接續 #62，原生續修）
+
+f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格，再暫停回到配方起點；回零時同時等待 seeked 與目標呈現影格，兩者先後順序均可。影格訂閱須先於 currentTime 寫入，且不能因 seeking 尚為 true 丟掉已到達的目標格。只有兩者完成才繪製第一張 Canvas 並進既有 recorder／音訊啟播。Chrome、普通 seek／預覽及配方時間映射維持原路徑，未增加固定等待、偏移補償或片尾補長。
+
+該版單元在修正前重現提早完成，修正後驗證舊暖機格不會解鎖起點、反向事件順序、取消與 native 訂閱／seek 例外的清理。這只處理等待契約；30 秒同步與半速覆蓋／漂移仍須原生逐檔確認。原 v5、100ms／250ms 與完整矩陣門檻均保留；沒有把此單元結果寫成 Safari 媒體通過。未改用新時鐘或減少 playbackRate 寫入猜測修復長片，因為仍缺受測新版的原生追蹤。
+
+
+2026-10-29 原生續測已否定 f88c28d 的嚴格 metadata 條件：乾淨來源／靜態 0379406c3618c580、controller=none 的 Safari 27.0.1 中，兩側 seeked 且 currentTime=0，self 的唯一呈現通知仍報 mediaTime=0.1；暫停後沒有第二次通知，15秒逾時且尚未建立 recorder。保留此失敗與舊門檻。續修改為同時等待 seeked 與一次呈現通知，兩事件可任意先後，之後再由既有 align 重畫 Canvas；不把過期 metadata 當成像素驗證。暖機真正前進的條件與取消／例外清理仍保留。
+
+此選擇依據實際原生事件順序；[rVFC 草案](https://wicg.github.io/video-rvfc/)也只描述最近呈現的 metadata 與盡力同步，沒有保證它可當暫停 seek 的像素校驗。排除不等呈現通知、固定延遲、重新 play 推進來源來解除等待；後兩者會引入錄影起點／片長變化。單元重現兩種事件順序且過期 metadata 不再卡住，但不宣稱實際首格或完整輸出已通過。主聊天統一操作原生 Safari；本聊天未啟動媒體測試或取得媒體鎖，完整矩陣／十輪仍待同一受測版本逐檔驗證。
+
+
+## 36. #3／#11 Safari VS 的原生 WebM 專用候選
+
+2026-10-29 主聊天以乾淨 eb21064 為基底、execution webm-eb21064-f6458c357387 的私有單次1×／30秒對照，僅限制既有 recorder 的候選為 WebM／VP8／Opus，保留 start(1000)、原音訊／停止與原 v5。真正成檔及產品下載逐 byte 相同，原 v5 通過；完整解碼末端30.0175秒、901格、30音／30閃，來源完整覆蓋成立。這只支持把此路徑工程化，不能移記為正式新 head 的完整矩陣或十輪通過；產品外原生重播仍待該工作串記錄。
+
+選擇已存在且有 [WebKit 官方支援](https://webkit.org/blog/16574/webkit-features-in-safari-18-4/)的原生格式，不新增轉碼套件或必要服務。`record()` 只增加一次性 `{webmOnly: true}` 選項，由 localAudio 的 VS 呼叫；不改相機1秒 chunks、一般 Chrome 或復原格式順序。專用模式只詢問並嘗試 `video/webm;codecs=vp8,opus`，不支援、建構或 start 拒絕就明確停止，不能退回已有原生成檔缺口的 MP4 或未驗證 bare WebM。原片、配方與前次 VS 沿原 finally／失敗路徑保留，檔名沿真實 MIME 成為 .webm；既有無音軌來源仍輸出真正無聲。
+
+採小型明確選項而非全域更改候選或 UA 分流到第二套 recorder，才能保留相機／Chrome 的既有序列、編碼 error、原生自動停止、尾塊、取消與重試的同一份清理。兩個格式回歸在 eb21064 原碼副本先失敗，修正後驗證選項只作用當次、普通 MP4→WebM 退回仍可用、專用拒絕不試 MP4及編碼 error 後 head／tail完整。原 local-audio 瀏覽器回歸另加入三種原生格式拒絕、原片／舊 VS 指紋、資源釋放及專用候選斷言；是否實際執行另列，語法／單元不冒充 Chrome 或 Safari 媒體證據。
+
+此前停止輸入軌、取消 timeslice、立即重畫起點的私有原生對照均失敗，未納入正式 runtime；原 v5、100ms／250ms、90秒完整耗時及覆蓋／漂移門檻完全保留。完整失敗與原型來源見[證據](docs/evidence/issue-3-bounded-audio.md)。iPhone 暫緩，不合併、部署或關閉 P0 gates。
+
+
+41b3023／f81d1c69861fa21e在真正Chrome156.0.8078.49原聲路另完成無相機入口、三速度自然音高及匯出失敗／WebM重試回歸，14份新下載逐檔完整解碼；四份失敗後舊VS與基準bytes相同，原片前後指紋相同。WebKit工程分支則在該Chrome引擎等待native start逾時，原生事件於stop呼叫後才出現；這不等同Safari失敗。首格、音訊及兩者prime的私有對照仍逾時，移除start gate的私有對照只到基準成檔，後續工具fetch(blob:)遭原CSP阻擋，未全過，全部未採用。正式web/維持41b3023；後續僅修正測試工具直接讀File／已保存Blob做相同bytes及URL斷言，不放寬CSP，也未聲稱工程分支已跑通。原生Safari矩陣／十輪仍由主聊天續驗。
+
+整合續審另以隔離 Chrome 的真正 FileList 執行原 chooseFile（只替換解碼邊界、不啟動媒體）：input 在 finally 從1件變0件，證明 QA 於成檔後再讀 input.files 仍會失去來源。local-audio 回歸改在原生 change 擷取階段保留 File，之後直接讀該 File 及已存 VS Blob，URL／完整 bytes 斷言不變；不改 CSP 或產品選片。這個 DOM 邊界重現不代替仍未過的 Chrome WebKit-UA 完整工程分支。
+
+正式41b3023／f81d1c69861fa21e已由主聊天完成自己的原生Safari27.0.1半速15秒單輪：14份資源與目前建置指紋相同、產品下載與native chunks逐byte相同；原v5全解碼454格、15.026秒、8音／8閃、最大聲畫80ms、三點[0,-33.333,0]ms／新漂移0及完整覆蓋通過，完整匯出上界15,399ms。仍保留逐格配方最大100ms、內容時鐘差133.333ms與各版本失敗，不擴寫成每格≤100ms或整體穩定。本檔網站外播放、正式完整矩陣／十輪仍待驗，與私有30秒原型及Chrome工程分支分開；runtime保持41b3023，詳見同一證據文件的新正式單輪段落。
+
+
+### 非同步 start 通知不可成為輸入閘門
+
+41b3023 的 Chrome 工程分支曾等到 stop 才收到 native start；MediaRecorder.start() 成功回傳只代表接受錄製，通知在平行收集資料後交付，不能讓音訊／影格等通知才開始供給。正式續修只在 localAudio VS 移除此等待，仍先同步完成原 record(stream, undefined, undefined, {webmOnly:true})，才沿既有10ms排程及兩側播放。同步不支援／建構／start拒絕、非同步error、done／stop尾塊與finally清理沿原路；未改共用recorder、相機回呼、Chrome聲路、時間戳、來源起訖或100ms／250ms護欄。只移除main未使用的audioReady匯入；解碼器內的有界等待保留。
+
+採用前，精確私有main SHA256 5b75942873f8202663badab32dabd4889243f8223d000131c9611aff720a568c 已在真正Chrome通過本機音訊、時鐘拒絕／恢復與非同步編碼錯誤短回歸，另由主聊天在真正Safari同頁依序完成1×30秒及0.5×15秒，均通過原v5。這些是私有來源證據，正式新增版本仍須各自重跑，不承接成矩陣／十輪通過。採用的產品變更只多清除unused import及過時註解，沒有加入prime影格、固定補償或新停止策略。
+
+瀏覽器回歸在原3秒基準延後交付真正native start通知一秒，原生資料流持續，斷言BufferSource.start與正式reference playing都先於通知交付，且事件isTrusted；不派發假start、不增加影格請求。舊VS與來源指紋在change擷取階段用Map保留File，避免產品正常清空input後誤判；沿用PR #72的最小QA修正，不放寬CSP。三種格式拒絕、解碼拒絕、取消及重試仍須通過；真實瀏覽器執行及限制另記證據。
+
+
+正式6f7f89a／14f503e0971a9ab8的真正Chrome短回歸已全過：延後真正start通知後音畫仍先供給、三種WebM同步拒絕與取消／重試、獨立編碼error恢復、原100ms時鐘護欄拒絕及普通Chrome無相機5秒入口。8份成功輸出全片解碼，其中6份有聲工程WebM沿原v5全過（最大聲畫50ms／完整匯出3562ms），1份無聲及普通Chrome原聲路另完整解碼；產品下載與native chunks相同，負向raw保留。36個自有程序及4個profiles退出後已釋放服務／nonce。這不是正式Safari九組／十輪，完整原生驗收仍由主聊天續跑，細節見同一證據文件。
+
+
+## 37. #3／#11 WebM 尾部完整性與保存前片長守門
+
+整合ef114988／c895264的原生Safari正式矩陣前六案通過，第7案1×15秒被原v5拒絕：451次requestFrame、約15.024秒timeline，下載卻只有422格／14.055秒，尾部來源覆蓋-1033.333／-1000ms、15音14閃。產品load讀回14056ms仍成功保存，因為只驗可解碼與正片長，沒有對照配方交集；新修正不能覆寫這份正式失敗或把後續私有結果接成矩陣。通過的第1、4案也有空尾dataavailable，因此不以空事件本身判壞，不拿BlobEvent.timecode當成檔末PTS。
+
+主聊天精確私有recorder SHA256 0e463ca1020e201aeaf13bed36473c22a8b5cccb866f75e84671f397fb0d8824只讓webmOnly呼叫start()，其餘仍start(1000)。同頁1×15→30→60秒原v5全過，下載與native chunks相同；這是WebM寫入器自己的新證據，不能借用先前失敗的MP4 no-timeslice假說，也不代表穩定性通過。正式候選採此最小條件，VS不需要逐秒持久化，相機／普通Chrome及WebM格式備援仍逐秒落盤；沿原stop／error／最後dataavailable收集，不加requestData、固定等待、補長或第二套停止策略。
+
+新VS讀回後、清除驗證播放器及替換／保存舊VS前，核對未取整validationVideo.duration毫秒與comparison(value).durationMs；非有限值或差超過原100ms就拒絕。診斷整數沿舊格式，不能把四捨五入當額外容差，也不能用timeline實際耗時取代配方合法交集。原finally清掉新URL／播放器、音源與tracks，舊outputBlob、連結及保存資料還未修改。此為必要片長守門，不能取代獨立全片解碼、視訊首尾覆蓋、聲畫、漂移或250ms內容時鐘門檻。
+
+回歸使用前次真正成檔的3秒WebM bytes替換本輪4秒輸出的資料，讓原生播放器正常讀出較短片長，沒有偽造duration；拒絕後比較兩側File／舊VS完整SHA256與URL、保存筆數及資源釋放，同頁重試真正4秒成功。先在乾淨4bd48ca的精確私有候選以真正Chrome跑原本機音訊／格式／取消回歸及新短片拒絕，4份輸出全解碼，其中3份有聲原v5全過，無音軌來源仍無聲；每次start前驗證合成Canvas stream及禁止真實媒體要求。正式版本的原check／hooks與必要Chrome回歸另記，原生完整矩陣／十輪仍待凍結後重跑。
+
+
+正式9bb26d0／16a65c24d89bb5df的必要Chrome回歸已全過：單塊WebM、真實較短bytes讀回拒絕／全指紋及保存筆數保留／同頁重試、原格式與取消／靜音、時鐘拒絕、編碼error恢復及普通Chrome5秒原MP4流程。9份成功輸出全解碼，其中7份有聲工程WebM原v5全過（最大聲畫60ms／完整匯出4206ms），實際產品下載與native chunks一致；每次start前確認受控合成stream，普通Chrome仍傳1000。36個自有PID及4個profiles退出後已釋放server／nonce。正式原生完整矩陣／十輪仍待整合凍結後另跑，全部原失敗及私有來源界線見同一證據文件。
+
+## 38. 整合16bd7ca的同版Chrome與儲存證據
+
+本節維持16bd7ca受測與84a85fd文件交付時的歸屬；其後的6f7f89a啟動順序續修另依新整合head驗證。
+
+乾淨16bd7ca／fe23327aa3da26c5由根聊天用原media-feasibility／run-media／v5完成24組、48份下載，並用原download-playback在產品程序停止後，以新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended。原quota及部分安裝強制SIGKILL亦在同版重跑；本聊天只讀核對原案例、全部下載SHA、11份完整儲存快照與兩個工具來源，不改runtime或分析器。數據、來源指紋與清理界線見[同版補驗](docs/evidence/p0-safari-reliability-integration.md#16bd7ca-同版補驗)。
+
+只補匿名文件及指南，14份Web資源保持受測版；排除把文件head冒充影音重跑、下載指紋代替最終IDB逐份bytes、每輪導航的十輪宣稱無重載常駐，以及RSS加總當峰值／無洩漏。正式WebKit-UA分支失敗與尚未採用的私有5b另列；Safari／新VS救援、人工／實體／跨裝置與iPhone暫緩的界線不變。後續乾淨包／check／CI識別由PR72綁定。
+
+## 39. #1／#3／#9 擷取完整性與未完成原片保護
+
+345b2d1／fe4bf7952cad2421的新Chrome原24組在矩陣9案及穩定前5輪通過後，第6輪停於原save的「輸出長度不足」。實際相機take是876,089 bytes、H.264無音軌28.030933秒／841格；沿原分析器影格函式讀出素材碼93→933連續，素材本身1950格／65秒，停在素材中途。原工具在斷言前未回傳diagnostics，尚未下載該VS；隔離context已關閉，不能假稱取得原失敗VS或captureTiming。另一次有完整觀測的60秒控制實際UI為0→60秒／1×，正常錄59.996秒並通過原v5；它不證明原截斷根因已排除，也不拿來補十輪。
+
+獨立的原生早停控制已證明保護缺口：同一舊版15秒配方，原生stop真正結束在1.197秒，仍被標ready與「已錄好」。capture原先只看老師到終點／取消／chunk錯誤，recording.done只處理拒絕，沒有處理提早成功；VS以實際自拍交集輸出可能正確，不能靠改匯出等待、格式或音畫門檻掩蓋原片不足。
+
+修正只在新擷取owner處理成功done：本輪尚未要求stop且未取消時，中止該輪並標未完成；stopRequested先於recording.stop及releaseCamera，仍等最後資料與chunkQueue。片長依captureDuration(recipe)預期，沿原media-feasibility.js的decodedDurationMs > seconds×1000−500下限；不是G1規格新增的±500ms，也沒有新增超長上限。loadCandidate的beforeCommit先確認新片，短缺達原下限時不替換舊self URL、take／下載／配方或finalize ready；全域load與合法短中斷片段恢復不改。
+
+拒絕後保留原始chunks與中斷工作記錄，另以「下載未完成原片」保留本輪bytes，避免為保全新片而撤銷舊take下載或VS。救援連結只綁本次asset；明確且成功刪到該asset的take／video才撤銷URL，取消、無關刪除、普通換片或重試都保留。排除重置資料、替換舊片後回補、先finalize再降級狀態、全域改load及更換相機編碼／Safari VS管線；finalize會清chunks且markStoppedTake不降ready，必須先拒絕。
+
+回歸以真正native early-stop與其成檔短bytes作控制，不假造duration或完成事件；檢查舊筆記／take／recipe／VS完整指紋及URL、chunks與部分原片相同、原生停止與資源釋放、同頁重新錄完整，另驗救援刪除生命週期。執行結果與精確版本另記[擷取證據](docs/evidence/issue-9-capture-recovery.md#擷取完整性續審)。原格式、1000ms相機分塊、時間映射、Safari VS與原v5不變。新乾淨head仍須從頭跑24組，#69 pending-write未驗不由舊default中斷通過替代；iPhone暫緩，不合併／發布。
+
+
+同一工作樹的針對性完整性回歸、原capture與capture-drain已全過；前者同頁依序原生早停、真短bytes、正常15.001秒重試及救援刪除生命週期。新QA每take唯一檔名，四份實際檔逐次Node完整hash與頁內Blob相同並完整解碼；原命名碰撞／被覆蓋的首early證據缺口仍記錄，不補造下載收據。原check408／1551通過；這些來源標dirty，不承接成乾淨head24組或Safari產品驗收。
+
+
+## 40. #13 未提交寫入中斷工具整合
+
+#13 後續沿用同一個程序所有權／重啟工具，以選用 `--pending-write` 補原生筆記＋Blob 交易未提交時的中斷案例。原生 keep-alive 讀取只延長待提交時段，必須先看到兩個 trusted put 成功、交易內候選 metadata、產品 Promise 未完成，才強制終止；同 profile 重啟比對舊資料，再以相同候選重試並重新開啟。排除另建程序管理器、以正常 close／注入 abort 冒充崩潰，以及由更新下載中斷推論資料交易可靠性的方案；這項不改產品儲存實作，也不證明提交瞬間、chunks、斷電或低磁碟。各情境的來源、結果與限制見[強制中斷證據](docs/evidence/issue-13-forced-install.md)。
+
+
+整合精確來源566f04a時逐段保留PR #66既有PID有效性、spawn error／無PID證據、已退出主程序仍查群組、nonce失敗後主機收尾等保護；沒有整檔覆蓋。摘要使用已記錄的scenario／candidateVersion，不把情境判斷摻入共用finally。產品web／schema／套件與靜態1aa1ae164c31d690不變。整合當時原生pending-write與此工具修改後的default情境均待固定乾淨head另驗，不由16bd7ca歷史default通過替代；沿原check及真實收尾故障單元驗證整合結果。
+
+
+## 41. 同版Chrome再驗證與匿名交付
+
+乾淨9e6f0ef／1aa1ae164c31d690已沿原media-feasibility、run-media、v5完成24組／48份實際下載，產品程序停止後再用原download-playback於新Chrome/file入口播放三份實際MP4／WebM／校正檔到ended；兩階段全部已知自有PID／精確profile、server及ownnonce收尾確認。被動原生事件觀察不增加影格訂閱或改時鐘，原CLI每次回應留存；成功各輪未另存完整原生事件檔。各案保存／下載Blob比對不延伸為新增最終IDB逐份完整bytes掃描。
+
+Safari十九份合成、一般原生檔案播放／同origin重載與私人四次安全拒絕仍綁345b2d1，不改標新head的Safari相機驗收；原Chrome第六輪截斷、QA下載命名碰撞及全部原失敗保留。G7僅有兩次已知PID子集的RSS加總，可能重複shared且漏新增程序，不拿來宣稱峰值、無洩漏、溫度／耗電或低磁碟通過。原生pending-write與修改後default現已在同一乾淨9e6f0ef真正通過：未提交兩個trusted put後SIGKILL保留完整舊值、同候選重試及第三程序整份assert成立；候選1／12更新中斷後同profile離線取回完整舊殼與資料。第三次snapshot未另序列化，不能宣稱獨立重比第三份raw；51個已知自有PID／5群組、profile／埠／nonce交叉清理確認，mediaCalls=0。這是sentinel與函式／SW證據，不是VS、Stop、chunks或真正低磁碟驗收，未由舊default承接。
+
+只補匿名文件與指南，最終包沿原58檔白名單；排除QA raw、profiles、合成媒體或內部操作識別。文件head／封裝sourceRevision與受測9e6f0ef分開綁定，14份runtime須逐byte相同，不把文件提交冒充重跑媒體。具體量測、完整下載與收據指紋、原生版本界線及未驗收條件見[整合證據](docs/evidence/p0-safari-reliability-integration.md)。iPhone暫緩，Claude Code／使用者最終審查、私人新VS救援與人工／實體／跨裝置仍保留；不合併、發布或關票。
+
+本輪匿名文件原check通過408 tests／1552 expects／0 fail、公開掃描、型別、原lint與build；原19項lint info保留。提交與推送沿原hooks，最終乾淨封裝與CI由PR綁定，runtime仍1aa1ae164c31d690。
+
+
+## 42. #13 明確UI保存的停止訊號與保全例外
+
+ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native metadata put成功後交易仍pending，實際點Stop未收到abort且busy仍true；解除QA自己的原生get hold後才complete，revision11→12、UI稱已保存，reload也讀到新標題。舊媒體完整bytes未遺失，這是取消接線缺口，不能把診斷成功寫成產品Stop通過。原copy-reference實點Stop的trusted abort／舊bytes／同File重試正向控制仍保持ba來源。
+
+只讓使用者發起且可取消的metadata入口傳自己的signal給saveData，再由writeLibrary第四參數取消同一原生交易：標題／分類、標記保存與刪除、動作保存、兩側選片beforeCommit metadata、缺示範asset時的確認連結。預覽／匯出準備呼叫saveCurrentRecipe時明確傳signal；changeComparison仍不傳，維持獨立佇列owner。選片的取消除了還原播放器，也必須中止尚未提交的metadata，不能留下已取消的新配對。
+
+| 呼叫者 | 決策與原因 |
+| --- | --- |
+| 明確UI資料編輯／選片／連結、預覽／匯出準備 | 傳本輪signal；abort前不換state／清草稿，取消保留舊metadata與bytes。 |
+| changeComparison獨立佇列 | 不借用active；新操作會先等它，不能因新操作Stop而取消前次編輯。 |
+| beginTake／finalizeTake／markStoppedTake、chunks落盤與清理 | 維持原保全契約；取消錄製仍須保存已收到的片段及中斷狀態。 |
+| 成檔後persistExport | 保全契約不變；新VS已可下載。一般Chrome的真Stop後保全完成另見第43節；Safari／私人模式仍未驗，不用metadata準備交易證據代替。 |
+
+排除把saveData的signal全域預設為active.signal：active在等待舊comparisonSave前就建立，可能誤綁別次操作；錄影取消後的finally保全也會被同一取消訊號截斷。不改operation控制器、writeLibrary／schema、時間映射、編碼、原100ms／250ms／v5或新增套件。原Chrome24＋3及Safari十九案保持原受測來源，不因本次UI接線而改標新版重跑。
+
+新增可重用metadata-stop瀏覽器回歸，以原生get延長真正put後的pending時段，只讓真正UI Stop發取消；核對trusted abort／無complete、完整舊metadata／Blob bytes／URL及六份實際下載、busy退出／unknown=false、同輸入重試complete及reload。另驗獨立比較佇列持續完成、新操作才取消；選片重試按產品重新產生ID，以相同來源bytes／語意核對。修正工作樹的完整十案已通過：九個可取消UI及一個獨立佇列例外，119份native binary／57份實際下載逐byte核對。第一輪原生confirm QA與第二輪fieldset判斷／Play屏障不足的失敗保留，第三輪從頭全過。原capture與drain亦通過，尾塊pending期間鎖仍持有、111,252 bytes恢復及重載保留；各自已知PID／精確profile、server與nonce收尾確認。這些是工作樹／ba parent結果，不冒稱乾淨head；新head及獨立title／copy Stop、manifest更新證據另綁。Safari／私人模式的成檔VS保存Stop、人工／實體／iPhone等未驗項繼續保留。
+
+
+乾淨99a2169／422c70c3633b8e88已由獨立來源重跑title／copy真正Stop、native abort、完整舊bytes／metadata／URL、重試與reload，另以原default驗新manifest部分安裝SIGKILL／同profile離線舊殼保留。兩案24份native檔／12份實際下載核對相同，三案45個已知PID／4群組、三profile／埠／nonce全數清理。default的sentinel由原runner逐byte斷言，raw未另序列化全部bytes，不冒稱另讀字節檔。本節工作樹十案與獨立clean-head兩入口分開歸屬；最終只補匿名文件，14份runtime逐byte等於99功能版，舊24＋3／Safari十九案不改標新head。原check／hooks、最終CI與58檔本機包由PR綁定；所有未驗收條件不變。
+
+最後匿名文件原check通過408 tests／1555 expects／0 fail、235檔公開掃描、型別、原lint與build，靜態仍422c70c3633b8e88；原19項lint info保留。原hooks與最終文件head的CI／乾淨包另由PR綁定，未啟動新瀏覽器或服務。
+
+## 43. 成檔VS保存Stop的原生保全觀察
+
+2026-10-30 Asia/Taipei，乾淨14128c2606029f5f11d438965ca001a84be4caed／422c70c3633b8e88、一般Chrome156.0.8078.49，獨立單案例只用既有合成雙片。真正Stop發生在新VS已成檔、metadata／media雙put成功但未提交後；256.1ms觀察仍pending、無abort。僅解除QA自有get hold後取得trusted complete，busy=false／unknown=false並完整reload。這符合完成檔保全契約，不是取消回滾，沒有重現需改runtime的bug；不為要求abort而把active.signal接進persistExport。
+
+基準revision12；匯出準備另有資料不變的complete13，新VS交易才complete14。14份native快照檔、候選Blob及7份實際下載逐byte核對，舊metadata只追加一asset／export；新83,137-byte VS三次下載與原生讀回相同，舊VS由產品清單取回也相同。Stop前後recorder已inactive、影格訂閱0，但串流音／視tracks在pending仍live，真正complete後才全ended；不能宣稱Stop立即釋放、硬體相機或音訊節點圖驗收。
+
+原analyze-media.py的fullDecode命令exit0，兩筆null輸出DTS訊息完整保留；私有QA額外要求stderr空的失敗亦保留。後續只讀原檔的原生packet／frame時間戳均嚴格遞增，91格及原48000Hz stereo音訊完整解碼，兩對DTS碰撞與null輸出timebase量化吻合；未改檔、重封裝、重採樣或放寬原門檻，不升格成新G2–G4或完整品質矩陣。
+
+來源函式、raw、解碼／時間戳收據與限制見[14128c2保存Stop證據](docs/evidence/issue-13-unconfirmed-storage.md#14128c2-成檔vs保存stop的保全觀察)。本次只補三份匿名文件，14份runtime維持14128c2；不重跑影音或取得媒體鎖。Safari／私人模式保存Stop、私人新VS救援、實體／五人操作／讀屏聽感及iPhone等未驗項保留；最終文件head、CI與58檔乾淨包另由PR綁定，不合併、發布或關票。
+
+## 合併審查：保留 Linux 與交易中斷驗證
+
+最終候選納入 #71 的獨立 Linux CI，與既有部分安裝及 pending-write 共用同一支工具。衝突保留交易情境、dirty／storage 指紋及平台／核心／實際鎖位置兩組欄位，避免以選單邊檔案解衝突而丟失證據。產品 runtime 不變；新整合提交的 Linux 結果須由自己的 CI 產生，不能承接 #71 舊收據。

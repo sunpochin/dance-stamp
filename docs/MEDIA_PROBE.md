@@ -1,7 +1,11 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
-2026-10-29：#58 資料／主機保護與 #62 Safari 有界音訊的本次整合、14份執行資源核對及驗證界線見[整合證據](evidence/p0-safari-reliability-integration.md)。下方歷史媒體數據保持原受測來源，不移記為整合 head 新測。
+2026-10-29：最新功能99a2169／422c70c3633b8e88的[UI保存Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)保持其來源；完整影音仍屬乾淨9e6f0ef／1aa1ae164c31d690的原Chrome24組、48份下載與三份網站外Chrome播放見[同版再驗證](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)；Safari一般十九案、原生檔案播放／正常重載與私人四次拒絕仍屬345b2d1，詳見[原生界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)。原16bd7ca的quota／更新中斷及所有歷史數據保留原版本，不移記為新head；新pending-write與default結果按同版證據另列。文件提交不代表重新跑影音，私人新VS救援、實體與手機項目仍保留。
+
+2026-10-29 真正Safari續測見[正式41b半速15秒單輪](evidence/issue-3-bounded-audio.md#正式41b3023原生safari半速15秒單輪2026-10-29)：原v5聲畫／完整覆蓋通過，仍未完成矩陣與十輪。歷史eb21064的1×／30秒MP4長度失敗、三份否決原型及e0acf88／f88c28d失敗都保留來源；私有WebM30秒與Chrome工程UA失敗分開，不再等待已完成的解鎖前置，也不把來源單輪移記為整合head驗收。
+
+2026-10-29 儲存候選的原生收據另見[未確認保存與救援](evidence/issue-13-unconfirmed-storage.md)：99e862d 私人模式有界退出及同頁重開、一般模式保存與重開已有直接對照；當輪未產新 VS；後續原生取消只有一般儲存API單輪，產品Stop／私人取消仍待驗，不承接為整合 head 通過。Chrome [獨立配額重跑](evidence/issue-13-native-quota-repeat.md)保持舊 runtime 歸屬。
 
 核心不用 FFmpeg 或 Playwright 套件；兩者只供開發測試。使用本機 FFmpeg（lavfi、libx264、AAC）與 Bun 1.4.4：
 
@@ -231,7 +235,11 @@ bun run build
 bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable" "$playwright_core_index_mjs"
 ```
 
-僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 與 persistent profile、自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+相同工具另接受第三個參數 `--pending-write`，檢查筆記與 Blob 兩個原生 put 都成功、交易尚未提交時的真正程序中斷。只用 keep-alive 讀取延長本輪原生交易，不替換寫入結果或主動 abort；先記錄原生成功事件、交易內新筆記與尚未完成的產品 Promise，才對自有群組送 SIGKILL。同 profile 新程序必須完整保留舊筆記／revision／Blob，再用完全相同候選成功重試並跨程序重開。這是人為延長交易時段的儲存函式測試，不是錄影 chunks、提交瞬間、斷電或真實低磁碟驗收；結果見[強制中斷證據](evidence/issue-13-forced-install.md#筆記與影片副本交易尚未提交時的中斷)。
+
+僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 或 `output/pending-write-*`、persistent profile 與自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+
+Linux 自動重跑沿用 Harness CI 的 `linux-install-restart` job：原品質入口先通過，再於獨立 Ubuntu 24.04 runner checkout 真正 PR head，以 Bun 1.4.4、runner 既有 Chrome 及暫存安裝的 Playwright core 1.64.1 執行上方相同工具。環境、核心版本、實際鎖路徑及 source head 寫入收據；成功／失敗的原始 JSON 與兩階段瀏覽器錯誤保留於該 job 日誌，profile／資料庫不公開，工作結束由一次性 runner 回收。這是 [Playwright 官方 CI](https://playwright.dev/docs/ci) 支援的 Linux 瀏覽器環境，不把啟動失敗或路徑模擬當成正向通過。
 
 先經產品儲存交易保存筆記與 Blob，核對原生 IDB 與完整舊 cache。候選使用真實產品 worker 原碼、新版本及對應的新 HTML／CSS 雜湊；主機保持第二份 CSS 回應未完成。必須同時看到候選原生 cache 已有不同於舊版的 HTML、尚無其餘資源、registration.installing 為 installing、舊 active／controller 仍完整，才保存 barrier／PID／群組 provenance 並送出 SIGKILL。這裡沒有 Cache mock、throw 注入、skipWaiting、手動 activate 或資料庫重建。
 

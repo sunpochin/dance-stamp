@@ -3,9 +3,13 @@
 
 2026-10-29 更新支援狀態；下方主機比較保留2026-10-28的查核資料，發布前仍須重查。這是可審查的桌面候選，不是正式 beta 上線公告。#3／#14 的真人、裝置與完整媒體 gates 未完成；iPhone 依使用者要求暫緩。公開部署、GitHub Release、DNS／帳務變更與新增必要服務均未執行。
 
-P0 整合候選以桌面 Chrome 為測試範圍。一般 macOS Safari 已用普通新視窗完成對照，不需改 Profiles 或日常設定；測試原片與 VS 曾能保存並關窗取回，版本歸屬見[儲存對照](evidence/issue-3-safari-current.md)。有界音訊候選的0.5×完整覆蓋與較長輸出同步仍有缺口，修正後尚待原生複驗，見[候選品質證據](evidence/issue-3-bounded-audio.md)。私人模式另有匯出與原生 Blob 保存阻礙，仍未通過；[早期紀錄](evidence/issue-3-safari-feasibility.md)保留原版本。目前原生續測等待 Mac 解鎖，無須使用者另選設定。iPhone 暫緩；真人相機／音訊、五人操作與最終審查仍須各自證據。包內以 START_HERE 的支援表與 release.json 的來源識別為準。
+本輪以桌面Web為優先，iPhone暫緩。最新功能99a2169／422c70c3633b8e88補上明確metadata保存的Stop接線；[乾淨同版title／copy Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)已通過。另有修正工作樹九個取消入口與獨立佇列例外，以及原capture／drain必要回歸；不把工作樹當clean-head，也不改標舊完整影音／Safari數據。從main38e6cf9建立一般PR #72，保留#64、#65、#66、#67、#69與#70的來源；629a98b新增擷取完整性保護及未完成原片另存，9e6f0ef合入pending-write工具且保留#66程序／nonce保護。失敗新片不替換舊自拍／VS，救援下載只在明確成功刪除對應媒體後撤銷，詳見[擷取證據](evidence/issue-9-capture-recovery.md#擷取完整性續審)。
 
-本候選已整合 [PR #58](https://github.com/sunpochin/dance-stamp/pull/58) `2d31302` 的主機與資料保護，以及 [PR #62](https://github.com/sunpochin/dance-stamp/pull/62) `676ba50`（runtime 仍為 `13976bb`）的有界音訊、空 edit 靜音與音訊偏移拒絕；來源 PR 與 main 均未合併。整合驗證及版本界線見[本候選證據](evidence/p0-safari-reliability-integration.md)。本機工程包仍須獨立審查及發布核准。
+最近完整影音受測9e6f0ef／1aa1ae164c31d690已完成原Chrome24組／48份下載、三份實際檔網站外播放，以及同版未提交寫入中斷／重試與更新部分安裝中斷後離線重開；[匿名同版數據與限制](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)分別記錄完整指紋與清理。不可播放sentinel、合成Chrome及三檔播放器不等於永久保存、真正低磁碟、真人相機、聽感或Safari救援；第三程序由原工具整份斷言通過但未另序列化快照。後續文件head與最終包sourceRevision另綁，本次功能續修只變main／SW，其餘12份與ba相同；最終文件包的14份runtime必須逐byte等於99功能版，不把文件提交當重新跑影音。
+
+Safari不需改Profiles或日常設定。345b2d1／fe4bf7952cad2421的一般模式合成九案／同頁十輪、原生實際檔播放及正常VS重載已通過；這些保持原版本，不改標最新Safari擷取驗收。私人四次仍被原護欄拒絕，未走到新VS保存失敗／未確認救援；[原生及私人模式界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)保留全部失敗。99e862d的[私人原頁救援與一般原片保存](evidence/issue-13-unconfirmed-storage.md)亦只屬其來源。Safari、人工／實體／跨裝置及Claude Code／使用者最終審查尚有未完成項目，不能宣稱P0或私人完整支援。
+
+最終本機包沿原58檔白名單，只收匿名指南、證據、程式與授權，指南可離線查閱；不收output、profiles、原始收據、測片或QA工具。舊16bd／84包、SHA及所有歷史成功／失敗均保留原歸屬。本機候選仍待獨立審查與發布核准；未合併main、部署、建立GitHub Release或關閉未驗收票，包內以START_HERE與release.json識別為準。
 
 ## 取得與重建
 

@@ -31,6 +31,12 @@
     </details>
     <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
+  <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
+    <h2 id="storage-recovery-title">保存狀態未確認</h2>
+    <p role="alert">瀏覽器沒有確認這次保存是否完成或回復。本頁暫停儲存，保留目前原片與可下載的 VS，請先使用下方影片下載連結另存。</p>
+    <p>筆記備份只含本頁最後確認的筆記，不含未保存的表單草稿或任何影片。請保持這個分頁，確認下載完成後再重開同一頁讀回；私人模式不要改開新分頁代替，也不要先關閉私人視窗。</p>
+    <div class="actions"><button id="storage-backup" type="button">另存本頁筆記備份</button><button id="storage-reopen" type="button">已另存，重新開啟同一頁讀回</button></div>
+  </section>
   <fieldset id="controls" tabindex="-1"><legend>01 · 準備片段</legend>
     <label>示範影片<input id="reference-file" type="file" accept="video/*"></label>
     <div class="settings">
@@ -90,7 +96,8 @@
     <canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas>
     <p id="output-status" role="status"></p>
     <progress id="progress" max="1" value="0" aria-label="合成進度"></progress>
-    <div class="actions"><a id="reference-download" href="#canvas" hidden>下載老師原片</a><a id="take-download" href="#canvas" hidden>下載自拍原片</a><a id="output-download" href="#canvas" hidden>下載 VS 影片</a><button type="button" id="share" disabled>系統分享 VS</button></div>
+    <!-- 未完成原片另給連結，失敗時才不會撤銷舊自拍與 VS 的下載。 -->
+    <div class="actions"><a id="reference-download" href="#canvas" hidden>下載老師原片</a><a id="take-download" href="#canvas" hidden>下載自拍原片</a><a id="partial-download" href="#canvas" hidden>下載未完成原片</a><a id="output-download" href="#canvas" hidden>下載 VS 影片</a><button type="button" id="share" disabled>系統分享 VS</button></div>
     <!-- biome-ignore lint/a11y/useMediaCaption: 輸出沿用本機影片，本版未生成字幕，不以空字幕冒充可用字幕。 -->
     <video id="output" aria-label="已合成的左右比較影片播放器" controls playsinline hidden></video>
     <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對左右、聲音與鏡像。取消不會刪除原片。</p>

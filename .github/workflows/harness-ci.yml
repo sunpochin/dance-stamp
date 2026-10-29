@@ -26,3 +26,36 @@ jobs:
       - run: bun run check
       # 只驗證白名單下載包，不部署或上傳發行檔；發布仍需人工決策。
       - run: bun run package:web && bun run check:package
+  linux-install-restart:
+    needs: harness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # 證據須綁定 PR 真正來源，不能把 GitHub 的臨時 merge commit 當受測 head。
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+      # 控制器只放此輪暫存目錄；沿用 runner 的 Chrome，不替產品加入瀏覽器套件。
+      - run: npm install --prefix "$RUNNER_TEMP/dance-stamp-linux-qa" --ignore-scripts --no-audit --no-fund playwright-core@1.64.1
+      - name: Force exit during a native partial install on Linux
+        run: |
+          test "$(uname -s)" = Linux
+          uname -srmo
+          google-chrome --version
+          bun run build
+          bun --no-env-file tests/browser/forced-install-restart.ts "$(command -v google-chrome)" "$RUNNER_TEMP/dance-stamp-linux-qa/node_modules/playwright-core/index.mjs"
+      - name: Preserve synthetic evidence and browser errors
+        if: always()
+        # 失敗也保留原始收據；只列明確 QA 檔，不上傳整個 profile 或資料庫。
+        run: |
+          for file in output/forced-install-*/evidence.local.json output/forced-install-*/*-chromium.log; do
+            if [ -f "$file" ]; then
+              echo "::group::$file"
+              cat -- "$file"
+              echo "::endgroup::"
+            fi
+          done

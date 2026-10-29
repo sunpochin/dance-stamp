@@ -35,30 +35,51 @@ export async function mediaAction(target, name, action, signal, timeoutMs = 15_0
 }
 
 // 啟播承諾完成不代表兩側像素已呈現；先收原生影格通知，輸出才不會錄入啟動等待。
-/** @param {HTMLVideoElement} video @param {AbortSignal} signal */
-export async function presentedFrame(video, signal) {
+/** @param {HTMLVideoElement} video @param {AbortSignal} signal @param {(frame: VideoFrameCallbackMetadata) => boolean} [accept] */
+export async function presentedFrame(video, signal, accept = _frame => true) {
   signal.throwIfAborted();
   if (!video.requestVideoFrameCallback) { await event(video, 'playing', signal); return; }
   return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
-    let id;
+    let id, finished = false;
     const finish = error => {
-      clearTimeout(timer); signal.removeEventListener('abort', aborted);
+      if (finished) return;
+      finished = true; clearTimeout(timer); signal.removeEventListener('abort', aborted);
       if (id !== undefined) video.cancelVideoFrameCallback(id);
       error ? reject(error) : resolve();
     };
     const aborted = () => finish(signal.reason);
     const timer = setTimeout(() => finish(new Error('等待比較畫面逾時，原片保留，請重新預覽後重試。')), 15_000);
-    signal.addEventListener('abort', aborted, { once: true });
-    id = video.requestVideoFrameCallback(() => { id = undefined; finish(); });
+    const watch = () => {
+      try {
+        id = video.requestVideoFrameCallback((_now, frame) => {
+          id = undefined;
+          // 暖機用來源時間確認播放確實前進；定位後則只把此通知當成呈現步驟屏障。
+          try { if (accept(frame)) finish(); else watch(); } catch (error) { finish(error); }
+        });
+      } catch (error) { finish(error); }
+    };
+    signal.addEventListener('abort', aborted, { once: true }); watch();
   }));
 }
 
-export async function seek(video, seconds, signal) {
+export async function seek(video, seconds, signal, waitForFrame = false) {
   if (!Number.isFinite(seconds) || seconds < 0) throw new Error('跳轉時間不正確。');
   if (video.readyState < 1) throw new Error('影片尚未準備好，請先重新選片。');
   signal?.throwIfAborted();
-  if (Math.abs(video.currentTime - seconds) < 0.001 && video.readyState >= 2) return;
-  await mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, signal);
+  if (!waitForFrame) {
+    if (Math.abs(video.currentTime - seconds) < 0.001 && video.readyState >= 2) return;
+    await mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, signal); return;
+  }
+  if (!video.requestVideoFrameCallback) throw new Error('此瀏覽器無法確認起始畫面，未開始合成；原片保留。');
+  const waiting = new AbortController(), cancel = () => waiting.abort(signal?.reason);
+  signal?.addEventListener('abort', cancel, { once: true });
+  try {
+    // 訂閱必須先於 seek；seeked 只代表播放位置完成，不能保證 Canvas 已讀到那一格。
+    // Safari 暫停回零的唯一通知可能仍帶舊 mediaTime；再等 metadata 歸零會永久卡住。
+    // 通知與 seeked 分別等待，完成後由呼叫端重畫 Canvas；metadata 不當作像素正確的證據。
+    const frame = presentedFrame(video, waiting.signal);
+    await Promise.all([frame, mediaAction(video, 'seeked', () => { video.currentTime = seconds; }, waiting.signal)]);
+  } finally { waiting.abort(); signal?.removeEventListener('abort', cancel); }
 }
 
 export async function load(video, url, signal) {
@@ -91,10 +112,11 @@ export function assembleChunks(rows) {
   return new Blob(rows.map(row => row.blob), { type: mime });
 }
 
-/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk @param {(timeMs: number) => void} onStart */
-export function record(stream, onChunk = () => {}, onStart = () => {}) {
+/** @param {MediaStream} stream @param {(blob: Blob) => void} onChunk @param {(timeMs: number) => void} onStart @param {{webmOnly?: boolean}} [options] */
+export function record(stream, onChunk = () => {}, onStart = () => {}, { webmOnly = false } = {}) {
   if (!globalThis.MediaRecorder) throw new Error('此瀏覽器沒有錄影能力。');
-  const candidates = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm', ''];
+  // Safari VS 的 MP4 成檔仍超出覆蓋門檻；專用選項不能默退該路徑，也不能改掉相機／Chrome 順序。
+  const candidates = webmOnly ? ['video/webm;codecs=vp8,opus'] : ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm', ''];
   let recorder;
   for (const mimeType of candidates) {
     if (mimeType && !MediaRecorder.isTypeSupported(mimeType)) continue;
@@ -102,11 +124,12 @@ export function record(stream, onChunk = () => {}, onStart = () => {}) {
       recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined);
       // start() 呼叫與原生 start 事件分開觀測，不能冒充影格同步證據。
       recorder.addEventListener('start', () => onStart(Math.round(performance.now())), { once: true });
-      recorder.start(1000);
+      // Safari VS 的週期切塊曾在 stop 遺失整段尾部；只此路徑一次收檔，相機／Chrome 仍逐秒落盤。
+      if (webmOnly) recorder.start(); else recorder.start(1000);
       break;
     } catch { recorder = null; }
   }
-  if (!recorder) throw new Error('裝置無法啟動任何候選錄影格式。');
+  if (!recorder) throw new Error(webmOnly ? '此瀏覽器無法啟動 WebM（VP8／Opus）比較匯出，請改用 Chrome；原片、設定及前次 VS 保留。' : '裝置無法啟動任何候選錄影格式。');
   const chunks = [];
   let resolveDone, rejectDone, resolveStopped, rejectStopped, failure, finished = false, timer;
   const done = /** @type {Promise<Blob>} */ (new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; }));

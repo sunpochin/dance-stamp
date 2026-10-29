@@ -19,6 +19,8 @@ export const packageInputs = [
   'docs/evidence/issue-13-forced-install.md',
   // 原生容量拒絕也有獨立版本與限制，須隨指南提供，不能只保留操作連結。
   'docs/evidence/issue-13-native-quota.md',
+  // 新救援操作與配額重跑各有來源界線；指南離線閱讀也必須帶上明列的匿名文件。
+  'docs/evidence/issue-13-unconfirmed-storage.md', 'docs/evidence/issue-13-native-quota-repeat.md',
   // 媒體指南也連到各項匿名回歸；只明列實際依賴，不遞迴收集 output 或其他檔案。
   'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
   'docs/evidence/issue-9-capture-recovery.md', 'docs/evidence/issue-9-comparison-integration.md',
