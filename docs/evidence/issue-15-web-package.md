@@ -83,3 +83,17 @@ Bun 1.4.4 的實際完整 CLI 回歸在修正前失敗：archive 是連到合成
 ### 界線
 
 這是特定 Chrome／裸包／既有可及性函式的有界工程複查，沒有在該範圍重現需改產品介面的新缺陷。工具綠燈不代表五位真人或其中 4/5 已完成；讀屏實聽、實體觸控／safe area、真人相機／音訊、Safari／私人模式、跨實體裝置、完整媒體 gates、獨立 Claude Code／使用者最終審查與發布核准均保持原未驗條件。iPhone 暫緩。沒有修改 #73、Safari 演算法、合併、部署、發布或關閉 #14／#15。
+
+## f95a256 實際 Markdown 產物的獨立審查
+
+2026-10-30 Asia/Taipei，另一個作者在獨立 clone 核對 PR #76 最新 `f95a2564a06d6d7f2e5dd0a9dd785a83e300e3ca`，先保持既有交付分支乾淨，再開本聊天審查／修正分支。沒有啟動瀏覽器、相機或操作共用媒體鎖；沒有進行裸包 HTTP 驗收，完整 check 的既有 HTTP 單元仍會啟動自己的測試服務。
+
+以原 `package:web`／`check:package` 分別建立乾淨基線 `c0ab39b` 與乾淨 #76 包，兩者都通過當時的官方 checker。獨立直接讀 archive 的實際 bytes：基線 36 份 Markdown／127 個本機連結有 13 處缺目標，含 #76 所述的八處與授權副本五處；#76 的 36 份／119 個本機連結仍有五處缺目標。八個改成固定 `c0ab39b` 的來源連結均標示「需連網」，對應來源檔存在；所有操作／恢復指南本身的本機連結已修好，沒有重改這八個連結或擴大白名單。
+
+漏檢來自 `dist/web/THIRD_PARTY_NOTICES.md`：根文件的五個 vendor／docs 相對連結原樣複製到 dist/web，Markdown 從新位置解析會落到不存在的 dist/web/vendor 或 dist/web/docs。HTTP 仍以純文字提供，但副本本身是包內 Markdown，現有來源測試明確排除 dist，封裝及 checker 也沒有檢查其連結。新增負向案例在修正前以真實授權原文重現 seal 未拒絕，**1 fail／1 expect**；不是新增 Markdown／URL 格式的假想案例。
+
+最小修正讓建置只在 Markdown 授權副本的既有 inline 本機連結加回包根目錄路徑；根授權、授權原文、網址與本機附帶目標仍保留。版本、SW manifest 與實際輸出共用同一份轉換後 bytes，因此靜態版本改為 `86a9d6394a6bd31a`，授權副本及衍生 SW bytes 有變；`web/` 媒體／儲存／UI 原始碼、HTTP 路由／標頭、打包白名單及授權條款不變。不能把 #76 的舊 HTTP／瀏覽器收據轉移到此新版本。
+
+seal／verify 的共用 owner 現在直接核對傳入包內所有 Markdown bytes 的既有 inline 本機連結。回歸包含原五處漏檢、真正建置的授權副本與 SW manifest 全 bytes hash 相同、完整 Markdown payload 的實際 archive 往返與 checker，保留原路徑／完整性／公開掃描負向測試；此檔 **6 tests／176 expects／0 fail**。真正 CLI 亦會以文件連結缺目標拒絕原基線包，而非讀 repo 的已修文件取得假成功。
+
+修正工作樹重新沿原入口打包與校驗後，獨立查核實際包的 **36 份 Markdown／119 個本機連結，0 斷鏈**。原完整 `bun run check` 通過 **410 tests／1631 expects／0 fail**、236 檔公開掃描、型別、原 lint 與 build；19 項原 lint info 保留。提交／推送 hooks、最終乾淨 head／包的 sourceRevision、checksum 與 CI 由交付 PR 綁定；工作樹包不冒稱乾淨最終提交。這是檔案與既有連結格式的工程證據，不含新 HTTP／原生瀏覽器、媒體或裝置驗收；Claude Code／使用者最終審查及所有原未驗收條件保留，iPhone 暫緩，未合併、部署、發布或關票。

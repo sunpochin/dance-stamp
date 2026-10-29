@@ -1,6 +1,8 @@
 <!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–43節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
 
+2026-10-30：目前 main `c0ab39b` 的[保存與救援有界稽核](issue-3-current-protection-audit.md)已補負向回歸、合成 Chrome 擷取保護及網站停止後實際檔案播放；原生 Safari 自動化入口因現有設定拒絕，沒有建立產品測試 session。一般／私人保存 Stop 與新 VS 未確認救援仍未驗，舊原生證據保持下列受測來源。
+
 目前UI取消功能版為99a2169／422c70c3633b8e88；一般Chrome成檔後保存Stop另在乾淨14128c2同runtime補驗。最新完整Chrome影音24＋3仍屬9e6f0ef／1aa1ae164c31d690，Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。
 
 ## 99a2169 明確UI保存取消續修
@@ -393,3 +395,40 @@ Bun 1.4.4、macOS 27.0.1、Chrome 156 headless、既有 Playwright CLI 0.1.22。
 本聊天沒有重跑低空間／配額正向矩陣、影音成檔／同步品質、原生 Safari、產品外播放、全 G1–G7、既存影片 Blob 的跨程序保留或完整缺片救援。#74 的原生補驗仍屬 fa6e69e／其原靜態；#75、#76、#77、#79 及其他聊天的舊版成功不移記為本候選重跑。新版容量／JSON UI 證據不代替私人模式自然故障、真人／實體／跨裝置或媒體品質。
 
 讀屏實聽、五位舞者及 4/5 核心操作、實體觸控／safe area、真人相機／聲音、既定保存 Stop／私人模式缺口、Claude Code／使用者最終審查、公開 origin／HTTPS／標頭及發布核准保持原條件。iPhone 暫緩；來源 PR／未驗收票保持開啟，不合併 main、不部署或發布。
+
+## PR #80 續作：授權副本、匿名證據與新版離線入口
+
+前一輪乾淨 `396037fe94ae8dcf3c5f28ea96e25bddabdf1ffc` 的 58 檔／291,774-byte archive、SHA256 `bc154f54d4570f41da566c7f1021f6259dde5babdd9449b71d6e732517b4641d`、release.json、SHA256SUMS 與所有原測試收據保留在本機；不覆寫為新來源成功。同一 PR #80 後續只整合以下已穩定且 CI 成功的來源，不另開同目的候選：
+
+| 來源 | 固定 head | 原受測版本與歸屬 |
+| --- | --- | --- |
+| #77 | `3c8ed4ad79bed2ae3d80febd0c82912e2b455408` | 匿名媒體保全／Safari 操作界線；原受測 c0ab39b／422c70c3633b8e88，不改標新版媒體矩陣 |
+| #79 | `82c5f84d18b4232fe67210cc7a7f945cfccb7bf8` | 原 87e04e8／9ef2b8488982695f 的 8 KiB 餘裕 UI，保持歷史資料 |
+| #81 | `cce0273ef04de5d074574d2d549ee64ac473ddd0` | 已含 #78／#75；c46f0b5／0e9c7c7af09286e2 的新版正常／明示救援、既存媒體及滿額救援，只追加既有匿名文件 |
+| #82 | `e6e086f89c82d9e40f5cf4bb8f337bb6799327ca` | 已含 #76；修正建置授權 Markdown 副本五個目標及 seal／verify 的實際內容檢查，不改根授權條款或 HTTP 白名單 |
+
+四來源自動合併無衝突。web/ 與根 LICENSE／THIRD_PARTY_NOTICES.md 相對 396037f 完全無差異；webFiles／notices、十三條 webPaths、webHeaders／pagesHeaders 的值另以直接匯入前後模組深比較，均相同。下載包僅明列增加 `issue-3-current-protection-audit.md` 及 `issue-12-native-capacity-ui.md` 兩份匿名文件（58→60 檔），不是公開 HTTP 路由擴張。#77／#79 新文件 bytes 保持各自來源；#81 的追加保留原 head／注入／餘裕界線，未將舊收據移記為本次驗收。
+
+### 實際包與連結檢查
+
+合併 #77 後先沿原 releasePackage 回歸重現一項整合缺口：新的 p0 指南連到尚未在包清單的 `issue-3-current-protection-audit.md`，得到 5 pass／1 fail。明列上述兩份已授權匿名文件後，原回歸 6 tests／184 expects／0 fail；沒有為了綠燈放寬路徑或忽略缺檔。
+
+原完整 check 在修改內容通過 **435 tests／2042 expects／0 fail**，238 檔公開掃描、17 份 harness 指紋、型別、原 lint／build，保留 19 項既有 lint info。實際 package／check:package、repo／Git／node_modules 外 tar 解包與原生 checksum 通過。Bun 1.4.4，macOS 27.0.1／Chrome 156 headless；受測工作樹尚未提交，HEAD=396037f、完整 tree=`457ad8307392df9cbebee96af60976f9873cf22d`，後續只補整合文件。靜態 **4651fae419d8d9c8**，受測包共 **60 檔**，兩輪分別 **302,231／302,165 bytes**；兩輪 archive SHA 依序為 `1a005dd01d8a69dc58aab14da2587d5dd843b2766b7ae0c5f9cf2e5f5be2cba0`、`e5abac6fe799e5d6ef903e881a680df939a0ab99900697b4ba95862f83c886e0`，不宣稱 gzip archive 位元可重現。新乾淨 head／包另由本 PR 綁定。
+
+直接讀實際包，而非只讀來源 Markdown：**38 份 Markdown／127 個本機檔案目標**全部存在，包含 `dist/web/THIRD_PARTY_NOTICES.md` 的五個 `../../vendor/...`／`../../docs/...` 目標。建置副本只移動這五個連結；將其 `../../` 前綴反向還原後，bytes 精確等於原根文件；根 LICENSE／NOTICE 與舊包相同。SW manifest 的十二份雜湊都等於真正資源 bytes；十四份 Web 資源相對 396037f 僅授權副本／SW 有變，其餘十二份相同。
+
+另把實際 60 檔包複製到自有負向目錄，只將副本換成未重定向的根 NOTICE，原 CLI checker 以「文件連結缺少目標」拒絕；交付 archive SHA 未變。這確認 checker 確實讀產物，沒有拿 repo 的正常來源補假成功。
+
+### 必要 HTTP、離線與正常容量 smoke
+
+**49 項實際 HTTP** 通過：十三資源逐一 GET／HEAD 的 body SHA、空 HEAD、MIME 及四份政策；九條禁止路徑逐一 GET／HEAD 及五種非讀取方法回 404。另加新匿名文件與 vendor LICENSE 的禁止路徑，證明隨包檔案沒有意外公開成路由。
+
+原 `package-entry.js` 通過，secure context／空資料／新 manifest 資源完整。首次新增離線 probe 的最後一項 QA 錯把頁面 title 當成 h1 名稱而 failed，並未完成全部 smoke；其 profile／日誌／已核對前段結果保留。所有七個已知自有 PID、主機及 nonce 確認收尾後，才以新 profile 改用真正在線 h1／title 作基準，只補跑離線與尚未執行的容量檢查，不重跑媒體矩陣。
+
+補跑結果有真正 Result、無 Error：頁面受新 SW 控制後切 context offline、真 reload、等產品初始化並按重新檢查；頁內 renderer fetch 十二個 manifest URL，所有 bytes／SHA 與在線相同，五個已修連結的 NOTICE 全文亦相同，app 標題／可用控制保留，navigator.onLine=false。沒有使用可能繞過離線模擬的 APIRequestContext 代替頁內 fetch；這是 context 離線與新資源檢查，不是宿主停機或實體飛航模式。
+
+單一 v2 完整 interrupted 關聯案，真正 UI 匯入 **10,485,760-byte** 漢字／emoji JSON、native complete、保存／reload、正常備份下載及另一新 context 的 UI 還原／重匯通過。可攜內容仍恰好 10 MiB，原生 metadata.data=10,485,889 bytes；正常檔 SHA256 `c7cbce165163ef5f5fa147ce46741cf48c3db13e665d47a437134599188d76fe`。七張表、來源 ID、兩份不同拍點及逐表內容相同，外部 10,485,761-byte 原始檔在預覽前拒絕且無 metadata 寫入。磁碟檔另獨立讀取核對大小／SHA／JSON；沒有重跑救援注入、既存媒體保留或四個日期案例，不與 #81 結果重複計數。
+
+兩個實際 browser 輪次各核對七個已知自有 PID 退出、自己的主機停止，nonce 相符才放鎖；沒有中止 live handle、接管他人鎖、停止日常瀏覽器或讀私人媒體。原生強制中斷 default／pending-write 兩案指定由另一線在本次穩定 head 上補，本聊天未執行；未以舊收據補勾。所有 raw、profiles、JSON、截圖與私有 runner 留 ignored output。
+
+本輪沒有重跑影音品質／Safari／低空間、實體／跨裝置、五位真人／讀屏或完整恢復矩陣。iPhone 暫緩，未改 gate；來源 PR／未驗收票保持開啟。Claude Code／使用者最終審查、公開 origin／HTTPS／標頭與發布核准仍保留，未合併 main、部署或發布。

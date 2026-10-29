@@ -1,18 +1,41 @@
 /* 檔案用途：驗證下載包拒絕夾帶、損壞、缺檔與連結，不靠檔名副檔名猜安全。所在層：發布邊界回歸。主要關聯：package-web.ts。 */
 import { expect, test } from 'bun:test'
+import { createHash } from 'node:crypto'
 import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { packageInputs, readAllowed, sealPackage, verifyPackage } from '../../scripts/package-web'
+import { webNotice } from '../../scripts/web-assets'
 
-test('隨包指南、證據與授權來源文件的相對連結都必須有目標', () => {
+test('封裝檢查須拒絕產物中的授權副本斷鏈，不能只核對來源 Markdown', () => {
+  const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))
+  // 這是實際建置副本的原內容；根目錄可用的連結搬到 dist/web 後五處都失去目標。
+  payload.set('dist/web/THIRD_PARTY_NOTICES.md', readFileSync(new URL('../../THIRD_PARTY_NOTICES.md', import.meta.url)))
+  expect(() => { sealPackage(payload, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false }) }).toThrow('文件連結')
+})
+
+test('真正建置的授權副本與離線 manifest 使用相同 bytes', () => {
+  const root = resolve(import.meta.dir, '../..'), notice = 'THIRD_PARTY_NOTICES.md'
+  const source = readFileSync(join(root, notice), 'utf8')
+  // 直接跑原建置入口，才會抓到寫入已轉換副本、manifest 卻仍 hash 根文件的漂移。
+  const result = Bun.spawnSync([process.execPath, '--no-env-file', join(root, 'scripts/build-web.ts')], { cwd: root })
+  expect(result.exitCode).toBe(0)
+  const built = readFileSync(join(root, 'dist/web', notice))
+  expect(built.toString()).toBe(webNotice(notice, source))
+  expect(built.toString()).toContain('](../../vendor/')
+  const manifest = JSON.parse(readFileSync(join(root, 'dist/web/sw.js'), 'utf8').match(/const manifest = (\{[^\n]+\});/)![1])
+  expect(manifest['/' + notice]).toBe(createHash('sha256').update(built).digest('hex'))
+  expect(readFileSync(join(root, notice), 'utf8')).toBe(source)
+})
+
+test('隨包指南、證據與授權副本的實際封裝內容，所有相對連結都必須有目標', async () => {
   let references = 0
   const packaged = [...packageInputs, 'release.json', 'SHA256SUMS']
-  // 不只證據檔；完整來源庫的文件／程式不在裸包內，不能讓相對連結冒充可離線閱讀。
-  // check 在 build 前執行，須讀來源文件；dist 的純文字 notice 副本由同一根文件產生。
-  const guides = packageInputs.filter(name => name.endsWith('.md') && !name.startsWith('dist/'))
+  const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))
+  const guides = packageInputs.filter(name => name.endsWith('.md'))
   for (const guide of guides) {
-    const source = readFileSync(resolve(import.meta.dir, '../..', guide), 'utf8')
+    const source = guide.startsWith('dist/web/') ? webNotice(posix.basename(guide), readFileSync(resolve(import.meta.dir, '../..', posix.basename(guide)), 'utf8')) : readFileSync(resolve(import.meta.dir, '../..', guide), 'utf8')
+    payload.set(guide, new TextEncoder().encode(source))
     for (const match of source.matchAll(/\]\(([^\s)]+)\)/g)) {
       const link = match[1].split('#')[0]
       if (!link || /^[a-z][a-z\d+.-]*:/i.test(link) || link.startsWith('//')) continue
@@ -21,6 +44,11 @@ test('隨包指南、證據與授權來源文件的相對連結都必須有目�
     }
   }
   expect(references).toBeGreaterThan(0)
+  // 透過真正 archive 往返再走 checker，確保它檢查產物 bytes，不會偷偷讀回 repo 內的正常文件。
+  const files = sealPackage(payload, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })
+  const archive = await new Bun.Archive(Object.fromEntries(files), { compress: 'gzip' }).bytes()
+  const restored = new Map(await Promise.all([...await new Bun.Archive(archive).files()].map(async ([name, file]) => [name, await file.bytes()] as const)))
+  expect(verifyPackage(restored).sourceRevision).toBe('b'.repeat(40))
 })
 
 test('完整公開包可 roundtrip；夾帶、缺片、竄改和失真 metadata 均拒絕', async () => {
