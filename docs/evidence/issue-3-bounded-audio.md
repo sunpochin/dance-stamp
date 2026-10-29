@@ -211,3 +211,23 @@ Chrome原聲路（無UA覆寫）三項通過：
 兩個產品下載與native chunks逐byte相同，分別4,795,278 bytes／SHA256 `e0701efdde1ed1d01c94323ff1860cdfb749dfd38553c92c4c3f990cdf95fa0d`，2,197,853 bytes／`7fa0f0dbd7a45c15789bd1948517e712e7bd42b4417996f32dd6228753a21065`。原檔、record、raw、analysis、下載收據與verified-native-two-cases.json由主聊天保留在ignored output/safari-no-start-gate-41b；本聊天唯讀核對歸屬，沒有操作Safari。半速最大逐格配方100ms、內容時鐘125ms仍完整保留，不能寫成每格均低於100ms。
 
 兩個引擎短例滿足採用條件，正式版本僅移除localAudio VS的start等待，清理main unused import及過時註解；原recorder、10ms音訊排程、時間戳、來源邊界與所有分析器不變。QA帶入PR #72的change擷取Map並補真正start延後通知的資料流回歸。正式新版本的原check／hooks與短Chrome回歸另記；完整原生矩陣、十輪及新檔產品外重播仍由主聊天續驗，不能從本段私有結果宣稱完成。所有原始MP4／逾時／工具失敗均保留，iPhone暫緩，不合併、部署或關閉P0。
+
+
+## 正式6f7f89a的實際Chrome啟播／失敗恢復短回歸（2026-10-29）
+
+受測乾淨來源 `6f7f89a54b0914ebf9d93250d39c18e21b75bc0c`、靜態 `14f503e0971a9ab8`、main SHA256 `8f88d8469a9e339855f6e2ae3707d92e351958bf0f052e21492bc0a5fa6df4cc`；比精確私有5b只再移除unused import及修正過時註解。原Bun1.4.4 check及提交／推送hooks通過389 tests／1377 expects／0 failures，同head CI #130成功。
+
+真正Chrome156.0.8078.49隔離新context、無SW controller，固定本輪13份回應資源指紋；相機／麥克風禁止。工程分支明確用QA UA選取，不冒充Safari。正式 `local-audio.js` 基準延後真正native start通知交付一秒，start-call=1209.1、BufferSource.start=1209.2、reference playing=1213.7、真正native start=1271、延後交付=2272.3ms；兩份延後通知及playing的isTrusted均true。音畫已先供給資料，完整3秒成檔，沒有補假start或額外影格請求。
+
+四項完整短回歸通過：
+
+- local-audio：真實有界AAC解碼／12秒來源片段、延後通知基準、WebM不支援／建構／start同步拒絕、解碼拒絕、準備及合成取消、舊原片／VS bytes與URL保留、重試、交換成無音軌來源；解碼器、AudioData、buffers及tracks釋放。
+- 獨立非同步編碼error：保留舊VS與保存筆數、不新增假成功、停止本輪資源，同頁重試真正VP8／Opus WebM。
+- 原local-audio-clock：延後play與180ms短停頓均由原100ms護欄拒絕，舊VS保留且資源清理，再重試成檔。
+- 普通Chrome原聲路existing-no-camera：相機API完全不存在時仍可走正式選雙片／共同預覽／5秒真實輸出；無外部請求，沿原MP4選序。只把下載目的地改為本輪新檔，不改原斷言。
+
+8份成功原生輸出全部FFmpeg全片解碼：工程分支6份有聲WebM沿未修改原v5全部通過覆蓋／漂移／聲畫，最大聲畫50ms、完整匯出上界3562ms；另1份預期無音軌來源全片解碼且audio tracks=0；普通Chrome5秒成檔亦全解碼。實際產品WebM重試下載、普通Chrome下載均與各自native chunks逐byte相同。三份故意拒絕的raw另留，不列為品質通過；各輪無unhandled rejection、舊VS連結仍可見且未撤銷，所有本輪stream已停止。
+
+本機ignored `output/chrome-nogate-formal-6f7f89a-941c` 保留原生chunks、實際下載、操作／事件、原v5報告、全部成功與負向原檔、complete-analysis.json。關閉後按程序樹核對36個自有PID及4個精確profile均無殘留，再停止自有server16362並釋放nonce 49518c3a-620e-447e-b68e-f9113f1d9de0；process-cleanup.json與cleanup.json記錄來源乾淨及當刻無鎖。本輪未操作Safari。
+
+這是新正式來源的Chrome短回歸，並非完整矩陣或十輪。真正Safari完整九組、十輪60秒及新檔產品外重播由主聊天以凍結整合候選續跑；不得借用私有5b、舊41b或整合PR其他head結果。原失敗、門檻、iPhone暫緩、獨立審查及不合併／部署的界線保持原樣。
