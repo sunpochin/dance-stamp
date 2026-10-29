@@ -1,6 +1,25 @@
 <!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
 
+## 2026-10-29 最終 Web 候選整合續作
+
+本輪從同步 main `38e6cf96793cf7250e4adb86a1156e6e6e0fe08e` 建立本聊天專用 `chore/p0-web-final-candidate`，以一般 PR 供後續審查；不修改來源分支、不合併 main、發布或關票。下方早期 #58／#62 整合數據保留歷史來源，不能當本輪新測。iPhone 持續暫緩。
+
+| 已保留的來源 | 固定提交與範圍 |
+| --- | --- |
+| PR #65 | `f72cb2ff2b500530692c81fadfb8d86ce83aeb36`，獨立配額重跑的匿名收據，原生數據仍屬舊 runtime |
+| PR #66 | `b8dd611333f95bb4d75d8192bac2e186900a7b60`，保留未確認程序的自有鎖、只釋放已確認未啟動的 spawn error |
+| PR #67 | `72aed830b60f595794d178b715fae78e60ff0b09`，保留 e0acf88／f88c28d／eb21064 及三份私有對照的實際結果 |
+| PR #70 | `81bd2c9c512082968ff83a0aeab03412e89c5898`，runtime 等於已獨立重審的99e862d，納入有界未確認收尾、救援與排隊動作再檢查 |
+
+TECHNICAL 同位置追加衝突保留配額歷史及未確認契約兩邊內容；此時產品逐 byte 等於 PR #70，Safari 正式分流仍待來源凍結。整合 #70 的 merge `811d86a` 經原 check／hooks：401 tests／1477 expects／0 fail；這是中途非媒體檢查，最終 runtime、乾淨包及 CI 由後續交付另綁。
+
+[最新未確認保存證據](issue-13-unconfirmed-storage.md)中的原生 Safari 私人／一般結果只屬99e862d；[獨立 quota 重跑](issue-13-native-quota-repeat.md)仍屬其原 runtime。指南新增記憶體筆記救援與原頁重開步驟，兩份匿名證據明列入包；沿用既有指南連結回歸，不新增遞迴收集或影片附件。
+
+Safari 正式候選、整合 head 原生矩陣／十輪、Chrome 原24組、新 VS 未確認救援、原生在途取消與人工／實體／跨裝置仍待各自證據。私有 WebM 1×30秒單輪不能移記正式或整合 head；後續根聊天持鎖驗證，這一整合步驟未啟動媒體或取得共用鎖。
+
+## 以下為先前整合的歷史紀錄
+
 2026-10-29（Asia/Taipei）。使用本聊天專用全新 clone，從同步 main 建新 feature branch，保留兩張來源 PR 的完整提交；來源 PR 與 main 均未合併，未部署、發布或關票。重要變更仍須 Claude Code 或使用者最終審查，iPhone 暫緩。
 
 ## 來源與整合範圍
