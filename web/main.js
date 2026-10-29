@@ -244,12 +244,12 @@ function draw(value) {
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
 }
-async function align(value, elapsedMs, signal) {
+async function align(value, elapsedMs, signal, waitForFrame = false) {
   reference.pause(); self.pause();
   // 慢速音高處理曾讓成檔聲音早於畫面；預覽與輸出共用自然變調，結束後才恢復練習音高。
   if ('preservesPitch' in reference) reference.preservesPitch = false;
   const target = positions(value, elapsedMs);
-  await Promise.all([seek(reference, target.referenceMs / 1000, signal), seek(self, target.selfMs / 1000, signal)]);
+  await Promise.all([seek(reference, target.referenceMs / 1000, signal, waitForFrame), seek(self, target.selfMs / 1000, signal, waitForFrame)]);
   draw(value);
 }
 async function timeline(value, signal, exporting, captureFrame = () => {}, startOutput = () => {}, outputAudioTime = () => NaN) {
@@ -259,10 +259,11 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
   const starting = new AbortController(), cancelStart = () => starting.abort(signal.reason);
   signal.addEventListener('abort', cancelStart, { once: true }); if (signal.aborted) cancelStart();
   try {
-    const frames = exporting ? [presentedFrame(reference, starting.signal), presentedFrame(self, starting.signal)] : [];
+    // Safari 先看到真正前進的來源影格，回零後的 seek 才會產生新的目標影格通知。
+    const frames = exporting ? [presentedFrame(reference, starting.signal, frame => !localAudio || frame.mediaTime > first.referenceMs / 1000 + 0.001), presentedFrame(self, starting.signal, frame => !localAudio || frame.mediaTime > first.selfMs / 1000 + 0.001)] : [];
     await Promise.all([...frames, Promise.resolve().then(() => reference.play()), Promise.resolve().then(() => self.play())]);
     // 先喚醒解碼與音訊，再回到配方起點；不能靠錄晚一點而省略自拍開頭。
-    if (exporting) await align(value, 0, starting.signal);
+    if (exporting) await align(value, 0, starting.signal, localAudio);
     // 本機音訊須等原生 recorder start 才排程；等待完成後才啟播兩側畫面。
     abortIfNeeded(signal); await startOutput(); abortIfNeeded(signal);
     if (exporting) await Promise.all([reference.play(), self.play()]);
@@ -601,7 +602,8 @@ $('export').addEventListener('click', () => operation(async signal => {
           destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
         }
         const nativeStart = new Promise((resolve, reject) => {
-          recording = record(stream, () => {}, resolve); recording.done.catch(reject);
+          // 只讓相容音訊的比較匯出選已實測 WebM；相機 chunks 與 Chrome 不套此選項。
+          recording = record(stream, () => {}, resolve, { webmOnly: true }); recording.done.catch(reject);
         });
         await audioReady(nativeStart, signal); abortIfNeeded(signal);
         // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
