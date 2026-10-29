@@ -567,3 +567,6 @@ f88c28d 的原始候選在 Safari 匯出暖機先等兩側真正前進的影格�
 新VS讀回後、清除驗證播放器及替換／保存舊VS前，核對未取整validationVideo.duration毫秒與comparison(value).durationMs；非有限值或差超過原100ms就拒絕。診斷整數沿舊格式，不能把四捨五入當額外容差，也不能用timeline實際耗時取代配方合法交集。原finally清掉新URL／播放器、音源與tracks，舊outputBlob、連結及保存資料還未修改。此為必要片長守門，不能取代獨立全片解碼、視訊首尾覆蓋、聲畫、漂移或250ms內容時鐘門檻。
 
 回歸使用前次真正成檔的3秒WebM bytes替換本輪4秒輸出的資料，讓原生播放器正常讀出較短片長，沒有偽造duration；拒絕後比較兩側File／舊VS完整SHA256與URL、保存筆數及資源釋放，同頁重試真正4秒成功。先在乾淨4bd48ca的精確私有候選以真正Chrome跑原本機音訊／格式／取消回歸及新短片拒絕，4份輸出全解碼，其中3份有聲原v5全過，無音軌來源仍無聲；每次start前驗證合成Canvas stream及禁止真實媒體要求。正式版本的原check／hooks與必要Chrome回歸另記，原生完整矩陣／十輪仍待凍結後重跑。
+
+
+正式9bb26d0／16a65c24d89bb5df的必要Chrome回歸已全過：單塊WebM、真實較短bytes讀回拒絕／全指紋及保存筆數保留／同頁重試、原格式與取消／靜音、時鐘拒絕、編碼error恢復及普通Chrome5秒原MP4流程。9份成功輸出全解碼，其中7份有聲工程WebM原v5全過（最大聲畫60ms／完整匯出4206ms），實際產品下載與native chunks一致；每次start前確認受控合成stream，普通Chrome仍傳1000。36個自有PID及4個profiles退出後已釋放server／nonce。正式原生完整矩陣／十輪仍待整合凍結後另跑，全部原失敗及私有來源界線見同一證據文件。
