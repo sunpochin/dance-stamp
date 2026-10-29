@@ -1,4 +1,4 @@
-/* 檔案用途：在真正候選部分安裝時強制結束自有 Chromium，重啟核對舊殼與合成資料。所在層：本機瀏覽器儲存回歸。主要關聯：sw.js、storage.js、MEDIA_PROBE.md。 */
+/* 檔案用途：在部分安裝或尚未提交的筆記交易中強制結束自有 Chromium，重啟核對合成資料。所在層：本機瀏覽器儲存回歸。主要關聯：sw.js、storage.js、MEDIA_PROBE.md。 */
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
@@ -12,6 +12,8 @@ assert.equal(Bun.version, '1.4.4', '請使用專案固定的 Bun 1.4.4')
 assert(['darwin', 'linux'].includes(process.platform), '此強制終止工具只支援 POSIX 程序群組')
 const [executable, playwrightModule] = process.argv.slice(2)
 assert(executable && existsSync(executable) && playwrightModule && existsSync(playwrightModule), '請傳入已安裝 Chromium 執行檔及 playwright-core/index.mjs 的完整路徑；不自動安裝')
+const mode = process.argv[4]
+assert(!mode || mode === '--pending-write', '第三個參數僅接受 --pending-write')
 const { chromium } = await import(pathToFileURL(resolve(playwrightModule)).href)
 const root = resolve(import.meta.dir, '../..'), dist = join(root, 'dist/web')
 const source = readFileSync(join(dist, 'sw.js'), 'utf8')
@@ -20,7 +22,7 @@ assert(oldVersion, '請先執行原建置入口')
 const manifest = JSON.parse(source.match(/const manifest = (\{[^\n]+\});/)![1])
 const output = join(root, 'output'); mkdirSync(output, { recursive: true })
 // 每次都新建目錄，失敗的 profile／日誌也保留，不能換空庫來把同一次失敗變成功。
-const run = mkdtempSync(join(output, 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
+const run = mkdtempSync(join(output, mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
 const candidateVersion = `${oldVersion}-forced-${nonce.slice(0, 8)}`
 const hash = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const oldFiles = new Map([...webPaths].map(([path, file]) => [path, readFileSync(join(dist, file))]))
@@ -32,7 +34,7 @@ const candidateManifest = Object.fromEntries(Object.keys(manifest).map(path => [
 candidateFiles.set('/sw.js', Buffer.from(source.replace(`'${oldVersion}'`, `'${candidateVersion}'`).replace(JSON.stringify(manifest), JSON.stringify(candidateManifest))))
 // macOS 沿用既有共用鎖；Linux 改用系統暫存目錄，避免不存在的 /private/tmp 阻止測試。
 const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), ownerFile = join(lock, 'owner.json')
-const evidence: any = { status: 'running', nonce, run, profile, oldVersion, candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), startedAt: new Date().toISOString(), events: [] }
+const evidence: any = { status: 'running', scenario: mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
 const event = (type: string, detail: any = {}) => { evidence.events.push({ at: new Date().toISOString(), type, ...detail }); save() }
 let ownsLock = false, server: ReturnType<typeof Bun.serve> | undefined, browser: any, child: ReturnType<typeof spawn> | undefined
@@ -44,8 +46,14 @@ const waitFor = async (check: () => any, message: string) => {
   while (!await check()) { assert(Date.now() < deadline, message); await Bun.sleep(50) }
 }
 async function stop(signal: 'SIGKILL' | 'SIGTERM') {
-  if (!child || child.exitCode !== null || child.signalCode !== null) return
+  if (!child) return
   const owned = child, pid = owned.pid!
+  if (owned.exitCode !== null || owned.signalCode !== null) {
+    // 主程序先退出不代表子程序已消失；仍須核對原群組，不能提早釋放共用鎖。
+    await waitFor(() => members(pid).length === 0, '已退出主程序的群組仍有殘留')
+    event('exited-before-stop', { pid, code: owned.exitCode, signal: owned.signalCode, remainingGroupMembers: 0 })
+    child = undefined; return
+  }
   const group = members(pid)
   assert(group.some(line => Number(line.trim().split(/\s+/)[0]) === pid && line.includes(`--user-data-dir=${profile}`)), 'PID／profile provenance 不符，拒絕發訊號')
   // detached 建立獨立群組；只終止本次 child 及其群組，不能用名稱掃殺日常瀏覽器。
@@ -118,7 +126,7 @@ const workerStatus = (page: any) => page.evaluate(async () => {
 try {
   // mkdir 原子競爭；別人的鎖保持原樣，無鎖時才開始正式瀏覽器驗證。
   mkdirSync(lock); ownsLock = true
-  writeFileSync(ownerFile, JSON.stringify({ pid: process.pid, nonce, purpose: 'issue-13 synthetic forced-install restart', startedAt: new Date().toISOString() }))
+  writeFileSync(ownerFile, JSON.stringify({ pid: process.pid, nonce, purpose: `issue-13 synthetic ${evidence.scenario} restart`, startedAt: new Date().toISOString() }))
   event('lock-acquired')
   server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
     const path = new URL(request.url).pathname
@@ -155,6 +163,73 @@ try {
   const oldCache = `dance-stamp-web-${oldVersion}`, nextCache = `dance-stamp-web-${candidateVersion}`
   assert.deepEqual(await cacheSnapshot(page, oldCache), manifest)
   evidence.before = before; evidence.oldCacheBefore = await cacheSnapshot(page, oldCache); event('baseline-saved')
+  if (mode) {
+    assert.deepEqual(readFileSync(join(dist, 'storage.js')), readFileSync(join(root, 'web/storage.js')), '必須測真正產品儲存模組，不能使用舊建置')
+    const next = structuredClone(before.library.data), assetId = next.assets[0].id, bytes = 1048613
+    next.videos[0].title = '中斷後重試的新筆記'; next.videos[0].revision++
+    next.markers[0].note = '只有完整提交才取代舊筆記'; next.markers[0].revision++
+    const replacementHash = hash(Uint8Array.from({ length: bytes }, (_, i) => (i * 31 + 23) % 251))
+    evidence.candidateWrite = { data: next, assetId, bytes, sha256: replacementHash }
+    await page.evaluate(async ({ next, assetId, bytes }) => {
+      const storage = await import('/storage.js'), saved = await storage.readLibrary()
+      const state = (window as any).pendingWrite = { ticks: 0, writes: [], settled: false, completed: false, aborted: false, candidateSeen: false }
+      const original = IDBDatabase.prototype.transaction
+      IDBDatabase.prototype.transaction = function(names, access, ...rest) {
+        const tx = original.call(this, names, access, ...rest)
+        if (access !== 'readwrite' || !Array.isArray(names) || !names.includes('metadata') || !names.includes('media')) return tx
+        IDBDatabase.prototype.transaction = original
+        tx.addEventListener('complete', () => { state.completed = true })
+        tx.addEventListener('abort', () => { state.aborted = true })
+        tx.addEventListener('success', event => {
+          const request = event.target as IDBRequest
+          // 真正 put 的成功回覆是 key；get 回覆物件不算已經寫入，事件也必須是原生的。
+          if (request instanceof IDBRequest && typeof request.result === 'string') state.writes.push({ store: (request.source as IDBObjectStore).name, key: request.result, trusted: event.isTrusted })
+        }, { capture: true })
+        // 只延長原生交易的未提交時段；所有 put、Blob 與產品完成／失敗處理仍原樣執行。
+        const keepAlive = () => {
+          const request = tx.objectStore('metadata').get('library')
+          request.onsuccess = () => {
+            state.ticks++
+            if (request.result?.revision === saved.revision + 1 && request.result.data.videos[0].title === next.videos[0].title) state.candidateSeen = true
+            keepAlive()
+          }
+        }
+        keepAlive(); return tx
+      }
+      const blob = new Blob([Uint8Array.from({ length: bytes }, (_, i) => (i * 31 + 23) % 251)], { type: 'application/octet-stream' })
+      void storage.writeLibrary(next, saved.revision, { id: assetId, blob }).then(() => { state.settled = true }, error => { state.settled = true; state.error = String(error) })
+    }, { next, assetId, bytes })
+    await page.waitForFunction(() => {
+      const state = (window as any).pendingWrite
+      return state.candidateSeen && state.ticks > 2 && state.writes.some(write => write.store === 'metadata' && write.trusted) && state.writes.some(write => write.store === 'media' && write.trusted)
+    })
+    const firstBarrier = await page.evaluate(() => structuredClone((window as any).pendingWrite))
+    await Bun.sleep(100)
+    const secondBarrier = await page.evaluate(() => structuredClone((window as any).pendingWrite))
+    assert(secondBarrier.ticks > firstBarrier.ticks && !secondBarrier.settled && !secondBarrier.completed && !secondBarrier.aborted, '必須是在 put 已成功但尚未提交的交易內強制終止')
+    evidence.writeBarrier = { first: firstBarrier, second: secondBarrier }; event('pending-write-proven')
+    await stop('SIGKILL')
+    const restarted = await launch('write-restart'); await restarted.page.goto(origin); await ready(restarted.page)
+    const after = await snapshot(restarted.page)
+    assert.deepEqual(after, before, '交易中斷後原生筆記／revision／Blob 不同')
+    evidence.afterInterruptedWrite = after; event('old-data-retained')
+    const retry = await restarted.page.evaluate(async ({ next, assetId, bytes }) => {
+      const storage = await import('/storage.js'), saved = await storage.readLibrary()
+      const expected = Uint8Array.from({ length: bytes }, (_, i) => (i * 31 + 23) % 251)
+      const result = await storage.writeLibrary(next, saved.revision, { id: assetId, blob: new Blob([expected], { type: 'application/octet-stream' }) })
+      const actual = new Uint8Array(await (await storage.readMedia(assetId)).arrayBuffer())
+      return { revision: result.revision, everyByteMatches: actual.length === expected.length && actual.every((value, i) => value === expected[i]) }
+    }, { next, assetId, bytes })
+    assert(retry.everyByteMatches); assert.equal(retry.revision, before.library.revision + 1)
+    const committed = await snapshot(restarted.page)
+    assert.deepEqual(committed.native, { revision: retry.revision, data: next })
+    assert.deepEqual(committed.keys, before.keys); assert.equal(committed.blobs[0].sha256, replacementHash)
+    evidence.retry = { ...retry, committed }; event('same-candidate-retry-committed')
+    await stop('SIGTERM')
+    const reopened = await launch('committed-restart'); await reopened.page.goto(origin); await ready(reopened.page)
+    assert.deepEqual(await snapshot(reopened.page), committed, '重試提交後同 profile 新程序重開資料不同')
+    assert.equal(mediaCalls, 0); evidence.mediaCalls = mediaCalls; event('committed-restart-verified')
+  } else {
   candidate = true
   await page.evaluate(async () => { await (await navigator.serviceWorker.getRegistration())!.update() })
   await waitFor(() => held > 0, '候選沒有抵達真正 HTTP barrier')
@@ -186,16 +261,19 @@ try {
   evidence.offline = { sameProfile: profile, fromServiceWorker: true, oldShellSha256: manifest['/'], probe, serverProbeHits: probeHits, nativeOnline: false }
   evidence.candidateCacheAfter = await cacheSnapshot(restarted.page, nextCache)
   evidence.mediaCalls = mediaCalls; event('offline-restart-verified')
+  }
   evidence.status = 'passed'
 } catch (error) {
   evidence.status = 'failed'; evidence.error = String(error); evidence.stack = (error as Error).stack
   event('failure', { error: String(error) }); process.exitCode = 1
 } finally {
-  try { await stop('SIGTERM') } catch (error) { evidence.status = 'failed'; evidence.cleanupError = String(error); process.exitCode = 1 }
+  let stopped = false
+  try { await stop('SIGTERM'); stopped = true } catch (error) { evidence.status = 'failed'; evidence.cleanupError = String(error); process.exitCode = 1 }
   // 只有本輪 nonce 相符才釋放；失敗日誌與 profile 不刪除，供核對故障基線。
-  if (ownsLock && JSON.parse(readFileSync(ownerFile, 'utf8')).nonce === nonce) { unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true }
+  // 若無法確認自有群組已退出，保留自己的鎖，不能讓下一個媒體測試與殘留程序重疊。
+  if (ownsLock && stopped && JSON.parse(readFileSync(ownerFile, 'utf8')).nonce === nonce) { unlinkSync(ownerFile); rmdirSync(lock); evidence.lockReleased = true }
   for (const release of pending) release()
   server?.stop(true)
   evidence.finishedAt = new Date().toISOString(); save()
-  console.log(JSON.stringify({ status: evidence.status, oldVersion, candidateVersion, raw: join(run, 'evidence.local.json'), lockReleased: evidence.lockReleased ?? false }))
+  console.log(JSON.stringify({ status: evidence.status, scenario: evidence.scenario, oldVersion, candidateVersion: mode ? undefined : candidateVersion, raw: join(run, 'evidence.local.json'), lockReleased: evidence.lockReleased ?? false }))
 }

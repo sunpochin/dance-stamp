@@ -516,3 +516,5 @@ Safari 候選的相對驗證連結也必須能離線讀取，因此下載包明�
 整合後新增音訊模組使 SW manifest 從11份增為12份，故排除僅由相同storage原碼承接舊更新測試的做法。主聊天在乾淨9d483e0以未修改工具重跑真正部分安裝／SIGKILL／同profile離線重啟，原生cache、舊殼、已提交筆記與完整sentinel保留；精確來源與限制見上述整合證據。沒有改動更新策略、清除殘留cache或把不可播放sentinel當成媒體品質通過。
 
 審查續修讓強制中斷與原生配額兩支 QA 工具共用平台適用的暫存位置：macOS 保留既有 `/private/tmp`，Linux 使用 `os.tmpdir()`。不建立不存在的 macOS 目錄，也不改成每輪各自的鎖；前者讓 Linux 在瀏覽器啟動前失敗，後者會失去跨工具互斥。原子取得、nonce 所有權與只清理自有程序的規則不變；產品 runtime 與資料格式未改。
+
+#13 後續沿用同一個程序所有權／重啟工具，以選用 `--pending-write` 補原生筆記＋Blob 交易未提交時的中斷案例。原生 keep-alive 讀取只延長待提交時段，必須先看到兩個 trusted put 成功、交易內候選 metadata、產品 Promise 未完成，才強制終止；同 profile 重啟比對舊資料，再以相同候選重試並重新開啟。排除另建程序管理器、以正常 close／注入 abort 冒充崩潰，以及由更新下載中斷推論資料交易可靠性的方案；這項不改產品儲存實作，也不證明提交瞬間、chunks、斷電或低磁碟。各情境的來源、結果與限制見[強制中斷證據](docs/evidence/issue-13-forced-install.md)。

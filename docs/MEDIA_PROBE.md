@@ -231,7 +231,9 @@ bun run build
 bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable" "$playwright_core_index_mjs"
 ```
 
-僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 與 persistent profile、自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+相同工具另接受第三個參數 `--pending-write`，檢查筆記與 Blob 兩個原生 put 都成功、交易尚未提交時的真正程序中斷。只用 keep-alive 讀取延長本輪原生交易，不替換寫入結果或主動 abort；先記錄原生成功事件、交易內新筆記與尚未完成的產品 Promise，才對自有群組送 SIGKILL。同 profile 新程序必須完整保留舊筆記／revision／Blob，再用完全相同候選成功重試並跨程序重開。這是人為延長交易時段的儲存函式測試，不是錄影 chunks、提交瞬間、斷電或真實低磁碟驗收；結果見[強制中斷證據](evidence/issue-13-forced-install.md#筆記與影片副本交易尚未提交時的中斷)。
+
+僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 或 `output/pending-write-*`、persistent profile 與自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
 
 先經產品儲存交易保存筆記與 Blob，核對原生 IDB 與完整舊 cache。候選使用真實產品 worker 原碼、新版本及對應的新 HTML／CSS 雜湊；主機保持第二份 CSS 回應未完成。必須同時看到候選原生 cache 已有不同於舊版的 HTML、尚無其餘資源、registration.installing 為 installing、舊 active／controller 仍完整，才保存 barrier／PID／群組 provenance 並送出 SIGKILL。這裡沒有 Cache mock、throw 注入、skipWaiting、手動 activate 或資料庫重建。
 
