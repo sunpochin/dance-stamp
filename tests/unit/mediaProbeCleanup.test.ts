@@ -20,9 +20,9 @@ function harness() {
     join: (...parts: string[]) => parts.join('/'), resolve: (...parts: string[]) => parts.join('/'),
     run: '/synthetic/run', profile: '/synthetic/profile', oldVersion: 'synthetic-old', candidateVersion: 'synthetic-next',
     process: { exitCode: 0, kill: (...args: unknown[]) => signals.push(args) },
-    pending: [], server: undefined, cdp: undefined, origin: undefined,
+    pending: [], server: undefined, context: undefined, cdp: undefined, origin: undefined,
     // 映像案例仍執行真正 finally；舊配額案例預設沒有掛載，避免只因缺狀態而提早拋錯。
-    lowSpace: false, attached: false, ownsFiller: false, launchUnconfirmed: false, volume: '/synthetic/volume',
+    lowSpace: false, attached: false, attachUnconfirmed: false, ownsFiller: false, launchUnconfirmed: false, volume: '/synthetic/volume', image: '/synthetic/volume.dmg',
     waitFor: async (check: () => boolean, message: string) => assert(check(), message),
   }
   return state
@@ -57,7 +57,7 @@ for (const mode of ['audit-error', 'exited-with-survivor', 'exited-empty', 'runn
   expect(state.serverStopped).toBe(true)
 })
 
-for (const mode of ['audit-error', 'ps-error', 'clean']) test(`原生 quota 工具收尾 ${mode} 不能以 context.close 冒充程序已退出`, async () => {
+for (const mode of ['audit-error', 'ps-error', 'ps-denied', 'clean']) test(`原生 quota 工具收尾 ${mode} 不能以 context.close 冒充程序已退出`, async () => {
   const state = harness()
   Object.assign(state, { locked: true, report: { passed: true }, closed: 0 })
   state.context = {
@@ -67,7 +67,7 @@ for (const mode of ['audit-error', 'ps-error', 'clean']) test(`原生 quota 工�
     } }) }),
     close: async () => { state.closed++ },
   }
-  state.Bun = { spawnSync: () => ({ exitCode: mode === 'ps-error' ? 2 : 1, stdout: Buffer.from('') }), sleep: async () => {} }
+  state.Bun = { spawnSync: () => ({ exitCode: mode === 'ps-error' ? 2 : 1, stdout: Buffer.from(''), stderr: Buffer.from(mode === 'ps-denied' ? 'ps: operation not permitted' : '') }), sleep: async () => {} }
   const close = quota.slice(quota.indexOf('const closeOwnedBrowser = async'), quota.indexOf('\ntry {', quota.indexOf('const closeOwnedBrowser = async')))
   const release = quota.slice(quota.indexOf('const releaseVolume = () => {'), quota.indexOf('\nconst closeOwnedBrowser = async'))
   // 重現主流程已 close context、後續核對失敗才進 finally，不能只測 finally 自己呼叫 close 的分支。
@@ -77,6 +77,30 @@ for (const mode of ['audit-error', 'ps-error', 'clean']) test(`原生 quota 工�
   expect(state.removed.length > 0).toBe(mode === 'clean')
   expect(state.report.passed).toBe(mode === 'clean')
   if (mode !== 'clean') expect(state.report.browserCloseError).toBeTruthy()
+})
+
+for (const mode of ['create-error', 'create-partial', 'attach-error', 'attach-partial', 'clean']) test(`低空間映像建立 ${mode} 不得把掛載失敗當作沒有裝置`, async () => {
+  const state = harness(), calls: unknown[][] = []
+  Object.assign(state, { lowSpace: true, locked: true, report: {}, mkdirSync() {}, statfsSync: () => ({ bavail: 2 ** 20, bsize: 4096 }), diskSpace: () => ({ device: 42 }) })
+  state.execFileSync = (...args: any[]) => {
+    calls.push(args)
+    const operation = args[1][0]
+    // attach 可以已建立裝置才失敗；回傳錯誤本身不能證明沒有留下掛載。
+    if (operation === 'create' && mode === 'create-partial') state.imageExists = true
+    if (operation === 'attach' && mode === 'attach-partial') state.deviceExists = true
+    if (operation === 'create' && mode.startsWith('create-') || operation === 'attach' && mode.startsWith('attach-')) throw new Error(`synthetic ${mode}`)
+  }
+  const mount = quota.slice(quota.indexOf('  if (lowSpace) {'), quota.indexOf('\n  report.source ='))
+  const release = quota.slice(quota.indexOf('const releaseVolume = () => {'), quota.indexOf('\nconst closeOwnedBrowser = async'))
+  await runInNewContext(transpiler.transformSync(`(async () => { ${release}\ntry { ${mount}\nthrow new Error('synthetic downstream failure') } catch (error) { report.error = String(error); process.exitCode = 1 }\n${cleanup(quota)} })()`), state)
+  expect(state.report.passed).toBe(false)
+  expect(state.report.volumeAttachUnconfirmed).toBe(mode.startsWith('attach-'))
+  expect(state.report.lockReleased === true).toBe(mode.startsWith('create-') || mode === 'clean')
+  expect(calls.filter(call => call[1][0] === 'detach')).toEqual(mode === 'clean' ? [['hdiutil', ['detach', state.volume]]] : [])
+  if (mode.startsWith('attach-')) expect(state.report.lockReleaseError).toBeTruthy()
+  if (mode.startsWith('create-')) expect(calls.some(call => call[1][0] === 'attach')).toBe(false)
+  if (mode === 'create-partial') expect(state.imageExists).toBe(true)
+  if (mode === 'attach-partial') expect(state.deviceExists).toBe(true)
 })
 
 for (const mode of ['clean', 'detach-error', 'launch-unknown', 'audit-error']) test(`低空間工具收尾 ${mode} 只卸載自有映像，未確認時留鎖`, async () => {
@@ -93,6 +117,65 @@ for (const mode of ['clean', 'detach-error', 'launch-unknown', 'audit-error']) t
   expect(state.removed.length > 0).toBe(mode === 'clean')
   if (mode !== 'clean') expect(state.report.lockReleaseError).toBeTruthy()
   if (mode === 'detach-error') expect(state.process.exitCode).toBe(1)
+})
+
+for (const mode of ['enospc', 'fsync-error', 'write-error', 'close-error', 'open-error', 'foreign-device', 'oversized-volume', 'unlink-error']) test(`低空間填充 ${mode} 只處理本輪建立的檔案`, async () => {
+  const state = harness(), opened: unknown[] = [], closed: number[] = [], unlinked: string[] = []
+  const filler = state.volume + '/owned-filler'
+  Object.assign(state, { attached: true, lowSpace: true, locked: true, filler, report: { passed: true }, writes: 0 })
+  state.statfsSync = () => ({ blocks: (mode === 'oversized-volume' ? 512 : 256) * 256, bsize: 4096, bavail: state.writes ? 0 : 1024 })
+  state.statSync = (path: string) => ({ dev: path === state.run || mode === 'foreign-device' ? 1 : 2 })
+  state.openSync = (...args: unknown[]) => { opened.push(args); if (mode === 'open-error') throw Object.assign(new Error('synthetic existing filler'), { code: 'EEXIST' }); return 7 }
+  state.writeSync = () => {
+    state.writes++
+    if (mode === 'write-error' || state.writes > 1) throw Object.assign(new Error('synthetic write failure'), { code: mode === 'write-error' ? 'EIO' : 'ENOSPC' })
+    return 65536
+  }
+  state.fsyncSync = () => { if (mode === 'fsync-error') throw Object.assign(new Error('synthetic fsync failure'), { code: 'ENOSPC' }) }
+  state.closeSync = (fd: number) => { closed.push(fd); if (mode === 'close-error') throw new Error('synthetic close failure') }
+  state.unlinkSync = (path: string) => {
+    if (path === filler) { unlinked.push(path); if (mode === 'unlink-error') throw new Error('synthetic filler release denied') }
+    else state.removed.push(path)
+  }
+  state.execFileSync = () => {}
+  const volumeHelpers = quota.slice(quota.indexOf('const diskSpace ='), quota.indexOf('\nconst closeOwnedBrowser = async'))
+  // 執行原工具的填充、釋放與 finally；只替換 OS 邊界，避免建立實際檔案或填滿磁碟。
+  await runInNewContext(transpiler.transformSync(`(async () => { ${volumeHelpers}\ntry { fillVolume() } catch (error) { report.error = String(error); process.exitCode = 1 }\n${cleanup(quota)} })()`), state)
+  const ownsFile = !['open-error', 'foreign-device', 'oversized-volume'].includes(mode)
+  expect(opened).toHaveLength(['foreign-device', 'oversized-volume'].includes(mode) ? 0 : 1)
+  if (opened.length) expect(opened[0]).toEqual([filler, 'wx'])
+  expect(closed).toEqual(ownsFile ? [7] : [])
+  expect(unlinked).toEqual(ownsFile ? [filler] : [])
+  expect(state.report.passed).toBe(mode === 'enospc')
+  expect(state.report.volumeDetached).toBe(true)
+  expect(state.report.lockReleased).toBe(true)
+  if (mode === 'enospc') expect(state.report.diskFills[0].diskFull).toBe(true)
+  if (mode === 'unlink-error') expect(state.report.diskReleaseError).toBeTruthy()
+})
+
+for (const mode of ['no-handle', 'setup-error', 'close-error', 'clean']) test(`低空間瀏覽器啟動 ${mode} 按真正 handle 與退出證據收尾`, async () => {
+  const state = harness(), diskCalls: unknown[] = []
+  Object.assign(state, { attached: true, lowSpace: true, locked: true, report: { passed: true }, origin: 'http://synthetic.test', executablePath: '/synthetic/chromium', closed: 0 })
+  const page = { goto: async () => {} }, session = { send: async () => ({ processInfo: [{ id: 123 }] }) }
+  state.chromium = { launchPersistentContext: async () => {
+    if (mode === 'no-handle') throw new Error('synthetic launch failed after spawn')
+    return {
+      route: async () => { if (mode === 'setup-error') throw new Error('synthetic route setup failed') }, addInitScript: async () => {}, pages: () => [page], newCDPSession: async () => session,
+      browser: () => ({ newBrowserCDPSession: async () => session }),
+      close: async () => { state.closed++; if (mode === 'close-error') throw new Error('synthetic context close failed') },
+    }
+  } }
+  state.Bun = { spawnSync: () => ({ exitCode: 1, stdout: Buffer.from(''), stderr: Buffer.from('') }), sleep: async () => {} }
+  state.execFileSync = (...args: unknown[]) => diskCalls.push(args)
+  const launch = quota.slice(quota.indexOf('  const launch = async () => {'), quota.indexOf('\n  let page = await launch()'))
+  const owners = quota.slice(quota.indexOf('const releaseVolume = () => {'), quota.indexOf('\ntry {', quota.indexOf('const closeOwnedBrowser = async')))
+  await runInNewContext(transpiler.transformSync(`(async () => { ${owners}\n${launch}\ntry { await launch() } catch (error) { report.error = String(error); process.exitCode = 1 }\n${cleanup(quota)} })()`), state)
+  const verified = ['setup-error', 'clean'].includes(mode)
+  expect(state.closed).toBe(mode === 'no-handle' ? 0 : 1)
+  expect(state.report.passed).toBe(mode === 'clean')
+  expect(state.report.lockReleased === true).toBe(verified)
+  expect(diskCalls).toEqual(verified ? [['hdiutil', ['detach', state.volume]]] : [])
+  if (!verified) expect(state.report.lockReleaseError).toBeTruthy()
 })
 
 for (const mode of ['no-pid', 'pid-unverified', 'no-pid-unverified']) test(`瀏覽器 spawn 被拒絕 ${mode}，只釋放確定沒有程序的自有鎖`, async () => {

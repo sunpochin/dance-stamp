@@ -32,7 +32,7 @@ const observe = async <T>(work: Promise<T>): Promise<T> => {
   finally { clearTimeout(timer!) }
 }
 let locked = false, server: ReturnType<typeof Bun.serve> | undefined, context: any, cdp: any, origin: string
-let attached = false, ownsFiller = false, launchUnconfirmed = false
+let attached = false, attachUnconfirmed = false, ownsFiller = false, launchUnconfirmed = false
 const diskSpace = () => { const fs = statfsSync(volume); return { bytes: fs.blocks * fs.bsize, available: fs.bavail * fs.bsize, device: statSync(volume).dev } }
 const fillVolume = () => {
   const before = diskSpace()
@@ -71,7 +71,8 @@ const closeOwnedBrowser = async () => {
   let remaining = ''
   for (let i = 0; i < 20; i++) {
     const check = Bun.spawnSync(['/bin/ps', '-p', ids, '-o', 'pid=,ppid=,stat=,comm='])
-    ok(check.exitCode === 0 || check.exitCode === 1, '無法核對自己的程序')
+    // ps 的 1 也可能是權限錯誤；只有沒有診斷訊息的空結果才可當作程序已退出。
+    ok((check.exitCode === 0 || check.exitCode === 1) && check.stderr.length === 0, '無法核對自己的程序')
     remaining = check.stdout.toString().trim()
     if (!remaining) break
     await Bun.sleep(100)
@@ -92,8 +93,10 @@ try {
     ok(host.bavail * host.bsize > 1073741824, '宿主至少需保留 1 GiB 可用空間')
     mkdirSync(volume)
     execFileSync('hdiutil', ['create', '-size', '256m', '-fs', 'HFS+', '-volname', 'DanceStampSynthetic', '-type', 'UDIF', '-nospotlight', image])
+    // attach 可能已建立裝置才拋錯；未交回成功前保留鎖，不能猜測掛載不存在或卸載別的裝置。
+    attachUnconfirmed = true
     execFileSync('hdiutil', ['attach', '-nobrowse', '-owners', 'off', '-mountpoint', volume, image])
-    attached = true
+    attached = true; attachUnconfirmed = false
     report.volume = diskSpace(); save()
   }
   report.source = { head: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), trackedChanges: !!Bun.spawnSync(['git', 'status', '--porcelain', '--untracked-files=no'], { cwd: root }).stdout.toString().trim(), testSha256: hash(readFileSync(import.meta.path)), storageSha256: hash(readFileSync(resolve(root, 'dist/web/storage.js'))) }
@@ -299,12 +302,13 @@ try {
     try { await fetch(origin); report.serverStopped = false; process.exitCode = 1 }
     catch { report.serverStopped = true }
   }
-  if (attached && !report.browserCloseError && !launchUnconfirmed) {
+  report.volumeAttachUnconfirmed = attachUnconfirmed
+  if (attached && !attachUnconfirmed && !report.browserCloseError && !launchUnconfirmed) {
     try { execFileSync('hdiutil', ['detach', volume]); attached = false; report.volumeDetached = true }
     catch (error) { report.volumeDetachError = String(error); process.exitCode = 1 }
   }
   if (locked) {
-    if (report.browserCloseError || attached || launchUnconfirmed) report.lockReleaseError = 'browser or volume cleanup incomplete; own lock retained'
+    if (report.browserCloseError || attached || attachUnconfirmed || launchUnconfirmed) report.lockReleaseError = 'browser or volume cleanup incomplete; own lock retained'
     else if (JSON.parse(readFileSync(lockPath, 'utf8')).nonce === nonce) { unlinkSync(lockPath); report.lockReleased = !existsSync(lockPath) }
     else { report.lockReleaseError = 'nonce changed; did not remove'; process.exitCode = 1 }
   }

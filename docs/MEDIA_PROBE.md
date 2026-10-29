@@ -234,6 +234,8 @@ bun --no-env-file scripts/verify-native-quota.ts "$playwright_core_index_mjs" "$
 
 此模式不設定 origin quota override。先確認真正 IndexedDB 位於該獨立小磁碟，再只填工具自己的檔案直到原生 ENOSPC；要求真正交易 abort、產品拒絕與完整舊資料保留。磁碟 Blob I/O 可回 DataError；預設配額模式仍要求原 QuotaExceededError。刪除自己的填充檔後，同一候選重試並同 profile 跨程序重開。收尾先核對自有瀏覽器退出才卸載自己的映像；不能確認啟動／退出或卸載時留鎖，不強制卸載。所有映像、profile、完整 bytes 與成功／失敗收據都留在 ignored output。這是小型檔案系統的真實低空間測試，不代表宿主磁碟、Safari、手機、斷電或產品畫面驗收；實際版本與結果記在同一份原生配額證據。
 
+`hdiutil attach` 回報錯誤仍可能已建立裝置；此時 raw 記 `volumeAttachUnconfirmed=true`，保留自有鎖且不猜測卸載目標。需先核對 raw 的本輪映像與實際掛載狀態，確認自有資源收尾後才能人工放行；不可只看指令失敗就刪鎖。程序稽核也必須沒有 stderr 診斷，帶權限錯誤的空 ps 結果不算退出證據。
+
 #### 部分安裝時強制結束瀏覽器
 
 `forced-install-restart.ts` 是需程序控制的獨立 Bun 工具，使用既有 Playwright core 連到自己啟動的 Chromium；不新增產品依賴，不經 CLI 正常 close 來冒充強制終止。先用 Bun 1.4.4 建置，傳入已安裝瀏覽器與 Playwright core 的完整路徑：

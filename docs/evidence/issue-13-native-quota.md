@@ -76,3 +76,20 @@
 同一最終工具與產品版本再獨立重跑預設配額模式，替換／新增皆為 QuotaExceededError／trusted abort，完整保留、重試 revision 4／5、同 profile 跨程序重開及兩份 storage 回歸通過；7／6 個已知自有 PID、override、服務及 nonce 全數收尾。該輪原收據 SHA256 `0ff9b294a99babeb1457f05a1747883a7644eb277d39bada2d1f54e8a2c600a4`；不混入真低空間案數。
 
 整合時原 VM 收尾測試缺少新映像狀態，三案因 ReferenceError 失敗；補齊測試狀態並執行真正 release／close／finally，原斷言保留。另新增正常卸載、卸載失敗、啟動不明、程序稽核失敗四案，只替換 OS 邊界；只有確認收尾的一案可卸載及放鎖。該檔 16 tests／93 expects／0 fail；最新完整 `bun run check` 為 412 tests／1575 expects／0 fail，型別、原 lint、公開掃描及 build 通過。先前 382 項與舊 source head 的原生結果仍保留各自來源。
+
+### 獨立收尾錯誤邊界審查
+
+2026-10-30 Asia/Taipei，獨立 clone 審查 PR #73 最新 `27d72ef122ae82531d7cdebd085c52c0f7561eae`，base main `c0ab39bcf68354cc29d7048a0d81e56d626efcf1`。原收尾回歸 16 tests／93 expects 通過，確實以 VM 執行原工具的函式及 finally，沒有只比對字串；但掛載前置及 ps 的另一種錯誤回覆未被涵蓋。
+
+新增負向案例、尚未修工具時，在補齊 VM 的 context 狀態後得到 18 pass／3 fail：
+
+- `hdiutil attach` 直接失敗及已建立裝置才失敗，都因 `attached` 只在成功回傳後設 true 而誤放自有鎖；未嘗試卸載，不能推論沒有殘留裝置。
+- 自有 PID 的 ps 查詢回 1、stdout 空、stderr 為權限錯誤時，原工具仍將 `browserClosed`、`passed` 及 `lockReleased` 設為 true；空結果不是成功稽核。
+
+修正只增加 attach 未確認狀態、raw 欄位與放鎖守門，以及 ps 必須無 stderr 診斷。create 失敗／留下部分映像但從未 attach 時，保留原始檔即可放本輪鎖；attach 失敗則保留鎖及映像，不能自動推論或強制卸載。成功掛載後仍只正常 detach 本輪 mountpoint；filler unlink 失敗記失敗，已確認退出且映像成功卸載時可放鎖，但不宣稱填充檔已釋放。
+
+擴充回歸直接執行原工具的 mount、fill／fsync／close、release、launch、closeOwnedBrowser 與 finally；只有檔案系統、hdiutil、Playwright、CDP／ps 邊界使用替身。涵蓋 create 失敗／部分成功、attach 失敗／部分成功／成功、write 回報 ENOSPC、fsync ENOSPC、其他寫入／close 失敗、既有 filler 拒絕、宿主／過大裝置拒絕、filler unlink 失敗、launch 未交回 handle、handle 返回後設定失敗、context.close 失敗、CDP／ps 錯誤、正常與失敗卸載。收尾檔在 Bun 1.4.4 為 34 tests／198 expects／0 fail；本輪全程沒有啟動原生 Chrome／Safari、建立或掛載實際映像，也沒有取得、刪除或接管共用媒體鎖。
+
+本輪完整 `bun run check` 通過 430 tests／1680 expects／0 fail、17 份 harness 指紋、236 檔公開掃描、型別、原 lint 及 build，靜態仍 `422c70c3633b8e88`；19 項既有 lint info 保留。首次受限環境只有既有 HTTP 測試不能綁本機臨時埠，之後允許本機測試服務、沿原入口全數通過，沒有更改或跳過測試。工具以保留外部引用的 Bun 語法建置亦通過。
+
+產品 runtime、storage.js、schema、依賴及媒體門檻未改。上面的原生成功仍只歸屬舊工具 SHA；本次只提供收尾邏輯的故障注入證據，不宣稱修改後工具已重跑真正低空間／配額矩陣。既定 Claude Code／使用者最終審查、產品 UI／Safari／實體／跨裝置驗收與 #13／#1 均保持開啟；iPhone 暫緩，未合併、部署或發布。
