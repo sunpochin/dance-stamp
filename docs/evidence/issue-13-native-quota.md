@@ -93,3 +93,23 @@
 本輪完整 `bun run check` 通過 430 tests／1680 expects／0 fail、17 份 harness 指紋、236 檔公開掃描、型別、原 lint 及 build，靜態仍 `422c70c3633b8e88`；19 項既有 lint info 保留。首次受限環境只有既有 HTTP 測試不能綁本機臨時埠，之後允許本機測試服務、沿原入口全數通過，沒有更改或跳過測試。工具以保留外部引用的 Bun 語法建置亦通過。
 
 產品 runtime、storage.js、schema、依賴及媒體門檻未改。上面的原生成功仍只歸屬舊工具 SHA；本次只提供收尾邏輯的故障注入證據，不宣稱修改後工具已重跑真正低空間／配額矩陣。既定 Claude Code／使用者最終審查、產品 UI／Safari／實體／跨裝置驗收與 #13／#1 均保持開啟；iPhone 暫緩，未合併、部署或發布。
+
+### fa6e69e 乾淨工具原生補驗
+
+2026-10-30 Asia/Taipei，接續上面的工程審查，以乾淨 `fa6e69e160a8a460f2ee1ce7cf6ed4560b8200d0` 沿原 `verify-native-quota.ts` 入口，依序完整重跑 `--low-space` 與預設配額模式。兩份原收據皆記 `trackedChanges=false`；工具 SHA256 `02094a83ac64bb1dfe8cb56acceabe5e721c922daa7df2aa3e4435367a5fd1e3`、storage.js SHA256 `d470fecd1c030878ae2e1750f68d3ad130e84d8393bdfaafb99dbd68a98b2e8a`，靜態 `422c70c3633b8e88`。環境為 macOS 27.0.1／arm64、Chrome 156.0.8078.49 headless、Bun 1.4.4，以及既有 Playwright core `1.64.0-alpha-1790635538000`。此後提交只補匿名文件，不改工具或產品，也不把文件 head 稱為另一次原生重跑。
+
+兩輪均由原工具原子取得自己的共用媒體鎖，沒有刪除或接管他人的鎖；每輪使用全新合成 profile。低空間模式僅新建本輪 256 MiB HFS+ 映像，原生 IndexedDB 目錄裝置均與該映像相符，沒有 origin quota override；預設模式不掛載映像，仍嚴格使用 524,288-byte quota override。
+
+| 模式／案例 | 真正拒絕與保留 | 釋放後恢復 |
+| --- | --- | --- |
+| 低空間／替換 | filler 寫入 249,954,304 bytes 後 ENOSPC，可用 57,344 bytes；trusted transaction abort／DataError `Failed to write blobs (IOError)`；拒絕後立即及延後的完整舊 JSON／keys／所有 bytes 與 revision 3 相同 | 只釋放自有 filler，同一候選及 Blob 重試到 revision 4 |
+| 低空間／新增 | filler 寫入 245,366,784 bytes 後 ENOSPC，可用 61,440 bytes；相同真正 DataError／trusted abort；revision 4、所有舊件與 chunks 保留，沒有半份新增件 | 釋放後同一候選重試到 revision 5 |
+| 預設配額／替換及新增 | 兩案分別得到真正 QuotaExceededError／trusted abort，拒絕後立即及延後的全庫與 revision 3／4 不變 | 解除自有 override，同候選逐 byte 重試到 revision 4／5 |
+
+兩種模式均保留原 31 秒前置；低空間另保留釋放後的 31 秒恢復等待，未放寬錯誤、完整性或時間門檻。每輪完全關閉第一個瀏覽器，再以同 profile 新程序取回 revision 5；原生 metadata／media／chunks、完整關聯與所有 Blob bytes 精確等於提交快照。原 `storage.js` 與 `moves-storage.js` 瀏覽器回歸也在各輪的獨立空 context 通過；相機／麥克風／畫面擷取呼叫均為 0。
+
+除 runner 自己的逐 byte 斷言外，另由獨立讀取重新核對兩輪共 22 份完整快照：每份完整解碼所有 base64、核對 byteLength／SHA256，兩種拒絕的立即及延後快照均與各自基準全欄位相同，提交與跨程序重開快照全欄位相同。每輪基準含 3,146,096 bytes 的媒體／chunk；替換後為 6,291,824 bytes，新增及重開後為 10,486,187 bytes，沒有抽樣或只比摘要。原收據 SHA256：低空間 `30f0d31bb214f730345dffe3a0d70957144d2b79ae55be12a918c76397de884e`；預設配額 `fb6a84cca76e6ce3dc4b74920004f7762f02571af5670319e7cac02a6a514926`。
+
+每輪兩組已知自有程序數均為 7／6，原工具以修正後的無 stderr 程序稽核確認退出，服務停止，quota override 解除，低空間 filler 釋放及映像正常卸載，`volumeAttachUnconfirmed=false`，核對同 nonce 後放鎖。獨立只查這 26 個已記錄的自有 PID，確認無殘留且 ps 無診斷；只比對本輪映像的 hdiutil info 確認沒有掛載，mountpoint 已回到宿主裝置，最後共用鎖不存在。沒有掃殺其他程序、強制卸載或使用既有磁碟／私人 profile。
+
+兩輪原生流程均無失敗；hdiutil 的 create／attach／detach 棄用警告完整留在本機日誌，沒有改指令或把警告隱去。raw、完整快照、profile、映像與獨立查核收據全部只留 ignored output。本次補齊修改後工具的原生正向流程，不取代 attach 部分失敗等 34 案負向回歸；也不外推成產品 UI、Safari、宿主磁碟、停電、真實影片品質、實體／跨裝置或永久保存驗收。#13／#1、既定 Claude Code／使用者最終審查仍保留；Web 優先、iPhone 暫緩，未合併、部署、發布或關票。
