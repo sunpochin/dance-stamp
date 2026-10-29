@@ -270,6 +270,10 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 相同容器保留既有 codec 描述，不因 File.type 沒提供 codec 就抹掉備份資訊。外部 File 最多讀 4 KiB 檔頭補正 MP4／MOV／WebM／Matroska 的容器型別，仍須真正解碼與播放；這不是轉碼或 codec 驗證。另存未知舊媒體時保留原始 bytes 的 bin 救援下載，不偽造 MP4。候選 URL 於取消／完成／離頁清理，已確認 File 仍依 session-only 政策保留。測試、實際還原演練與未驗證項目見 [#12 證據](docs/evidence/issue-12-backup-recovery.md)。
 
+### 備份容量邊界（2026-10-30，#12）
+
+完整備份與未確認保存的救援入口共用 `downloadBackup`，先連同新 exportedAt 驗證，再輸出不加縮排的 JSON。原 10 MiB 上限按實際 UTF-8 bytes 計算；接近上限的合法筆記加縮排後可能被自己的匯入入口拒絕。排除提高匯入上限、截短筆記或只在救援入口另做格式，避免放寬信任邊界、遺失內容或兩條路徑漂移。schema、白名單、關聯與媒體交易不變；反例與驗證界線見 [#12 證據](docs/evidence/issue-12-backup-recovery.md#2026-10-30備份容量邊界修正)。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。

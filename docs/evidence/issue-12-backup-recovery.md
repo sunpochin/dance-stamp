@@ -59,6 +59,18 @@ macOS 27.0.1、Chrome 156.0.8078.49 **無視窗**（User-Agent 含 HeadlessChrom
 
 共用媒體／桌面／效能鎖由主聊天持有，本輪未取得或變更鎖，未執行瀏覽器、Safari、媒體或效能矩陣。跨裝置／完整支援範圍、Claude Code 或使用者獨立審查仍未完成；iPhone 依指示暫緩，#12 保持開啟，未合併或發布。不新增後續票或擴張 #18 分享範圍。
 
+## 2026-10-30：備份容量邊界修正
+
+本輪從最新 main `c0ab39bcf68354cc29d7048a0d81e56d626efcf1` 的獨立 clone，沿實際 `validateBackup`／`planBackupImport` → UI 確認 → `writeLibrary`、動作／拍點保存與取消、未確認狀態 → `downloadBackup` 追查資料流。#17／#18／#19 已有實作；有界程式稽核與下列單元測試未重現新的關聯、白名單、ID 冪等或取消接線缺陷，不重寫功能。精確最終來源由本節所屬 PR 的 head 綁定，不把 main 或舊瀏覽器收據當成新來源已測。
+
+找到並先重現 #12 的容量邊界缺陷：530 個合成標記，每筆 note 仍 ≤20,000 字，完整原始 metadata 為 10 MiB 減 128 bytes，通過原驗證；實際 `downloadBackup` 加縮排後產生 **10,521,284 bytes**，超過 `parseBackup` 的 **10,485,760 bytes** 上限，因此無法還原。反例在修正前失敗，沒有改上限或刪短內容換取通過。
+
+修正只讓共用下載函式先驗證新 exportedAt，輸出不加縮排的 JSON。正常備份與保存未確認的救援使用同一路徑；schema、分享白名單、匯入 ID、原生交易、Blob 與草稿保護不變。新回歸直接執行產品下載函式，只替換 DOM／URL 出口，實際 Blob bytes 不超限且可經 `parseBackup` 再匯入：逐表保留 Video／Move→Marker／take／recipe／VS 描述、獨立拍點快照、來源 ID，重匯不新增且原始 state 不變。救援仍只含最後確認的筆記，不含未保存草稿或影片。
+
+Bun 1.4.4 的六份相關單元（backupImport、library、moves、share、beats、storageCompletion）**41 tests／582 expects／0 fail**；原完整 `bun run check` **409 tests／1581 expects／0 fail**，包含公開掃描、型別、原 lint 與 build，靜態版本 `9ef2b8488982695f`。原 19 項 lint info 保留。首次受限執行環境的完整檢查在既有 HTTP 單元開啟本機主機時失敗；允許 loopback 後從頭執行相同 check 全過，未修改測試或品質門檻。其餘證據屬修正工作樹；原 hooks、最終乾淨 head／CI 的結果由 PR 綁定。
+
+本輪沒有啟動瀏覽器、相機、媒體或效能量測，也沒有取得／變更共用媒體鎖。這是純資料及實際控制器函式的證據，不能代替原生 IndexedDB／quota／Stop、下載落盤、媒體 bytes、Safari／私人模式、真人／跨實體裝置或發布驗收；既有相關瀏覽器函式只作流程核對，未在本輪重跑。iPhone 暫緩，#12／#17／#18／#19 保持開啟，Claude Code 或使用者最終審查待完成。完整檢查、受測來源與結果另由 PR 記錄。
+
 ## 限制
 
 這是桌面 Chrome 合成資料的還原演練，不是手機／Safari、真實相機、永久儲存或全 G1–G7 證據。清空測試使用新的隔離瀏覽器資料，沒有清除使用者儲存。JSON 不含影片，手動重連不能憑檔名／大小／時長證明原檔身分。跨裝置、完整發布與重要變更人工審查仍待完成；iPhone 依使用者要求暫緩。沒有合併或發布。

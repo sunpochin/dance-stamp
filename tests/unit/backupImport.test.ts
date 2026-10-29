@@ -1,7 +1,9 @@
 /* 檔案用途：驗證衝突副本、跨來源隔離與完整關聯。所在層：備份純資料驗收。主要關聯：web/library.js、DATA_FORMAT.md。 */
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { normalizedVideo, extension } from '../../web/recorder.js'
-import { newLibrary, planBackupImport, validateBackup, mediaInventory, videoLabels, tables } from '../../web/library.js'
+import { newLibrary, planBackupImport, validateBackup, parseBackup, mediaInventory, videoLabels, tables } from '../../web/library.js'
 function graph() {
   const data = newLibrary(), videoId = crypto.randomUUID(), referenceId = crypto.randomUUID(), selfId = crypto.randomUUID(), vsId = crypto.randomUUID(), takeId = crypto.randomUUID(), recipeId = crypto.randomUUID()
   data.videos.push({ id: videoId, title: '合成課程', durationMs: 90000, revision: 1 })
@@ -12,6 +14,38 @@ function graph() {
   data.exports.push({ id: crypto.randomUUID(), recipeId, recipeRevision: 1, assetId: vsId, mimeType: 'video/mp4', state: 'ready', createdAt: '2026-10-28T00:00:01Z' })
   return data
 }
+test('接近容量上限的正常／救援備份仍可還原，保留全部 v2 關聯且不修改本機', async () => {
+  const data = graph(), moveId = crypto.randomUUID(), limit = 10 * 1024 * 1024
+  data.moves.push({ id: moveId, name: '合成腳步', danceStyle: 'Salsa', status: 'practicing', revision: 1 })
+  data.videos[0].beatGrid = { bpm: 120, firstBeatMs: 350, countInBeats: 4 }
+  data.takes[0].beatGrid = { bpm: 124, firstBeatMs: 450, countInBeats: 8 }
+  data.markers = Array.from({ length: 530 }, () => ({ ...data.markers[0], id: crypto.randomUUID(), moveId, note: '' }))
+  // 每筆筆記仍在原 20,000 字上限內；總量逼近合法邊界，才會揭露縮排造成的不可還原備份。
+  let remaining = limit - new Blob([JSON.stringify(data)]).size - 128
+  for (const marker of data.markers) { const length = Math.min(remaining, 20_000); marker.note = 'x'.repeat(length); remaining -= length }
+  expect(remaining).toBe(0)
+  const before = structuredClone(data), canonical = validateBackup(data)
+  const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8').match(/function downloadBackup\([^]*?\n}/)![0]
+  for (const unconfirmed of [false, true]) {
+    let exported: Blob | undefined, downloaded = false, message = ''
+    // 直接執行產品下載函式，只替換 DOM／URL 出口；此處不宣稱瀏覽器下載或原生交易驗收。
+    const downloadBackup = runInNewContext(source + '\n;downloadBackup', {
+      state: { revision: 7, data }, validateBackup, Blob, Date,
+      $: () => ({ open: false }), urlFor: (_key: string, blob: Blob) => { exported = blob; return 'blob:synthetic-backup' },
+      document: { createElement: () => ({ click() { downloaded = true } }) },
+      storageUnconfirmed: () => unconfirmed, status: (value: string) => { message = value },
+    })
+    downloadBackup()
+    expect(downloaded).toBe(true)
+    expect(exported!.size).toBeLessThanOrEqual(limit)
+    const restored = parseBackup(await exported!.text())
+    for (const table of tables) expect(restored[table]).toEqual(canonical[table])
+    expect(restored.sourceLibraryId).toBe(data.sourceLibraryId)
+    expect((await planBackupImport(data, restored)).added).toBe(0)
+    expect(data).toEqual(before)
+    if (unconfirmed) expect(message).toContain('最後確認的筆記')
+  }
+})
 test('空資料集還原保留來源身分與缺片狀態；原庫及重匯均不覆寫', async () => {
   const data = graph(), incoming = validateBackup(data), initial = await planBackupImport(newLibrary(), incoming)
   expect(initial.data.sourceLibraryId).toBe(data.sourceLibraryId)

@@ -1265,8 +1265,9 @@ $('marker-form').addEventListener('submit', e => {
 });
 function downloadBackup() {
   $('media-inventory').open = true;
-  const data = validateBackup(state.data); data.exportedAt = new Date().toISOString();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const data = validateBackup({ ...state.data, exportedAt: new Date().toISOString() });
+  // 匯入上限按實際 UTF-8 bytes 計算；額外縮排會讓接近上限的合法筆記無法還原。
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = urlFor('backup', blob); a.download = 'notes.dance-stamp.json'; a.click();
   status(storageUnconfirmed() ? '已交給瀏覽器另存本頁最後確認的筆記；不含未保存的表單草稿或影片。請確認下載完成，並另存原片與 VS。' : '筆記與配方備份已下載，不含影片。請另存示範、自拍與 VS。');
 }
