@@ -2,7 +2,8 @@
 // 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 保留新版選片欄位並固定預覽入口，避免整合時測到舊介面或其他本機網站。
+  await page.goto('http://127.0.0.1:4174/');
   await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.locator('#reference').evaluate(async video => { video.currentTime = 2; await new Promise(r => video.addEventListener('seeked', r, { once: true })); });

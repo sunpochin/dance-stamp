@@ -3,9 +3,10 @@ import { lstatSync } from 'node:fs'
 import { relative, resolve, sep } from 'node:path'
 import { webPaths, webHeaders } from './web-assets'
 const base = resolve(import.meta.dir, '..'), root = resolve(base, 'dist/web')
-// 下載包的明確命令列設定優先；未指定時仍相容媒體工具的環境參數。
+// --watch 不是連接埠；保留即時更新的參數解析，避免開發入口把它轉成無效數字。
 const args = process.argv.slice(2), watching = args.includes('--watch')
-const port = Number(args.find(arg => arg !== '--watch') ?? process.env.DANCE_STAMP_PORT ?? 4173)
+// 預設固定 4174，避免自動換埠後讀不到原筆記；明確設定仍供隔離測試使用。
+const port = Number(args.find(arg => arg !== '--watch') ?? process.env.DANCE_STAMP_PORT ?? 4174)
 if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('請指定 1–65535 的固定本機連接埠。')
 const hostname = process.env.DANCE_STAMP_HOST ?? '127.0.0.1'
 const cert = process.env.DANCE_STAMP_TLS_CERT, key = process.env.DANCE_STAMP_TLS_KEY

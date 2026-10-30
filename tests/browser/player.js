@@ -1,7 +1,8 @@
 /* 檔案用途：以真實解碼驗證格式、換片回滾與 URL 釋放。所在層：桌面播放器回歸。主要關聯：recorder.js、make-player-fixtures.ts。 */
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
+  await page.goto('http://127.0.0.1:4174/');
   await page.evaluate(() => {
     window.playerURLs = new Set(); window.playerURLPeak = 0;
     const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);

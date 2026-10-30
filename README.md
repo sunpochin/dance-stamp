@@ -7,7 +7,7 @@
 
 已有可執行的桌面 Web 預覽版：選片、時間筆記、變速／A–B、錄影、校正、單一 VS 影片與備份。依使用者本次決定，先做桌面 Web，iPhone／iOS 驗收不阻擋此預覽交付；未宣稱手機支援或完整 P0 驗收。詳見 [Web 使用說明](docs/WEB_PREVIEW.md)。
 
-使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4173/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
+使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
 
 `bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
 

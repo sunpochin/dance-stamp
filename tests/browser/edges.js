@@ -2,7 +2,8 @@
 // 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 保留新版選片欄位並固定預覽入口，避免整合時測到舊介面或其他本機網站。
+  await page.goto('http://127.0.0.1:4174/');
   await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.getByLabel('開始（秒）', { exact: true }).fill('1');
@@ -30,8 +31,8 @@ async (page) => {
   await page.getByRole('button', { name: '停止／取消', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   await page.waitForFunction(() => window.lateTracks.length > 0 && window.lateTracks.every(t => t.readyState === 'ended'));
-  const invalid = await page.request.get('http://127.0.0.1:4173/.env');
-  const post = await page.request.post('http://127.0.0.1:4173/', { data: 'synthetic-only' });
+  const invalid = await page.request.get('http://127.0.0.1:4174/.env');
+  const post = await page.request.post('http://127.0.0.1:4174/', { data: 'synthetic-only' });
   assert(invalid.status() === 404 && post.status() === 404, '靜態入口暴露非白名單或允許寫入');
   return { twentyLoopsAt2x: true, loopStopsAndKeepsRate: true, latePermissionStreamReleased: true, privatePathsAndWritesRejected: true };
 }

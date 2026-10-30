@@ -2,7 +2,8 @@
 // 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
+  await page.goto('http://127.0.0.1:4174/');
   // 只有設定合成相機的隔離 session 才可執行，禁止測試誤用真人相機。
   await page.evaluate(() => {
     if (window.__danceSyntheticCameraOnly !== true) throw new Error('請先以合成測片工具產生的 browser.json 開啟隔離 session。');
