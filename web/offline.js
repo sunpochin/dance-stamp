@@ -20,6 +20,7 @@ function offlineStatus(worker) {
 export async function startOffline(ui) {
   let registration;
   let checkingUpdate = false;
+  let refreshSequence = 0;
   const refreshCapacity = async () => {
     // 同步拒絕也視為能力未知，不能阻止筆記開啟或 SW 註冊。
     const [estimate, persisted] = await Promise.allSettled([Promise.resolve().then(() => navigator.storage?.estimate?.()), Promise.resolve().then(() => navigator.storage?.persisted?.())]);
@@ -28,13 +29,20 @@ export async function startOffline(ui) {
   };
   const updateText = () => { ui.updates.textContent = registration?.waiting ? '新版已備妥，正在等待。先保存工作及原片，關閉所有本站分頁後再開啟；不會自動重載。' : '新版只在所有舊分頁關閉後啟用，不會中斷錄影或匯出。'; };
   const refresh = async () => {
+    // 啟動、worker 事件與手動重查會重疊；過期回覆或逾時不可蓋掉最後一輪的離線結論。
+    const sequence = ++refreshSequence;
     await refreshCapacity();
+    if (sequence !== refreshSequence) return;
     try {
       const worker = navigator.serviceWorker?.controller || registration?.active;
       if (!worker) { ui.offline.textContent = '離線資源尚未備妥；首次請保持連線，稍後重新檢查。'; return; }
       const result = await offlineStatus(worker);
+      if (sequence !== refreshSequence) return;
       ui.offline.textContent = result.complete === true ? `已檢查應用資源完整（${result.version}），可離線重開；影片須看保存清單或重新選片。${navigator.serviceWorker.controller ? '' : '首次請先重開一次，確認本頁已受離線服務控制。'}` : '應用離線資源不完整，請保持連線；已存筆記與影片未刪除。';
-    } catch { ui.offline.textContent = '暫時無法確認離線資源，請保持連線；原資料保留。'; }
+    } catch {
+      if (sequence !== refreshSequence) return;
+      ui.offline.textContent = '暫時無法確認離線資源，請保持連線；原資料保留。';
+    }
     updateText();
   };
   ui.refresh.addEventListener('click', () => { refresh().catch(() => {}); });
