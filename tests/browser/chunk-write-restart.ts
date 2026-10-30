@@ -1,4 +1,5 @@
 /* 檔案用途：真實錄影 chunk 未提交時強制中斷，再核對同 profile 恢復。所在層：原 forced-install-restart 的選用情境。主要關聯：storage.js、main.js、issue-9-capture-recovery.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -111,7 +112,7 @@ export async function chunkWriteRestart({ page, origin, root, run, evidence, eve
   })
   // 先建觀察分頁再回到錄影頁；錄影中另開前景頁會觸發真正背景中斷，改變本案要殺掉的狀態。
   const sibling = await page.context().newPage(); await sibling.goto(origin); await ready(sibling); await page.bringToFront()
-  await page.locator('#camera').click(); await idle(page)
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(page)
   await page.locator('#capture').click()
   await page.waitForFunction(() => {
     const a = (window as any).chunkRestart, [first, second, third] = a.transactions

@@ -44,6 +44,7 @@ playwright-cli --session dance-check run-code --filename tests/browser/storage.j
 playwright-cli --session dance-check run-code --filename tests/browser/relink.js
 playwright-cli --session dance-check run-code --filename tests/browser/player.js
 playwright-cli --session dance-check run-code --filename tests/browser/video-picker.js
+playwright-cli --session dance-check run-code --filename tests/browser/video-roles.js
 playwright-cli --session dance-check run-code --filename tests/browser/review-recovery.js
 playwright-cli --session dance-check run-code --filename tests/browser/existing-comparison.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-recovery.js

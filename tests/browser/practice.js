@@ -1,4 +1,5 @@
 /* 檔案用途：量測桌面練習循環邊界與媒體生命週期。所在層：合成媒體瀏覽器驗收。主要關聯：main.js、ACCEPTANCE.md、issue-8-practice-loop.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const origin = new URL(page.url()).origin, checks = {};
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -138,7 +139,7 @@ async (page) => {
   await stage('capture');
   // 新錄影需符合實際 15–60 秒；短循環仍可練習，不拿無效片段測倒數鎖定。
   await page.locator('#start').fill('0'); await page.locator('#end').fill('15');
-  await page.locator('#rate').selectOption('0.75'); await page.locator('#camera').click(); await idle();
+  await page.locator('#rate').selectOption('0.75'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));
   assert(await page.evaluate(() => ['controls', 'practice'].every(id => document.getElementById(id).disabled) && ['start', 'end', 'rate', 'practice-rate'].every(id => document.getElementById(id).matches(':disabled'))), '倒數錄影未鎖定區間／速度');

@@ -21,6 +21,7 @@ function drawingContext(canvas) {
 }
 const reference = $('reference'), self = $('self'), preview = $('preview'), output = $('output');
 const canvas = $('canvas'), context = drawingContext(canvas);
+const overlay = $('overlay-canvas'), overlayContext = drawingContext(overlay);
 const localAudio = safariAudio();
 let camera, cameraWatch, active, referenceDurationMs = 0, selfDurationMs = 0, takeBlob, outputBlob;
 let audio, audioSource, monitor, audioDestination;
@@ -116,6 +117,20 @@ function updateControls() {
   $('share-download').disabled = !shareDraft || shareSending;
   $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
+  // 自己的影片必須有老師筆記可配對；停用時在欄位旁交代原因，避免誤選成左片。
+  $('select-self-video').disabled = !referenceDurationMs || !currentVideoId;
+  // 摘要綁目前來源 URL；切到另一段錄影時，不能留下上一段的檔名。
+  for (const [video, duration, picker, label, role] of /** @type {const} */ ([
+    [reference, referenceDurationMs, $('reference-picker'), $('reference-selection'), '示範影片'],
+    [self, selfDurationMs, $('self-picker'), $('self-selection'), '練習影片'],
+  ])) {
+    if (!duration) { picker.open = true; label.textContent = '尚未選擇'; delete label.dataset.source; }
+    else if (label.dataset.source !== video.getAttribute('src')) {
+      label.textContent = `已載入${role}`; label.dataset.source = video.getAttribute('src') || ''; picker.open = false;
+    }
+  }
+  $('reference-file-hint').textContent = referenceDurationMs ? `已載入示範影片 · ${(referenceDurationMs / 1000).toFixed(1)} 秒${pendingLinkId ? '；請先預覽並確認連結。' : '。'}` : '支援 MOV／MP4 等；選片不會自動上傳。';
+  $('self-file-hint').textContent = selfDurationMs ? `已載入練習影片 · ${(selfDurationMs / 1000).toFixed(1)} 秒${pendingTakeId ? '；請先預覽並確認連結。' : '。'}` : !currentVideoId ? '先選左邊示範影片；若正在重連，請先預覽並確認。' : '選已錄好的影片放在右邊；還沒錄好可展開下方相機錄影。';
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
   $('capture').disabled = !camera;
   $('compare').disabled = !referenceDurationMs || !selfDurationMs || !!pendingTakeId || !activeTakeId || !!active;
@@ -134,6 +149,17 @@ function updateControls() {
     for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
     showStorageRecovery();
   }
+  updateOverlayControls();
+}
+function updateOverlayControls() {
+  let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
+  try { if (available) recipe(); } catch { available = false; }
+  const previewing = !$('pause-comparison').hidden;
+  overlay.hidden = !available; $('overlay-empty').hidden = available;
+  $('overlay-opacity').disabled = !available || !!active && !previewing;
+  $('overlay-play').disabled = !available || !!active || storageUnconfirmed();
+  $('overlay-pause').disabled = !previewing;
+  if (available && !active) drawOverlay(recipe());
 }
 async function operation(task) {
   if (active) return;
@@ -149,6 +175,7 @@ async function operation(task) {
   stopPractice();
   $('controls').disabled = true; $('compare').disabled = true;
   reference.controls = false; self.controls = false;
+  updateOverlayControls();
   $('practice').disabled = true;
   for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = true;
   try {
@@ -234,7 +261,21 @@ async function countIn(grid, rate, signal) {
     }
   } finally { cancel(); }
 }
-function draw(value) {
+function drawOverlay(value) {
+  const width = overlay.width, height = overlay.height;
+  overlayContext.fillStyle = '#080c0e'; overlayContext.fillRect(0, 0, width, height);
+  // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
+  // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
+  for (const [video, mirror, alpha] of [[self, value.selfMirror, 1], [reference, value.referenceMirror, Number($('overlay-opacity').value) / 100]]) {
+    if (video.readyState < 2) continue;
+    const rect = contain(video.videoWidth, video.videoHeight, width, height);
+    overlayContext.save();
+    overlayContext.globalAlpha = alpha;
+    overlayContext.translate(mirror ? width : 0, 0); overlayContext.scale(mirror ? -1 : 1, 1);
+    overlayContext.drawImage(video, rect.x, rect.y, rect.width, rect.height); overlayContext.restore();
+  }
+}
+function draw(value, withOverlay = true) {
   context.fillStyle = '#080c0e'; context.fillRect(0, 0, 1280, 720);
   for (const [video, x, mirror, label] of [[reference, 0, value.referenceMirror, '示範'], [self, 640, value.selfMirror, '我']]) {
     if (video.readyState < 2) continue;
@@ -243,6 +284,7 @@ function draw(value) {
     context.drawImage(video, rect.x, rect.y, rect.width, rect.height); context.restore();
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
+  if (withOverlay) drawOverlay(value);
 }
 async function align(value, elapsedMs, signal, waitForFrame = false) {
   reference.pause(); self.pause();
@@ -281,7 +323,8 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
     };
     const paint = now => {
       if (now - lastCaptureAt >= 1000 / 30 - 1) {
-        draw(value); captureFrame();
+        // VS 編碼時不多畫疊影；同一來源仍用原來的左右畫布，避免增加合成負載。
+        draw(value, !exporting); captureFrame();
         lastCaptureAt = now - ((now - lastCaptureAt) % (1000 / 30));
       }
     };
@@ -358,7 +401,14 @@ async function chooseFile(input, video, key, signal, beforeCommit = async _selec
   try {
     const selected = input.files?.[0]; if (!selected) return null;
     const file = await normalizedVideo(selected);
-    return { file, duration: await loadCandidate(file, video, key, signal, beforeCommit) };
+    const duration = await loadCandidate(file, video, key, signal, beforeCommit);
+    const picker = key === 'reference' ? $('reference-picker') : $('self-picker');
+    // 解碼與資料提交成功才收合；壞檔、取消或保存失敗要留在原選片位置重試。
+    const label = key === 'reference' ? $('reference-selection') : $('self-selection');
+    label.textContent = selected.name; label.dataset.source = video.getAttribute('src') || '';
+    picker.open = false;
+    focusControl(picker.querySelector('summary'));
+    return { file, duration };
   } finally { input.value = ''; }
 }
 $('existing-mode').addEventListener('click', () => {
@@ -366,11 +416,15 @@ $('existing-mode').addEventListener('click', () => {
   releaseCamera(); stopPractice(); existingMode = true;
   if (!activeTakeId) $('rate').value = '1';
   updateControls();
-  status('先選左邊老師示範，再選右邊我的已錄影片；各自播放找到同一個動作，設為起點。全程不開相機。');
-  (referenceDurationMs ? $('self-file') : $('reference-file')).focus();
+  status('先選左邊示範影片，再選右邊練習影片；各自播放找到同一個動作，設為起點。全程不開相機。');
+  const choosingSelf = referenceDurationMs && currentVideoId;
+  // 入口可能在上次成功選片後收起，先展開才能把鍵盤焦點交給選片按鈕。
+  (choosingSelf ? $('self-picker') : $('reference-picker')).open = true;
+  (choosingSelf ? $('select-self-video') : $('select-video')).focus();
 });
-// 同步轉交同一個選檔欄位，保留使用者啟動資格，並沿用換片回滾與人工重連確認。
+// 每張卡片只開自己的原生欄位；清空檔案欄位以便同檔重試後，仍用旁邊狀態顯示已載入。
 $('select-video').addEventListener('click', () => $('reference-file').click());
+$('select-self-video').addEventListener('click', () => $('self-file').click());
 $('reference-file').addEventListener('change', () => operation(async signal => {
   if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
   if (takeBlob && !pendingLinkId && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
@@ -398,7 +452,7 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
   const previous = urls.get('self'); if (previous) URL.revokeObjectURL(previous); urls.delete('self');
   currentVideoId = videoId; sessionMedia.set(assetId, selected.file);
   $('video-title').value = requireCurrentVideo().title; renderLibrary();
-  status(`老師示範已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可選我的已錄影片比較，也可錄下自己。`);
+  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可選練習影片比較，也可錄下自己。`);
 }));
 $('self-file').addEventListener('change', () => operation(async signal => {
   if (!referenceDurationMs || !currentVideoId) throw new Error('請先載入並連結示範影片。');
@@ -577,15 +631,23 @@ function updateIntersection() {
     $('play').disabled = false; $('export').disabled = false;
     if (outputBlob) $('output-status').textContent = outputRecipe === recipeSignature(value) ? '這支 VS 對應目前的比較設定。' : '這是先前設定的 VS，原檔仍保留；若要目前設定的畫面，請重新匯出。';
   } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('play').disabled = true; $('export').disabled = true; }
+  updateOverlayControls();
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror', 'preview-mirror'])) $(id).addEventListener('change', () => { mirrors(); if (selfDurationMs) updateIntersection(); });
+// 可見度只影響本次檢視，不寫入配方、不改原片或已完成的 VS。
+$('overlay-opacity').addEventListener('input', () => {
+  $('overlay-opacity-value').textContent = `${$('overlay-opacity').value}%`;
+  if (!overlay.hidden) drawOverlay(recipe());
+});
+$('overlay-play').addEventListener('click', () => $('play').click());
+$('overlay-pause').addEventListener('click', () => $('pause-comparison').click());
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
 $('play').addEventListener('click', () => operation(async signal => {
   const value = recipe(), durationMs = comparison(value).durationMs;
   const startMs = Number($('scrub').value) * 1000;
   await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
-  $('pause-comparison').hidden = false;
-  status('共同預覽中；可一起暫停後拖動時間線，再繼續預覽。鏡像請看下方合成畫面。');
+  $('pause-comparison').hidden = false; updateOverlayControls();
+  status('共同預覽中；疊影與左右畫面一起播放，可調整老師可見度。一起暫停後可拖動共同時間線再繼續。');
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
@@ -607,7 +669,7 @@ $('export').addEventListener('click', () => operation(async signal => {
     status('正在準備比較畫面，請保持此頁在前景。');
     // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
     const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), async () => {
-      draw(value);
+      draw(value, false);
       // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
       // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
       stream = canvas.captureStream(0);
@@ -1136,7 +1198,7 @@ async function openTakeUnlocked(take, signal) {
       selfDurationMs = 0; activeTakeId = null; takeBlob = null;
       self.removeAttribute('src'); self.load();
       pendingTakeId = take.id;
-      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用「我的已錄影片」載入另存原片，預覽後確認連結。'); return;
+      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用右邊「選擇練習影片」載入另存原片，預覽後確認連結。'); return;
     }
   }
   const durationMs = await loadCandidate(blob, self, 'self', signal, async () => {

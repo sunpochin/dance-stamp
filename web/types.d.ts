@@ -99,6 +99,13 @@ export interface Elements {
   "library": HTMLSelectElement;
   "open-library": HTMLButtonElement;
   "select-video": HTMLButtonElement;
+  "select-self-video": HTMLButtonElement;
+  "reference-picker": HTMLDetailsElement;
+  "self-picker": HTMLDetailsElement;
+  "reference-selection": HTMLSpanElement;
+  "self-selection": HTMLSpanElement;
+  "reference-file-hint": HTMLParagraphElement;
+  "self-file-hint": HTMLParagraphElement;
   "backup": HTMLButtonElement;
   "restore": HTMLInputElement;
   "controls": HTMLFieldSetElement;
@@ -149,6 +156,13 @@ export interface Elements {
   "intersection": HTMLParagraphElement;
   "play": HTMLButtonElement;
   "export": HTMLButtonElement;
+  // 疊影共用來源與控制流程，獨立畫布避免把透明度寫進 VS 輸出。
+  "overlay-canvas": HTMLCanvasElement;
+  "overlay-opacity": HTMLInputElement;
+  "overlay-opacity-value": HTMLOutputElement;
+  "overlay-empty": HTMLParagraphElement;
+  "overlay-play": HTMLButtonElement;
+  "overlay-pause": HTMLButtonElement;
   "canvas": HTMLCanvasElement;
   "progress": HTMLProgressElement;
   "take-download": HTMLAnchorElement;

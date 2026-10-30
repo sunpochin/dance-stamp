@@ -1,9 +1,38 @@
 /* 檔案用途：來源拍點、慢速倒數及 v1 備份相容回歸。所在層：純資料測試。主要關聯：beats.js、library.js。 */
 import { expect, test } from 'bun:test'
-import { validateBeatGrid, beatPosition, countInPlan } from '../../web/beats.js'
+import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from '../../web/beats.js'
 import { newLibrary, validateBackup, parseBackup, planBackupImport } from '../../web/library.js'
 import { positions } from '../../web/timeline.js'
 const grid = { bpm: 120, firstBeatMs: 1250, countInBeats: 8 }
+test('提示音依音訊時鐘排程、只接監聽端；已停止的音節點仍全部釋放', () => {
+  const nodes: any[] = [], destination = {}
+  const audio = {
+    destination,
+    createOscillator() {
+      const node = { frequency: { value: 0 }, starts: [] as number[], stops: [] as (number | undefined)[], disconnected: false,
+        connect(target: any) { node.target = target; return target }, target: undefined as any,
+        start(at: number) { node.starts.push(at) }, stop(at?: number) { node.stops.push(at); if (at === undefined) throw new Error('synthetic already stopped') },
+        disconnect() { node.disconnected = true } }
+      nodes.push(node); return node
+    },
+    createGain() {
+      return { gain: { values: [] as number[][], setValueAtTime(value: number, at: number) { this.values.push([value, at]) }, linearRampToValueAtTime(value: number, at: number) { this.values.push([value, at]) } },
+        target: undefined as any, disconnected: false, connect(target: any) { this.target = target }, disconnect() { this.disconnected = true } }
+    },
+  }
+  const plan = countInPlan({ ...grid, countInBeats: 4 }, 0.5)
+  const cancel = scheduleCountIn(audio as unknown as BaseAudioContext, plan, 10)
+  expect(nodes.map(node => node.starts)).toEqual([[10], [11], [12], [13]])
+  expect(nodes.map(node => node.frequency.value)).toEqual([880, 660, 660, 660])
+  for (const [index, node] of nodes.entries()) {
+    expect(node.stops).toEqual([10 + index + 0.065])
+    expect(node.target.target).toBe(destination)
+    expect(node.target.gain.values).toEqual([[0, 10 + index], [0.12, 10 + index + 0.005], [0, 10 + index + 0.06]])
+  }
+  // 取消可能晚於原生 stop；仍須清掉每一拍，避免下次錄影殘留提示音。
+  cancel()
+  for (const node of nodes) { expect(node.disconnected).toBe(true); expect(node.target.disconnected).toBe(true); expect(node.stops).toHaveLength(2) }
+})
 test('八拍只跟來源時間走；三速度對應相同第一拍及八拍邊界', () => {
   expect(beatPosition(undefined, 2000)).toBeNull()
   expect(beatPosition(grid, 1249.999)).toBeNull()
