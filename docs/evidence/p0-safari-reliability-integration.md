@@ -1,6 +1,33 @@
 <!-- 檔案用途：綁定 Safari 與資料保護整合的來源、逐檔比對及未過 gates。所在層：匿名工程證據。主要關聯：TECHNICAL.md 第34、39–43節、MEDIA_PROBE.md、RELEASE.md。 -->
 # #1 Safari 與可靠性整合候選
 
+## 2026-10-30 四線整合候選
+
+從同步 main `6862501d3cfaaa7cf3916d875fd06dd8dfdd13ec` 建本輪獨立分支，以一次多父提交保留四個來源及 #84 修正歷史，不重複挑入或關閉來源 PR。來源固定如下；所有原生結果仍屬各來源受測工作樹，不改標本整合 head。
+
+| 來源 | 精確 head | 證據與版本界線 |
+| --- | --- | --- |
+| #84 | `d5acd784d0a2e45f81b235fc74b2730277e0b361` | 已包含初版 839d3af 及收尾修正；[大型匯入規劃取消](issue-12-import-planning-stop.md)的正常原生收據屬 839d3af＋修正工作樹，產品為 4651fae419d8d9c8；十項收尾故障回歸及獨立續審已確認原兩問題修正 |
+| #85 | `fad5542f056bd59b31d7d999ecd07c67e1991680` | [未知狀態鍵盤保全](issue-14-storage-keyboard.md)，產品仍為 6862501／4651fae419d8d9c8；不把兩案、三十份 binary 與下載結果移記新版 |
+| #86 | `8a77aec35c87ed96872989d0af3e0ab2435db095` | [成檔 VS 保存尾段](issue-11-vs-save-tail.md)四案及八項收尾回歸；原生產品為 6862501／4651fae419d8d9c8，原拒絕案離站 dropped=1 的限制保留 |
+| #87 | `e5040d5ba0991d7f862ed503f6490e1508b0c556` | 已包含 5a90f35 產品修正及新守門失敗分支補驗；[chunks／影格守門證據](issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)的原三模式仍綁較早 runner，新三案另綁補驗工具；產品皆為 7c728c8a5bd7fa2f |
+
+四來源固定 head 的 CI 均成功。#84 經另一線獨立續審，原無 handle 誤放鎖與 close 錯誤跳過 server.stop 已解除；#85 由主聊天重核，#86 的八項收尾／完整下載與正常原生收據亦經另一線續審無 finding。#87 產品守門與 e5040d5 補驗增量均經獨立複查，沒有新增具體 finding。重要工程的 Claude Code／使用者最終審查與整體驗收仍分開。
+
+### 整合內容與驗證
+
+唯一合併衝突在 `mediaProbeCleanup.test.ts` 的新工具讀取及測試區塊，完整保留 #84 十案、#86 八案、#87 端點空檔一案及原有案例；整合自己的 **53 tests／409 expects／0 fail** 通過。工具啟動／退出未確認就留鎖，仍獨立停止自己的 server；不以 profile 子字串空結果推論全部退出。
+
+產品 `web/` 完整等於 #87，不等於舊 main：`openTakeUnlocked` 只有 recovered chunks 在 beforeCommit 真正呈現影格後才允許保存，失敗保留 chunks／舊 URL。相對舊 main 的十四份建置資源只有 `main.js`／衍生 `sw.js` 改變，其餘十二份相同；靜態 **7c728c8a5bd7fa2f**。schema／storage.js、HTTP 十三條路由、host／headers、根授權與格式契約均不變。
+
+本線只讀核對 #87 的 chunks／default／pending-write 三份原收據：較早工具 SHA256 `a569b592b3f67718f25b6351b6c61c174747415bf27178f863be3e6a53b1ec04`、chunks 情境 `e6166d5678e940dedafede483edbd1c7ee17b2629534cd1bbe698ae311e9b8a9` 保留原來源，只有產品 SW／storage 與本整合建置相同，不能宣稱舊收據測過新版 runner。新工具 `263155ae73e41925f201e244ed7e3432d892556895e772d63729190562dbda29` 新增 `--recovery-frame` 的 import／參數／收據前綴及 dispatch；原 stop／launch／ready／snapshot 函式、default／pending 主體及 chunks 模組逐 byte 未變。新守門模組 `4072da8335312c32da7669733a4e4d43bcac476ec56af1585d0f42f545be9fb3` 的三案原生收據另核對到新工具，產品仍是 5a90f35 的 bytes；不為 QA 入口增加而重跑三套中斷。#84／#86 修正版原生收據的 runner／case 指紋及自有 PID／server／nonce 收尾亦直接讀回核對；本線未啟動媒體測試，結果沒有改歸屬。
+
+新守門 Stop 由 Playwright click 觸發，但該 raw 未另存這次 click 的 isTrusted 值；不宣稱收據已觀測 isTrusted=true，也不為此重跑原生。
+
+下載包只因本節新增兩個實際離線連結依賴，明列 #84／#85 的匿名 Markdown；#86 已帶自己的指南依賴。不收 QA、raw、影片、JSON 或 profiles，不擴張 HTTP 路由。原封裝連結回歸先以 5 pass／1 fail 拒絕缺目標，明列依賴後為 6 pass／192 expects；沒有弱化 checker。整合工作樹自己的原 `bun run check` 通過 **457 tests／2,530 expects／0 fail**，型別、原 lint、公開掃描及建置皆通過；原 19 項 lint info 保留。新版 CLI 的未知模式及缺合成前置會在拿鎖／瀏覽器前拒絕，不把前置失敗稱作原生通過。最終提交 hooks、乾淨包 sourceRevision／SHA／HTTP 校驗及本整合 head 的 CI 由 PR 綁定，不以四份來源 CI 相加代替驗證。
+
+Safari／私人模式、自然缺通知、實際低空間、斷電／提交瞬間、VoiceOver／真人五人／觸控／實體飛航與跨裝置仍保留；iPhone 暫緩。不合併 main、不關來源 PR／未驗收票、不部署或發布。
+
 2026-10-30：目前 main `c0ab39b` 的[保存與救援有界稽核](issue-3-current-protection-audit.md)已補負向回歸、合成 Chrome 擷取保護及網站停止後實際檔案播放；原生 Safari 自動化入口因現有設定拒絕，沒有建立產品測試 session。一般／私人保存 Stop 與新 VS 未確認救援仍未驗，舊原生證據保持下列受測來源。
 
 目前UI取消功能版為99a2169／422c70c3633b8e88；一般Chrome成檔後保存Stop另在乾淨14128c2同runtime補驗。最新完整Chrome影音24＋3仍屬9e6f0ef／1aa1ae164c31d690，Safari一般十九案及正常重載仍屬345b2d1／fe4bf7952cad2421。來源、受測head、文件head與封裝分開記錄；所有歷史失敗及未驗收條件保留。下方歷史段落維持當時狀態，現況以上方同版段落為準。

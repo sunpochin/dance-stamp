@@ -1,6 +1,16 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
+## 新 VS 成檔後的保存尾段
+
+先用 Bun 1.4.4 執行 `bun run check`，再使用已安裝 Playwright core 與 Chrome（不下載套件／瀏覽器）：
+
+```sh
+bun --no-env-file scripts/verify-vs-save-tail.ts /absolute/path/to/playwright-core/index.mjs /absolute/path/to/chrome
+```
+
+工具原子取得共用媒體鎖後，復用既有八秒合成素材及三秒匯出分析器，依序驗真正成檔後的 Stop→complete、原生主鍵拒絕，以及明示缺 abort／complete 通知。檢查完整舊資料／bytes／URL、新檔實際下載、同頁重開、未知狀態無 DB 重試，並關閉產品頁後在 `file:` 獨立播放。raw、完整 Blob、下載與 profiles 全留 ignored `output/vs-save-tail/`。細節與未驗項見 [#11／#13 保存尾段](evidence/issue-11-vs-save-tail.md)；不是 Safari 自然故障、chunks 中斷或完整影音矩陣。
+
 2026-10-29：最新功能99a2169／422c70c3633b8e88的[UI保存Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)保持其來源；完整影音仍屬乾淨9e6f0ef／1aa1ae164c31d690的原Chrome24組、48份下載與三份網站外Chrome播放見[同版再驗證](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)；Safari一般十九案、原生檔案播放／正常重載與私人四次拒絕仍屬345b2d1，詳見[原生界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)。原16bd7ca的quota／更新中斷及所有歷史數據保留原版本，不移記為新head；新pending-write與default結果按同版證據另列。文件提交不代表重新跑影音，私人新VS救援、實體與手機項目仍保留。
 
 2026-10-29 真正Safari續測見[正式41b半速15秒單輪](evidence/issue-3-bounded-audio.md#正式41b3023原生safari半速15秒單輪2026-10-29)：原v5聲畫／完整覆蓋通過，仍未完成矩陣與十輪。歷史eb21064的1×／30秒MP4長度失敗、三份否決原型及e0acf88／f88c28d失敗都保留來源；私有WebM30秒與Chrome工程UA失敗分開，不再等待已完成的解鎖前置，也不把來源單輪移記為整合head驗收。
@@ -247,7 +257,13 @@ bun --no-env-file tests/browser/forced-install-restart.ts "$chromium_executable"
 
 相同工具另接受第三個參數 `--pending-write`，檢查筆記與 Blob 兩個原生 put 都成功、交易尚未提交時的真正程序中斷。只用 keep-alive 讀取延長本輪原生交易，不替換寫入結果或主動 abort；先記錄原生成功事件、交易內新筆記與尚未完成的產品 Promise，才對自有群組送 SIGKILL。同 profile 新程序必須完整保留舊筆記／revision／Blob，再用完全相同候選成功重試並跨程序重開。這是人為延長交易時段的儲存函式測試，不是錄影 chunks、提交瞬間、斷電或真實低磁碟驗收；結果見[強制中斷證據](evidence/issue-13-forced-install.md#筆記與影片副本交易尚未提交時的中斷)。
 
-僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*` 或 `output/pending-write-*`、persistent profile 與自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。使用者相機／麥克風／畫面擷取被禁止，資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel。
+第三個參數 `--chunk-write` 則使用同一程序／nonce／原子鎖保護，另執行 `chunk-write-restart.ts` 的錄影片段情境。先用 `python3 scripts/make-sync-fixtures.py` 建立 ignored 合成原片與假相機；另需已安裝的 FFmpeg／FFprobe。工具只允許明確假相機、`audio:false`，不開真實裝置。先透過 UI 保存舊原片／VS／非空筆記，再錄影；前兩個原生 chunks 真正提交、第三個原生 add 成功且 keep-alive 交易仍未 complete／abort 時，才 SIGKILL 自有瀏覽器群組。MP4 首塊可能只有檔頭，不能假定第一個非空 Blob 就可播放。
+
+同 profile 新程序必須只留下前兩塊，完整保留舊資料並釋放 take 鎖。產品 `recoverChunks` 真正組裝已提交部分，實際下載、逐 byte 比對、FFmpeg 全片解碼，另在無產品程式的空頁由下載 bytes 實播至 ended。第三塊以完全相同 asset／index／bytes 重試，重複 index 必須拒絕；UI 明確恢復後仍 interrupted，真正呈現影格才落 media 並清自己的 chunks。另以原生第一塊新建的檔頭專用 take，確認解碼拒絕、保留 chunks 與舊播放器；這份負向前置資料不冒充另一個程序中斷。所有快照均另存完整二進位，第三次跨程序重開也序列化並逐 byte 核對。輸出在 ignored `output/chunk-write-*`；這不是 Safari、提交瞬間、斷電、真人相機或裝置驗收。詳見[錄影程序中斷證據](evidence/issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)。
+
+同一工具的 `--recovery-frame` 只補影格守門的失敗分支，不執行前述三套程序中斷情境。先備妥原 `make-sync-fixtures.py` 合成來源；取得原子鎖後用 FFmpeg 複製短段，透過產品 `saveChunk` 提交可播放 chunks，再驗 loadeddata 已完成、真正原生影格結果延後送達時實點 Stop；候選拒絕後再送達同一份原生 callback 參數，也不能提交。另受控移除候選元素的 `requestVideoFrameCallback` 及拒絕 `play`，觀察守門的實際 abort signal、timer／listener／候選 URL 清理與全部資料保留，三案各用同一輸入正常重試。raw 與完整 bytes 留 ignored `output/recovery-frame-*`；沒有使用相機，不把注入說成 Safari 自然故障。精確來源見[守門續審證據](evidence/issue-9-capture-recovery.md#5a90f35-新影格守門的失敗分支補驗)。
+
+僅支援 POSIX 程序群組；工具不安裝瀏覽器或套件。每輪建立新的 ignored `output/forced-install-*`、`output/pending-write-*`、`output/chunk-write-*` 或 `output/recovery-frame-*`、persistent profile 與自有動態 loopback 主機，並原子取得共用 `dance-stamp-p0-media-test.lock`：macOS 沿用 `/private/tmp`，Linux 使用 `os.tmpdir()`。原生配額工具使用相同位置；鎖已存在就失敗退出，保留原鎖、不開瀏覽器。default／pending-write／recovery-frame 禁止所有相機／麥克風／畫面擷取；前兩者資料只有一份合成筆記、標記及不可播放的 1,048,613-byte sentinel，recovery-frame 使用上方短段合成影片。chunk-write 只允許明確的假相機，仍禁止真實裝置與畫面擷取。
 
 Linux 自動重跑沿用 Harness CI 的 `linux-install-restart` job：原品質入口先通過，再於獨立 Ubuntu 24.04 runner checkout 真正 PR head，以 Bun 1.4.4、runner 既有 Chrome 及暫存安裝的 Playwright core 1.64.1 執行上方相同工具。環境、核心版本、實際鎖路徑及 source head 寫入收據；成功／失敗的原始 JSON 與兩階段瀏覽器錯誤保留於該 job 日誌，profile／資料庫不公開，工作結束由一次性 runner 回收。這是 [Playwright 官方 CI](https://playwright.dev/docs/ci) 支援的 Linux 瀏覽器環境，不把啟動失敗或路徑模擬當成正向通過。
 
