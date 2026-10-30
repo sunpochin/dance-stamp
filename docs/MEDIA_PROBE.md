@@ -1,6 +1,16 @@
 <!-- 檔案用途：重現合成媒體及本機資料驗證。所在層：驗收指南。主要關聯：WEB_PREVIEW.md、RECORD_COMPARE.md。 -->
 # Web 回歸與媒體證據
 
+## 新 VS 成檔後的保存尾段
+
+先用 Bun 1.4.4 執行 `bun run check`，再使用已安裝 Playwright core 與 Chrome（不下載套件／瀏覽器）：
+
+```sh
+bun --no-env-file scripts/verify-vs-save-tail.ts /absolute/path/to/playwright-core/index.mjs /absolute/path/to/chrome
+```
+
+工具原子取得共用媒體鎖後，復用既有八秒合成素材及三秒匯出分析器，依序驗真正成檔後的 Stop→complete、原生主鍵拒絕，以及明示缺 abort／complete 通知。檢查完整舊資料／bytes／URL、新檔實際下載、同頁重開、未知狀態無 DB 重試，並關閉產品頁後在 `file:` 獨立播放。raw、完整 Blob、下載與 profiles 全留 ignored `output/vs-save-tail/`。細節與未驗項見 [#11／#13 保存尾段](evidence/issue-11-vs-save-tail.md)；不是 Safari 自然故障、chunks 中斷或完整影音矩陣。
+
 2026-10-29：最新功能99a2169／422c70c3633b8e88的[UI保存Stop與新manifest重驗](evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)保持其來源；完整影音仍屬乾淨9e6f0ef／1aa1ae164c31d690的原Chrome24組、48份下載與三份網站外Chrome播放見[同版再驗證](evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)；Safari一般十九案、原生檔案播放／正常重載與私人四次拒絕仍屬345b2d1，詳見[原生界線](evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)。原16bd7ca的quota／更新中斷及所有歷史數據保留原版本，不移記為新head；新pending-write與default結果按同版證據另列。文件提交不代表重新跑影音，私人新VS救援、實體與手機項目仍保留。
 
 2026-10-29 真正Safari續測見[正式41b半速15秒單輪](evidence/issue-3-bounded-audio.md#正式41b3023原生safari半速15秒單輪2026-10-29)：原v5聲畫／完整覆蓋通過，仍未完成矩陣與十輪。歷史eb21064的1×／30秒MP4長度失敗、三份否決原型及e0acf88／f88c28d失敗都保留來源；私有WebM30秒與Chrome工程UA失敗分開，不再等待已完成的解鎖前置，也不把來源單輪移記為整合head驗收。
