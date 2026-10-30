@@ -22,6 +22,18 @@ async page => {
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   const duration = await page.locator('#reference').evaluate(video => video.duration);
   assert(duration > 0 && duration < 5, '自然播完測試必須使用既有短合成影片');
+  const controlBaseline = await page.evaluate(async () => await (await import('/storage.js')).readLibrary());
+  const selected = [];
+  for (const [id, seconds] of [['set-a', 0.4], ['set-b', 2.8]]) {
+    await page.locator('#reference').evaluate(async (video, seconds) => { const done = new Promise(resolve => video.addEventListener('seeked', resolve, { once: true })); video.currentTime = seconds; await done; }, seconds);
+    const at = await page.locator('#reference').evaluate(video => video.currentTime);
+    // 先經真正 seek，再按公開按鈕；直接填 A/B 不會驗到「當下設為」的播放位置與毫秒轉換。
+    await page.locator('#' + id).press('Enter');
+    const value = await page.locator(id === 'set-a' ? '#start' : '#end').inputValue();
+    assert(value === at.toFixed(3), '當下設為 A/B 沒有使用真正播放位置'); selected.push({ id, at, value });
+  }
+  assert(JSON.stringify(await page.evaluate(async () => await (await import('/storage.js')).readLibrary())) === JSON.stringify(controlBaseline), '練習選段改動已保存資料');
+  await page.evaluate(() => { window.naturalEnd.events = []; });
   await page.locator('#start').fill('0.4'); await page.locator('#end').fill(String(duration)); await page.locator('#practice-rate').selectOption('2');
   const before = await page.evaluate(async () => await (await import('/storage.js')).readLibrary());
   await page.locator('#loop').click();
@@ -36,5 +48,5 @@ async page => {
   await page.waitForTimeout(duration / 2 * 1000 + 300);
   assert(await page.evaluate(at => { const video = document.getElementById('reference'); return video.paused && video.currentTime === at && window.naturalEnd.frames.size === 0 && document.getElementById('loop').textContent === '開始 A–B 循環'; }, stopped.at), '停止後被晚到的工作重新播放');
   assert(JSON.stringify(await page.evaluate(async () => await (await import('/storage.js')).readLibrary())) === JSON.stringify(before), '循環播放改動筆記資料');
-  return { duration, nativeEnds: ends.length, allEventsTrusted: stopped.events.every(event => event.trusted), maximumFrames: stopped.maximumFrames, pendingAfterStop: stopped.pending, noLateRestart: true, libraryPreserved: true, events: stopped.events };
+  return { selectedAtNativePlayhead: selected, duration, nativeEnds: ends.length, allEventsTrusted: stopped.events.every(event => event.trusted), maximumFrames: stopped.maximumFrames, pendingAfterStop: stopped.pending, noLateRestart: true, libraryPreserved: true, events: stopped.events };
 }
