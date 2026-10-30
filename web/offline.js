@@ -53,6 +53,11 @@ export async function startOffline(ui) {
     catch { ui.updates.textContent = '目前無法檢查新版；現有版本與資料保留，可稍後再試。'; }
   });
   await refreshCapacity();
+  // 本機開發由 watcher 更新；若再註冊正式 SW，舊快取會把修改擋在頁面之外。
+  if (document.documentElement?.dataset.devReload === 'true' && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
+    ui.offline.textContent = '本機即時更新模式暫停離線快取；筆記與影片副本仍保留。';
+    ui.checkUpdate.disabled = true; return;
+  }
   if (!('serviceWorker' in navigator)) { ui.offline.textContent = '此瀏覽器不支援應用離線重開；本機選片仍可使用。'; ui.checkUpdate.disabled = true; return; }
   try {
     registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
