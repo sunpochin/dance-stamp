@@ -1,5 +1,70 @@
 <!-- 檔案用途：依既有驗收條件核對可結案與尚未實作的 issue，避免重做已交付功能。所在層：版本固定的工程盤點。主要關聯：ROADMAP.md、AGENTS.md、GitHub issue #1。 -->
-# 2026-10-29 實作與關票盤點
+# 開啟 issues 的工程與驗收盤點
+
+## 2026-10-30：67bd630 基線與後續變動
+
+依使用者指定，以 main `67bd6308854bf8b560ad61bfcbe73babca5db0af`／靜態 `7c728c8a5bd7fa2f` 對照開啟 issue 的原始範圍、現行程式、測試及來源證據。該提交已透過 [PR #88](https://github.com/sunpochin/dance-stamp/pull/88) 整合 #84–#87；[main CI](https://github.com/sunpochin/dance-stamp/actions/runs/41006187933) 的 harness、linux-install-restart 均成功。歷史段落的「尚未合併／尚無證據」不能直接當作今日工程缺口。
+
+盤點期間另有 [PR #90](https://github.com/sunpochin/dance-stamp/pull/90) 合併，遠端 main 前進到 `f3333a0be8546b9626605d55f19c8ecf6005dc49`；其第一父提交正是 67bd630。下表保留指定基線，選片／主機設定的後續差異另列，不把 #90 的結果移記為 67bd630 已驗。本輪文件分支同步至 f3333a0，未修改產品程式或測試。
+
+最後查詢共有 **19 張開啟 issue**：#1、#3、#8–#19、#89、#91、#93–#95；開啟 PR 為 #92。這是版本及查詢時點固定的盤點，不代表後續狀態。
+
+### 指定基線已覆蓋的 Web 工程
+
+「已有工程覆蓋」只表示下列程式與證據已存在；不代表整張票完成、真人／裝置通過，或本輪重新執行了原矩陣。
+
+| Issue | 已有覆蓋與可追查來源 | 本輪判定 |
+| --- | --- | --- |
+| [#1](https://github.com/sunpochin/dance-stamp/issues/1) | 下列 Web 主流程及四線整合均在基線 | 總覽票，依各子票驗收，不重建功能 |
+| [#3](https://github.com/sunpochin/dance-stamp/issues/3) | [Safari 有界音訊](issue-3-bounded-audio.md)、[Chrome／Safari 分版結果](p0-safari-reliability-integration.md) | 一般 Safari 歷史十九案不能替代新版本／私人模式，續驗限制另列 |
+| [#8](https://github.com/sunpochin/dance-stamp/issues/8) | [六速、鏡像、循環與真正桌面背景](issue-8-practice-loop.md) | 軟體清單已有覆蓋，仍待指定 Claude Code／使用者最終審查 |
+| [#9](https://github.com/sunpochin/dance-stamp/issues/9) | [chunks 寫入中程序中斷及恢復影格守門](issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)；#87 已拒絕只有檔頭卻可回報 loadeddata 的片段，含取消、缺能力、play 拒絕及同輸入重試 | 不再補同目的恢復／影格測試 |
+| [#10](https://github.com/sunpochin/dance-stamp/issues/10) | [既有雙片正式入口、時間映射、鏡像、重連與失敗保留](existing-comparison.md)；錄影入口另見 [#9 接線](issue-9-comparison-integration.md) | 不重做雙播放器、時間線或普通往返 |
+| [#11](https://github.com/sunpochin/dance-stamp/issues/11) | [成檔後保存尾段四案](issue-11-vs-save-tail.md)：Stop 真正提交、原生 ConstraintError 拒絕及明示缺通知的 abort／complete；下載完整 bytes、解碼、離站播放分列 | 不把保存尾段與準備交易取消混為未實作；完整媒體結果維持原來源 |
+| [#12](https://github.com/sunpochin/dance-stamp/issues/12) | [完整備份／衝突恢復](issue-12-backup-recovery.md)、[恰好容量上限 UI](issue-12-native-capacity-ui.md)、[#84 大型匯入規劃中 Stop](issue-12-import-planning-stop.md) | 外來源、分享、衝突 hash／ID 規劃、零寫入取消及同檔重試已有證據 |
+| [#13](https://github.com/sunpochin/dance-stamp/issues/13) | [實際低空間](issue-13-native-quota.md#2026-10-30小型檔案系統的實際低空間)、[更新／pending-write 程序中斷](issue-13-forced-install.md)、上述 chunks、[未確認保存](issue-13-unconfirmed-storage.md) | 舊表的低空間、寫入中程序中斷已獲後續覆蓋；提交瞬間／斷電仍未驗 |
+| [#14](https://github.com/sunpochin/dance-stamp/issues/14) | [Web 可及性](issue-14-web-accessibility.md)、[#85 未確認保存的原生交易、AX、Tab／Enter 與下載保全](issue-14-storage-keyboard.md) | 不重跑普通窄版／modal 來代替真人或讀屏實聽 |
+| [#15](https://github.com/sunpochin/dance-stamp/issues/15) | [獨立本機包、來源／路徑／授權保護](issue-15-web-package.md)、[四線包依賴](p0-safari-reliability-integration.md#2026-10-30-四線整合候選) | 工程準備已有；發布及實際主機驗收保留，後續 #91 不算完成 |
+| [#16](https://github.com/sunpochin/dance-stamp/issues/16) | 條件式 iOS 備援，尚未啟動 | iPhone 繼續暫緩；不能由桌面或私人模式失敗推定觸發 |
+| [#17](https://github.com/sunpochin/dance-stamp/issues/17) | [分類、跨影片動作、歷史、草稿保護、離線與還原](issue-17-moves.md) | 已有實作與有界回歸，不新增同目的功能 |
+| [#18](https://github.com/sunpochin/dance-stamp/issues/18) | [分享白名單、ID 重建、人工重連](issue-18-sharing.md)及 #84 的分享規劃取消 | 外部傳送／接收不由匯出成功證明，不新增 OAuth、雲端影片或同步 |
+| [#19](https://github.com/sunpochin/dance-stamp/issues/19) | [手動 BPM／第一拍、八拍、秒數後備、三速音訊 samples 與備份](issue-19-manual-beats.md) | 原票未勾項已有對應程式與證據，仍需人工校拍與實聽 |
+
+### 可推進的 Web 工作與既有承接
+
+本輪沒有確認一個可重現、尚未覆蓋且尚無工作線承接的新產品缺陷；不據此宣稱沒有其他 bug。現有工程問題保持原票與既有承接，避免同時改寫選片介面或建立同目的 PR。
+
+| Issue | 實際缺口／狀態 | 接續方式 |
+| --- | --- | --- |
+| [#89](https://github.com/sunpochin/dance-stamp/issues/89) | 67bd630 的 JSON 匯入容易誤當選片；#90 已增加影片入口及 MOV／MP4 提示，於 f3333a0 整合 | 查 [選片證據](issue-89-video-picker.md)，不重做已合併修正；原生 OS 選檔視窗及使用者實片 codec 仍未驗 |
+| [#91](https://github.com/sunpochin/dance-stamp/issues/91) | #90 已加入明確建置產物設定，但其 PR 記錄仍列外部 Workers Builds 失敗、讀 Builds API 403；手動預覽不等於自動建置成功 | 沿原票取得確切建置日誌／可用讀取權限後再診斷；本輪不登入、部署或發布，未重新確認外部建置已恢復 |
+| [#93](https://github.com/sunpochin/dance-stamp/issues/93) | 固定預設 4174 已有 [PR #92](https://github.com/sunpochin/dance-stamp/pull/92)，head `7c2c3262fa682845d22260c4720cd5307797d86e`，尚未合併 | 沿既有 PR 審查，避免重做埠號與啟動文件 |
+| [#94](https://github.com/sunpochin/dance-stamp/issues/94) | 本機監看、自動重建及有草稿／影片時保留畫面尚待交付；已有獨立工作線 | 此範圍不在 #90 已合併差異中，不能寫成已完成；不重建第二套開發更新機制 |
+| [#95](https://github.com/sunpochin/dance-stamp/issues/95) | 盤點期間新開的左右選片與練習／錄影／管理分區問題；已有獨立工作線 | 可用合成影片、無相機、鍵盤及取消／壞檔保留驗證；保留原工作線，不與它同時修改 UI |
+
+原生 Safari 的一般／私人模式保存 Stop、新 VS 保存失敗／未確認救援仍是**瀏覽器軟體驗證缺口**，不全歸類為真人／裝置問題。[先前前置失敗](issue-3-current-protection-audit.md#原生-safari-的操作前置失敗)記錄遠端自動化未開啟，當時沒有建立 Safari 產品 session；本輪沒有重新探測或改設定。後續須在可用且獲授權的原生入口續驗，才能判斷是否需要新工程修正；Chrome 明示缺通知不能填補這格。
+
+### 真人／實體裝置缺口，與工程分開保留
+
+| 類別 | 未完成條件與對應票 |
+| --- | --- |
+| 真人可用性 | #1／#14：五人中同四人各自無提示完成標記重播、錄影到 VS、既有雙片到 VS；#17–#19 的分類、分享理解、校拍與聽感 |
+| 無障礙與觸控 | #14：VoiceOver 實聽、實體觸控、橫直向／安全區與放大文字；AX 或 viewport 回歸不能替代 |
+| 真實影音與硬體 | #3／#9–#11：真相機、光學同步、停止後 LED、鎖屏／來電、喇叭／藍牙實聽、硬體 G1／G6、熱／電池／記憶體壓力與完整支援範圍 |
+| 實體資料與接收者 | #12／#13／#18：實體飛航、跨實體裝置備份還原／重連、一般檔案及 Drive／Dropbox／iCloud Drive／AirDrop 的實際收發、接收者播放；同機新 profile 不算跨裝置 |
+| 暫緩與發布條件 | iPhone／主畫面及 #16 繼續暫緩；#8 等票的指定最終審查、#15 新使用者取得與完成 P0、發布來源／供應商限制及使用者核准各自保留 |
+
+### 本輪驗證與停止條件
+
+讀碼追查 `presentedFrame` 的所有呼叫端後，曾提出「取消後遲到且未滿足暖機條件的通知可能重掛 callback」。直接人工呼叫已取消的 callback 會出現該現象，但不能證明原生瀏覽器會如此送達。另在**未修改的 67bd630**、隔離 Chrome 156、16×16 Canvas 合成串流，以較早註冊的原生影格通知取消同批等待；實際結果 AbortError、只註冊一次、predicate 執行 0 次、待執行 callback 0。未重現產品缺陷，因此沒有修改 helper 或新增該人工情境的回歸。
+
+此探查只涵蓋 Chrome 的指定順序，沒有 Safari／整體媒體矩陣結論。先前 stale dist 與來源不一致被前置檢查拒絕，當時尚未拿鎖或啟動瀏覽器；沿原建置入口重建後才執行探查。自有 Chrome 的已知 PID／群組、server 與同 nonce 共用鎖均已核對收尾；raw、工具與 profile 留 ignored output。文件變更沿原 `bun run check`／提交 hook 驗證，不新增測試或重跑同 bytes 已有的完整原生矩陣。
+
+本輪交付逐票盤點；沒有新的產品修補、合併、部署、發布、改 issue 勾選或關閉未驗收票。若後續新票／可重現錯誤出現，再接續其原票的最小修正；不以保持忙碌為由重做已覆蓋項目。
+
+## 以下為先前盤點的歷史紀錄
+
+## 2026-10-29 實作與關票盤點
 
 盤點基線為遠端 main `38e6cf96793cf7250e4adb86a1156e6e6e0fe08e`，靜態版本 `adbe8eb1d6acfd09`；GitHub 當時共有 14 張開啟 issue。這是當日快照，後續狀態以各票為準。
 
