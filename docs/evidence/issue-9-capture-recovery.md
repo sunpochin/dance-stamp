@@ -236,7 +236,7 @@ PR #87 review 指定只補新守門的失敗接線。原 `take-open-failure.js` 
 
 本輪只接續 [#9](https://github.com/sunpochin/dance-stamp/issues/9)／[PR #117](https://github.com/sunpochin/dance-stamp/pull/117) 的保留失敗。原生產品受測來源是獨立 managed worktree 的**乾淨 `2c29fc9e95dd0a8bad4389658eb9d748421e1443`**，從同步 main `d83755239bf145e9b79d50263208edfad83754e8` 明示接入既有 #117；靜態 `9d1a66df3f6c05c0`，`main.js` SHA256 `f48474b8257a16ba99189c4293a1d5b0d6bbc3d82ede379f782bc4bcd1d978c0`。未接入 #115 的 Blob 修正或 #114 的其他產品變更，也未寫入或執行其他聊天的 checkout。
 
-Safari／safaridriver 27.0.1、macOS 27.0.1，Bun 1.4.4。沿用同一份 65 秒合成示範（1,789,027 bytes，SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`）、640×360 Canvas 合成相機與 native MediaRecorder；主機禁止實體相機／麥克風／畫面擷取。所有實際操作均由 WebDriver 原生點按，保留 trusted 證據，沒有用 DOM click 替代。
+Safari／safaridriver 27.0.1、macOS 27.0.1，Bun 1.4.4。沿用同一份 65 秒合成示範（1,789,027 bytes，SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`）、640×360 Canvas 合成相機與 native MediaRecorder；主機禁止實體相機／麥克風／畫面擷取。錄影開始、保存副本、恢復音高、下載與外站播放的按鍵均使用 WebDriver 原生點按，保留 trusted 證據，沒有用 DOM click 替代；欄位前置設定及 Blob 讀回由 QA 腳本完成，不當作原生輸入操作證據。
 
 本次交付分支另從同步 main 建立，只記錄調查，**產品與既有 B 點／±100ms 斷言完全不變**。為讓 linked worktree 的正常提交 hook 不污染共用 Git，依 [#113](https://github.com/sunpochin/dance-stamp/issues/113) 只接入 `c3516376982e646097a7700798cf88a0fd438649` 的 `tests/unit/releasePackage.test.ts` 隔離修正；沒有接入該整合提交的其他檔案，不跳過 hook、不修改共用 `core.bare`。這項測試前置是在原生測試全部收尾後才接入，不混進產品時鐘對照。
 
