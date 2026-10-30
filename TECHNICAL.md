@@ -123,6 +123,8 @@ flowchart LR
 
 ## 6. 離線、發佈與安全
 
+2026-10-30 PR #90 預覽修正：`wrangler.jsonc` 明確指定先執行既有 `bun run build`，再上傳 `dist/web`，沿用已存在 Worker 的相容日期。未宣告入口時 `versions upload --dry-run` 會直接失敗，而 `deploy` 自動偵測可能把 `web` 當成靜態目錄，漏掉 SW manifest、授權與 `_headers`。排除依賴自動偵測、把整個 repo 當 assets、新增 Worker 後端或雲端媒體服務；此設定只提供靜態資源入口，正式版本切換仍需另行授權。PR 測試使用既有 version URL，與正式站分開驗證。
+
 靜態檔可由免費主機或使用者自己的本機 HTTP server 提供，沒有必需後端。PWA 只 precache 應用資源，不把私人影片放公開 cache URL；未載入過的網站不能第一次離線啟動。使用 HTTPS 或受信任 localhost，不能只叫使用者雙擊 HTML 就保證相機／離線能力。
 
 更新採「有新版 → 保存工作 → 使用者重新載入」。禁止錄影／匯出中強制切換 service worker；破壞性 migration 需先備份，不把 app 檔回滾當成資料可自動回滾。[Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers)。

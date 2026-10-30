@@ -1,6 +1,12 @@
 <!-- 檔案用途：桌面 Web 預覽操作與限制。所在層：使用文件。主要關聯：HANDOFF.md、MEDIA_PROBE.md。 -->
 # 桌面 Web 預覽
 
+### Cloudflare 的 PR 測試網址
+
+Cloudflare 使用根目錄 `wrangler.jsonc`：先跑既有建置，再只上傳 `dist/web`。不能直接上傳 `web` 或用 `file://` 開原始碼；這兩種方式沒有完整建置的離線 manifest、授權與回應政策。
+
+檢查設定可執行 `npx wrangler versions upload --dry-run`；經使用者授權後，以 `npx wrangler versions upload --preview-alias pr-90` 建立 PR 預覽，使用命令回傳的 HTTPS URL。這不切換正式部署，勿用 `wrangler deploy` 代替。不同網址各自保存瀏覽器筆記，預覽資料不會自動出現在正式站；影片仍只在本機選取。
+
 使用者於 2026-10-27 指定先做 Web，暫不處理 iPhone。此版提供可操作的桌面流程，未公開發布，未完成整體 P0 驗收。
 
 2026-10-28 桌面實作已提供「比較已有影片」入口，包含老師課後片＋自己已錄好的片、各自選起點、不開相機、共同對齊及 VS 輸出，見 [產品流程 B2](PRODUCT_PLAN.md)。原先收在測片選單的自拍選檔已改為直接顯示「我的已錄影片」。手機與其他瀏覽器仍依實測範圍列支援。
