@@ -1,4 +1,5 @@
 /* 檔案用途：合成相機驗證三速度拍數倒數、取消與既有中斷鎖。所在層：隔離瀏覽器回歸。主要關聯：main.js、beats.js、capture.js。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const origin = new URL(page.url()).origin, results = [];
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -33,19 +34,19 @@ async (page) => {
   await page.locator('#beat-bpm').fill('120'); await page.locator('#beat-first').fill('0.35'); await page.locator('#beat-count-in').selectOption('4'); await page.locator('#beat-save').click(); await idle();
   await page.locator('#practice-rate').selectOption('2');
   for (const rate of [0.5, 0.75, 1]) {
-    await page.locator('#new-take').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
     await page.locator('#start').fill('0.35'); await page.locator('#end').fill(String(0.35 + 15 * rate)); await page.locator('#rate').selectOption(String(rate));
-    await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('拍後開始'));
     assert(await page.evaluate(() => ['beat-bpm', 'beat-first', 'beat-count-in', 'start', 'end', 'rate', 'practice-rate'].every(id => document.getElementById(id).matches(':disabled')) && document.getElementById('reference').paused), '倒數未鎖設定或提前播放');
     await page.locator('#stop').click(); await idle();
     assert(await page.evaluate(() => window.beatTones.every(t => t.stopped && t.disconnected) && window.beatCameraTracks.every(t => t.readyState === 'ended') && window.beatStarts.length === 0), '取消留下提示音、相機或仍開始錄影');
   }
   for (const rate of [0.5, 0.75, 1]) {
-    await page.locator('#new-take').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
     await page.locator('#start').fill('0.35'); await page.locator('#end').fill(String(0.35 + 15 * rate)); await page.locator('#rate').selectOption(String(rate));
     await page.evaluate(() => { window.beatTones = []; window.beatStarts = []; });
-    await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
     await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'), null, { timeout: 10000 });
     assert(await page.evaluate(() => ['beat-bpm', 'beat-save', 'start', 'end', 'rate'].every(id => document.getElementById(id).matches(':disabled'))), '錄影中設定解鎖');
     await page.waitForFunction(() => !document.getElementById('controls').disabled, null, { timeout: 22000 });
@@ -60,11 +61,11 @@ async (page) => {
     results.push({ rate, startDelayMs: startDelay, decodedMs: result.decodedMs, bytes: result.bytes });
   }
   // 倒數完成後模擬既有 freeze 中斷；#9 的原片與恢復狀態仍應保留。
-  await page.locator('#new-take').click(); await idle(); await page.locator('#end').fill('15.35');
-  await page.locator('#camera').click(); await idle(); await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle(); await page.locator('#end').fill('15.35');
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(); await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
   await page.waitForTimeout(1100); await page.evaluate(() => document.dispatchEvent(new Event('freeze'))); await idle();
   assert(await page.evaluate(async () => { const data = (await (await import('/storage.js')).readLibrary()).data; return data.takes.at(-1).state === 'interrupted' && window.beatTones.every(t => t.disconnected) && window.beatCameraTracks.every(t => t.readyState === 'ended'); }), '既有中斷恢復遭破壞');
-  await page.locator('#beat-clear').click(); await idle(); await page.locator('#new-take').click(); await idle(); await page.locator('#camera').click(); await idle();
+  await page.locator('#beat-clear').click(); await idle(); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle(); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   const count = await page.evaluate(() => window.beatTones.length); await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始')); await page.locator('#stop').click(); await idle();
   assert(await page.evaluate(count => window.beatRequests.every(c => c.audio === false) && window.beatTones.length === count && window.beatCameraTracks.every(t => t.readyState === 'ended'), count), '秒數備援仍產生拍數聲音或請求麥克風');
   return { threeRates: results, countdownCancelAndLocks: true, freezeKeepsInterrupted: true, secondsFallbackAndNoMicrophone: true };

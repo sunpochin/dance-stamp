@@ -38,3 +38,20 @@ canvas { width: 100%; background: #090c0e; border-radius: 8px; } progress { widt
 
 /* 原生 modal 保留鍵盤焦點；長預覽在框內捲動，取消始終可操作。 */
 dialog { overflow-wrap: anywhere; width: min(820px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid #718087; border-radius: 12px; background: #141c20; color: inherit; padding: 20px; } dialog::backdrop { background: #000b; } #relink-preview { height: 220px; object-fit: contain; background: #000; } .check-label { flex-direction: row; align-items: center; } .check-label input { width: 24px; min-height: 24px; } #media-items { padding-left: 20px; } #media-items li { margin: 12px 0; overflow-wrap: anywhere; } #media-items button { margin: 6px 6px 0 0; }
+
+/* 選片與播放器固定同卡；窄版改上下排列，讓檔案名稱和手指操作仍有完整寬度。 */
+#controls > .players { margin-top: 12px; }
+.video-card { padding: 16px; border: 1px solid #455258; border-radius: 10px; background: #1b272c; }
+.video-card h2 { margin: 0; font-size: 1.15rem; font-weight: 650; color: #b9f2c8; }
+.video-card button.primary { width: 100%; }
+/* 檔名只佔一行，避免兩側預覽因長檔名上下錯開；完整名稱仍留在文字內容供讀屏讀取。 */
+.video-picker { margin: 8px 0; }
+.video-picker > summary { color: #c5ced0; }
+.selected-file { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; color: #b6c1c5; }
+.video-card video { margin: 10px 0; }
+.section-intro { margin-top: 0; }
+.segment-settings { margin: 18px 0; }
+#camera-tools { border-top: 1px solid #455258; padding-top: 8px; margin-bottom: 0; }
+#camera-tools > summary { color: #b9f2c8; }
+nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
+@media (max-width: 700px) { .players { grid-template-columns: 1fr; } .video-card { padding: 12px; } }

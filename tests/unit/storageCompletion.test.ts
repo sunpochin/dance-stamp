@@ -288,7 +288,7 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
   data.recipes.push({ id: recipeId, takeId, offsetMs: 0, referenceMirror: false, selfMirror: false, layout: 'side-by-side', audioSource: 'reference', revision: 1 })
   const before = structuredClone(db.record), nodes = new Map<string, any>(), downloaded: any[] = [], blobs = new Map<string, Blob>(), revoked: string[] = []
   const node = (id: string): any => {
-    if (!nodes.has(id)) nodes.set(id, { id, disabled: false, hidden: true, attributes: new Map(), textContent: '', href: '', download: '',
+    if (!nodes.has(id)) nodes.set(id, { id, disabled: false, hidden: true, attributes: new Map(), dataset: {}, textContent: '', href: '', download: '',
       setAttribute(name: string, value: string) { this.attributes.set(name, value) },
       querySelectorAll() { return id === 'library-panel' ? [node('backup'), node('restore'), node('open-library')] : [] },
       click() { downloaded.push({ href: this.href, name: this.download }) },
@@ -297,13 +297,15 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
     return nodes.get(id)
   }
   const urls = new Map(['reference-download', 'take-download', 'output-download'].map(id => { node(id).href = 'blob:synthetic-' + id; node(id).hidden = false; return [id, node(id).href] }))
-  const originals = new Map(urls), reference = { pause() {}, controls: true }, self = { pause() {}, controls: true }
+  // 選片摘要會讀來源 URL；補足原生 DOM 屬性，救援測試仍使用真正的產品控制器。
+  const originals = new Map(urls), reference = { pause() {}, controls: true, getAttribute: () => 'blob:synthetic-reference' }, self = { pause() {}, controls: true, getAttribute: () => 'blob:synthetic-self' }
   node('media-dialog').open = true; node('relink-file').value = 'synthetic candidate'
   const document = { body: {}, documentElement: {}, activeElement: null as any, createElement: () => node('new-download') }; document.activeElement = document.body
   const context: any = { ...storage, writeLibrary: storage.writeLibrary, validateBackup, structuredClone, crypto, Blob, Error, AbortController, document, reference, self,
     $: node, status: (text: string) => { node('status').textContent = text }, releaseCamera() {}, stopPractice() {}, applyPracticeSettings() {}, drawPractice() {}, renderLibrary() {}, report() {}, focusControl() {},
     ready: Promise.resolve(), comparisonSave: Promise.resolve(), state: structuredClone(db.record), active: null, operationFocus: null, operationTrigger: null, diagnostics: {}, monitor: null, audio: null,
-    shareSending: false, shareDraft: null, relinkDraft: null, camera: null, referenceDurationMs: 15000, selfDurationMs: 15000, currentVideoId: data.videos[0].id, activeTakeId: takeId, pendingTakeId: null, existingMode: true,
+    // 載入狀態也讀取待重連 ID；補足真實頁面初值，保留既有未確認保存斷言。
+    pendingLinkId: null, shareSending: false, shareDraft: null, relinkDraft: null, camera: null, referenceDurationMs: 15000, selfDurationMs: 15000, currentVideoId: data.videos[0].id, activeTakeId: takeId, pendingTakeId: null, existingMode: true,
     currentReferenceFile: new Blob(['reference']), takeBlob: new Blob(['self']), outputBlob: new Blob(['synthetic VS']), outputAssetId: null, urls,
     URL: { createObjectURL(blob: Blob) { const url = 'blob:backup-' + blobs.size; blobs.set(url, blob); return url }, revokeObjectURL(url: string) { revoked.push(url) } },
   }

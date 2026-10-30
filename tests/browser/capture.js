@@ -1,4 +1,5 @@
 /* 檔案用途：驗證相機失敗、取消、原片保護與暫存恢復。所在層：隔離合成媒體回歸。主要關聯：capture-matrix.js、storage.js、main.js。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const origin = new URL(page.url()).origin, checks = {};
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -27,7 +28,7 @@ async (page) => {
   await page.locator('#copy-self').click(); await idle();
   const originalTake = (await library()).takes.at(-1);
   for (const button of ['capture', 'new-take']) {
-    await page.locator('#camera').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     await page.evaluate(() => { window.confirm = () => false; });
     await page.locator(`#${button}`).click(); await idle();
     assert((await library()).takes.length === 1 && await page.evaluate(() => window.captureTracks.every(t => t.readyState === 'ended') && !document.getElementById('preview').srcObject), '確認框取消後仍開相機或變更舊 take');
@@ -35,15 +36,15 @@ async (page) => {
   }
   checks.decliningCaptureOrNextTakeClosesPreview = true;
   for (const [name, message] of [['NotAllowedError', '允許相機'], ['NotReadableError', '其他程式']]) {
-    await page.evaluate(name => { window.captureFailNext = name; }, name); await page.locator('#camera').click(); await idle();
+    await page.evaluate(name => { window.captureFailNext = name; }, name); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     assert((await page.locator('#status').textContent()).includes(message) && await page.locator('#preview').evaluate(v => !v.srcObject), '相機失敗沒有中文重試說明或仍留串流');
   }
   const calls = await page.evaluate(() => window.captureRequests.length);
-  await page.locator('#camera-facing').selectOption('environment');
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera-facing').selectOption('environment');
   assert(await page.evaluate(() => window.captureRequests.length) === calls, '切鏡頭選項就自動取用相機');
-  await page.evaluate(() => { window.captureFailNext = 'OverconstrainedError'; }); await page.locator('#camera').click(); await idle();
+  await page.evaluate(() => { window.captureFailNext = 'OverconstrainedError'; }); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   assert((await page.locator('#status').textContent()).includes('後鏡頭') && await page.evaluate(() => window.captureRequests.at(-1).video.facingMode.exact === 'environment'), '後鏡頭缺少被靜默換成前鏡頭');
-  await page.locator('#camera-facing').selectOption('user'); await page.locator('#camera').click(); await idle();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera-facing').selectOption('user'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   assert(await page.locator('.body-guide').isVisible() && await page.locator('#preview').evaluate(v => v.muted && v.srcObject.getAudioTracks().length === 0), '缺少全身取景框或開啟麥克風');
   await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));
   await page.locator('#stop').click(); await idle();
@@ -51,13 +52,13 @@ async (page) => {
   let data = await library();
   assert(data.takes.at(-1).state === 'failed' && data.recipes.find(r => r.takeId === originalTake.id).offsetMs === 100 && data.recipes.find(r => r.takeId === data.takes.at(-1).id).offsetMs === 0, '倒數取消後仍錯綁舊自拍');
   checks.permissionBusyRearRetryAndCountdownCancel = true;
-  await page.locator('#new-take').click(); await idle();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
   assert(await page.locator('#start').isEnabled() && (await library()).takes.some(t => t.id === originalTake.id), '準備新段刪掉舊 take 或沒有解鎖');
-  await page.locator('#end').fill('14'); await page.locator('#camera').click(); await idle();
+  await page.locator('#end').fill('14'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   const countBeforeInvalid = (await library()).takes.length;
   await page.locator('#capture').click(); await idle();
   assert((await page.locator('#status').textContent()).includes('15 到 60 秒') && (await library()).takes.length === countBeforeInvalid, '短錄影未拒絕或產生假工作');
-  await page.locator('#end').fill('15'); await page.locator('#camera').click(); await idle();
+  await page.locator('#end').fill('15'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.captureTracks.at(-1).dispatchEvent(new Event('mute'))); await idle();
@@ -66,7 +67,7 @@ async (page) => {
   await page.locator('#takes li').last().getByRole('button', { name: '開啟自拍／恢復', exact: true }).click(); await idle();
   assert((await library()).takes.find(t => t.id === partial.id).state === 'interrupted' && (await page.locator('#status').textContent()).includes('仍標示中斷'), '開啟中斷原片後被當成完整成功');
   checks.partialStaysInterruptedOnReopen = true;
-  await page.locator('#new-take').click(); await idle(); await page.locator('#camera').click(); await idle();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle(); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
   await page.waitForTimeout(1200); await page.evaluate(() => window.captureRecorders.at(-1).dispatchEvent(new Event('error'))); await idle();
   assert((await library()).takes.at(-1).state === 'interrupted' && await page.evaluate(() => window.captureTracks.every(t => t.readyState === 'ended')), '編碼 error 被標成成功或相機未關');
@@ -74,7 +75,7 @@ async (page) => {
   const interruptedCases = [];
   for (const cause of ['ended', 'rotation', 'freeze', 'visibility', 'resize']) {
     await stage(cause);
-    await page.locator('#new-take').click(); await idle(); await page.locator('#camera').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle(); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
     await page.waitForTimeout(1100);
     await page.evaluate(cause => {
@@ -98,7 +99,7 @@ async (page) => {
   checks.simulatedInterruptions = interruptedCases;
   for (const target of ['chunks', 'media']) {
     await stage(`quota:${target}`);
-    await page.locator('#new-take').click(); await idle(); await page.locator('#camera').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle(); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     await page.evaluate(target => {
       const method = target === 'chunks' ? 'add' : 'put', original = IDBObjectStore.prototype[method];
       window.restoreCaptureQuota = () => { IDBObjectStore.prototype[method] = original; };

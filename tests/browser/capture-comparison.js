@@ -1,4 +1,5 @@
 /* 檔案用途：核對相機與既有雙片共用音訊／資料生命週期。所在層：Web 整合驗收。主要關聯：capture.js、existing-comparison.js、main.js。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const origin = new URL(page.url()).origin, outside = [];
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -27,7 +28,7 @@ async (page) => {
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
   await page.locator('#copy-reference').click(); await idle();
   await page.locator('#mark').click(); await page.locator('#marker-title').fill('合成錄影整合標記'); await page.locator('#marker-form').evaluate(form => form.requestSubmit()); await idle();
-  await page.locator('#camera').click(); await idle(); await page.locator('#capture').click(); await idle();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(); await page.locator('#capture').click(); await idle();
   const before = await library(), recorded = before.takes.at(-1);
   assert(recorded.state === 'ready' && Number.isSafeInteger(recorded.captureTiming?.recorderStartedMs), '沒有完成真實 MediaRecorder 合成相機路徑');
   const bytes = await page.evaluate(async id => (await (await import('/storage.js')).readMedia(id))?.size, recorded.cameraAssetId);

@@ -116,6 +116,20 @@ function updateControls() {
   $('share-download').disabled = !shareDraft || shareSending;
   $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
+  // 自己的影片必須有老師筆記可配對；停用時在欄位旁交代原因，避免誤選成左片。
+  $('select-self-video').disabled = !referenceDurationMs || !currentVideoId;
+  // 摘要綁目前來源 URL；切到另一段錄影時，不能留下上一段的檔名。
+  for (const [video, duration, picker, label, role] of /** @type {const} */ ([
+    [reference, referenceDurationMs, $('reference-picker'), $('reference-selection'), '示範影片'],
+    [self, selfDurationMs, $('self-picker'), $('self-selection'), '練習影片'],
+  ])) {
+    if (!duration) { picker.open = true; label.textContent = '尚未選擇'; delete label.dataset.source; }
+    else if (label.dataset.source !== video.getAttribute('src')) {
+      label.textContent = `已載入${role}`; label.dataset.source = video.getAttribute('src') || ''; picker.open = false;
+    }
+  }
+  $('reference-file-hint').textContent = referenceDurationMs ? `已載入示範影片 · ${(referenceDurationMs / 1000).toFixed(1)} 秒${pendingLinkId ? '；請先預覽並確認連結。' : '。'}` : '支援 MOV／MP4 等；選片不會自動上傳。';
+  $('self-file-hint').textContent = selfDurationMs ? `已載入練習影片 · ${(selfDurationMs / 1000).toFixed(1)} 秒${pendingTakeId ? '；請先預覽並確認連結。' : '。'}` : !currentVideoId ? '先選左邊示範影片；若正在重連，請先預覽並確認。' : '選已錄好的影片放在右邊；還沒錄好可展開下方相機錄影。';
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
   $('capture').disabled = !camera;
   $('compare').disabled = !referenceDurationMs || !selfDurationMs || !!pendingTakeId || !activeTakeId || !!active;
@@ -358,7 +372,14 @@ async function chooseFile(input, video, key, signal, beforeCommit = async _selec
   try {
     const selected = input.files?.[0]; if (!selected) return null;
     const file = await normalizedVideo(selected);
-    return { file, duration: await loadCandidate(file, video, key, signal, beforeCommit) };
+    const duration = await loadCandidate(file, video, key, signal, beforeCommit);
+    const picker = key === 'reference' ? $('reference-picker') : $('self-picker');
+    // 解碼與資料提交成功才收合；壞檔、取消或保存失敗要留在原選片位置重試。
+    const label = key === 'reference' ? $('reference-selection') : $('self-selection');
+    label.textContent = selected.name; label.dataset.source = video.getAttribute('src') || '';
+    picker.open = false;
+    focusControl(picker.querySelector('summary'));
+    return { file, duration };
   } finally { input.value = ''; }
 }
 $('existing-mode').addEventListener('click', () => {
@@ -366,11 +387,15 @@ $('existing-mode').addEventListener('click', () => {
   releaseCamera(); stopPractice(); existingMode = true;
   if (!activeTakeId) $('rate').value = '1';
   updateControls();
-  status('先選左邊老師示範，再選右邊我的已錄影片；各自播放找到同一個動作，設為起點。全程不開相機。');
-  (referenceDurationMs ? $('self-file') : $('reference-file')).focus();
+  status('先選左邊示範影片，再選右邊練習影片；各自播放找到同一個動作，設為起點。全程不開相機。');
+  const choosingSelf = referenceDurationMs && currentVideoId;
+  // 入口可能在上次成功選片後收起，先展開才能把鍵盤焦點交給選片按鈕。
+  (choosingSelf ? $('self-picker') : $('reference-picker')).open = true;
+  (choosingSelf ? $('select-self-video') : $('select-video')).focus();
 });
-// 同步轉交同一個選檔欄位，保留使用者啟動資格，並沿用換片回滾與人工重連確認。
+// 每張卡片只開自己的原生欄位；清空檔案欄位以便同檔重試後，仍用旁邊狀態顯示已載入。
 $('select-video').addEventListener('click', () => $('reference-file').click());
+$('select-self-video').addEventListener('click', () => $('self-file').click());
 $('reference-file').addEventListener('change', () => operation(async signal => {
   if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
   if (takeBlob && !pendingLinkId && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
@@ -398,7 +423,7 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
   const previous = urls.get('self'); if (previous) URL.revokeObjectURL(previous); urls.delete('self');
   currentVideoId = videoId; sessionMedia.set(assetId, selected.file);
   $('video-title').value = requireCurrentVideo().title; renderLibrary();
-  status(`老師示範已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可選我的已錄影片比較，也可錄下自己。`);
+  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可選練習影片比較，也可錄下自己。`);
 }));
 $('self-file').addEventListener('change', () => operation(async signal => {
   if (!referenceDurationMs || !currentVideoId) throw new Error('請先載入並連結示範影片。');
@@ -1136,7 +1161,7 @@ async function openTakeUnlocked(take, signal) {
       selfDurationMs = 0; activeTakeId = null; takeBlob = null;
       self.removeAttribute('src'); self.load();
       pendingTakeId = take.id;
-      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用「我的已錄影片」載入另存原片，預覽後確認連結。'); return;
+      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用右邊「選擇練習影片」載入另存原片，預覽後確認連結。'); return;
     }
   }
   const durationMs = await loadCandidate(blob, self, 'self', signal, async () => {
