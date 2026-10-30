@@ -14,6 +14,19 @@ function graph() {
   data.exports.push({ id: crypto.randomUUID(), recipeId, recipeRevision: 1, assetId: vsId, mimeType: 'video/mp4', state: 'ready', createdAt: '2026-10-28T00:00:01Z' })
   return data
 }
+test('同片多個示範描述與共用輸出的排序不受輸入順序影響，且重匯不重複', async () => {
+  // 接收者可能把同一批資料換排序再匯入；仍須辨識相同內容，避免悄悄多出副本。
+  const local = graph(), incoming = structuredClone(local)
+  incoming.sourceLibraryId = crypto.randomUUID()
+  incoming.assets.push({ ...incoming.assets[0], id: crypto.randomUUID(), byteLength: 123 })
+  incoming.exports.push({ ...incoming.exports[0], id: crypto.randomUUID(), createdAt: '2026-10-29T00:00:00Z' })
+  const original = structuredClone(incoming), first = await planBackupImport(local, incoming)
+  incoming.assets.reverse(); incoming.exports.reverse()
+  const reordered = await planBackupImport(local, incoming)
+  for (const table of tables) expect(new Map(first.data[table].map(row => [row.id, row]))).toEqual(new Map(reordered.data[table].map(row => [row.id, row])))
+  expect((await planBackupImport(first.data, original)).added).toBe(0)
+  expect(local.assets).toHaveLength(3); expect(local.exports).toHaveLength(1)
+})
 test('恰好容量上限的 UTF-8 正常／救援備份仍可還原，保留全部 v2 關聯且不修改本機', async () => {
   const data = graph(), moveId = crypto.randomUUID(), limit = 10 * 1024 * 1024
   // 各產品 asset owner 與匯入白名單都會設定此欄，不能以漏欄的人工 state 冒稱可達邊界。

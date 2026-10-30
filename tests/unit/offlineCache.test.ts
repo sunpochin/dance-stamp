@@ -1,8 +1,8 @@
 /* 檔案用途：驗證快取故障時仍可讀取正確在線資源，且不冒稱離線完整。所在層：SW 回歸。主要關聯：sw.js、offline-cache-failure.js。 */
 import { expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { createHash } from 'node:crypto'
+import { sourceForVm, vmCoverageContext } from '../app-coverage/instrument'
 
 function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'], failurePath = paths[0]) {
   const content = 'synthetic module', path = paths[0], version = 'synthetic-version'
@@ -15,9 +15,10 @@ function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'
     async match(key: string) { if (mode === 'match') fail(); return entries.has(key) ? new Response(entries.get(key)) : undefined },
     async put(key: string, response: Response) { calls.put++; if (mode === 'put' && key === failurePath) fail(); entries.set(key, await response.text()) },
   }
-  const source = readFileSync(new URL('../../web/sw.js', import.meta.url), 'utf8')
-    .replace('__BUILD__', version).replace('/* __MANIFEST__ */ {}', JSON.stringify(Object.fromEntries(paths.map(key => [key, hash]))))
+  const source = sourceForVm('web/sw.js').replace('__BUILD__', version)
+    .replace('const files =', `Object.assign(manifest, ${JSON.stringify(Object.fromEntries(paths.map(key => [key, hash])))});\nconst files =`)
   runInNewContext(source, {
+    ...vmCoverageContext(),
     self: { location: { origin: 'https://synthetic.invalid' }, addEventListener(type: string, handler: (event: any) => void) { handlers[type] = handler } },
     caches: {
       async open() { if (mode === 'open') fail(); return cache },
@@ -45,8 +46,15 @@ function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'
     handlers[type]({ waitUntil(value: Promise<void>) { done = value } })
     return done!
   }
-  return { read, status, entries, retained, calls, content, path, lifecycle }
+  return { read, status, entries, retained, calls, content, path, lifecycle, handlers }
 }
+
+test('非 GET、私人路徑、其他來源與無回覆埠的訊息不由 SW 接管', () => {
+  const current = worker(); let responses = 0, waits = 0
+  for (const request of [new Request('https://synthetic.invalid/private.mp4'), new Request('https://other.invalid/timeline.js'), new Request('https://synthetic.invalid/timeline.js', { method: 'POST' })]) current.handlers.fetch({ request, respondWith() { responses++ } })
+  for (const data of [undefined, { type: 'OTHER' }, { type: 'CHECK_OFFLINE' }]) current.handlers.message({ data, ports: [], waitUntil() { waits++ } })
+  expect(responses).toBe(0); expect(waits).toBe(0); expect(current.calls.fetch).toBe(0)
+})
 
 for (const mode of ['put', 'open', 'match']) test(`快取 ${mode} 拒絕時仍提供通過雜湊的在線資源；離線顯示不完整`, async () => {
   const current = worker(mode)

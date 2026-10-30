@@ -1,8 +1,9 @@
 /* 檔案用途：以兩個真正舊產品頁驗證 SW 等待、關頁與資料保留。所在層：無媒體瀏覽器驗收。主要關聯：serve-update.ts、offline-update.js、issue-13-update-audit.md。 */
 async (entry) => {
-  const origin = new URL(entry.url()).origin;
+  // 從實際頁面讀來源；CLI 的執行環境未必提供瀏覽器的 URL 全域。
+  const { origin, hostname } = await entry.evaluate(() => ({ origin: location.origin, hostname: location.hostname }));
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  assert(new URL(origin).hostname === '127.0.0.1', '只能在自己的 loopback 更新主機執行');
+  assert(hostname === '127.0.0.1', '只能在自己的 loopback 更新主機執行');
   assert((await entry.request.get(origin + '/__test__/version?mode=current')).ok(), '不是明確啟用的更新測試主機');
   // 每輪獨立 context；測試不能把日常瀏覽器的筆記、worker 或 cache 清掉。
   const context = await entry.context().browser().newContext({ viewport: { width: 1280, height: 960 } });
@@ -45,10 +46,14 @@ async (entry) => {
       navigator.serviceWorker.addEventListener('controllerchange', () => window.__twoTabControllerChanges++);
     });
     const before = await info(second); assert(before.active.complete && !before.waiting, '基線版本不完整或已有候選');
-    await first.evaluate(async () => { await fetch('/__test__/version?mode=next'); await (await navigator.serviceWorker.getRegistration()).update(); });
+    await first.bringToFront();
+    await first.locator('#move-name').fill('合成尚未儲存草稿');
+    // 只切主機並發出頁面還原事件；不得手動呼叫 update，否則測不到產品自動檢查。
+    await first.evaluate(async () => { await fetch('/__test__/version?mode=next'); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
     // 等產品收到真正 waiting 訊號，再讀原生 registration；送出 update 不代表安裝已完成。
     await second.waitForFunction(() => document.getElementById('update-status').textContent.includes('新版已備妥'), null, { timeout: 15000 });
     const bothOpen = await info(second), firstInfo = await info(first);
+    assert(await first.locator('#move-name').inputValue() === '合成尚未儲存草稿', '自動檢查新版遺失尚未儲存草稿');
     assert(firstInfo.mediaCalls === 0 && firstInfo.unchanged && firstInfo.controllerChanges === 0, '第一個舊頁要求擷取或被重載／接管');
     assert(bothOpen.active.version === before.active.version && bothOpen.waiting?.version === before.active.version + '-next', '兩個舊頁開著時版本不符：' + JSON.stringify({ before, bothOpen, firstInfo }));
     assert(bothOpen.unchanged && bothOpen.controllerChanges === 0, '兩個舊頁開著時被接管');
@@ -73,7 +78,8 @@ async (entry) => {
     assert(JSON.stringify(await library(reopened)) === JSON.stringify(saved), '新版本改動了已保存資料');
     assert(await reopened.evaluate(async () => (await (await caches.open('synthetic-twin-unrelated')).match('/synthetic-twin-sentinel'))?.text()) === 'kept', '更新清除了無關 cache');
     assert(after.mediaCalls === 0, '重開頁要求擷取');
-    return { twoOldControlledPagesBeforeUpdate: true, candidateWaitsWithBothOpen: true, firstPageClosedSecondPageStillControlled: true,
+    return { automaticPageshowCheckWithoutManualUpdate: true, unsavedDraftPreserved: true,
+      twoOldControlledPagesBeforeUpdate: true, candidateWaitsWithBothOpen: true, firstPageClosedSecondPageStillControlled: true,
       survivorSavesSameMove: true, survivorNotReloadedOrTakenOver: true, thirdNavigationUsesOldActiveWorker: true,
       activatesAfterRemainingOldPagesClose: true, exactSavedLibraryPreserved: true, unrelatedCachePreserved: true,
       cameraMicrophoneAndScreenCaptureCalls: 0, beforeVersion: before.active.version, afterVersion: after.active.version };

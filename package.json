@@ -8,6 +8,7 @@
     "check:source": "bun --no-env-file scripts/check-harness.ts --include-local-reference",
     "test:unit": "bun --no-env-file test --isolate ./tests/unit",
     "test:coverage": "bun --no-env-file test --isolate --coverage --coverage-reporter=text --coverage-reporter=lcov ./tests/unit",
+    "test:coverage:app": "bun --no-env-file tests/app-coverage/prepare-fixtures.ts && bun --no-env-file tests/app-coverage/run-app.ts",
     "hooks:install": "bun --no-env-file scripts/install-hooks.ts",
     "probe": "bun run dev",
     "build": "bun --no-env-file scripts/build-web.ts",
@@ -20,6 +21,9 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
+    "istanbul-lib-coverage": "3.2.2",
+    "istanbul-lib-instrument": "6.0.3",
+    "playwright-core": "1.64.1",
     "typescript": "7.0.2"
   }
 }
