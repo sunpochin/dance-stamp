@@ -69,7 +69,8 @@ let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnTyp
 const selected = process.argv.slice(2)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
-const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'markers', 'moves', 'beats', 'share', 'vs-share', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+// 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
+const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -165,10 +166,20 @@ try {
           await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')?.getAttribute('aria-busy') !== 'true')
         }
       }
-      const path = resolve(root, 'tests/browser', `${name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
+      const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
+      const path = resolve(root, 'tests/browser', `${tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
-      if (name.startsWith('storage-recovery-')) {
+      if (tail) {
+        const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
+        let captureCalls = 0
+        await context.exposeBinding('blockedMedia', () => { captureCalls++ })
+        await context.addInitScript(() => {
+          for (const key of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[key] = () => { (window as any).blockedMedia(); throw new Error('保存尾段只允許合成檔案，不可擷取硬體') }
+        })
+        result = await scenario(page, { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }, folder, tail, async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2)))
+        assert.equal(captureCalls, 0); result.cameraMicrophoneAndScreenCaptureCalls = captureCalls
+      } else if (name.startsWith('storage-recovery-')) {
         const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
         result = await scenario(page, { origin, reference: resolve(media, 'comparison/reference.mp4'), self: resolve(media, 'comparison/self-1.mp4'), vs: resolve(media, 'export-failure/self.mp4') }, folder, async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2)), name.endsWith('import') ? 'import' : 'title')
       } else {

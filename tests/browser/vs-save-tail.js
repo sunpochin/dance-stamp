@@ -103,6 +103,8 @@ export default async function verify(page, fixtures, folder, kind, report) {
   };
   const metadata = snap => snap.find(x => x.name === 'metadata').values[0];
   const download = async (selector, label) => {
+    // 備份已收進次要工具；走使用者的展開步驟，避免把隱藏按鈕逾時誤判為保存失敗。
+    if (selector === '#backup' && !await page.locator('#note-tools').evaluate(details => details.open)) await page.locator('#note-tools > summary').click();
     const waiting = page.waitForEvent('download');
     if (selector.startsWith('blob:')) {
       // 產品 CSP 不開放 fetch(blob:)；沿原生下載驗 URL，不能為 QA 放寬 connect-src。

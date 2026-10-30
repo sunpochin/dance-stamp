@@ -1,5 +1,5 @@
-<!-- 檔案用途：記錄 VS 系統分享的檔案指紋、失敗保全與覆蓋率續補。所在層：匿名工程證據。主要關聯：tests/browser/vs-share.js、tests/app-coverage/run-app.ts、TECHNICAL.md 第 8 節、issue #103。 -->
-# #103：VS 分享的後備、取消與重試
+<!-- 檔案用途：記錄 VS 分享、保存尾段、刪除及啟動拒絕的資料保全與覆蓋率續補。所在層：匿名工程證據。主要關聯：tests/browser/vs-share.js、vs-save-tail.js、vs-live-delete.js、storage-startup-failure.js、tests/app-coverage/run-app.ts、TECHNICAL.md 第 8 節、issue #103。 -->
+# #103：VS 分享、保存與刪除後的資料保全
 
 影片做好後，分享被取消或拒絕，都不應讓原片、VS 或筆記不見。這輪像先確認要交給郵差的包裹，再測試「郵差不收、取消寄送、再寄一次」；最後把留在桌上的包裹再拿出來核對，確認仍是同一份。
 
@@ -63,3 +63,58 @@ macOS arm64、Bun 1.4.4、隔離 Headless Chrome 156.0.8078.76；完整 `coverag
 首次獨立重播因另一個 #9 原生驗收持有共用鎖而以 EEXIST 停止；沒有刪除／接管該鎖。等其自然釋放後才重跑。本輪獨立重播的已知 Chrome PID 集合退出、剩餘清單空白，再核對自有 nonce 後釋放自己的鎖；本機收據為 ignored `output/vs-share-playback.local.json`，不外傳任何真實媒體。
 
 `bun run check` 的單元測試為645 pass／0 fail／3,160 expects，型別、公開內容掃描、lint與build完成，仍有19項既有lint info；最終正常提交hook結果另外記入PR。本輪沒修改產品 CSP、沒有執行合併或正式發布。
+
+## 保存尾段、目前 VS 刪除與啟動失敗續補
+
+影片已做好，保存失敗也要能帶走；使用者明確刪掉目前 VS 後，舊連結則必須失效，但原片與筆記仍在。遇到比程式更新的資料庫，也不能為了開啟畫面而清空它。
+
+延續同一張 #103 與 PR #116，從原 head `692741fe9dedb8aa8bf325b5362e496217cd1931` 接續，產品九份 JS、HTML／CSS、Cloudflare設定及CSP仍不改，#114保持原head待審查。原38項證據保持上方的來源歸屬；本輪完整矩陣改為44項，另記同輪結果。
+
+- `vs-save-tail-stop-complete`／`native-reject`／`unknown-abort`／`unknown-complete`：直接呼叫既有 `vs-save-tail.js`，保留真正成檔、兩次原生put成功後的pending、真正Stop、trusted ConstraintError／complete／abort、完整舊筆記與Blob bytes、下載指紋、重試及同頁讀回斷言。兩個unknown案例明示遮住產品結束通知，不能寫成Safari自然故障。只接入瀏覽器case；`verify-vs-save-tail.ts` 的獨立分析及離站播放另驗，不因插樁案例通過就補勾原生影音矩陣。
+- `vs-live-delete`：真正保存兩側原片、非空標記及VS；取消與原生交易abort均保留完整metadata、三份影片指紋和URL。成功後只刪目前VS，原片／配方／筆記仍在；畫面與下載控制隱藏、分享停用、原生URL撤銷，新分頁載入舊URL得到ERR_FILE_NOT_FOUND。上方移除副本入口的範圍與取消亦核對，最後真正重做並下載新VS。
+- `storage-startup-failure`：在空白自有context由原生IndexedDB建立v2，再讓產品的v1開啟得到trusted VersionError；核對清楚的未清庫提示。較新版本、未知object store／欄位、metadata、chunks及完整Blob bytes，在同頁重開後均相同。這是拒絕較新格式的保全，並非支援v2原生資料庫或跨程序／實體裝置。
+
+重跑原入口，或先選新增六項：
+
+```sh
+bun --no-env-file tests/app-coverage/run-app.ts vs-live-delete storage-startup-failure vs-save-tail-stop-complete vs-save-tail-native-reject vs-save-tail-unknown-abort vs-save-tail-unknown-complete
+bun run test:coverage:app
+```
+
+分項與完整44項均已通過，本輪精確覆蓋率與來源階段見下方。所有錄製來源為既有合成影片／canvas，沒有操作實體相機、麥克風或私有檔案；不合併、不正式發布，#103仍按剩餘缺漏與人工門檻保持開啟。
+
+### 此輪失敗與修正範圍
+
+首次 `coverage/app-tj4xSb/` 在隱藏的備份按鈕逾時：舊案例尚未展開新的次要工具。只為該下載入口補真正summary點按，原資料與原生事件斷言保留；後續四個保存尾段案例均通過。`app-Btvgv0/`、`app-b6z7S6/` 的刪除斷言曾額外要求href屬性消失，但產品契約是隱藏控制並撤銷底層URL；改以新分頁真正無法載入驗證，沒有修改產品。
+
+`app-A3pEhS/` 的啟動斷言曾額外要求整個選片區disabled；既有契約是錯誤提示與不清庫，未承諾這種版面狀態。移除該額外期望，仍保留trusted VersionError、所有未知資料／bytes及重開一致；成功單項為 `app-WZwYA0/`。上述失敗輪不當作完整通過，不把不同輪的計數合併。
+
+
+### 本輪完整結果與來源階段
+
+macOS arm64／Bun1.4.4／隔離Chrome156.0.8078.76；`coverage/app-qqF87Y/run.json` 為 **passed、44/44、0 page errors**，203次導覽快照。parent為692741f、trackedChanges=true；九份產品JS的SHA-256執行後仍完全吻合，產品來源與c351637相同。
+
+| 同輪、同九檔分母 | 行數 | 函式 | 分支 |
+| --- | --- | --- | --- |
+| 單元／VM基準 | 758/2,010（37.71%） | 276/674（40.94%） | 811/2,163（37.49%） |
+| 加入完整44項 | 1,996/2,010（99.30%） | 646/674（95.84%） | 1,871/2,163（86.50%） |
+
+相對前述38項本機輪，增加9行、6函式、12分支；這是兩個完整輪各自結果的比較，沒有跨輪加總收據。main.js為98.86%／94.27%／80.66%；其他8檔行數100%，其餘函式／分支百分比與前述本機38項輪相同。仍未達100%，沒有刪除防護或加忽略規則。
+
+主畫面剩14行未覆蓋：`555,587,588,616,617,618,980,981,1613,1622,1632,1633,1634,1635`，包含原生相機／錄影中斷、救援原片刪除、播放失敗與片尾回復等保護；不能從此輪補勾它們或其他平台。
+
+- runner SHA256：`0bd47624b42deb8441aa88ab121962d07a379cd37ffb5c833f56db6dee32926a`。
+- 完整run收據SHA256：`5ad0619895f93ede8244005aab91e9eb84b060016df6405129709a87b3d4b4a8`。
+- 保存尾段案例SHA256：`03e99274d723dbf922bc97d85b67d842af2031eb4bd6186e460c2985e296e895`；刪除案例：`ac9ec09a37303095814c776f6479c7632cac15772263a07e9c324c1c08490fdc`。
+
+完整本機輪執行啟動案例時，版本為`68760cb8e3d6a7829d970608e8d479bea38d9924a33b0217556e4ea3473782c1`。該案例完成後，另加強「第一次讀回即須逐值等於預置資料」，避免只比較兩次錯誤後快照而漏掉首次損壞；最終案例指紋為`68377f65568f54adf145682bb74deac1e02c1be35aeee7690d77c4fc960d78e5`，獨立重跑`coverage/app-p4CDAv/`通過。這個host斷言不改產品JS／位置表／runner；本機完整輪仍保留原案例階段，不能改稱最後提交的乾淨完整重跑。最終head的CI完整輪結果另外列於PR。
+
+原品質入口645 tests／3160 expects／0fail；281檔公開掃描、型別、lint及build通過，仍有19項既有lint info。正常提交hook再核對最終暫存內容；來源與結果不由舊head的review代替。
+
+### 十份下載的獨立驗證
+
+四個保存尾段案例的舊VS、新VS及原生拒絕後重做，共9份，沿原`analyze-export-failure.py`的片長、左右／鏡像／留邊、660Hz示範聲源與880Hz自拍排除／音量門檻全部通過，沒有另定較寬門檻。刪除目前VS後重新成檔的第10份，只宣稱本輪完整解碼與離站播放，不移記為相同鏡像分析設定或完整G1–G7。
+
+全部10份都在新隔離Chrome的file頁播到ended、error=0，1280×720、音訊有解碼；FFmpeg對所有影音軌完整解碼無錯誤診斷。9份尾段檔的原生播放器dropped=0；刪除後重做的檔案為1，保留實際結果，不改寫成全部零掉幀。這是合成短片的可播放性與指定分析，真人聽感、完整同步／穩定性、Safari及實體裝置仍另計。
+
+獨立播放收據SHA256：`2dac5ba5d2d9122081ed327fa9ab9eb74377dbe2891f4046b93535dccc68c610`；每檔指紋、播放器數據與9份原分析結果保留在本機`output/vs-protection-playback.local.json`。完整runner的browserClosed／serverStopped為true、lockRetained=false；獨立播放另確認自有已知Chrome PID集合退出，再核對nonce釋放自己的鎖。未使用他人測試程序或鎖來補收尾證據。
