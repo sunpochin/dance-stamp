@@ -58,6 +58,8 @@ bun run check:package
 
 首輪受限執行環境的本機 listen 被拒絕，未修改測試放行；取得本機測試服務權限後原 check 通過。第一次完整輪 34/35，舊鍵盤焦點斷言使整輪明確失敗；修正為新版真正選檔操作後，單案與上述完整重跑通過。失敗 raw 保留，不與成功輪混記。
 
+遠端首輪 CI 的 harness 與 linux-install-restart 已成功；新 App job 因 Ubuntu image 缺少 FFmpeg，在啟動測試前被工具前置檢查拒絕。後續只在該 job 安裝合成素材所需的發行版 FFmpeg，不跳過檢查、不將編碼器或測片放進產品下載包；完整結果依新 head 的 Checks 續驗。
+
 ## 驗收界線
 
 此數字僅涵蓋九份 App JavaScript 的插樁工程測試，未涵蓋 HTML／CSS、產生器、主機或全 repo 的覆蓋率。原 Bun 報表繼續獨立產出，新增量測 helper 後也不可沿用 #99 的舊分母數字。

@@ -15,6 +15,7 @@ function graph() {
   return data
 }
 test('同片多個示範描述與共用輸出的排序不受輸入順序影響，且重匯不重複', async () => {
+  // 接收者可能把同一批資料換排序再匯入；仍須辨識相同內容，避免悄悄多出副本。
   const local = graph(), incoming = structuredClone(local)
   incoming.sourceLibraryId = crypto.randomUUID()
   incoming.assets.push({ ...incoming.assets[0], id: crypto.randomUUID(), byteLength: 123 })

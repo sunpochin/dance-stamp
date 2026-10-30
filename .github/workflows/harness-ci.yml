@@ -41,7 +41,10 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile --ignore-scripts
-      # 沿用 runner 已安裝的瀏覽器與合成工具；計數／失敗情境不能當作裝置驗收。
+      # Ubuntu runner 未預裝 FFmpeg；只為生成合成素材安裝，產品包不加入編碼器。
+      - name: Install synthetic fixture encoder
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # 沿用 runner 已安裝的瀏覽器；計數／失敗情境不能當作裝置驗收。
       - name: Measure every App module with unit and isolated browser checks
         run: |
           command -v ffmpeg

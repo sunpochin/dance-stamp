@@ -8,6 +8,7 @@ import { instrument, receipt, root } from './instrument'
 plugin({ name: 'app-coverage', setup(build) {
   build.onLoad({ filter: /\/web\/[^/]+\.js$/ }, args => ({ contents: instrument(`web/${args.path.split('/').at(-1)}`).code, loader: 'js' }))
 } })
+// isolate 會分開模組狀態；每個檔案結束都需保存，不能只拿最後一檔的計數代表整批。
 afterAll(() => {
   const directory = process.env.DANCE_STAMP_COVERAGE_DIR
   if (!directory || !resolve(directory).startsWith(resolve(root, 'coverage') + '/')) throw new Error('請使用本次 coverage 子目錄')
