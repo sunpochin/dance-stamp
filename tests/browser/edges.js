@@ -1,8 +1,9 @@
 /* 檔案用途：驗證循環、晚到權限、空間估計以外的取消行為。所在層：合成資料瀏覽器回歸。主要關聯：main.js、MEDIA_PROBE.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   await page.goto('http://127.0.0.1:4173/');
-  await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+  await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.getByLabel('開始（秒）', { exact: true }).fill('1');
   await page.getByLabel('結束（秒）', { exact: true }).fill('1.5');
@@ -25,7 +26,7 @@ async (page) => {
       const stream = await original(c); window.lateTracks = stream.getTracks(); return stream;
     };
   });
-  await page.getByRole('button', { name: '開啟前相機', exact: true }).click();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.getByRole('button', { name: '開啟前相機', exact: true }).click();
   await page.getByRole('button', { name: '停止／取消', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   await page.waitForFunction(() => window.lateTracks.length > 0 && window.lateTracks.every(t => t.readyState === 'ended'));

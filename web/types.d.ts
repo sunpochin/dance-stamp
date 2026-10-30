@@ -99,6 +99,9 @@ export interface Elements {
   "library": HTMLSelectElement;
   "open-library": HTMLButtonElement;
   "select-video": HTMLButtonElement;
+  "select-self-video": HTMLButtonElement;
+  "reference-file-hint": HTMLParagraphElement;
+  "self-file-hint": HTMLParagraphElement;
   "backup": HTMLButtonElement;
   "restore": HTMLInputElement;
   "controls": HTMLFieldSetElement;

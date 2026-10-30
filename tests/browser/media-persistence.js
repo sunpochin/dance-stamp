@@ -17,7 +17,7 @@ async (page) => {
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   const missing = await page.locator('#reference').evaluate(video => !video.getAttribute('src'));
   if (missing) {
-    await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+    await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
     await page.getByRole('button', { name: '已預覽，確認連結到這份筆記', exact: true }).click();
     await page.waitForFunction(() => !document.getElementById('controls').disabled);
   }

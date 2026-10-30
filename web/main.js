@@ -116,6 +116,10 @@ function updateControls() {
   $('share-download').disabled = !shareDraft || shareSending;
   $('relink-confirm').disabled = !relinkDraft?.candidate || !!relinkDraft.candidate.blocked || !$('relink-checked').checked;
   $('camera').disabled = !referenceDurationMs || !currentVideoId;
+  // 自己的影片必須有老師筆記可配對；停用時在欄位旁交代原因，避免誤選成左片。
+  $('select-self-video').disabled = !referenceDurationMs || !currentVideoId;
+  $('reference-file-hint').textContent = referenceDurationMs ? `已載入老師影片 · ${(referenceDurationMs / 1000).toFixed(1)} 秒${pendingLinkId ? '；請先預覽並確認連結。' : '。'}` : '支援 MOV／MP4 等；選片不會自動上傳。';
+  $('self-file-hint').textContent = selfDurationMs ? `已載入我的影片 · ${(selfDurationMs / 1000).toFixed(1)} 秒${pendingTakeId ? '；請先預覽並確認連結。' : '。'}` : !currentVideoId ? '先選左邊老師影片；若正在重連，請先預覽並確認。' : '選已錄好的影片放在右邊；還沒錄好可展開下方相機錄影。';
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
   $('capture').disabled = !camera;
   $('compare').disabled = !referenceDurationMs || !selfDurationMs || !!pendingTakeId || !activeTakeId || !!active;
@@ -367,10 +371,11 @@ $('existing-mode').addEventListener('click', () => {
   if (!activeTakeId) $('rate').value = '1';
   updateControls();
   status('先選左邊老師示範，再選右邊我的已錄影片；各自播放找到同一個動作，設為起點。全程不開相機。');
-  (referenceDurationMs ? $('self-file') : $('reference-file')).focus();
+  (referenceDurationMs && currentVideoId ? $('select-self-video') : $('select-video')).focus();
 });
-// 同步轉交同一個選檔欄位，保留使用者啟動資格，並沿用換片回滾與人工重連確認。
+// 每張卡片只開自己的原生欄位；清空檔案欄位以便同檔重試後，仍用旁邊狀態顯示已載入。
 $('select-video').addEventListener('click', () => $('reference-file').click());
+$('select-self-video').addEventListener('click', () => $('self-file').click());
 $('reference-file').addEventListener('change', () => operation(async signal => {
   if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
   if (takeBlob && !pendingLinkId && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
@@ -1136,7 +1141,7 @@ async function openTakeUnlocked(take, signal) {
       selfDurationMs = 0; activeTakeId = null; takeBlob = null;
       self.removeAttribute('src'); self.load();
       pendingTakeId = take.id;
-      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用「我的已錄影片」載入另存原片，預覽後確認連結。'); return;
+      status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用右邊「選我的影片」載入另存原片，預覽後確認連結。'); return;
     }
   }
   const durationMs = await loadCandidate(blob, self, 'self', signal, async () => {

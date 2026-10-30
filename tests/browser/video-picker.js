@@ -9,7 +9,7 @@ async (controller) => {
     const idle = () => page.waitForFunction(() => document.getElementById('storage-status').textContent !== '正在開啟本機筆記…' && document.getElementById('library-panel').getAttribute('aria-busy') !== 'true');
     await idle();
     const library = () => page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
-    const button = page.getByRole('button', { name: '選擇硬碟影片（MOV／MP4 等）', exact: true });
+    const button = page.getByRole('button', { name: '選老師影片（左）', exact: true });
     assert(await page.locator('#library option').count() === 1, '測試必須從空筆記庫開始');
     assert(await button.isVisible() && !await page.locator('#backup').isVisible() && !await page.locator('#restore').isVisible(), '開始練習時未區分選片與次要筆記工具');
     const select = async (file, keyboard = false) => {

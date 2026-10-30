@@ -8,7 +8,7 @@ async (page) => {
     URL.createObjectURL = value => { const url = create(value); window.playerURLs.add(url); window.playerURLPeak = Math.max(window.playerURLPeak, window.playerURLs.size); return url; };
     URL.revokeObjectURL = url => { window.playerURLs.delete(url); revoke(url); };
   });
-  const input = page.getByLabel('示範影片', { exact: true });
+  const input = page.getByLabel('選老師影片（左）', { exact: true });
   const settle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
   const frames = async () => page.locator('#reference').evaluate(async video => {
     const muted = video.muted; video.muted = true;

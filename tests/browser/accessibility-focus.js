@@ -5,7 +5,7 @@ async page => {
   const focused=()=>page.evaluate(()=>document.activeElement.id);
   await page.goto(origin);await idle();
   await page.locator('.skip-link').focus();await page.keyboard.press('Enter');assert(await focused()==='controls','跳到內容未帶到選片');
-  await page.locator('#existing-mode').focus();await page.keyboard.press('Enter');assert(await focused()==='reference-file','入口未帶到選片');
+  await page.locator('#existing-mode').focus();await page.keyboard.press('Enter');assert(await focused()==='select-video','入口未帶到選片');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4');await idle();
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4');await idle();
   await page.locator('#copy-reference').focus();await page.keyboard.press('Enter');await idle();assert(await focused()==='copy-reference','副本保存後焦點遺失');

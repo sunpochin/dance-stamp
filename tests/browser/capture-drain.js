@@ -1,4 +1,5 @@
 /* 檔案用途：驗證錄影失敗仍持鎖等候尾塊落盤。所在層：隔離合成相機回歸。主要關聯：main.js、storage.js、issue-9-capture-recovery.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page) => {
   const origin = new URL(page.url()).origin;
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -40,9 +41,9 @@ async (page) => {
   const baseline = await snapshot(original.id), sibling = await page.context().newPage();
   try {
     await sibling.goto(origin);
-    await page.locator('#new-take').click(); await idle();
-    await page.locator('#start').fill('0'); await page.locator('#end').fill('15'); await page.locator('#countdown').selectOption('3');
-    await page.locator('#camera').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
+    await page.locator('#start').fill('0'); await page.locator('#end').fill('15'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#countdown').selectOption('3');
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     await page.evaluate(() => { window.captureDrain.hold = true; });
     await page.locator('#capture').click();
     await page.waitForFunction(() => window.captureDrain.pending > 0 && document.getElementById('status').textContent.startsWith('錄影中'), null, { polling: 50 });

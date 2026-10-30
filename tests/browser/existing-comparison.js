@@ -16,7 +16,7 @@ async (page) => {
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
   const videoId = await page.locator('#library').inputValue();
   await page.locator('#rate').selectOption('0.5'); await idle();
-  await page.getByLabel('我的已錄影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4'); await idle();
+  await page.getByLabel('選我的影片（右）', { exact: true }).setInputFiles('output/media-probe/reference.mp4'); await idle();
   assert(await page.locator('#rate').inputValue() === '1', '新比較繼承上次慢速');
   const initial = await library(), initialTake = initial.takes.at(-1);
   assert(initialTake?.state === 'ready', '外部選片產生假的錄影工作');

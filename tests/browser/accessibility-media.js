@@ -1,4 +1,5 @@
 /* 檔案用途：驗證讀屏可用的狀態與名稱、診斷去識別、網路及相機釋放。所在層：合成媒體可及性驗收；非讀屏實聽或真機。主要關聯：capture-comparison.js、ACCEPTANCE.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async page => {
   const origin=new URL(page.url()).origin,assert=(ok,message)=>{if(!ok)throw new Error(message);},outside=[];
   const idle=()=>page.waitForFunction(()=>!document.getElementById('controls').disabled,null,{timeout:95000});
@@ -19,9 +20,9 @@ async page => {
   await page.locator('#synthetic-fixture-transfer').setInputFiles('output/media-probe/reference.mp4');
   await page.evaluate(()=>{const fixture=document.getElementById('synthetic-fixture-transfer'),input=document.getElementById('reference-file'),transfer=new DataTransfer();transfer.items.add(new File([fixture.files[0]],'synthetic-private-reference.mp4',{type:'video/mp4'}));fixture.remove();input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});await idle();
   assert(await page.evaluate(()=>window.a11yRequests.length===0),'開站或選片自行請求相機');
-  await page.locator('#camera').click();await idle();assert((await page.locator('#status').textContent()).includes('權限未開啟'),'相機拒絕沒有可理解結果');
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click();await idle();assert((await page.locator('#status').textContent()).includes('權限未開啟'),'相機拒絕沒有可理解結果');
   assert(!(await page.locator('#diagnostics').textContent()).includes('synthetic-private'),'權限診斷含裝置資料');
-  await page.evaluate(()=>{window.a11yRejectCamera=false;});await page.locator('#camera').click();await idle();
+  await page.evaluate(()=>{window.a11yRejectCamera=false;});await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click();await idle();
   const cdp=await page.context().newCDPSession(page);
   const names=async()=>{const tree=await cdp.send('Accessibility.getFullAXTree');return tree.nodes.filter(n=>!n.ignored).map(n=>n.name?.value);};
   let readable=await names();assert(readable.includes('老師示範影片播放器')&&readable.includes('相機即時取景預覽'),'相機／老師影片缺少可讀名稱');

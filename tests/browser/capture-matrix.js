@@ -1,4 +1,5 @@
 /* 檔案用途：單一合成相機錄影案例，供三速度乘三時長矩陣執行。所在層：Web 媒體驗收。主要關聯：capture.js、RECORD_COMPARE.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page, scenario = { rate: 1, seconds: 15, countdown: 3 }) => {
   const origin = new URL(page.url()).origin, { rate, seconds, countdown } = scenario;
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -23,8 +24,8 @@ async (page, scenario = { rate: 1, seconds: 15, countdown: 3 }) => {
   }
   const before = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
   await page.locator('#start').fill('0'); await page.locator('#end').fill(String(seconds * rate)); await page.locator('#rate').selectOption(String(rate));
-  await page.locator('#countdown').selectOption(String(countdown)); await page.locator('#practice-rate').selectOption('2');
-  await page.locator('#camera').click(); await idle();
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#countdown').selectOption(String(countdown)); await page.locator('#practice-rate').selectOption('2');
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
   assert(await page.locator('#preview-frame').isVisible() && await page.locator('.body-guide').isVisible(), '取景框未顯示');
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));

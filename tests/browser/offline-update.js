@@ -1,4 +1,5 @@
 /* 檔案用途：驗證不完整新版拒絕、錄影／匯出中等待、關閉全部分頁後啟用。所在層：真正 SW 生命週期驗收。主要關聯：serve-update.ts、sw.js、capture-comparison.js。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (entry) => {
   const origin = new URL(entry.url()).origin;
   if (!await entry.evaluate(() => window.__danceSyntheticCameraOnly === true)) throw new Error('必須以合成相機設定執行');
@@ -22,7 +23,7 @@ async (entry) => {
   });
   assert(failed, '損壞新版取代了舊版或留下不完整 cache');
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle(page);
-  await page.locator('#copy-reference').click(); await idle(page); await page.locator('#camera').click(); await idle(page);
+  await page.locator('#copy-reference').click(); await idle(page); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(page);
   await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
   await page.evaluate(async () => { await fetch('/__test__/version?mode=next'); const r=await navigator.serviceWorker.getRegistration(); await r.update(); });
   await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('新版已備妥'));
