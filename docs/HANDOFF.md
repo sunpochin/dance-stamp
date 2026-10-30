@@ -1,6 +1,8 @@
 <!-- 檔案用途：關機前保存可接手的 Web 工作節點。所在層：交接文件。主要關聯：WEB_PREVIEW.md、MEDIA_PROBE.md、evidence/web-preview.md。 -->
 # 關機交接 · 2026-10-27
 
+2026-10-30 啟動設定更新：`bun run dev` 與下載包均預設固定使用 `http://127.0.0.1:4174/`。以下日期與分支下的測試連接埠保留當時紀錄。
+
 ## 2026-10-28 #9 原生錄影背景補查
 
 本輪分支 `codex/issue-9-native-background` 從 main `e9e154a` 接續 PR #42 `65d3b40`，只擴充專用測試工具與文件，產品仍為 `2f1ec6b3335cd790`。`launch-native-browser.ts --capture` 綁定合成相機；新的 `capture-background.js` 嚴格測三階段真實切分頁與中斷／重錄保留，重現步驟見 MEDIA_PROBE.md。

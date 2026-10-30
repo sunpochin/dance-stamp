@@ -277,13 +277,13 @@ try {
   ok(!report.quotaReopened.overrideActive)
   deepStrictEqual(await snapshot('reopened'), committed, '同 profile 正常重開後內容改變')
   report.committed = { jsonSha256: hash(JSON.stringify(committed)), revision: committed.library.revision, stores: committed.stores.map(store => ({ name: store.name, keys: store.keys, blobs: store.values.filter(v => v?.sha256).map(({ base64, ...rest }) => rest) })) }
-  // 舊回歸另用空 context，不能改寫本輪配額實驗的原件；只替換硬編碼測試埠。
+  // 舊回歸另用空 context，不能改寫本輪配額實驗的原件；同步預設入口才能正確替換隔離測試埠。
   report.regressions = {}
   for (const name of ['storage', 'moves-storage']) {
     const isolated = await context.browser().newContext({ serviceWorkers: 'block', permissions: [] })
     try {
       const probe = await isolated.newPage(); await probe.goto(origin)
-      const source = readFileSync(resolve(root, 'tests/browser', name + '.js'), 'utf8').replaceAll('http://127.0.0.1:4173', origin)
+      const source = readFileSync(resolve(root, 'tests/browser', name + '.js'), 'utf8').replaceAll('http://127.0.0.1:4174', origin)
       const verify = new Function('return (' + source + ')')()
       report.regressions[name] = { sourceSha256: hash(readFileSync(resolve(root, 'tests/browser', name + '.js'))), result: await verify(probe) }
     } finally { await isolated.close() }

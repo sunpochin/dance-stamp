@@ -1,7 +1,8 @@
 /* 檔案用途：實際 IndexedDB migration 回滾與跨分頁恢復鎖驗證。所在層：合成本機資料回歸。主要關聯：storage.js、DATA_FORMAT.md。 */
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
+  await page.goto('http://127.0.0.1:4174/');
   const migration = await page.evaluate(async () => {
     const { upgradeSchema } = await import('/storage.js');
     const name = `synthetic-migration-${crypto.randomUUID()}`;
@@ -43,7 +44,7 @@ async (page) => {
   const before = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).revision);
   const other = await page.context().newPage();
   try {
-    await other.goto('http://127.0.0.1:4173/');
+    await other.goto('http://127.0.0.1:4174/');
     await other.waitForFunction(() => document.getElementById('storage-status').textContent.includes('份影片筆記'));
     const observed = await other.evaluate(async id => {
       const data = await (await import('/storage.js')).readLibrary();

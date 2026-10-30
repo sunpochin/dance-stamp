@@ -1,7 +1,8 @@
 /* 檔案用途：以合成資料驗證筆記、缺檔、備份、交易與離線。所在層：Web 瀏覽器回歸函式。主要關聯：library.js、storage.js、MEDIA_PROBE.md。 */
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
+  await page.goto('http://127.0.0.1:4174/');
   await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.locator('#reference').evaluate(async video => { video.currentTime = 2; await new Promise(r => video.addEventListener('seeked', r, { once: true })); });

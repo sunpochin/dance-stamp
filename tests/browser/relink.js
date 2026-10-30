@@ -1,7 +1,8 @@
 /* 檔案用途：同名短片重連不能改掉原筆記時間。所在層：桌面合成資料回歸。主要關聯：main.js、storage.js。 */
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
-  await page.goto('http://127.0.0.1:4173/');
+  // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
+  await page.goto('http://127.0.0.1:4174/');
   await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.locator('#reference').evaluate(async v => { v.currentTime = 10; await new Promise(r => v.addEventListener('seeked', r, { once: true })); });

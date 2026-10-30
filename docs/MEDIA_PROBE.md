@@ -32,7 +32,7 @@ bun run dev
 在 repo 根目錄，以已安裝的 Playwright CLI 開乾淨隔離 session：
 
 ```sh
-playwright-cli --session dance-check open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-check open http://127.0.0.1:4174 --config output/media-probe/browser.json
 playwright-cli --session dance-check run-code --filename tests/browser/media-probe.js
 playwright-cli --session dance-check run-code --filename tests/browser/media-persistence.js
 playwright-cli --session dance-check run-code --filename tests/browser/self-failure.js
@@ -47,7 +47,7 @@ playwright-cli --session dance-check run-code --filename tests/browser/compariso
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-capture-fallback.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-appearance.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-save-failure.js
-playwright-cli --session dance-markers open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-markers open http://127.0.0.1:4174 --config output/media-probe/browser.json
 playwright-cli --session dance-markers run-code --filename tests/browser/markers.js
 ```
 
@@ -60,7 +60,7 @@ playwright-cli --session dance-markers run-code --filename tests/browser/markers
 完整既有雙片矩陣另開乾淨 session，保持前景；需約 15 分鐘。`output/comparison/` 已有同名下載時先自行保留到其他 ignored 目錄，避免混用舊成檔：
 
 ```sh
-playwright-cli --session dance-matrix open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-matrix open http://127.0.0.1:4174 --config output/media-probe/browser.json
 playwright-cli --session dance-matrix run-code --filename tests/browser/comparison-matrix.js
 python3 scripts/analyze-comparison.py
 ```
@@ -89,7 +89,7 @@ API 依 [MediaStream Recording](https://www.w3.org/TR/mediastream-recording/)、
 ```sh
 bun --no-env-file scripts/make-export-fixtures.ts
 # browser.json 沿用上方隔離設定；本項不需假相機 flags，建議 headless 加 --mute-audio。
-playwright-cli --session dance-export-failure open http://127.0.0.1:4173 --config output/media-probe/browser.json
+playwright-cli --session dance-export-failure open http://127.0.0.1:4174 --config output/media-probe/browser.json
 playwright-cli --session dance-export-failure run-code --filename tests/browser/export-failure.js
 python3 scripts/analyze-export-failure.py
 playwright-cli --session dance-export-failure close
@@ -104,9 +104,9 @@ playwright-cli --session dance-export-failure close
 各用乾淨 session，避免能力降級的 init script 影響其他驗收：
 
 ```sh
-playwright-cli --session dance-practice open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-practice open http://127.0.0.1:4174 --headed --config output/media-probe/browser.json
 playwright-cli --session dance-practice run-code "$(cat tests/browser/practice.js)"
-playwright-cli --session dance-fallback open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-fallback open http://127.0.0.1:4174 --headed --config output/media-probe/browser.json
 playwright-cli --session dance-fallback run-code "$(cat tests/browser/practice-fallback.js)"
 ```
 
@@ -121,7 +121,7 @@ bun --no-env-file scripts/launch-native-browser.ts
 預設使用 macOS 已安裝的 Google Chrome；其他位置可傳入可執行檔路徑，未驗證其他作業系統。工具產生的設定、端點與 profile 路徑只留 ignored output，不公開。終端 B 使用新 session（本輪 CLI 0.1.22／core 1.64.0-alpha-1790635538000）：
 
 ```sh
-npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native open http://127.0.0.1:4173 --config output/native-controller.json
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native open http://127.0.0.1:4174 --config output/native-controller.json
 npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native run-code --filename output/native-background-run.js
 npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native close
 ```
@@ -145,10 +145,10 @@ npx --package @playwright/cli@0.1.22 playwright-cli --session dance-native close
 `capture.js` 用乾淨的合成相機 session 驗證拒絕／占用、後鏡頭錯誤、倒數取消、短錄影拒絕、中斷與兩種 quota，以及缺號／壞檔 chunks 不刪除、不冒充成功。請使用既有 browser.json，不能換成真人相機或私人影片：
 
 ```sh
-playwright-cli --session dance-capture open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-capture open http://127.0.0.1:4174 --headed --config output/media-probe/browser.json
 playwright-cli --session dance-capture run-code --filename tests/browser/capture.js
 playwright-cli --session dance-capture run-code --filename tests/browser/capture-comparison.js
-playwright-cli --session dance-capture-matrix open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-capture-matrix open http://127.0.0.1:4174 --headed --config output/media-probe/browser.json
 for capture_rate in 0.5 0.75 1; do
   if test "$capture_rate" = 0.5; then capture_countdown=3; elif test "$capture_rate" = 0.75; then capture_countdown=5; else capture_countdown=10; fi
   for capture_seconds in 15 30 60; do
@@ -169,11 +169,11 @@ playwright-cli --session dance-capture-matrix run-code "$(cat tests/browser/capt
 `capture-navigation.js` 必須用新的隔離 session。先確認至少兩塊原生 chunks 已落盤，再由 CLI 換頁、接受這次合成錄影的原生離開確認，最後重開驗證；不注入 pagehide 或移除產品警示。以下命令依序執行，prepare 與 verify 都要有成功的 `### Result`，出現 `### Error` 就停止查原因，不能只依 CLI 退出碼判斷通過：
 
 ```sh
-playwright-cli --session dance-navigation open http://127.0.0.1:4173 --headed --config output/media-probe/browser.json
+playwright-cli --session dance-navigation open http://127.0.0.1:4174 --headed --config output/media-probe/browser.json
 playwright-cli --session dance-navigation run-code "$(cat tests/browser/capture-navigation.js)"
 playwright-cli --session dance-navigation goto about:blank
 playwright-cli --session dance-navigation dialog-accept
-playwright-cli --session dance-navigation goto http://127.0.0.1:4173
+playwright-cli --session dance-navigation goto http://127.0.0.1:4174
 playwright-cli --session dance-navigation run-code "async page => { const verify = $(cat tests/browser/capture-navigation.js); return verify(page, 'verify'); }"
 ```
 
@@ -281,7 +281,7 @@ Linux 自動重跑沿用 Harness CI 的 `linux-install-restart` job：原品質�
 bun --no-env-file scripts/make-storage-fixtures.ts
 # 替換為工具回報的本輪完整目錄；使用可用的本機產品埠。
 matrix_dir='output/storage-size-請替換本輪目錄'
-playwright-cli --session dance-size open http://127.0.0.1:4173 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
+playwright-cli --session dance-size open http://127.0.0.1:4174 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
 playwright-cli --session dance-size run-code --filename "$matrix_dir/prepare.js"
 playwright-cli --session dance-size close
 ```
@@ -293,7 +293,7 @@ mkdir "$matrix_dir/withheld-synthetic-inputs"
 for name in 20-mib 100-mib 200-mib 200-mib-plus-one; do
   mv -n "$matrix_dir/$name.mp4" "$matrix_dir/withheld-synthetic-inputs/$name.mp4"
 done
-playwright-cli --session dance-size open http://127.0.0.1:4173 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
+playwright-cli --session dance-size open http://127.0.0.1:4174 --config "$matrix_dir/browser.json" --persistent --profile "$matrix_dir/profile"
 playwright-cli --session dance-size run-code --filename "$matrix_dir/verify.js"
 playwright-cli --session dance-size close
 ```

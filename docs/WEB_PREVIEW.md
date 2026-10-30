@@ -17,7 +17,7 @@
 
 ### 邊播邊錄與共用功能
 
-使用 Bun 1.4.4 先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4173/`。`bun run build` 產出 `dist/web/` 靜態檔，不需要 API key、帳號或後端。
+使用 Bun 1.4.4 先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出 `dist/web/` 靜態檔，不需要 API key、帳號或後端。
 
 1. 選本機示範；影片不自動上傳或複製，筆記建在此瀏覽器。
 2. 點「標記當下時間」，再填筆記；時刻不受打字影響，可編輯、刪除與跳回。
