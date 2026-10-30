@@ -160,3 +160,11 @@ bun run check
 - 正常 `bun run check`：645 tests／3,160 expects／0 fail，型別、公開掃描、lint、build完成，19項既有lint info；最終正常hook與精確head CI另記PR。
 
 本輪不新增媒體編碼或產品外傳能力；前次10份下載的離站播放仍綁原收據，不能換標成這輪輸出的獨立驗收。原生Safari、硬體相機／OS權限視窗、真人、實體裝置與完整G1–G7仍各自保留，iPhone暫緩。#114仍保持 c351637 開啟待審查，本輪不合併或正式發布。
+
+### Linux CI 的既有鍵盤選檔逾時（尚未修復）
+
+提交 `f1ac4efa3d0277a9c5b605a2acbe639ef22a7aec` 的 Harness CI #203（run 41124372390）兩次完整輪均為45/46：新相機拒絕與自然播完均通過，既有 `comparison-keyboard` 則等待原生 filechooser 15秒逾時；harness／linux-install-restart成功。兩次失敗輪的行數99.45%、函式95.99%相同，分支各為86.87%與86.82%，不得列成通過或混加收據。第二次只要求重跑失敗工作，同一來源與斷言仍失敗，故不繼續盲目重試。
+
+macOS原碼單項（`coverage/app-n8ck4T`）與焦點觀察對照（`app-8yfSAg`）通過；帶原本恢復前置後連續十次鍵盤案例（`app-GGRLTv`）亦12/12、0 page errors，不能代替Linux結果。後者收據SHA-256為 `a27b1dc9ad8b0a75b2e5f408d1858f6bcba3c1810c81a40ce8a03c32120c7508`；原前置與十次鍵盤斷言都未改。
+
+接續只在既有鍵盤案例加入唯讀的focus／keydown／keyup／click、trusted、使用者動作資格及頁面可見性紀錄；失敗才輸出匿名控制項ID與順序，不列檔名／筆記／影片。沒有先安裝額外filechooser listener，因為那會提前啟用Playwright攔截而影響待查時序。沒有改產品、選檔方式、焦點斷言、15秒等待或成檔門檻；這是診斷，不能稱為修復。加入紀錄後，本機 `app-NqZ7lQ` 三次原案例通過，0 page errors，正常收尾釋放自有鎖；後續精確head CI結果另記PR。

@@ -3,12 +3,26 @@ async (page) => {
   const origin = new URL(page.url()).origin;
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
+  await page.addInitScript(() => {
+    window.comparisonKeyboardTrace = [];
+    // CI 已連續漏掉選檔事件；只讀焦點與原生按鍵，不先訂閱 filechooser 而改變攔截啟用時序。
+    for (const type of ['focusin', 'focusout', 'keydown', 'keyup', 'click']) document.addEventListener(type, event => {
+      if (window.comparisonKeyboardTrace.length >= 30) return;
+      window.comparisonKeyboardTrace.push({ type, id: event.target.id, key: event.key, repeat: event.repeat, trusted: event.isTrusted, active: document.activeElement?.id, focused: document.hasFocus(), visibility: document.visibilityState, activation: navigator.userActivation.isActive, time: performance.now() });
+    }, true);
+  });
   await page.goto(origin); await idle();
   await page.locator('#existing-mode').focus(); await page.keyboard.press('Enter');
   // 新版將原生檔案欄位藏在可見按鈕後；須驗真正的鍵盤選檔，不能要求焦點停在隱藏欄位。
   assert(await page.locator('#existing-mode').getAttribute('aria-pressed') === 'true' && await page.evaluate(() => document.activeElement.id === 'select-video') && await page.locator('#select-video').isVisible(), '鍵盤入口沒有啟用或帶到選片');
-  const choosing = page.waitForEvent('filechooser'); await page.keyboard.press('Enter');
-  await (await choosing).setFiles('output/comparison/reference.mp4'); await idle();
+  try {
+    const choosing = page.waitForEvent('filechooser'); await page.keyboard.press('Enter');
+    await (await choosing).setFiles('output/comparison/reference.mp4'); await idle();
+  } catch (error) {
+    // 只記測試控制項 ID 與事件資格，不輸出檔名、筆記、影片 bytes 或外部網址。
+    console.error('comparison-keyboard native events:', JSON.stringify(await page.evaluate(() => ({ trace: window.comparisonKeyboardTrace, active: document.activeElement?.id, focused: document.hasFocus(), visibility: document.visibilityState, activation: navigator.userActivation.isActive })).catch(() => ({ unavailable: true }))));
+    throw error;
+  }
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   for (const [id, value] of [['start', '12'], ['end', '17'], ['offset', '4']]) {
     await page.locator(`#${id}`).fill(value); await page.locator(`#${id}`).dispatchEvent('change'); await idle();
