@@ -1137,7 +1137,17 @@ async function openTakeUnlocked(take, signal) {
       status('自拍原片缺少或暫存片段不完整；原有筆記與錄影片段都保留。請用「我的已錄影片」載入另存原片，預覽後確認連結。'); return;
     }
   }
-  const durationMs = await loadCandidate(blob, self, 'self', signal);
+  const durationMs = await loadCandidate(blob, self, 'self', signal, async () => {
+    if (!recovered) return;
+    // 中斷 MP4 可能只剩檔頭，loadeddata／尺寸仍可成功；真正呈現影格後才能保存並清 chunks。
+    if (!self.requestVideoFrameCallback) throw new Error('此瀏覽器無法確認恢復片段的影格；錄影片段與舊原片都保留，請改用受測 Chrome。');
+    const waiting = new AbortController(), cancel = () => waiting.abort(signal?.reason);
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) cancel();
+    try { await Promise.all([presentedFrame(self, waiting.signal), self.play()]); }
+    finally { self.pause(); waiting.abort(); signal?.removeEventListener('abort', cancel); }
+    await seek(self, 0, signal);
+  });
   // 原片讀回成功才一起切換配方與下載；壞檔或取消不得把另一段設定寫進舊 take。
   download('take-download', blob, 'dance-self'); existingMode = true;
   selfDurationMs = durationMs; takeBlob = blob; activeTakeId = take.id;

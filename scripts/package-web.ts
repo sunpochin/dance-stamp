@@ -23,6 +23,10 @@ export const packageInputs = [
   'docs/evidence/issue-13-unconfirmed-storage.md', 'docs/evidence/issue-13-native-quota-repeat.md',
   // 媒體指南也連到各項匿名回歸；只明列實際依賴，不遞迴收集 output 或其他檔案。
   'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
+  // 保存尾段指南新增直接證據連結，裸包離線閱讀也須能核對範圍與限制。
+  'docs/evidence/issue-11-vs-save-tail.md',
+  // 四線整合指南實際連到這兩份匿名證據；只補離線依賴，不把測試 raw 或工具收進包。
+  'docs/evidence/issue-12-import-planning-stop.md', 'docs/evidence/issue-14-storage-keyboard.md',
   'docs/evidence/issue-9-capture-recovery.md', 'docs/evidence/issue-9-comparison-integration.md',
   'docs/evidence/issue-13-cache-failure.md', 'docs/evidence/issue-13-media-size.md',
   'docs/evidence/issue-14-web-accessibility.md', 'docs/evidence/issue-3-media-feasibility.md', 'docs/evidence/issue-3-g3-composition.md',

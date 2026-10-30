@@ -7,13 +7,15 @@ import { join, resolve } from 'node:path'
 import { release, tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webPaths, webHeaders } from '../../scripts/web-assets'
+import { chunkWriteRestart } from './chunk-write-restart'
+import { recoveryFrameGuard } from './recovery-frame-guard'
 
 assert.equal(Bun.version, '1.4.4', '請使用專案固定的 Bun 1.4.4')
 assert(['darwin', 'linux'].includes(process.platform), '此強制終止工具只支援 POSIX 程序群組')
 const [executable, playwrightModule] = process.argv.slice(2)
 assert(executable && existsSync(executable) && playwrightModule && existsSync(playwrightModule), '請傳入已安裝 Chromium 執行檔及 playwright-core/index.mjs 的完整路徑；不自動安裝')
 const mode = process.argv[4]
-assert(!mode || mode === '--pending-write', '第三個參數僅接受 --pending-write')
+assert(!mode || ['--pending-write', '--chunk-write', '--recovery-frame'].includes(mode), '第三個參數僅接受 --pending-write、--chunk-write 或 --recovery-frame')
 const { chromium } = await import(pathToFileURL(resolve(playwrightModule)).href)
 const root = resolve(import.meta.dir, '../..'), dist = join(root, 'dist/web')
 const source = readFileSync(join(dist, 'sw.js'), 'utf8')
@@ -22,7 +24,8 @@ assert(oldVersion, '請先執行原建置入口')
 const manifest = JSON.parse(source.match(/const manifest = (\{[^\n]+\});/)![1])
 const output = join(root, 'output'); mkdirSync(output, { recursive: true })
 // 每次都新建目錄，失敗的 profile／日誌也保留，不能換空庫來把同一次失敗變成功。
-const run = mkdtempSync(join(output, mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
+const run = mkdtempSync(join(output, mode === '--recovery-frame' ? 'recovery-frame-' : mode === '--chunk-write' ? 'chunk-write-' : mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
+if (mode === '--chunk-write') for (const file of ['reference.mp4', 'camera.y4m']) assert(existsSync(join(output, 'media-feasibility', file)), '請先執行 scripts/make-sync-fixtures.py；不能用真人相機代替')
 const candidateVersion = `${oldVersion}-forced-${nonce.slice(0, 8)}`
 const hash = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const oldFiles = new Map([...webPaths].map(([path, file]) => [path, readFileSync(join(dist, file))]))
@@ -34,7 +37,7 @@ const candidateManifest = Object.fromEntries(Object.keys(manifest).map(path => [
 candidateFiles.set('/sw.js', Buffer.from(source.replace(`'${oldVersion}'`, `'${candidateVersion}'`).replace(JSON.stringify(manifest), JSON.stringify(candidateManifest))))
 // macOS 沿用既有共用鎖；Linux 改用系統暫存目錄，避免不存在的 /private/tmp 阻止測試。
 const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), ownerFile = join(lock, 'owner.json')
-const evidence: any = { status: 'running', scenario: mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
+const evidence: any = { status: 'running', scenario: mode === '--recovery-frame' ? 'recovery-frame' : mode === '--chunk-write' ? 'chunk-write' : mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
 // 平台與真正鎖位置須隨收據保存，避免把 macOS 模擬路徑當成 Linux 原生驗證。
 evidence.environment = { platform: process.platform, architecture: process.arch, kernel: release(), lockPath: lock }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
@@ -77,6 +80,8 @@ async function launch(phase: string) {
   // 上輪強制結束可能留下舊除錯端點；只移除工具端點，不碰任何 cache 或資料庫。
   if (existsSync(address)) unlinkSync(address)
   const args = [`--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=0', '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-background-networking', '--deny-permission-prompts', '--mute-audio', 'about:blank']
+  // 只有明確選取 chunks 情境才開合成裝置；原來兩案仍完全禁止媒體擷取。
+  if (evidence.scenario === 'chunk-write') args.unshift('--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${join(root, 'output/media-feasibility/camera.y4m')}`)
   child = spawn(resolve(executable), args, { detached: true, stdio: ['ignore', 'ignore', 'pipe'] })
   const owned = child
   let spawnError: Error | undefined
@@ -87,7 +92,14 @@ async function launch(phase: string) {
   })
   owned.stderr?.on('data', data => { appendFileSync(join(run, `${phase}-chromium.log`), data) })
   event('spawn', { phase, pid: owned.pid, executable: resolve(executable), args })
-  await waitFor(() => { if (spawnError) throw spawnError; assert(owned.exitCode === null && owned.signalCode === null, '專用瀏覽器啟動失敗'); return existsSync(address) }, '專用瀏覽器除錯入口逾時')
+  // 檔案可能先出現、下一瞬間才寫入 port；不能把尚未寫完的自有端點當作有效連線。
+  await waitFor(() => {
+    if (spawnError) throw spawnError
+    assert(owned.exitCode === null && owned.signalCode === null, '專用瀏覽器啟動失敗')
+    if (!existsSync(address)) return false
+    const port = Number(readFileSync(address, 'utf8').split('\n')[0])
+    return Number.isInteger(port) && port > 0 && port < 65536
+  }, '專用瀏覽器除錯入口逾時')
   const port = Number(readFileSync(address, 'utf8').split('\n')[0])
   assert(Number.isInteger(port) && port > 0 && port < 65536)
   browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
@@ -96,9 +108,17 @@ async function launch(phase: string) {
   context.setDefaultTimeout(20_000)
   await context.clearPermissions()
   await context.exposeBinding('blockedSyntheticMedia', () => { mediaCalls++ })
-  await context.addInitScript(() => {
-    for (const method of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[method] = async () => { (globalThis as any).blockedSyntheticMedia(); throw new Error('此儲存測試禁止相機／麥克風／擷取') }
-  })
+  await context.addInitScript(synthetic => {
+    const original = navigator.mediaDevices?.getUserMedia.bind(navigator.mediaDevices)
+    for (const method of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[method] = async constraints => {
+      if (synthetic && method === 'getUserMedia' && constraints.audio === false && constraints.video) {
+        const stream = await original!(constraints)
+        if (!stream.getAudioTracks().length && stream.getVideoTracks().every(track => /fake|y4m/i.test(track.label))) return stream
+        stream.getTracks().forEach(track => track.stop())
+      }
+      ;(globalThis as any).blockedSyntheticMedia(); throw new Error('此儲存測試禁止真實相機／麥克風／畫面擷取')
+    }
+  }, evidence.scenario === 'chunk-write')
   await context.route('**/*', route => new URL(route.request().url()).origin === server!.url.origin ? route.continue() : route.abort())
   event('connected', { phase, pid: child.pid, profile, processGroup: members(child.pid!) })
   return { context, page: await context.newPage() }
@@ -157,6 +177,18 @@ try {
   await page.goto(origin); await page.waitForFunction(() => document.getElementById('offline-status')?.textContent.includes('已檢查應用資源完整'))
   await page.reload(); await ready(page)
   assert.equal((await snapshot(page)).library.revision, 0, '只允許本次全新 profile，不清空既有資料')
+  if (mode === '--recovery-frame') {
+    // 沿用同一套自有程序／鎖；只驗新守門失敗分支，不重跑既有三套中斷情境。
+    assert.deepEqual(readFileSync(join(dist, 'main.js')), readFileSync(join(root, 'web/main.js')), '必須測本次真正影格守門程式')
+    evidence.frameScenarioSha256 = hash(readFileSync(join(import.meta.dir, 'recovery-frame-guard.ts')))
+    await recoveryFrameGuard({ page, origin, root, run, evidence, event, ready })
+    assert.equal(mediaCalls, 0); evidence.blockedMediaCalls = mediaCalls
+  } else if (mode === '--chunk-write') {
+    assert.deepEqual(readFileSync(join(dist, 'storage.js')), readFileSync(join(root, 'web/storage.js')), '必須測真正產品儲存模組')
+    evidence.chunkScenarioSha256 = hash(readFileSync(join(import.meta.dir, 'chunk-write-restart.ts')))
+    await chunkWriteRestart({ page, origin, root, run, evidence, event, launch, stop, ready })
+    assert.equal(mediaCalls, 0, '合成情境出現禁止的媒體請求'); evidence.blockedMediaCalls = mediaCalls
+  } else {
   await page.evaluate(async () => {
     const { readLibrary, writeLibrary } = await import('/storage.js'), { data, revision } = await readLibrary()
     const videoId = crypto.randomUUID(), assetId = crypto.randomUUID(), bytes = Uint8Array.from({ length: 1048613 }, (_, i) => (i * 31 + 17) % 251)
@@ -270,6 +302,7 @@ try {
   evidence.offline = { sameProfile: profile, fromServiceWorker: true, oldShellSha256: manifest['/'], probe, serverProbeHits: probeHits, nativeOnline: false }
   evidence.candidateCacheAfter = await cacheSnapshot(restarted.page, nextCache)
   evidence.mediaCalls = mediaCalls; event('offline-restart-verified')
+  }
   }
   evidence.status = 'passed'
 } catch (error) {

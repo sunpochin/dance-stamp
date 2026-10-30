@@ -1,4 +1,4 @@
-/* 檔案用途：故障時不得把未確認退出的瀏覽器鎖交給下一輪。所在層：QA 工具收尾回歸。主要關聯：forced-install-restart.ts、verify-native-quota.ts。 */
+/* 檔案用途：故障時不得把未確認退出的瀏覽器鎖交給下一輪。所在層：QA 工具收尾回歸。主要關聯：forced-install-restart.ts、verify-native-quota.ts、backup-planning-stop.ts。 */
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
@@ -8,7 +8,25 @@ import { expect, test } from 'bun:test'
 const transpiler = new Bun.Transpiler({ loader: 'ts' })
 const forced = readFileSync(new URL('../browser/forced-install-restart.ts', import.meta.url), 'utf8')
 const quota = readFileSync(new URL('../../scripts/verify-native-quota.ts', import.meta.url), 'utf8')
+// 兩個工具的故障收尾都必須保留，不能解衝突時只留其中一線。
+const vsTail = readFileSync(new URL('../../scripts/verify-vs-save-tail.ts', import.meta.url), 'utf8')
+const planning = readFileSync(new URL('../browser/backup-planning-stop.ts', import.meta.url), 'utf8')
 const cleanup = (source: string) => source.slice(source.lastIndexOf('} finally {') + '} finally {'.length).replace(/}\s*$/, '')
+test('自有 DevTools 端點先出現空檔時，等有效 port 才連線', async () => {
+  const state = harness(), urls: string[] = [], child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null, signalCode: null, stderr: new EventEmitter() })
+  Object.assign(state, { evidence: {}, executable: '/synthetic/browser', mkdirSync() {}, appendFileSync() {}, existsSync: () => false, spawn: () => child, reads: 0 })
+  state.waitFor = async check => {
+    state.existsSync = () => true
+    // 執行真正 launch 的前置條件；只讓 OS 檔案分兩次可見，不啟動瀏覽器。
+    expect(await check()).toBe(false)
+    expect(await check()).toBe(true)
+  }
+  state.readFileSync = () => state.reads++ === 0 ? '' : '43123\n/devtools/browser/synthetic'
+  state.chromium = { connectOverCDP: async url => { urls.push(url); throw new Error('synthetic stop after verified endpoint') } }
+  const launch = forced.slice(forced.indexOf('async function launch('), forced.indexOf('\nconst ready ='))
+  await expect(runInNewContext(transpiler.transformSync(`(async () => { ${launch}\nawait launch('prepare') })()`), state)).rejects.toThrow('synthetic stop after verified endpoint')
+  expect(urls).toEqual(['http://127.0.0.1:43123'])
+})
 function harness() {
   const removed: string[] = [], signals: unknown[] = [], events: unknown[] = []
   const state: any = {
@@ -27,6 +45,72 @@ function harness() {
   }
   return state
 }
+
+for (const mode of ['launch-unknown', 'close-error', 'audit-error', 'surviving-child', 'ps-denied', 'nonce-changed', 'server-error', 'clean']) test(`VS 保存 QA 收尾 ${mode} 仍停止自有主機，未確認就留鎖`, async () => {
+  const state = harness(); Object.assign(state, { ownedLock: true, launchUnknown: mode === 'launch-unknown', evidence: { success: true, browserClosures: [] }, closed: 0 })
+  state.server = { url: { origin: 'http://synthetic.test' }, stop: async () => { state.serverStopped = true; if (mode === 'server-error') throw new Error('synthetic server close failed') } }
+  state.fetch = async () => { throw new Error('synthetic own server unreachable') }
+  if (mode === 'nonce-changed') state.readFileSync = () => JSON.stringify({ nonce: 'another-owner' })
+  if (mode !== 'launch-unknown') state.context = {
+    browser: () => ({ newBrowserCDPSession: async () => ({ send: async () => {
+      if (mode === 'audit-error') throw new Error('synthetic CDP unavailable')
+      return { processInfo: [{ id: 123 }, { id: 124 }] }
+    } }) }),
+    close: async () => { state.closed++; if (mode === 'close-error') throw new Error('synthetic browser close failed') },
+  }
+  state.Bun = { spawnSync: (_args: string[]) => {
+    expect(_args[2]).toBe('123,124')
+    // 子程序命令列沒有 profile 也必須被已知 PID 稽核抓到，不能用字串掃描當退出證據。
+    return { exitCode: mode === 'surviving-child' ? 0 : 1, stdout: Buffer.from(mode === 'surviving-child' ? '124 1 S synthetic-helper' : ''), stderr: Buffer.from(mode === 'ps-denied' ? 'ps: denied' : '') }
+  }, sleep: async () => {} }
+  const close = vsTail.slice(vsTail.indexOf('async function closeBrowser()'), vsTail.indexOf('\ntry {', vsTail.indexOf('async function closeBrowser()')))
+  // 執行真正 close 與 finally；只替 OS／網路邊界注入失敗，不啟動瀏覽器或建立真鎖。
+  await runInNewContext(transpiler.transformSync(`(async () => { ${close}\n${cleanup(vsTail)} })()`), state)
+  expect(state.serverStopped).toBe(true)
+  expect(state.closed).toBe(mode === 'launch-unknown' ? 0 : 1)
+  expect(state.evidence.lockReleased === true).toBe(mode === 'clean')
+  expect(state.removed.length > 0).toBe(mode === 'clean')
+  if (mode !== 'clean') { expect(state.evidence.cleanupFailure).toBeTruthy(); expect(state.evidence.success).toBe(false); expect(state.process.exitCode).toBe(1) }
+})
+
+for (const mode of ['no-handle', 'close-error', 'audit-error', 'ps-denied', 'ps-error', 'survivor', 'wrong-group', 'nonce-changed', 'server-error', 'clean']) test(`大型匯入工具收尾 ${mode}，不以空 profile 掃描或 close 成功代替退出證據`, async () => {
+  const state = harness(), psCalls: unknown[] = []
+  Object.assign(state, { ownsLock: true, owner: '/synthetic/owner.json', launchUnconfirmed: false, browserGroup: undefined, knownPids: new Set(), evidence: { status: 'passed', error: 'synthetic primary failure retained' }, closed: 0, executable: '/synthetic/chrome' })
+  state.chromium = { launchPersistentContext: async () => {
+    if (mode === 'no-handle') throw new Error('synthetic launch failed after spawn; empty profile scan')
+    return {
+      browser: () => ({ newBrowserCDPSession: async () => ({ send: async () => {
+        if (mode === 'audit-error') throw new Error('synthetic CDP unavailable')
+        return { processInfo: [{ id: 123, type: 'browser' }] }
+      }, detach: async () => {} }) }),
+      close: async () => { state.closed++; if (mode === 'close-error') throw new Error('synthetic close failed') },
+    }
+  } }
+  state.Bun = { sleep: async () => {}, spawnSync: (...args: unknown[]) => {
+    psCalls.push(args)
+    // 124 是自有群組、沒有 profile 字串且不在 CDP 清單；999 是別人的程序，兩者不能混淆。
+    const main = `123 1 ${mode === 'wrong-group' ? 999 : 123} synthetic --user-data-dir=/synthetic/profile\n`
+    const helper = '124 123 123 synthetic helper-without-profile\n', foreign = '999 1 999 another-browser\n'
+    return { exitCode: state.closed && mode === 'ps-error' ? 2 : 0, stderr: Buffer.from(state.closed && mode === 'ps-denied' ? 'ps denied' : ''), stdout: Buffer.from((state.closed ? mode === 'survivor' ? helper : '' : main + helper) + foreign) }
+  } }
+  state.server = { url: 'http://synthetic.test', stop: async () => { state.serverStopCalls = (state.serverStopCalls || 0) + 1; if (mode === 'server-error') throw new Error('synthetic server stop failed'); state.serverStopped = true } }
+  state.fetch = async () => { throw new Error('synthetic closed port') }
+  if (mode === 'nonce-changed') state.readFileSync = () => JSON.stringify({ nonce: 'another-owner' })
+  const helpers = planning.slice(planning.indexOf('function processTable()'), planning.indexOf('\ntry {\n  // 收尾需要'))
+  // 直接跑工具的 launch／稽核／finally 入口，只替換 OS／CDP 邊界；不啟動或終止任何原生程序。
+  await runInNewContext(transpiler.transformSync(`(async () => { ${helpers}\ntry { await launchOwnedBrowser() } catch (error) { evidence.error = String(error); evidence.status = 'failed'; process.exitCode = 1 }\nawait cleanupOwnedResources() })()`), state)
+  expect(state.serverStopCalls).toBe(1)
+  expect(state.evidence.serverStopped === true).toBe(mode !== 'server-error')
+  expect(state.evidence.cleanedUp).toBe(mode === 'clean')
+  expect(state.evidence.lockReleased === true).toBe(mode === 'clean')
+  expect(state.removed.length).toBe(mode === 'clean' ? 2 : 0)
+  expect(state.signals).toHaveLength(0)
+  expect(state.evidence.error).toBeTruthy()
+  if (mode !== 'clean') { expect(state.evidence.status).toBe('failed'); expect(state.process.exitCode).toBe(1); expect(state.evidence.lockReleaseError).toBeTruthy() }
+  if (mode === 'no-handle') { expect(state.evidence.launchUnconfirmed).toBe(true); expect(state.closed).toBe(0); expect(psCalls).toHaveLength(0) }
+  if (['clean', 'survivor', 'close-error', 'ps-error', 'ps-denied', 'nonce-changed', 'server-error'].includes(mode)) expect([...state.knownPids]).toEqual([123, 124])
+  if (mode === 'survivor') { expect(state.evidence.remainingOwnedProcesses.map(row => row.pid)).toEqual([124]); expect(state.evidence.browserCloseError).toBeTruthy() }
+})
 
 for (const mode of ['audit-error', 'exited-with-survivor', 'exited-empty', 'running-clean', 'nonce-changed', 'owner-read-error']) test(`強制中斷工具收尾 ${mode} 必須先確認整個自有程序群組`, async () => {
   const alreadyExited = mode.startsWith('exited') || ['nonce-changed', 'owner-read-error'].includes(mode)

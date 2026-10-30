@@ -1,6 +1,10 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+2026-10-30 的四線來源、收尾衝突保留及封裝結論見[既有整合證據](docs/evidence/p0-safari-reliability-integration.md#2026-10-30-四線整合候選)。產品採 #87 的 chunks 影格確認修正，靜態 7c728c8a5bd7fa2f；其餘三線原生結果維持舊版歸屬，不以整合或合併替代驗收。
+
+新 VS 成檔後的保存尾段回歸見 [#11／#13 證據](docs/evidence/issue-11-vs-save-tail.md)：沿用 `persistExport` 不借用 `active.signal` 的保全契約，新增 Stop／原生拒絕與明示缺通知的可重跑入口；沒有更改產品設計或放寬品質護欄。
+
 最新可及性決策見第 20 節，下載包與發布準備見第 21 節；#74／#75／#76／#78 的來源固定與共存驗證見第 44 節。後續匿名證據與授權副本的封裝修正見第 45 節。前面標記原型階段的限制保留歷史版本歸屬。
 分類、動作庫、練習歷史與 v1→v2 相容決策見第 26 節。
 
@@ -278,6 +282,12 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 另一輪獨立審查在 `87e04e8` 重現合法中斷錄影備份的可達缺口：合併後 metadata 可恰好 10 MiB，`readLibrary` 再把 asset 的 missing 改為 interrupted，多 4 bytes，導致白名單之前的容量檢查連正常／未確認救援備份都拒絕。內部 `validateBackup` 現在以白名單完成後的可攜內容計算容量；外部 `parseBackup` 與 UI 的原檔 10 MiB 檢查不變，含未知欄位的超大外部檔仍拒絕。本機 asset 狀態、來源 ID、完整關聯及儲存交易保留；排除只在下載刪欄、提高上限或改讀回狀態，因為讀回後的初始化、保存與重匯也共用同一驗證入口。可達反例與正常／救援零餘裕回歸見[讀回狀態續審](docs/evidence/issue-12-backup-recovery.md#讀回狀態與可攜容量的獨立續審)。
 
+### 大型匯入在規劃中停止（2026-10-30，#12／#18）
+
+追查 `restore` → `parseBackup` → `planBackupImport` → 預覽／確認 → `writeLibrary` 後，沒有重現新的取消接線缺陷；只補規劃期間的回歸。外來源／分享的 ID 配置及衝突閉包的副本配置共用 `backupUUID`，原生 hash await 前後檢查同一個操作訊號；規劃完成才建立預覽草稿，確認才寫入。測試在已有 hash／副本配置進度後明示暫扣下一個原生 hash 結果，再取消，不以預先取消或交易內 Stop 代替此階段。合法大檔、完整舊圖、同檔重試及重匯冪等的[精確證據與重跑方式](docs/evidence/issue-12-import-planning-stop.md)分開記錄純邏輯與真正 Chrome Stop；不新增執行緒、效能毫秒門檻或改動產品 runtime。
+
+PR #84 的獨立續審另重現新 QA runner 的兩個收尾缺陷：launch 已建立程序卻未交回 handle 時，空 profile 字串掃描會錯放鎖；context.close 拋錯則會跳過 server.stop。修正只在測試工具：啟動前標記未確認，取得 handle 後以 CDP 指認主 PID、核對獨立程序群組並保存所有已知 PID（含沒有 profile 字串的子程序），close 後再次核對 PID／群組全空才交回自有 nonce 鎖。瀏覽器、server 及鎖的收尾分開記錄；瀏覽器不確定仍保留鎖，但自己 server 照常關閉。沿用既有 quota／forced runner 的所有權模式，未引入通用管理器或更改產品 bytes；故障回歸與新版原生收據另列於同份證據。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。
@@ -326,6 +336,8 @@ UI 退出忙碌後暫停可能換掉影片或寫入的操作，保留當次原�
 原生錯誤可能含檔名／裝置資訊，diagnostics.lastError 只記 cancelled／storage-full／operation-failed 分類；詳細錯誤留在本機狀態，不自動送出。相機設定仍只保留必要尺寸、frameRate、facingMode，不帶 label／deviceId／groupId。沒有新增追蹤、外部服務或依賴。
 
 [五人 Web 觀察操作單](docs/WEB_USABILITY_CHECK.md)依 #1 現行三項任務，預留匿名空表並明示尚未執行，不造人數或結果。人工提示、實體觸控、讀屏實聽、相機／音訊及裝置保存與自動化各自記錄；iPhone 暫緩，#14 不因工具檢查關閉。
+
+2026-10-30 補[保存狀態未知時的鍵盤保全](docs/evidence/issue-14-storage-keyboard.md)：沿用既有 operation／救援控制，不改產品。Chrome 的真正 ConstraintError／abort 加上明示抑制產品結束通知，分別驗標題保存及匯入 modal；Tab 下載最後確認筆記、兩支原片與既有 VS，AX 警示文字、唯讀播放、取消不寫入、同頁 reload 舊庫及隔離備份匯入均核對。排除 mock 事件、直接 focus 救援入口、以新空 context 推論舊庫及重跑普通版面矩陣；注入不是 Safari 自然故障，亦不替代 VoiceOver／真人／裝置驗收。
 
 ## 21. #15 獨立下載包與來源邊界
 
@@ -717,3 +729,13 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 在保留 `396037f` 包／manifest／收據後，同一候選分支納入 #77 `3c8ed4a`、#79 `82c5f84`、#81 `cce0273` 與 #82 `e6e086f`，各自固定已通過 CI 的來源；#81 已含 #78／#75、#82 已含 #76，不重複挑入。#82 只調整建置授權副本的五個相對目標，並在 seal／verify 核對實際 Markdown bytes；版本與 manifest 使用同一份轉換後內容。根 LICENSE／NOTICE、條款、web/ 原始碼及 HTTP 政策／路由不變。
 
 只明列增加兩份 #77／#79 匿名 Markdown 到下載包，讓指南的離線讀者也能查到原版證據；不遞迴收錄 raw、媒體或 profiles。#81 的新來源救援證據沿既有文件追加；各自的實測 head、餘裕與注入界線保留。新靜態 `4651fae419d8d9c8` 相對 396037f 的十四份建置資源只有授權副本與衍生 SW 改變，其餘十二份 bytes 相同；不把舊影音或五組 UI 結果改標新版。重新封裝／解包、產物連結／manifest／HTTP、入口與 context 離線檢查及單一滿額正常備份 smoke 的來源與結果見[續作證據](docs/evidence/p0-safari-reliability-integration.md)。新 SW 上的原生強制中斷／pending-write 由指定工作線另補，本聊天沒有重跑或代簽；獨立審查與發布核准仍分開。
+
+## 46. #9／#13 錄影 chunks 交易中的程序中斷回歸
+
+既有 `--pending-write` 只覆蓋 metadata／media；`capture-drain` 在原生 stop 後放行尾塊，並未終止程序。新增選用 `--chunk-write`，沿用原強制重啟工具的 spawn-error、PID／profile／程序群組與 nonce 保護；獨立情境模組只管錄影與資料斷言，不另建程序管理器。原 default／pending-write 斷言保持原樣。
+
+真實合成錄影先提交前兩塊，再保持第三個 add 已原生成功的交易未提交，真正 SIGKILL 並用同 profile 新程序讀回。先實際組裝／下載已提交部分，再以相同 asset／index／bytes 重試第三塊並走 UI 恢復；完整舊筆記／原片／VS 與第三次重開的快照、二進位逐 byte 比對。只有檔頭的原生首塊另外驗證解碼拒絕及 interrupted 保護，不能以「Blob 非空」取代解碼。取捨是延長原生交易以重現確切時點，排除正常 close、手動 throw、假事件與另建泛用控制器；不宣稱 Safari 自然故障、提交瞬間、斷電或硬體驗收。執行方法與精確來源見[媒體驗證入口](docs/MEDIA_PROBE.md)及[本輪證據](docs/evidence/issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)。
+
+此案例重現真正產品缺陷：Chrome 可對沒有任何影格的 752-byte MP4 初始化段回報 loadeddata、尺寸與正時長，舊恢復流程因此 finalize 成 media ready 並清 chunks。最小修正放在 `openTakeUnlocked` 的 recovered 候選 beforeCommit：沿用 `presentedFrame`，本機靜音實播直到原生影格呈現才允許換片與 finalize；失敗／取消會暫停、撤銷等待並由原候選流程還原舊 URL。沒有影格確認能力時保留 chunks 並說明改用受測瀏覽器。排除硬編碼 MP4 檔頭長度或任意最短秒數，因為容器與合法短片不能用大小／時長猜測；不把此限制擴張到選片、已存原片或相機正常完成流程。
+
+PR #87 續審另以 `--recovery-frame` 只驗新 beforeCommit 接線的 Stop／能力缺失／play 拒絕。原 `take-open-failure.js` 停在 loadeddata 之前，`mediaAction.test.ts` 則測共用事件工具，兩者未覆蓋新守門的外層訊號與 finally。新增情境延後送達真正原生影格 callback 的同一份參數，不偽造影格／時長；實點 Stop 後驗原訊號、計時器、abort 監聽、候選 URL 與遲到通知不提交。同頁能力移除及播放拒絕明示為受控注入，三案失敗資料精確保留、同輸入恢復後再核對。此續審只增測試／文件，產品仍是 `5a90f35`／`7c728c8a5bd7fa2f`，舊三套程序中斷收據保持原工具指紋，未在本機重跑。
