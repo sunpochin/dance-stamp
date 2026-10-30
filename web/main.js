@@ -545,6 +545,8 @@ $('capture').addEventListener('click', () => operation(async signal => {
         await prepareAudio();
         await seek(reference, value.startMs / 1000, signal);
         reference.playbackRate = value.rate;
+        // Safari 慢速音高保持會拖慢起播，使原 take 超長；錄影沿用比較的自然變調，收尾再恢復練習設定。
+        if ('preservesPitch' in reference) reference.preservesPitch = false;
         if (take.beatGrid?.countInBeats) await countIn(take.beatGrid, value.rate, signal);
         else for (let n = Number($('countdown').value); n > 0; n--) { status(`${n} 秒後開始，請就定位。`); await wait(1000, signal); }
         abortIfNeeded(signal);

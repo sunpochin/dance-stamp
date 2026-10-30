@@ -29,7 +29,8 @@ async (page, scenario = { rate: 1, seconds: 15, countdown: 3 }) => {
   assert(await page.locator('#preview-frame').isVisible() && await page.locator('.body-guide').isVisible(), '取景框未顯示');
   await page.locator('#capture').click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));
-  assert(await page.evaluate(() => document.getElementById('reference').playbackRate === Number(document.getElementById('rate').value) && ['start', 'end', 'rate', 'countdown', 'camera-facing', 'practice-rate'].every(id => document.getElementById(id).matches(':disabled'))), '錄影未鎖定設定或錯用練習速度');
+  // Safari 的音高處理會增加慢速起播等待；實際原片仍須通過下方原本的 100ms 門檻。
+  assert(await page.evaluate(() => document.getElementById('reference').playbackRate === Number(document.getElementById('rate').value) && document.getElementById('reference').preservesPitch === false && ['start', 'end', 'rate', 'countdown', 'camera-facing', 'practice-rate'].every(id => document.getElementById(id).matches(':disabled'))), '錄影未鎖定設定、沿用音高處理或錯用練習速度');
   await page.waitForFunction(() => !document.getElementById('controls').disabled, null, { timeout: 85_000, polling: 100 });
   const result = await page.evaluate(async beforeIds => {
     const storage = await import('/storage.js'), saved = await storage.readLibrary(), take = saved.data.takes.find(t => !beforeIds.includes(t.id));
@@ -38,12 +39,12 @@ async (page, scenario = { rate: 1, seconds: 15, countdown: 3 }) => {
     const reference = document.getElementById('reference'), self = document.getElementById('self');
     await self.play(); const start = self.currentTime; await new Promise(r => setTimeout(r, 200)); self.pause();
     const preserved = await Promise.all(saved.data.takes.filter(t => beforeIds.includes(t.id)).map(async t => !!await storage.readMedia(t.cameraAssetId)));
-    return { state: take.state, rate: take.rate, plannedMs: (take.referenceEndMs - take.referenceStartMs) / take.rate, decodedMs: Math.round(self.duration * 1000), sourceAtStopMs: Math.round(reference.currentTime * 1000), bytes: blob?.size, metadataBytes: asset.byteLength, played: self.currentTime > start, oldTakesPreserved: preserved.every(Boolean), sourceRateAfter: reference.playbackRate, allTracksEnded: window.captureMatrixTracks.every(t => t.readyState === 'ended'), noMicrophone: window.captureMatrixRequests.every(c => c.audio === false), captureTiming: take.captureTiming, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent).capture };
+    return { state: take.state, rate: take.rate, plannedMs: (take.referenceEndMs - take.referenceStartMs) / take.rate, decodedMs: Math.round(self.duration * 1000), sourceAtStopMs: Math.round(reference.currentTime * 1000), bytes: blob?.size, metadataBytes: asset.byteLength, played: self.currentTime > start, oldTakesPreserved: preserved.every(Boolean), sourceRateAfter: reference.playbackRate, sourcePitchAfter: reference.preservesPitch, allTracksEnded: window.captureMatrixTracks.every(t => t.readyState === 'ended'), noMicrophone: window.captureMatrixRequests.every(c => c.audio === false), captureTiming: take.captureTiming, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent).capture };
   }, before.takes.map(t => t.id));
   assert(result.state === 'ready' && result.rate === rate && result.plannedMs === seconds * 1000 && result.played && result.bytes > 0 && result.bytes === result.metadataBytes, `原片未完整保存或播放：${JSON.stringify(result)}`);
   // 這是合成案例的長度檢查；真機 G1 與成檔 G2 仍需獨立證據。
   assert(Math.abs(result.decodedMs - result.plannedMs) <= 100 && result.sourceAtStopMs >= seconds * rate * 1000, `時長或 B 停止不符：${JSON.stringify(result)}`);
-  assert(result.oldTakesPreserved && result.allTracksEnded && result.noMicrophone && result.sourceRateAfter === 2, '覆寫舊 take、漏關相機或速度未恢復');
+  assert(result.oldTakesPreserved && result.allTracksEnded && result.noMicrophone && result.sourceRateAfter === 2 && result.sourcePitchAfter === true, '覆寫舊 take、漏關相機或練習速度／音高未恢復');
   assert(Number.isSafeInteger(result.captureTiming?.recorderRequestedMs) && Number.isSafeInteger(result.captureTiming?.recorderStartedMs) && Number.isSafeInteger(result.captureTiming?.referencePlayResolvedMs), '缺少原生 start／播放觀測對照');
   return { scenario, ...result };
 }
