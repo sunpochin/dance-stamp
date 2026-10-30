@@ -115,6 +115,9 @@ function stop() {
   reference.pause(); self.pause();
   releaseCamera();
   stopPractice();
+  // 原生錯誤可能先把影片變成 paused，pause() 就不再發事件；閒置停止仍須明確暫停音訊。
+  // active 的成檔保全由 operation 收尾持有，不能借一般停止提早截斷它的音訊生命週期。
+  if (!active && audio?.state === 'running') audio.suspend().catch(() => {});
 }
 function updateControls() {
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;

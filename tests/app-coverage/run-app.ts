@@ -71,10 +71,15 @@ const selected = process.argv.slice(2)
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
-const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
+  {
+    // 前置單元測試較久，先取得同一把鎖，避免備妥後才與另一輪 QA 搶跑；失敗仍只釋放自有 nonce。
+    const fd = openSync(lockPath, 'wx'); ownsLock = true
+    try { writeFileSync(fd, JSON.stringify({ owner: 'app-coverage-103', nonce, pid: process.pid })); } finally { closeSync(fd) }
+  }
   save()
   const result = Bun.spawn([process.execPath, '--no-env-file', 'test', '--isolate', '--preload', './tests/app-coverage/unit-preload.ts', './tests/unit'], {
     cwd: root, env: { ...process.env, DANCE_STAMP_COVERAGE_DIR: units }, stdout: Bun.file(resolve(directory, 'unit.log')), stderr: Bun.file(resolve(directory, 'unit-errors.log')),
@@ -125,11 +130,6 @@ try {
   const executable = process.env.DANCE_STAMP_CHROMIUM || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome')
   assert(existsSync(executable), '請用 DANCE_STAMP_CHROMIUM 指定已安裝 Chromium；不自動下載瀏覽器')
   assert(existsSync(resolve(root, 'output/media-probe/camera.y4m')), '請先產生合成測片：bun scripts/make-media-fixtures.ts')
-  {
-    // 長片／相機回歸與其他聊天共用互斥鎖；已存在就停止，不推測舊鎖失效或刪掉他人的鎖。
-    const fd = openSync(lockPath, 'wx'); ownsLock = true
-    try { writeFileSync(fd, JSON.stringify({ owner: 'app-coverage-103', nonce, pid: process.pid })); } finally { closeSync(fd) }
-  }
   launchAttempted = true
   browser = await chromium.launch({ executablePath: executable, headless: true, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${resolve(root, 'output/media-probe/camera.y4m')}`, '--mute-audio'] })
   evidence.environment.chromium = browser.version()
@@ -167,8 +167,10 @@ try {
           await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')?.getAttribute('aria-busy') !== 'true')
         }
       }
+      // 操作外錯誤須由公開播放／循環入口驗證，不能直接呼叫內部 handler 湊行數。
+      const practiceError = name.startsWith('practice-native-') ? name.slice('practice-native-'.length) : undefined
       const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
-      const path = resolve(root, 'tests/browser', `${tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
+      const path = resolve(root, 'tests/browser', `${practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
       if (tail) {
@@ -207,7 +209,7 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page)
+        } else result = await scenario(page, practiceError ? { mode: practiceError } : undefined)
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
