@@ -112,6 +112,7 @@ flowchart LR
 
 ### 共用播放與相機規則
 
+- #89：影片庫的「選擇硬碟影片」同步開啟既有示範選檔欄位，沿用相同解碼、失敗回滾與人工重連確認；不新增第二份載入狀態。三個影片欄位一律使用 `.mov,.mp4,.m4v,.webm,.mkv,video/*`，避免系統僅憑 MIME 分類排除原片。筆記匯入明確標為 JSON，保留 `.json,application/json`。排除把影片交給 JSON parser、取消格式檢查或另建上傳／轉碼流程；可選取不代表該裝置能解碼所有 codec。
 - `input type=file` 為跨瀏覽器基線；`showOpenFilePicker` 是能力偵測後的選用增強，不能成為 iPhone 的必要入口。[File API](https://developer.mozilla.org/en-US/docs/Web/API/File_API)、[picker 支援限制](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker)。
 - 以 `loadedmetadata`／`seeked`／播放結果決定狀態；副檔名、MIME 和 `canPlayType()` 只能提示，不保證實際解碼。HEVC、旋轉、HDR、可變影格率均要真片驗證。
 - A–B 優先使用 `requestVideoFrameCallback` 觀察顯示時間，fallback 用前景動畫迴圈及媒體事件；seek 有 in-flight 鎖，離開頁面清除 callback。背景暫停，恢復前重新定位。它不是逐格精準／無縫音訊循環保證。[rVFC](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback)。

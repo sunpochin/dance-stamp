@@ -17,8 +17,11 @@
   <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選一支本機示範影片。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <details id="offline-panel"><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
   <section id="library-panel"><h2>我的練舞影片</h2><p id="storage-status" role="status">正在開啟本機筆記…</p>
+    <!-- 影片與 JSON 是不同入口；空筆記庫也要能直接選片，避免誤用備份篩選而看見灰色影片。 -->
+    <button type="button" id="select-video" class="primary">選擇硬碟影片（MOV／MP4 等）</button>
+    <p class="hint">新增影片請用上方選片按鈕；重連舊片請先開啟已保存的筆記，再選影片。下方匯入只接受筆記 JSON。</p>
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
-    <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入分享／備份<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
+    <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入筆記 JSON（分享／備份）<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
     <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
     <p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p>
     <details><summary>分類搜尋與動作庫</summary>
@@ -38,7 +41,8 @@
     <div class="actions"><button id="storage-backup" type="button">另存本頁筆記備份</button><button id="storage-reopen" type="button">已另存，重新開啟同一頁讀回</button></div>
   </section>
   <fieldset id="controls" tabindex="-1"><legend>01 · 準備片段</legend>
-    <label>示範影片<input id="reference-file" type="file" accept="video/*"></label>
+    <!-- 同列副檔名，避免系統只靠 MIME 分類時將 MOV 等本機影片排除；載入後仍驗證實際解碼。 -->
+    <label>示範影片<input id="reference-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label>
     <div class="settings">
       <label>開始（秒）<input id="start" type="number" min="0" value="0" step="0.001"></label>
       <label>結束（秒）<input id="end" type="number" min="0" value="15" step="0.001"></label>
@@ -49,7 +53,7 @@
     <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範鏡像</label><label><input id="self-mirror" type="checkbox">自拍輸出鏡像</label><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
     <div class="actions"><button type="button" id="camera" disabled>開啟前相機</button><button type="button" id="capture" disabled>倒數並錄下我</button><button type="button" id="new-take" disabled>準備下一段錄影</button><button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button></div>
     <p class="hint">不使用麥克風。相機只在你點按時開啟，實際錄影 15–60 秒。請把全身與腳步留在取景框內；重錄前先下載上一段。</p>
-    <label>我的已錄影片<input id="self-file" type="file" accept="video/*"></label><button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button>
+    <label>我的已錄影片<input id="self-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label><button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button>
     <p class="hint">已有兩支影片就直接選片，不必開相機。先分別播放，找到同一個動作的起點；原片不會被裁切。外部影片預設只在本次開啟。</p>
   </fieldset>
   <section class="players" aria-label="示範與自拍">
@@ -105,7 +109,7 @@
   <details><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
   <dialog id="share-dialog" aria-labelledby="share-title" aria-describedby="share-warning"><h2 id="share-title">選片段分享筆記</h2><p>這是筆記檔，不含影片。標題與時間一定包含；請先核對標題是否含私人內容。預設不選任何片段、練習或額外欄位。</p><p id="share-warning">另傳影片的畫面、聲音、檔名與內嵌資訊不受筆記篩選保護。已下載副本不能撤回。Dance Stamp 不登入、上傳或同步；雲端連結不能直接播放。</p><fieldset id="share-controls"><legend>選取內容</legend><div id="share-items"></div><h3>額外允許的欄位（預設不包含）</h3><div id="share-fields"><label class="check-label"><input type="checkbox" value="note">筆記正文</label><label class="check-label"><input type="checkbox" value="teacher">老師</label><label class="check-label"><input type="checkbox" value="danceStyle">舞風</label><label class="check-label"><input type="checkbox" value="originalName">原檔名</label><label class="check-label"><input type="checkbox" value="recordedDate">拍攝日期</label></div><button id="share-preview" type="button">預覽分享檔內容</button><p id="share-summary" role="status"></p><h3>分享內容預覽</h3><div id="share-readable"></div><details><summary>檢視檔案完整內容（JSON）</summary><pre id="share-content"></pre></details><div class="actions"><button id="share-download" type="button" disabled>下載筆記分享檔</button><button id="share-system" type="button" hidden>交給系統分享筆記檔</button></div></fieldset><p class="hint">示範原片、自己的原片與已合成 VS 是不同檔案；VS 不能代替原片重連。舞伴已有相同原片時只需筆記。可下載後自行用一般檔案、Google Drive、Dropbox、iCloud Drive 或 AirDrop 傳送；無帳號或系統分享不可用時仍可下載。下載或交給系統不代表對方收到。</p><button id="share-cancel" type="button">關閉，保留原資料</button></dialog>
   <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-summary import-media"><h2 id="import-title">還原筆記預覽</h2><p>JSON 只有筆記、配方與媒體描述，不含任何影片。原有資料保留，確認後才寫入。</p><fieldset id="import-controls"><legend>本次匯入</legend><p id="import-summary" role="status"></p><p id="import-media"></p><details><summary>檢視將匯入的完整內容</summary><pre id="import-content"></pre></details><button id="import-confirm" type="button" class="primary">確認匯入</button></fieldset><button id="import-cancel" type="button">不匯入，保留本機</button></dialog>
-  <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept="video/*"></label><video id="relink-preview" aria-label="待重連影片預覽，尚未確認" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
+  <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label><video id="relink-preview" aria-label="待重連影片預覽，尚未確認" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
 
   <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-summary"><h2 id="delete-title">移除本機資料</h2><p id="delete-summary"></p><p>這會移除下列本站資料，無法復原；需要的筆記與影片請先另存。原相簿、原始檔與其他筆記不會刪除。</p><fieldset id="delete-controls"><legend>確認移除</legend><button id="delete-confirm" type="button">確認移除</button></fieldset><button id="delete-cancel" type="button">取消，保留資料</button></dialog>
   <footer>免費 · 非商用 · 影片留在裝置</footer>

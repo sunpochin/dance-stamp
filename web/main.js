@@ -369,6 +369,8 @@ $('existing-mode').addEventListener('click', () => {
   status('先選左邊老師示範，再選右邊我的已錄影片；各自播放找到同一個動作，設為起點。全程不開相機。');
   (referenceDurationMs ? $('self-file') : $('reference-file')).focus();
 });
+// 同步轉交同一個選檔欄位，保留使用者啟動資格，並沿用換片回滾與人工重連確認。
+$('select-video').addEventListener('click', () => $('reference-file').click());
 $('reference-file').addEventListener('change', () => operation(async signal => {
   if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
   if (takeBlob && !pendingLinkId && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
