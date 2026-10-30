@@ -30,8 +30,8 @@
         <!-- 只收選片說明，播放器與重連確認留在外面，選完就能直接看畫面。 -->
         <details id="reference-picker" class="video-picker" open><summary>選擇／更換示範影片<span id="reference-selection" class="selected-file">尚未選擇</span></summary>
         <p>選你想跟著練的示範影片。</p>
-        <!-- 明列容器副檔名以相容系統選檔；實際能否播放仍由解碼驗證。 -->
-        <button type="button" id="select-video" class="primary">選擇示範影片</button><input id="reference-file" type="file" aria-label="選擇示範影片" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*" hidden>
+        <!-- 選片文案不限定儲存位置；明列容器副檔名以相容系統選檔，實際能否播放仍由解碼驗證。 -->
+        <button type="button" id="select-video" class="primary">選擇影片（MOV／MP4 等）</button><input id="reference-file" type="file" aria-label="選擇示範影片" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*" hidden>
         <p id="reference-file-hint" class="hint">支援 MOV／MP4 等；選片不會自動上傳。</p></details>
         <!-- biome-ignore lint/a11y/useMediaCaption: 來源是使用者本機影片，不能憑空附上假字幕；本版不處理字幕生成。 -->
         <video id="reference" aria-label="示範影片播放器" aria-describedby="audio-status" controls playsinline preload="metadata"></video>
