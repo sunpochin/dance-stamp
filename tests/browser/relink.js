@@ -13,7 +13,7 @@ async (page) => {
   const id = await page.locator('#library').inputValue();
   await page.reload();
   await page.getByRole('combobox', { name: '已保存的筆記', exact: true }).selectOption(id);
-  await page.getByRole('button', { name: '開啟筆記／重連影片', exact: true }).click();
+  await page.getByRole('button', { name: '開啟筆記', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('尚未連結'));
   await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/short/reference.mp4');
   await page.getByRole('button', { name: '已預覽，確認連結到這份筆記', exact: true }).waitFor();

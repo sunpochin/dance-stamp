@@ -1,4 +1,5 @@
 /* 檔案用途：在同一操作流程驗動作、拍點、VS、分享與完整備份共存。所在層：Web 整合回歸。主要關聯：main.js、library.js、MEDIA_PROBE.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async page => {
   const origin = new URL(page.url()).origin, assert = (ok, message) => { if (!ok) throw new Error(message); };
   assert(/^http:\/\/127\.0\.0\.1:\d+$/.test(origin) && await page.evaluate(() => window.__danceSyntheticCameraOnly === true), '只可使用隔離本機合成環境');
@@ -21,6 +22,7 @@ async page => {
   assert(data.schemaVersion === 2 && beat.bpm === 120 && beat.firstBeatMs === 350 && marker.moveId === moveId && data.moves[0].status === 'wanted', '成檔遺失拍點／動作或自動改狀態');
   assert(await page.getByRole('button', { name: '開啟這次比較配方', exact: true }).count() >= 1, '動作歷史沒有此次比較');
   const outputWait = page.waitForEvent('download'); await page.locator('#output-download').click(); const outputFile = await outputWait; await outputFile.saveAs('output/web-candidate-validation/integrated-vs.' + outputFile.suggestedFilename().split('.').pop());
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   await page.locator('#share-notes').click(); await idle(page);
   for (const [table, id] of [['markers',marker.id],['exports',artifact.id]]) await page.locator(`#share-items input[data-table="${table}"][value="${id}"]`).check();
   await page.locator('#share-preview').click(); await idle(page); const shared = JSON.parse(await page.locator('#share-content').textContent());

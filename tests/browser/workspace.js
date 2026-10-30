@@ -1,4 +1,5 @@
 /* 檔案用途：以合成資料驗證筆記、缺檔、備份、交易與離線。所在層：Web 瀏覽器回歸函式。主要關聯：library.js、storage.js、MEDIA_PROBE.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   // 與預覽主機使用相同入口，避免把其他本機網站當成回歸目標。
@@ -18,7 +19,7 @@ async (page) => {
   await page.reload();
   await page.waitForFunction(() => document.getElementById('library').options.length > 1);
   await page.getByRole('combobox', { name: '已保存的筆記', exact: true }).selectOption(storedId);
-  await page.getByRole('button', { name: '開啟筆記／重連影片', exact: true }).click();
+  await page.getByRole('button', { name: '開啟筆記', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('尚未連結'));
   assert((await page.locator('#markers').textContent()).includes('合成腳步'), '缺檔時筆記消失');
   await page.getByLabel('示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
@@ -26,6 +27,7 @@ async (page) => {
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.getByRole('button', { name: '保存示範副本到此瀏覽器', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('已保存本機示範'));
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   const saved = page.waitForEvent('download');
   await page.getByRole('button', { name: '下載筆記備份', exact: true }).click();
   const download = await saved; await download.saveAs('output/media-probe/notes.dance-stamp.json');
@@ -60,7 +62,7 @@ async (page) => {
   await page.reload();
   await page.waitForFunction(() => document.getElementById('library').options.length > 1);
   await page.getByRole('combobox', { name: '已保存的筆記', exact: true }).selectOption(storedId);
-  await page.getByRole('button', { name: '開啟筆記／重連影片', exact: true }).click();
+  await page.getByRole('button', { name: '開啟筆記', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('已開啟此瀏覽器'));
   assert(await page.locator('#reference').evaluate(video => video.videoWidth > 0), '副本重開未解碼');
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });

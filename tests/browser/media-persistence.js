@@ -13,7 +13,7 @@ async (page) => {
   });
   await page.reload();
   await page.getByRole('combobox', { name: '已保存的筆記', exact: true }).selectOption(before.take.referenceVideoId);
-  await page.getByRole('button', { name: '開啟筆記／重連影片', exact: true }).click();
+  await page.getByRole('button', { name: '開啟筆記', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   const missing = await page.locator('#reference').evaluate(video => !video.getAttribute('src'));
   if (missing) {

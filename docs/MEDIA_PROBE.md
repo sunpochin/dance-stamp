@@ -24,10 +24,12 @@ bun --no-env-file scripts/make-media-fixtures.ts
 bun --no-env-file scripts/make-player-fixtures.ts
 bun --no-env-file scripts/make-comparison-fixtures.ts
 bun run check
-bun run dev
+bun --no-env-file scripts/serve-web.ts
 ```
 
 腳本不覆寫既有檔案。ignored `output/media-probe/` 內有 65 秒 testsrc／閃光／660Hz 提示音參考片、15 秒循環假相機及 browser.json；沒有真人或第三方音樂。
+
+媒體／離線回歸使用上方一般主機；`bun run dev` 是即時更新模式，會暫停 SW 快取，不能拿來宣告離線驗收通過。本機即時更新另以 `bun --no-env-file tests/browser/dev-reload.ts /path/to/chrome /path/to/playwright-core/index.mjs` 驗證；工具只改自己的原始碼副本，涵蓋舊 SW 退出但筆記保留、真改檔自動更新、輸入／影片保留與建置失敗後恢復。
 
 在 repo 根目錄，以已安裝的 Playwright CLI 開乾淨隔離 session：
 
@@ -41,6 +43,7 @@ playwright-cli --session dance-check run-code --filename tests/browser/edges.js
 playwright-cli --session dance-check run-code --filename tests/browser/storage.js
 playwright-cli --session dance-check run-code --filename tests/browser/relink.js
 playwright-cli --session dance-check run-code --filename tests/browser/player.js
+playwright-cli --session dance-check run-code --filename tests/browser/video-picker.js
 playwright-cli --session dance-check run-code --filename tests/browser/review-recovery.js
 playwright-cli --session dance-check run-code --filename tests/browser/existing-comparison.js
 playwright-cli --session dance-check run-code --filename tests/browser/comparison-recovery.js
@@ -52,6 +55,8 @@ playwright-cli --session dance-markers run-code --filename tests/browser/markers
 ```
 
 分別驗證 15 秒 capture→export／取消、筆記／缺片／副本／revision／模擬 quota／離線、20 次循環／晚到權限釋放／入口白名單，以及合成後練習音訊恢復、換片前保護標記草稿、取消後清除編輯、自拍替換失敗／取消後配方與輸出仍可保存。修改後重新開隔離 session，避免既有離線快取仍用舊版；不自動安裝 CLI 或瀏覽器。
+
+`video-picker.js` 在自己的乾淨 context 從零筆記驗證影片庫按鈕，滑鼠／Enter 必須開啟示範影片的原生 file input，而非 JSON 欄位；實播合成 MP4／MOV、空選取與壞檔保留、重試、JSON 重匯及人工確認重連。另驗證次要筆記工具預設收起、鍵盤展開後可備份／分享／預覽刪除，取消保留資料。它驗證瀏覽器的 filechooser 事件及 accept，不能代替作業系統選檔視窗或 HEVC／HDR 真片驗收。
 
 `existing-comparison` 至 `comparison-appearance` 四組驗證既有雙片不用相機、選起點／鏡像／暫停拖曳／成檔、備份在全新 context 還原、兩側重連、明確保存、quota 原子回滾、真實分頁衝突，以及影格 callback／stream 清理。`comparison-recovery.js` 需先由 `existing-comparison.js` 下載備份；四種鏡像組合另以合成色條像素確認。
 

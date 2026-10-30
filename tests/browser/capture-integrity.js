@@ -1,4 +1,5 @@
 /* 檔案用途：用原生早停與真短片驗證新擷取不假成功，保留舊片／筆記及可恢復 chunks。所在層：瀏覽器媒體回歸。主要關聯：main.js、capture.js。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page, options) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
@@ -145,6 +146,7 @@ async (page, options) => {
   if (options.phase === 'delete-video') {
     const partial = await page.locator('#partial-download').getAttribute('href');
     assert(await page.locator('#partial-download').isVisible(), '影片刪除控制缺少原片');
+    await page.locator('#note-tools').evaluate(d => { d.open = true; });
     await page.locator('#delete-video').click(); await page.locator('#delete-dialog').waitFor({ state: 'visible' }); await page.locator('#delete-confirm').click(); await idle();
     assert(await page.locator('#partial-download').isHidden() && !await page.locator('#partial-download').getAttribute('href') && await page.evaluate(url => window.captureIntegrity.revoked.includes(url) && !window.captureIntegrity.blobs.has(url), partial), '刪整份影片仍留下救援原片');
     return { matchingVideoDeletionRevokesPartial: true, remainingVideos: (await library()).videos.length };

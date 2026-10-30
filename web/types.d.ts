@@ -98,6 +98,7 @@ export interface Elements {
   "storage-status": HTMLParagraphElement;
   "library": HTMLSelectElement;
   "open-library": HTMLButtonElement;
+  "select-video": HTMLButtonElement;
   "backup": HTMLButtonElement;
   "restore": HTMLInputElement;
   "controls": HTMLFieldSetElement;

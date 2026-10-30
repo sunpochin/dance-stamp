@@ -12,7 +12,7 @@
     "build": "bun --no-env-file scripts/build-web.ts",
     "package:web": "bun run build && bun --no-env-file scripts/package-web.ts",
     "check:package": "bun --no-env-file scripts/package-web.ts --check",
-    "dev": "bun run build && bun --no-env-file scripts/serve-web.ts",
+    "dev": "bun --watch --no-clear-screen --no-env-file scripts/serve-web.ts --watch",
     "typecheck": "tsc --project tsconfig.json && tsc --project tsconfig.sw.json",
     "lint": "biome lint web --error-on-warnings"
   },

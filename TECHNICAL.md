@@ -116,6 +116,8 @@ flowchart LR
 
 ### 共用播放與相機規則
 
+- #89：影片庫的「選擇硬碟影片」同步開啟既有示範選檔欄位，沿用相同解碼、失敗回滾與人工重連確認；不新增第二份載入狀態。三個影片欄位一律使用 `.mov,.mp4,.m4v,.webm,.mkv,video/*`，避免系統僅憑 MIME 分類排除原片。筆記匯入明確標為 JSON，保留 `.json,application/json`。排除把影片交給 JSON parser、取消格式檢查或另建上傳／轉碼流程；可選取不代表該裝置能解碼所有 codec。
+- 同票的介面釐清：區塊改名「影片與練習筆記」，日常先選片或開啟舊筆記；備份／分享／刪除收進原生 `details`，v1／v2 說明再收進進階項目。影片保存清單保持獨立，備份與匯入後仍可自動展開。排除完整影片＋筆記打包或改資料格式，因本次問題是用途與入口混淆。
 - `input type=file` 為跨瀏覽器基線；`showOpenFilePicker` 是能力偵測後的選用增強，不能成為 iPhone 的必要入口。[File API](https://developer.mozilla.org/en-US/docs/Web/API/File_API)、[picker 支援限制](https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker)。
 - 以 `loadedmetadata`／`seeked`／播放結果決定狀態；副檔名、MIME 和 `canPlayType()` 只能提示，不保證實際解碼。HEVC、旋轉、HDR、可變影格率均要真片驗證。
 - A–B 優先使用 `requestVideoFrameCallback` 觀察顯示時間，fallback 用前景動畫迴圈及媒體事件；seek 有 in-flight 鎖，離開頁面清除 callback。背景暫停，恢復前重新定位。它不是逐格精準／無縫音訊循環保證。[rVFC](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback)。
@@ -124,6 +126,16 @@ flowchart LR
 - 同時播放／相機／音訊與匯出細節以 [RECORD_COMPARE.md](docs/RECORD_COMPARE.md) 為準。
 
 ## 6. 離線、發佈與安全
+
+2026-10-30 PR #92 與主線整合：開發與下載包預設固定 4174，保留 #94 的 `--watch` 判斷及命令列優先、環境參數其次的順序。不能恢復只讀 `process.argv[2]` 的舊寫法，因開發入口會先傳 `--watch`，導致連接埠無效。Cloudflare 沿用主線已審查的靜態建置及 `previews` 設定，排除另建部署入口或把本機即時更新工具帶入雲端產物。
+
+#94 本機即時更新：`bun run dev` 明確啟用 loopback 的 `--watch` 主機，沿用原建置並監看 `web`／必要建置檔；同一時間只跑一份建置，成功後才公布新版本。開發腳本每秒只讀版本，閒置自動重載；有輸入、原片／串流、輸出或忙碌操作時保留工作，改由保存後的按鈕重載。失敗不換版本，保留上一個成功頁面。
+
+開發 HTML 才注入外部腳本與標記；`offline.js` 只在 loopback 且有該標記時跳過正式 SW。原 SW 等舊頁結束後由開發替身自行 unregister，不 skipWaiting、不清 cache／IndexedDB；因此已有離線頁第一次切到開發模式須關閉再開。下載包、Cloudflare 與一般 `serve-web.ts` 沒有開發路由，離線驗收仍用一般主機。排除額外框架／WebSocket 依賴及熱替換媒體全域狀態，以免丟失只在本次頁面存在的 File；整合回歸以自有原始碼副本實際改檔，驗證草稿／原片保留與失敗恢復。
+
+2026-10-30 PR #90 預覽修正：`wrangler.jsonc` 明確指定先執行既有 `bun run build`，再上傳 `dist/web`，沿用已存在 Worker 的相容日期。未宣告入口時 `versions upload --dry-run` 會直接失敗，而 `deploy` 自動偵測可能把 `web` 當成靜態目錄，漏掉 SW manifest、授權與 `_headers`。排除依賴自動偵測、把整個 repo 當 assets、新增 Worker 後端或雲端媒體服務；此設定只提供靜態資源入口，正式版本切換仍需另行授權。PR 測試使用既有 version URL，與正式站分開驗證。
+
+同票補充：使用者提供的建置日誌確認 Cloudflare 自動流程實際使用 `npx wrangler preview`（Wrangler 4.156.0），建置已成功，失敗點是缺少 `previews` 區塊；因此加入空的 `previews`，讓預覽繼承頂層 assets／相容設定，不改 dashboard 或正式 deploy 命令。手動 `versions upload` 成功不能代替自動 Preview 流程成功，兩者結果分開核對。
 
 靜態檔可由免費主機或使用者自己的本機 HTTP server 提供，沒有必需後端。PWA 只 precache 應用資源，不把私人影片放公開 cache URL；未載入過的網站不能第一次離線啟動。使用 HTTPS 或受信任 localhost，不能只叫使用者雙擊 HTML 就保證相機／離線能力。
 
