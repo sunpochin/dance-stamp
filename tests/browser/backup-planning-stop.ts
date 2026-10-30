@@ -25,11 +25,80 @@ const run = mkdtempSync(join(output, 'backup-planning-stop-')), profile = join(r
 const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), owner = join(lock, 'owner.json')
 const evidence: any = { status: 'running', nonce, run, profile, version, head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), diff: execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), fixtureSha256: hash(readFileSync(join(root, 'tests/fixtures/backup-planning.js'))), productSha256: Object.fromEntries(['library.js', 'main.js', 'storage.js'].map(file => [file, hash(readFileSync(join(dist, file)))])), outside: [], pageErrors: [] }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
-const processes = () => execFileSync('ps', ['-ax', '-o', 'pid=,command='], { encoding: 'utf8' }).split('\n').filter(line => line.includes(profile))
-let ownsLock = false, server: ReturnType<typeof Bun.serve> | undefined, context: any
+let ownsLock = false, server: ReturnType<typeof Bun.serve> | undefined, context: any, launchUnconfirmed = false, browserGroup: number | undefined
+const knownPids = new Set<number>()
+function processTable() {
+  const check = Bun.spawnSync(['/bin/ps', '-ax', '-o', 'pid=,ppid=,pgid=,command='])
+  assert(check.exitCode === 0 && check.stderr.length === 0, '無法核對自有程序，保留鎖')
+  return check.stdout.toString().trim().split('\n').filter(Boolean).map(line => {
+    const [, pid, ppid, pgid, command] = line.match(/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/) || []
+    assert(pid && command, '無法解析程序表，保留鎖')
+    return { pid: Number(pid), ppid: Number(ppid), pgid: Number(pgid), command }
+  })
+}
+async function auditOwnedBrowser() {
+  const session = await context.browser().newBrowserCDPSession()
+  let processInfo
+  try { processInfo = (await session.send('SystemInfo.getProcessInfo')).processInfo }
+  finally { await session.detach() }
+  assert(processInfo?.length && processInfo.every(row => Number.isSafeInteger(row.id) && row.id > 0), '缺少自有瀏覽器 PID 證據')
+  const browserPid = processInfo.find(row => row.type === 'browser')?.id, rows = processTable(), main = rows.find(row => row.pid === browserPid)
+  // CDP 指認主程序，再核對獨立群組；子程序沒有 profile 字串也必須列入，不能只掃檔名。
+  assert(main && main.pgid === browserPid && main.command.includes(`--user-data-dir=${profile}`), '自有瀏覽器群組未確認，保留鎖')
+  assert(browserGroup === undefined || browserGroup === browserPid, '自有瀏覽器主程序身分改變，保留鎖')
+  browserGroup = browserPid
+  const members = rows.filter(row => row.pgid === browserGroup)
+  for (const pid of [...processInfo.map(row => row.id), ...members.map(row => row.pid)]) knownPids.add(pid)
+  ;(evidence.processAudits ??= []).push({ processInfo, group: browserGroup, members })
+  evidence.knownPids = [...knownPids]; save()
+}
+async function launchOwnedBrowser() {
+  // launch 可在建立程序後才拋錯；沒拿到 handle 不能以空的 profile 掃描判定已退出。
+  launchUnconfirmed = true; evidence.launchUnconfirmed = true; save()
+  context = await chromium.launchPersistentContext(profile, { executablePath: resolve(executable), headless: true, args: ['--no-first-run', '--disable-sync', '--disable-background-networking', '--deny-permission-prompts', '--mute-audio'] })
+  launchUnconfirmed = false; evidence.launchUnconfirmed = false
+  await auditOwnedBrowser()
+}
+async function closeOwnedBrowser() {
+  let auditError
+  try { await auditOwnedBrowser() } catch (error) { auditError = error; evidence.processAuditError = String(error) }
+  // 稽核失敗仍嘗試關閉已知 handle，但 context.close 本身不代表所有子程序已退出。
+  await context.close(); context = undefined
+  assert(!auditError && knownPids.size > 0 && browserGroup !== undefined, '程序稽核未確認，保留鎖')
+  let remaining = []
+  for (let i = 0; i < 20; i++) {
+    remaining = processTable().filter(row => knownPids.has(row.pid) || row.pgid === browserGroup)
+    evidence.remainingOwnedProcesses = remaining
+    if (!remaining.length) break
+    await Bun.sleep(100)
+  }
+  assert(!remaining.length, '自有 PID／群組仍有程序，保留鎖；未掃殺其他程序')
+}
+async function cleanupOwnedResources() {
+  try {
+    if (context) await closeOwnedBrowser()
+    assert(!launchUnconfirmed, '啟動未交回 handle，程序退出未確認，保留鎖')
+    evidence.browserClosed = true
+  } catch (error) { evidence.browserCloseError = String(error) }
+  // 自有 server 的收尾不依賴 browser.close 成功；錯誤要分開記，不能遮蔽主流程失敗。
+  try {
+    if (server) { const url = server.url; await server.stop(true); assert.equal(await fetch(url).then(() => true, () => false), false, '自有 port 尚未關閉，保留鎖') }
+    evidence.serverStopped = true
+  } catch (error) { evidence.serverStopError = String(error) }
+  if (ownsLock) {
+    try {
+      assert(evidence.browserClosed && evidence.serverStopped, '自有資源收尾未確認，保留鎖')
+      assert.equal(JSON.parse(readFileSync(owner, 'utf8')).nonce, nonce, 'nonce 已改變，未移除鎖')
+      unlinkSync(owner); rmdirSync(lock); evidence.lockReleased = true
+    } catch (error) { evidence.lockReleaseError = String(error) }
+  }
+  evidence.cleanedUp = !!(evidence.browserClosed && evidence.serverStopped && (!ownsLock || evidence.lockReleased))
+  if (!evidence.cleanedUp) { evidence.status = 'failed'; process.exitCode = 1 }
+  evidence.finishedAt = new Date().toISOString(); save()
+}
 try {
   // 收尾需要可讀程序表；權限不足應在拿鎖之前留下前置失敗，不能留下自有程序。
-  processes()
+  processTable()
   // mkdir 原子取得共用鎖；鎖忙即保留前置失敗，不刪除、接管或換名字繞過。
   mkdirSync(lock); ownsLock = true
   writeFileSync(owner, JSON.stringify({ pid: process.pid, nonce, purpose: 'large import planning Stop', profile }))
@@ -39,7 +108,7 @@ try {
     return new Response(request.method === 'HEAD' ? null : bytes, { headers: { ...webHeaders, 'Content-Type': path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : path === '/' ? 'text/html' : 'text/plain' } })
   } })
   evidence.origin = server.url.origin; save()
-  context = await chromium.launchPersistentContext(profile, { executablePath: resolve(executable), headless: true, args: ['--no-first-run', '--disable-sync', '--disable-background-networking', '--deny-permission-prompts', '--mute-audio'] })
+  await launchOwnedBrowser()
   context.setDefaultTimeout(30_000)
   evidence.browserVersion = context.browser()?.version()
   await context.route('**/*', route => {
@@ -148,13 +217,6 @@ try {
   evidence.status = 'passed'; evidence.sameFileRetryAndReimport = true; evidence.reloadPreserved = true; save()
 } catch (error) { evidence.status = 'failed'; evidence.error = String(error); save(); throw error }
 finally {
-  try {
-    await context?.close()
-    if (ownsLock) { evidence.remainingProfileProcesses = processes(); assert.equal(evidence.remainingProfileProcesses.length, 0, '自有 profile 尚有程序，保留鎖') }
-    if (server) { const url = server.url; await server.stop(true); assert.equal(await fetch(url).then(() => true, () => false), false, '自有 port 尚未關閉，保留鎖') }
-    if (ownsLock) { assert.equal(JSON.parse(readFileSync(owner, 'utf8')).nonce, nonce); unlinkSync(owner); rmdirSync(lock) }
-    evidence.cleanedUp = true
-  } catch (error) { evidence.cleanupError = String(error); throw error }
-  finally { save() }
+  await cleanupOwnedResources()
 }
 console.log(JSON.stringify({ status: evidence.status, version, fileBytes: evidence.file.bytes, hashesBeforeStop: evidence.barrier.hashes.length, readwriteBeforeStop: evidence.afterStop.transactions.filter(tx => tx.mode !== 'readonly').length, sameFileRetryAndReimport: evidence.sameFileRetryAndReimport, cleanedUp: evidence.cleanedUp, run }))

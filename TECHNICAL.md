@@ -282,6 +282,8 @@ ID 位元依 [RFC 9562 的 UUIDv8](https://www.rfc-editor.org/rfc/rfc9562.html#s
 
 追查 `restore` → `parseBackup` → `planBackupImport` → 預覽／確認 → `writeLibrary` 後，沒有重現新的取消接線缺陷；只補規劃期間的回歸。外來源／分享的 ID 配置及衝突閉包的副本配置共用 `backupUUID`，原生 hash await 前後檢查同一個操作訊號；規劃完成才建立預覽草稿，確認才寫入。測試在已有 hash／副本配置進度後明示暫扣下一個原生 hash 結果，再取消，不以預先取消或交易內 Stop 代替此階段。合法大檔、完整舊圖、同檔重試及重匯冪等的[精確證據與重跑方式](docs/evidence/issue-12-import-planning-stop.md)分開記錄純邏輯與真正 Chrome Stop；不新增執行緒、效能毫秒門檻或改動產品 runtime。
 
+PR #84 的獨立續審另重現新 QA runner 的兩個收尾缺陷：launch 已建立程序卻未交回 handle 時，空 profile 字串掃描會錯放鎖；context.close 拋錯則會跳過 server.stop。修正只在測試工具：啟動前標記未確認，取得 handle 後以 CDP 指認主 PID、核對獨立程序群組並保存所有已知 PID（含沒有 profile 字串的子程序），close 後再次核對 PID／群組全空才交回自有 nonce 鎖。瀏覽器、server 及鎖的收尾分開記錄；瀏覽器不確定仍保留鎖，但自己 server 照常關閉。沿用既有 quota／forced runner 的所有權模式，未引入通用管理器或更改產品 bytes；故障回歸與新版原生收據另列於同份證據。
+
 ## 19. #13 桌面離線、容量、更新及個別刪除
 
 沿用已驗證的原生 IndexedDB Blob／分段後端，不因新增離線資訊而搬移既有媒體或新增 OPFS／套件。metadata、media、chunks 仍為 schema 1；沒有破壞性 migration。既有初始化失敗、未知升級與多分頁保護仍拒絕並保留舊資料，未宣稱已有其他 schema 的升級／降級路徑。
