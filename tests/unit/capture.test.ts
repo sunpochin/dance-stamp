@@ -1,8 +1,19 @@
 /* 檔案用途：驗證新錄影時長、錯誤提示與暫存片段完整性。所在層：媒體純邏輯測試。主要關聯：timeline.js、recorder.js、storage.js。 */
 import { expect, test } from 'bun:test'
 import { captureDuration } from '../../web/timeline.js'
-import { assembleChunks, cameraError } from '../../web/recorder.js'
+import { assembleChunks, cameraError, normalizedVideo } from '../../web/recorder.js'
 import { newLibrary, validateBackup } from '../../web/library.js'
+
+test('EBML 容器依文件類型辨識 WebM 與 Matroska，補正 MIME 不更動原片 bytes', async () => {
+  // 兩種容器共用 EBML magic；只看開頭四 bytes 會把 Matroska 誤叫成 WebM。
+  for (const [docType, mime] of [['\x42\x82\x84webm', 'video/webm'], ['\x42\x82\x88matroska', 'video/x-matroska']]) {
+    const original = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), Uint8Array.from(docType, character => character.charCodeAt(0))], { type: 'application/octet-stream' })
+    const normalized = await normalizedVideo(original)
+    expect(normalized.type).toBe(mime)
+    expect(await normalized.arrayBuffer()).toEqual(await original.arrayBuffer())
+    expect(original.type).toBe('application/octet-stream')
+  }
+})
 
 test('以實際錄製時間限制 15–60 秒，三種速度共用同一邊界', () => {
   for (const rate of [0.5, 0.75, 1]) for (const duration of [15_000, 30_000, 60_000]) {
