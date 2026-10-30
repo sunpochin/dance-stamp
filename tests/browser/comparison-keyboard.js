@@ -5,7 +5,8 @@ async (page) => {
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   await page.goto(origin); await idle();
   await page.locator('#existing-mode').focus(); await page.keyboard.press('Enter');
-  assert(await page.locator('#existing-mode').getAttribute('aria-pressed') === 'true' && await page.evaluate(() => document.activeElement.id === 'reference-file'), '鍵盤入口沒有啟用或帶到選片');
+  // 原生檔案欄位已隱藏；入口必須移焦到可見按鈕，鍵盤使用者才能繼續選片。
+  assert(await page.locator('#existing-mode').getAttribute('aria-pressed') === 'true' && await page.evaluate(() => document.activeElement.id === 'select-video'), '鍵盤入口沒有啟用或帶到選片');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   for (const [id, value] of [['start', '12'], ['end', '17'], ['offset', '4']]) {
