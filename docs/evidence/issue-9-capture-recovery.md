@@ -172,3 +172,39 @@ PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交�
 ### 9e6f0ef乾淨同版重跑
 
 9e6f0ef／1aa1ae164c31d690由原media-feasibility、run-media及v5從第一案完整重跑24／24通過，48份實際下載完整解碼；舊345第六輪28.030933秒失敗、未取得其VS與根因未知的界線保留。產品程序停止後，原download-playback在全新Chrome/file入口把本輪三份實際MP4／WebM／校正檔播至ended，指紋相同、mediaCalls=0，自有程序／profile、server／nonce收尾確認。詳細量測、狀態保存範圍及來源見[同版再驗證](p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)。合成Chrome通過不代表Safari真實相機、人工聽感、手機或G6真機驗收，也不證明舊版平台截斷根因已消除。
+
+## 錄影 chunks 未提交時的真正程序中斷
+
+2026-10-30 Asia/Taipei，從遠端 main `6862501d3cfaaa7cf3916d875fd06dd8dfdd13ec` 建本聊天專用 clone／新分支，核對 #9／#13 仍開啟。既有 `--pending-write` 不含 chunks；`capture-drain` 會原生 stop 後等尾塊提交，`capture.js` 的 valid／gap／corrupt 是人工建立前置資料，三者都沒有覆蓋「原生錄影片段寫入未提交時 SIGKILL，同 profile 新程序讀回」。本輪擴充原 `forced-install-restart.ts --chunk-write`，只新增情境模組，沿用原程序群組／PID／profile／spawn-error／nonce／共用鎖，沒有新建通用程序管理器。
+
+### 真正缺陷及最小修正
+
+未改產品的基線 `4651fae419d8d9c8`，完整 UI 負向收據確認：只有 **752 bytes、0 個可解碼影格**的原生 MP4 首塊，Chrome 仍回報 loadeddata、尺寸與約 112ms 時長。`openTakeUnlocked` 因而將其保存到 media、asset ready 並清 chunks，take 雖 interrupted，影片實際沒有影格。這是本輪實際重現的產品缺陷，不能拿正常錄影長度保護或「仍 interrupted」當成已排除。
+
+最小修正只在 chunks 恢復的 `loadCandidate` beforeCommit，沿既有 `presentedFrame` 訂閱原生影格並靜音實播；確認前不撤舊 URL、不建立下載／media、不 clearChunks。失敗／取消先暫停並撤銷等待，再由原候選流程還原舊播放器。缺影格確認能力時明確拒絕並保留 chunks；不使用檔頭 byte 數、任意最短秒數或假事件猜可播放性。已存原片／選片與正常相機完成流程不新增此步驟。
+
+### 修正版同一入口的原生結果
+
+受測為上述 main 上的**修正工作樹**，不是乾淨最終 commit；產品靜態 `7c728c8a5bd7fa2f`。Chrome **156.0.8078.76 headless**、macOS arm64／Darwin 27.0.0，只用原 `make-sync-fixtures.py` 的合成來源及明確假相機，麥克風關閉。工具 SHA256 `a569b592b3f67718f25b6351b6c61c174747415bf27178f863be3e6a53b1ec04`；情境模組 `e6166d5678e940dedafede483edbd1c7ee17b2629534cd1bbe698ae311e9b8a9`。收據同時保存受測 base、tracked changes、SW／storage 與情境指紋，後續文件不改標成 clean-head 實測。
+
+- UI 先保存舊老師片、自己片與真正產生的 VS，另存非空標記。基準 revision **7**，三份舊媒體為 **1,789,027／1,789,027／2,270,473 bytes**。錄影建立 take 後 revision **8**，持同一 take 鎖。
+- 真正原生 chunks **752／209,248／105,721 bytes**。前兩個 add 的 trusted success／complete 已收到，第三個 add 的 trusted success key 為本次 asset／index 2；交易內看見候選 key，兩次 barrier 的 keep-alive ticks **79→17,398**，第三次 complete／abort 均 false。此時錄影仍 busy、原生 start=1／stop=0、唯一假相機 track live、audio=false；另一分頁不能取得 take 鎖，才對自有群組真正 **SIGKILL**，沒有正常 close 或 stop。
+- 同 profile 新程序只剩 index **0、1**，每一 byte 與終止前的原生片段相同，第三塊不存在；native metadata／revision 與建立 take 後相同，完整舊資料／三份 Blob 保留，take 鎖可重新取得。讀取仍保留 recording 標籤，與原「只在明確恢復且取得鎖後改 interrupted」契約相同，沒有誤標 ready。
+- 產品 `recoverChunks` 組裝前兩塊，透過 QA 專用下載連結真正下載 **210,000 bytes／6.727867 秒／202 格 H.264**，逐 byte 等於兩塊串接；這一步測儲存組裝與實際下載，沒有假稱已走 UI finalize。第三塊以**完全相同 asset／index 2／bytes**重試，index 0 重複寫入拒絕，原三塊順序與 bytes 全部相同；這是儲存重試，不是接續被殺掉的 recorder。
+- 另建一份只含本輪真實首塊的自有 take 作負向前置資料，明示不是第二個 SIGKILL 案例。UI 恢復被拒絕，take interrupted、752-byte chunk 原樣保留、沒有建立 media，舊播放器 URL 保留。原目標 take 由 UI 明確恢復，真正呈現影格後保存 **315,721 bytes／10.098800 秒／303 格 H.264**，仍 interrupted，只清自己的三塊；檔頭專用 take 的壞片段保留。
+- 兩份實際下載的 SHA256 分別為 `5b0ae02833c87c6bb3cccf9419e5da8f949a2e5ae9f7a35de2abfb927a6f3791`、`7856b40bd21eef1731485a75867438f5d185e0d94a2e0faabf49d8c718bdb9c3`；逐 byte 等於已提交／重試後的原生 bytes。FFmpeg `-v error -xerror ... -f null -` 都 exit 0，另在無產品程式的空頁從下載 bytes 建來源，兩份都實播到 ended，640px 寬，沒有把產品 ready 當成播放證據。
+- 正常停止第二個程序，再以**同 profile 第三個程序**重開，完整 native／產品 JSON、keys、revisions 與所有 media／殘留 chunks 快照 equality 通過，revision **12**。六個快照階段另存完整二進位，獨立核對 **31 份**快照檔與全部舊 Blob；第三份 snapshot 也已序列化並逐 byte 比對，沒有沿用 #83 未另存第三 snapshot 的限制。兩個 take 鎖皆可重新取得。
+
+### 解碼訊息、原模式與收尾界線
+
+解碼 stderr 非空，原訊息完整留 ignored output，不能寫成「全片無訊息」：兩份 null 輸出分別有 **3／12** 筆 non-monotonic DTS 訊息，但原檔 packet PTS／DTS 及解碼 frame PTS 全部嚴格遞增，獨立 FFprobe 為 202／303 格；在 null 輸出 `30000/1001` 時基量化後的碰撞值逐筆精確符合訊息。這是對原始下載檔的診斷推論，沒有改檔、重封裝、轉碼或調寬原門檻，不宣稱新 G2–G4／完整影音矩陣通過。
+
+修改後原 default 與 `--pending-write` 各沿原入口重跑一次，皆 status passed／exit 0；保留原離線舊殼／完整資料及同候選重試／第三程序斷言，沒有弱化門檻。新增 chunks 正向輪的三群組為 **12／8／8** 個已知自有程序。另獨立核對本輪所有成功／失敗收據：**15 群組、143 個已知自有 PID**無殘留，精確 profiles 無 Chrome、所有自有 origin 埠拒絕連線；原工具與補充解碼核對均以同 nonce 才放鎖。沒有刪除或接管其他聊天的鎖、profile、程序或設定。
+
+完整暫存內容的原 `bun run check` 通過 **436 tests／2,047 expects／0 fail**，含空 DevTools 檔案回歸；公開掃描 **239 檔**、harness 指紋／本機文件連結、TypeScript、lint 與原 build 通過。原有 19 項 lint info 保留，沒有關閉或降低規則。
+
+正向 chunks 原收據 SHA256 `41135f586e43bc15f9c2cb2aa967cd6566db6506e47807110ddaa4cd1fd9e3f3`；修改後 default／pending-write 收據分別 `8ff48d92ee0c86deec1cb02f1d16f03a23749da9066018d7e0799ba999f55d2d`／`19913fbacd102641ba981e0047a2461e54ba444d06b90dbfa48bf954550cc849`，獨立 bytes／時間戳／收尾核對收據 `46e54c2fd274d22e95e3bfda9bfb1ed191fd7614d06001829c8423e14c0843e0`。raw／完整 bytes／下載／profiles／日誌／操作識別全留 ignored output，不進 Git 或公開附件；固定來源與原檢查結果由本 PR 綁定。
+
+保留的先前失敗包括：三次 EEXIST 原子取鎖拒絕（未啟動瀏覽器）；首塊不可播放卻被測試誤假定可恢復的斷言失敗；新增負向 take 後未重載 UI 的前置錯誤；完整負向輪真正重現檔頭誤存 ready；修正版啟動時 DevTools 檔案先出現而 port 尚未寫完的前置失敗。最後一項只補原 launch 等有效 port 的條件，並以執行真正 launch 的空檔→有效內容單元回歸保護；失敗群組均已確認退出。初次 Bun 子程序 PATH／缺建置拒絕及受限環境本機監聽失敗也保留，未改測試門檻換綠燈。
+
+本輪補 #9／#13 的 chunks 程序中斷與一個確切恢復缺陷；keep-alive 是明示的交易時序控制，檔頭負向是新建前置資料，均不是 Safari 自然故障。未驗證提交瞬間、斷電、Safari／私人模式、真人相機／麥克風／LED、實體飛航／跨裝置、人工聽感、讀屏／五人操作或整體 P0；iPhone 仍暫緩。重要工程仍待 Claude Code 或使用者最終審查，#9／#13 保持開啟；未合併、部署或發布。

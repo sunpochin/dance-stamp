@@ -9,6 +9,21 @@ const transpiler = new Bun.Transpiler({ loader: 'ts' })
 const forced = readFileSync(new URL('../browser/forced-install-restart.ts', import.meta.url), 'utf8')
 const quota = readFileSync(new URL('../../scripts/verify-native-quota.ts', import.meta.url), 'utf8')
 const cleanup = (source: string) => source.slice(source.lastIndexOf('} finally {') + '} finally {'.length).replace(/}\s*$/, '')
+test('自有 DevTools 端點先出現空檔時，等有效 port 才連線', async () => {
+  const state = harness(), urls: string[] = [], child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null, signalCode: null, stderr: new EventEmitter() })
+  Object.assign(state, { evidence: {}, executable: '/synthetic/browser', mkdirSync() {}, appendFileSync() {}, existsSync: () => false, spawn: () => child, reads: 0 })
+  state.waitFor = async check => {
+    state.existsSync = () => true
+    // 執行真正 launch 的前置條件；只讓 OS 檔案分兩次可見，不啟動瀏覽器。
+    expect(await check()).toBe(false)
+    expect(await check()).toBe(true)
+  }
+  state.readFileSync = () => state.reads++ === 0 ? '' : '43123\n/devtools/browser/synthetic'
+  state.chromium = { connectOverCDP: async url => { urls.push(url); throw new Error('synthetic stop after verified endpoint') } }
+  const launch = forced.slice(forced.indexOf('async function launch('), forced.indexOf('\nconst ready ='))
+  await expect(runInNewContext(transpiler.transformSync(`(async () => { ${launch}\nawait launch('prepare') })()`), state)).rejects.toThrow('synthetic stop after verified endpoint')
+  expect(urls).toEqual(['http://127.0.0.1:43123'])
+})
 function harness() {
   const removed: string[] = [], signals: unknown[] = [], events: unknown[] = []
   const state: any = {

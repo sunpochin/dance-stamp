@@ -717,3 +717,11 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 在保留 `396037f` 包／manifest／收據後，同一候選分支納入 #77 `3c8ed4a`、#79 `82c5f84`、#81 `cce0273` 與 #82 `e6e086f`，各自固定已通過 CI 的來源；#81 已含 #78／#75、#82 已含 #76，不重複挑入。#82 只調整建置授權副本的五個相對目標，並在 seal／verify 核對實際 Markdown bytes；版本與 manifest 使用同一份轉換後內容。根 LICENSE／NOTICE、條款、web/ 原始碼及 HTTP 政策／路由不變。
 
 只明列增加兩份 #77／#79 匿名 Markdown 到下載包，讓指南的離線讀者也能查到原版證據；不遞迴收錄 raw、媒體或 profiles。#81 的新來源救援證據沿既有文件追加；各自的實測 head、餘裕與注入界線保留。新靜態 `4651fae419d8d9c8` 相對 396037f 的十四份建置資源只有授權副本與衍生 SW 改變，其餘十二份 bytes 相同；不把舊影音或五組 UI 結果改標新版。重新封裝／解包、產物連結／manifest／HTTP、入口與 context 離線檢查及單一滿額正常備份 smoke 的來源與結果見[續作證據](docs/evidence/p0-safari-reliability-integration.md)。新 SW 上的原生強制中斷／pending-write 由指定工作線另補，本聊天沒有重跑或代簽；獨立審查與發布核准仍分開。
+
+## 46. #9／#13 錄影 chunks 交易中的程序中斷回歸
+
+既有 `--pending-write` 只覆蓋 metadata／media；`capture-drain` 在原生 stop 後放行尾塊，並未終止程序。新增選用 `--chunk-write`，沿用原強制重啟工具的 spawn-error、PID／profile／程序群組與 nonce 保護；獨立情境模組只管錄影與資料斷言，不另建程序管理器。原 default／pending-write 斷言保持原樣。
+
+真實合成錄影先提交前兩塊，再保持第三個 add 已原生成功的交易未提交，真正 SIGKILL 並用同 profile 新程序讀回。先實際組裝／下載已提交部分，再以相同 asset／index／bytes 重試第三塊並走 UI 恢復；完整舊筆記／原片／VS 與第三次重開的快照、二進位逐 byte 比對。只有檔頭的原生首塊另外驗證解碼拒絕及 interrupted 保護，不能以「Blob 非空」取代解碼。取捨是延長原生交易以重現確切時點，排除正常 close、手動 throw、假事件與另建泛用控制器；不宣稱 Safari 自然故障、提交瞬間、斷電或硬體驗收。執行方法與精確來源見[媒體驗證入口](docs/MEDIA_PROBE.md)及[本輪證據](docs/evidence/issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)。
+
+此案例重現真正產品缺陷：Chrome 可對沒有任何影格的 752-byte MP4 初始化段回報 loadeddata、尺寸與正時長，舊恢復流程因此 finalize 成 media ready 並清 chunks。最小修正放在 `openTakeUnlocked` 的 recovered 候選 beforeCommit：沿用 `presentedFrame`，本機靜音實播直到原生影格呈現才允許換片與 finalize；失敗／取消會暫停、撤銷等待並由原候選流程還原舊 URL。沒有影格確認能力時保留 chunks 並說明改用受測瀏覽器。排除硬編碼 MP4 檔頭長度或任意最短秒數，因為容器與合法短片不能用大小／時長猜測；不把此限制擴張到選片、已存原片或相機正常完成流程。
