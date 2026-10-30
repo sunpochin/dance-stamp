@@ -327,6 +327,8 @@ UI 退出忙碌後暫停可能換掉影片或寫入的操作，保留當次原�
 
 [五人 Web 觀察操作單](docs/WEB_USABILITY_CHECK.md)依 #1 現行三項任務，預留匿名空表並明示尚未執行，不造人數或結果。人工提示、實體觸控、讀屏實聽、相機／音訊及裝置保存與自動化各自記錄；iPhone 暫緩，#14 不因工具檢查關閉。
 
+2026-10-30 補[保存狀態未知時的鍵盤保全](docs/evidence/issue-14-storage-keyboard.md)：沿用既有 operation／救援控制，不改產品。Chrome 的真正 ConstraintError／abort 加上明示抑制產品結束通知，分別驗標題保存及匯入 modal；Tab 下載最後確認筆記、兩支原片與既有 VS，AX 警示文字、唯讀播放、取消不寫入、同頁 reload 舊庫及隔離備份匯入均核對。排除 mock 事件、直接 focus 救援入口、以新空 context 推論舊庫及重跑普通版面矩陣；注入不是 Safari 自然故障，亦不替代 VoiceOver／真人／裝置驗收。
+
 ## 21. #15 獨立下載包與來源邊界
 
 沿用未編譯改寫的靜態 Web bytes，以 Bun 原生 Archive 打包，既有本機主機隨包提供，不新增壓縮、HTTP 框架或 runtime 依賴。白名單與回應標頭抽到同一個 web-assets.ts，建置、主機及打包共用；靜態 `_headers` 由同一來源產出。政策也參與建置版本，避免離線頁繼續使用舊標頭的 cache。沒有改動媒體演算法、資料格式或時序門檻。
