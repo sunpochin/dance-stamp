@@ -725,3 +725,5 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 真實合成錄影先提交前兩塊，再保持第三個 add 已原生成功的交易未提交，真正 SIGKILL 並用同 profile 新程序讀回。先實際組裝／下載已提交部分，再以相同 asset／index／bytes 重試第三塊並走 UI 恢復；完整舊筆記／原片／VS 與第三次重開的快照、二進位逐 byte 比對。只有檔頭的原生首塊另外驗證解碼拒絕及 interrupted 保護，不能以「Blob 非空」取代解碼。取捨是延長原生交易以重現確切時點，排除正常 close、手動 throw、假事件與另建泛用控制器；不宣稱 Safari 自然故障、提交瞬間、斷電或硬體驗收。執行方法與精確來源見[媒體驗證入口](docs/MEDIA_PROBE.md)及[本輪證據](docs/evidence/issue-9-capture-recovery.md#錄影-chunks-未提交時的真正程序中斷)。
 
 此案例重現真正產品缺陷：Chrome 可對沒有任何影格的 752-byte MP4 初始化段回報 loadeddata、尺寸與正時長，舊恢復流程因此 finalize 成 media ready 並清 chunks。最小修正放在 `openTakeUnlocked` 的 recovered 候選 beforeCommit：沿用 `presentedFrame`，本機靜音實播直到原生影格呈現才允許換片與 finalize；失敗／取消會暫停、撤銷等待並由原候選流程還原舊 URL。沒有影格確認能力時保留 chunks 並說明改用受測瀏覽器。排除硬編碼 MP4 檔頭長度或任意最短秒數，因為容器與合法短片不能用大小／時長猜測；不把此限制擴張到選片、已存原片或相機正常完成流程。
+
+PR #87 續審另以 `--recovery-frame` 只驗新 beforeCommit 接線的 Stop／能力缺失／play 拒絕。原 `take-open-failure.js` 停在 loadeddata 之前，`mediaAction.test.ts` 則測共用事件工具，兩者未覆蓋新守門的外層訊號與 finally。新增情境延後送達真正原生影格 callback 的同一份參數，不偽造影格／時長；實點 Stop 後驗原訊號、計時器、abort 監聽、候選 URL 與遲到通知不提交。同頁能力移除及播放拒絕明示為受控注入，三案失敗資料精確保留、同輸入恢復後再核對。此續審只增測試／文件，產品仍是 `5a90f35`／`7c728c8a5bd7fa2f`，舊三套程序中斷收據保持原工具指紋，未在本機重跑。

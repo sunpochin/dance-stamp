@@ -8,13 +8,14 @@ import { release, tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { webPaths, webHeaders } from '../../scripts/web-assets'
 import { chunkWriteRestart } from './chunk-write-restart'
+import { recoveryFrameGuard } from './recovery-frame-guard'
 
 assert.equal(Bun.version, '1.4.4', '請使用專案固定的 Bun 1.4.4')
 assert(['darwin', 'linux'].includes(process.platform), '此強制終止工具只支援 POSIX 程序群組')
 const [executable, playwrightModule] = process.argv.slice(2)
 assert(executable && existsSync(executable) && playwrightModule && existsSync(playwrightModule), '請傳入已安裝 Chromium 執行檔及 playwright-core/index.mjs 的完整路徑；不自動安裝')
 const mode = process.argv[4]
-assert(!mode || ['--pending-write', '--chunk-write'].includes(mode), '第三個參數僅接受 --pending-write 或 --chunk-write')
+assert(!mode || ['--pending-write', '--chunk-write', '--recovery-frame'].includes(mode), '第三個參數僅接受 --pending-write、--chunk-write 或 --recovery-frame')
 const { chromium } = await import(pathToFileURL(resolve(playwrightModule)).href)
 const root = resolve(import.meta.dir, '../..'), dist = join(root, 'dist/web')
 const source = readFileSync(join(dist, 'sw.js'), 'utf8')
@@ -23,7 +24,7 @@ assert(oldVersion, '請先執行原建置入口')
 const manifest = JSON.parse(source.match(/const manifest = (\{[^\n]+\});/)![1])
 const output = join(root, 'output'); mkdirSync(output, { recursive: true })
 // 每次都新建目錄，失敗的 profile／日誌也保留，不能換空庫來把同一次失敗變成功。
-const run = mkdtempSync(join(output, mode === '--chunk-write' ? 'chunk-write-' : mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
+const run = mkdtempSync(join(output, mode === '--recovery-frame' ? 'recovery-frame-' : mode === '--chunk-write' ? 'chunk-write-' : mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
 if (mode === '--chunk-write') for (const file of ['reference.mp4', 'camera.y4m']) assert(existsSync(join(output, 'media-feasibility', file)), '請先執行 scripts/make-sync-fixtures.py；不能用真人相機代替')
 const candidateVersion = `${oldVersion}-forced-${nonce.slice(0, 8)}`
 const hash = (bytes: string | Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -36,7 +37,7 @@ const candidateManifest = Object.fromEntries(Object.keys(manifest).map(path => [
 candidateFiles.set('/sw.js', Buffer.from(source.replace(`'${oldVersion}'`, `'${candidateVersion}'`).replace(JSON.stringify(manifest), JSON.stringify(candidateManifest))))
 // macOS 沿用既有共用鎖；Linux 改用系統暫存目錄，避免不存在的 /private/tmp 阻止測試。
 const lock = join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), ownerFile = join(lock, 'owner.json')
-const evidence: any = { status: 'running', scenario: mode === '--chunk-write' ? 'chunk-write' : mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
+const evidence: any = { status: 'running', scenario: mode === '--recovery-frame' ? 'recovery-frame' : mode === '--chunk-write' ? 'chunk-write' : mode ? 'pending-write' : 'partial-install', nonce, run, profile, oldVersion, candidateVersion: mode ? undefined : candidateVersion, sourceHead: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), trackedChanges: execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { cwd: root, encoding: 'utf8' }).trim(), runnerSha256: hash(readFileSync(import.meta.path)), workerSha256: hash(source), storageSha256: hash(readFileSync(join(dist, 'storage.js'))), startedAt: new Date().toISOString(), events: [] }
 // 平台與真正鎖位置須隨收據保存，避免把 macOS 模擬路徑當成 Linux 原生驗證。
 evidence.environment = { platform: process.platform, architecture: process.arch, kernel: release(), lockPath: lock }
 const save = () => writeFileSync(join(run, 'evidence.local.json'), JSON.stringify(evidence, null, 2))
@@ -176,7 +177,13 @@ try {
   await page.goto(origin); await page.waitForFunction(() => document.getElementById('offline-status')?.textContent.includes('已檢查應用資源完整'))
   await page.reload(); await ready(page)
   assert.equal((await snapshot(page)).library.revision, 0, '只允許本次全新 profile，不清空既有資料')
-  if (mode === '--chunk-write') {
+  if (mode === '--recovery-frame') {
+    // 沿用同一套自有程序／鎖；只驗新守門失敗分支，不重跑既有三套中斷情境。
+    assert.deepEqual(readFileSync(join(dist, 'main.js')), readFileSync(join(root, 'web/main.js')), '必須測本次真正影格守門程式')
+    evidence.frameScenarioSha256 = hash(readFileSync(join(import.meta.dir, 'recovery-frame-guard.ts')))
+    await recoveryFrameGuard({ page, origin, root, run, evidence, event, ready })
+    assert.equal(mediaCalls, 0); evidence.blockedMediaCalls = mediaCalls
+  } else if (mode === '--chunk-write') {
     assert.deepEqual(readFileSync(join(dist, 'storage.js')), readFileSync(join(root, 'web/storage.js')), '必須測真正產品儲存模組')
     evidence.chunkScenarioSha256 = hash(readFileSync(join(import.meta.dir, 'chunk-write-restart.ts')))
     await chunkWriteRestart({ page, origin, root, run, evidence, event, launch, stop, ready })

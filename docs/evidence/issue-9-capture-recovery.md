@@ -208,3 +208,23 @@ PR #55 的 Safari、#56 的 v1 備份、#57 的隨包主機及 #58 的整合交�
 保留的先前失敗包括：三次 EEXIST 原子取鎖拒絕（未啟動瀏覽器）；首塊不可播放卻被測試誤假定可恢復的斷言失敗；新增負向 take 後未重載 UI 的前置錯誤；完整負向輪真正重現檔頭誤存 ready；修正版啟動時 DevTools 檔案先出現而 port 尚未寫完的前置失敗。最後一項只補原 launch 等有效 port 的條件，並以執行真正 launch 的空檔→有效內容單元回歸保護；失敗群組均已確認退出。初次 Bun 子程序 PATH／缺建置拒絕及受限環境本機監聽失敗也保留，未改測試門檻換綠燈。
 
 本輪補 #9／#13 的 chunks 程序中斷與一個確切恢復缺陷；keep-alive 是明示的交易時序控制，檔頭負向是新建前置資料，均不是 Safari 自然故障。未驗證提交瞬間、斷電、Safari／私人模式、真人相機／麥克風／LED、實體飛航／跨裝置、人工聽感、讀屏／五人操作或整體 P0；iPhone 仍暫緩。重要工程仍待 Claude Code 或使用者最終審查，#9／#13 保持開啟；未合併、部署或發布。
+
+### 5a90f35 新影格守門的失敗分支補驗
+
+PR #87 review 指定只補新守門的失敗接線。原 `take-open-failure.js` 的 Stop 是暫扣 loadeddata；`mediaAction.test.ts` 的 play 拒絕／取消覆蓋共用 helper，沒有走本次 `openTakeUnlocked` beforeCommit 的新 AbortController＋presentedFrame／play／finally。因而新增原程序工具的 `--recovery-frame` 選項與 `recovery-frame-guard.ts`，直接跑三個有界案例；**沒有在本機重跑 chunk-write、default、pending-write 三套中斷**，其成功 raw 保持上節 `5a90f35` 原 runner 指紋。
+
+受測產品是乾淨已交付 `5a90f357cd979765c01b5c4bced1d27b614b49ec` 的 bytes，靜態仍 **`7c728c8a5bd7fa2f`**；測試工具是新工作樹，沒有新增產品修正。Chrome 156.0.8078.76 headless／專用 profile／自有動態 origin，原工具原子取鎖，禁止所有相機／麥克風／畫面擷取，blockedMediaCalls=0。原合成來源只複製 4 秒短段，**113,521 bytes**／SHA256 `b711bb2b4d67c9c9602057e0f91cb64d8dd5675802627b7ec0838f55e35e5e5c`；每個候選由產品 `saveChunk` 分兩塊真正提交，前置 take 已標 interrupted，避免把狀態初始化寫入混成取消後變動。舊老師片／自己片、真 UI 產生的 VS、非空標記與不同的配方先保存。
+
+- **loadeddata 之後實點 Stop**：只延遲送達真正原生 `requestVideoFrameCallback` 結果，同一份 now／metadata 保留，不偽造影格或 duration。barrier 已收到 trusted loadeddata、真 play Promise 已完成，原生結果為 mediaTime=0／presentedFrames=1；產品仍忙碌，原訊號與等待訊號均未 aborted，守門有 2 個關注的 abort 監聽、1 個原 15 秒計時器，另一分頁拿不到 take 鎖。實點 Stop 後原訊號／等待訊號都 aborted，callback 已 cancel、timer 1 次建立／1 次 clear／0 次執行，相關 listener／timer 均 0。候選 URL 撤銷，舊播放器、原片／VS 下載 URL、時間與鏡像／offset 設定相同；完整 native／產品 JSON、revision、media／chunks keys 與所有 bytes 精確不變。
+- **遲到原生結果**：工作已退出忙碌且 take 鎖可取得後，再將暫扣的同一份原生參數真正送入產品 callback 一次。沒有新訂閱／計時器／提交，整份快照與完整 bytes 仍等於停止前；不是正常播放完成來冒充取消。
+- **缺影格能力**：只在自有候選元素受控移除 `requestVideoFrameCallback`，走產品新增的明示拒絕訊息。frame 註冊／播放／守門 timer 均 0，原操作訊號未 aborted，沒有建立等待訊號；候選 URL 撤銷、listener／timer 0，所有舊資料、兩塊 chunks、舊畫面與下載／配方精確保留。這是能力注入，不是 Safari 實測。
+- **play 拒絕**：只將自有候選的 play 改為明示 `NotAllowedError` Promise 拒絕，沒有偽造媒體事件。原操作訊號未 aborted、等待訊號由 finally aborted；frame 被 cancel，timer 1 次建立／1 次 clear／0 次執行，相關 listener／timer 0，候選 URL 釋放。完整快照與舊 UI 保留，沒有 media ready 或 chunks 清理。
+- **同輸入重試**：每個分支移除自己的控制後，以同一 asset／chunks 正常重試；原生 callback 真正送達，完整 113,521 bytes 保存到 media，take 仍 interrupted，只清目標的兩塊。舊影片／筆記／VS／配方，以及所有非目標 take／asset 全欄位保持；每次重試的 bytes 都與原 fixture 直接逐 byte 相同，守門 listener／timer 收尾均 0。
+
+獨立核對 **78 份**完整二進位快照，失敗前後及遲到通知後另有 **33 組直接逐 byte 比較**；兩次有界原生執行合計 **24 個已知自有 PID／2 群組**均退出，兩個精確 profiles 無 Chrome、自有 origin 埠拒絕連線，原 nonce 放鎖。首次三案例也通過；其後補充純資料 audit 對非目標 asset 的檢查，指出前置 fixture 把「只有 chunks、尚無 media」的 storageKind 寫成 indexeddb，正常保存會沿 `readLibrary` 投影正規化成 external。該前置差異與 audit 失敗保留；修正 fixture 為正確 external 並新增非目標 take／asset 全欄位斷言後，同入口三案及獨立 audit 全過，**沒有修改產品或降低門檻**。
+
+新 runner SHA256 `263155ae73e41925f201e244ed7e3432d892556895e772d63729190562dbda29`；情境模組 `4072da8335312c32da7669733a4e4d43bcac476ec56af1585d0f42f545be9fb3`；正向 raw `495a78dafdab8843ce1b33ae8ba8c6d60a69d4b6ea8f80863c9a60321e7e3039`；獨立 bytes／收尾 audit `cc813c44c8c092d24800b604e9a1bfcad30e24a233b80bf252c4a10824f2aad7`。原始資料只留 ignored output，未公開媒體或識別。原 check／hooks 與本次新 head CI 另由同一 PR 綁定；既有 Linux job 仍只跑原 default，不冒稱 Linux 已驗本新增三分支。
+
+本次原 `bun run check` 為 **436 pass／2,048 expects／0 fail**，公開掃描 **240 檔**，harness／文件連結、型別、lint 與原 build 全過，原 19 項 lint info 保留；提交仍執行原 hooks。
+
+本次只補守門接線與資料保全，沒有自然卡頓、Safari／私人模式、真人／裝置、背景／來電或整體 P0 證據；不新增合併、發布或關票授權，#9／#13 仍開啟。
