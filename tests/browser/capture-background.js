@@ -1,4 +1,5 @@
 /* 檔案用途：驗證真正切分頁時相機停止及中斷原片保留。所在層：桌面合成媒體 gate。主要關聯：launch-native-browser.ts、issue-9-capture-recovery.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page, downloadDirectory) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   assert(typeof downloadDirectory === 'string' && downloadDirectory.startsWith('/'), '請透過專用 launcher 建立本輪下載目錄');
@@ -40,10 +41,10 @@ async (page, downloadDirectory) => {
   const baseline = await snapshot(original.id);
   assert(baseline.bytes > 0 && baseline.sha256, '缺少已保存舊片基準');
   const prepare = async () => {
-    await page.locator('#new-take').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
     await page.locator('#start').fill('0'); await page.locator('#end').fill('15');
-    await page.locator('#rate').selectOption('1'); await page.locator('#countdown').selectOption('3');
-    await page.locator('#camera').click(); await idle();
+    await page.locator('#rate').selectOption('1'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#countdown').selectOption('3');
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     assert(await page.locator('#preview').evaluate(v => !!v.srcObject && v.srcObject.getTracks().every(t => t.readyState === 'live') && v.srcObject.getAudioTracks().length === 0), '合成相機沒有真正開始預覽');
   };
   const background = async phase => {

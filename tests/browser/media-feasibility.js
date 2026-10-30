@@ -1,4 +1,5 @@
 /* 用途：以產品操作驗證 #3 長錄影與成檔。所在層：瀏覽器驗收。關聯：run-media-feasibility.py、analyze-media.py。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page, options) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const { phase, baseUrl, seconds, rate, name } = options;
@@ -83,7 +84,7 @@ async (page, options) => {
     await page.locator('#start').fill('0');
     await page.locator('#end').fill(String(seconds * rate));
     await page.locator('#rate').selectOption(String(rate));
-    await page.locator('#camera').click();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click();
     await page.waitForFunction(() => !document.getElementById('capture').disabled);
     await page.locator('#capture').click();
     return { started: true, seconds, rate };
