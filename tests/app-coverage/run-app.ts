@@ -188,7 +188,17 @@ try {
       } else {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
-        if (name === 'capture-integrity') {
+        if (name === 'move-draft') {
+          const prepared = await scenario(page)
+          assert.equal(prepared.beforeUnloadPrepared, true, '動作草稿尚未備妥真正離頁驗證')
+          // 草稿預備不代表離頁保護已驗證；真正導航、拒絕原生提示後才執行既有回查階段。
+          const asking = page.waitForEvent('dialog')
+          const leaving = page.goto('about:blank').then(() => ({ resolved: true }), error => ({ resolved: false, error: String(error) }))
+          const dialog = await asking, type = dialog.type(); await dialog.dismiss()
+          assert.equal(type, 'beforeunload', '沒有真正的離頁確認提示')
+          const navigationAttempt = await leaving
+          result = { ...prepared, ...await scenario(page, 'verify-navigation'), nativeDialogType: type, navigationAttempt }
+        } else if (name === 'capture-integrity') {
           // 早停、真短 bytes、同頁重試與救援刪除共用原生回歸；不能以派發 error 事件替代。
           assert(await page.evaluate(() => (window as any).__danceSyntheticCameraOnly === true), '只允許既有合成相機')
           mkdirSync(resolve(media, 'media-feasibility'), { recursive: true })
