@@ -24,6 +24,8 @@ jobs:
       # 固定開發工具與完整性，禁止安裝腳本；與本機使用同一品質入口。
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run check
+      # 保留原單元入口與統計範圍；低覆蓋率模組仍列入報表，不用忽略規則湊數字。
+      - run: bun run test:coverage
       # 只驗證白名單下載包，不部署或上傳發行檔；發布仍需人工決策。
       - run: bun run package:web && bun run check:package
   linux-install-restart:
