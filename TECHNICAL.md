@@ -127,6 +127,10 @@ flowchart LR
 
 ## 6. 離線、發佈與安全
 
+#94 本機即時更新：`bun run dev` 明確啟用 loopback 的 `--watch` 主機，沿用原建置並監看 `web`／必要建置檔；同一時間只跑一份建置，成功後才公布新版本。開發腳本每秒只讀版本，閒置自動重載；有輸入、原片／串流、輸出或忙碌操作時保留工作，改由保存後的按鈕重載。失敗不換版本，保留上一個成功頁面。
+
+開發 HTML 才注入外部腳本與標記；`offline.js` 只在 loopback 且有該標記時跳過正式 SW。原 SW 等舊頁結束後由開發替身自行 unregister，不 skipWaiting、不清 cache／IndexedDB；因此已有離線頁第一次切到開發模式須關閉再開。下載包、Cloudflare 與一般 `serve-web.ts` 沒有開發路由，離線驗收仍用一般主機。排除額外框架／WebSocket 依賴及熱替換媒體全域狀態，以免丟失只在本次頁面存在的 File；整合回歸以自有原始碼副本實際改檔，驗證草稿／原片保留與失敗恢復。
+
 2026-10-30 PR #90 預覽修正：`wrangler.jsonc` 明確指定先執行既有 `bun run build`，再上傳 `dist/web`，沿用已存在 Worker 的相容日期。未宣告入口時 `versions upload --dry-run` 會直接失敗，而 `deploy` 自動偵測可能把 `web` 當成靜態目錄，漏掉 SW manifest、授權與 `_headers`。排除依賴自動偵測、把整個 repo 當 assets、新增 Worker 後端或雲端媒體服務；此設定只提供靜態資源入口，正式版本切換仍需另行授權。PR 測試使用既有 version URL，與正式站分開驗證。
 
 同票補充：使用者提供的建置日誌確認 Cloudflare 自動流程實際使用 `npx wrangler preview`（Wrangler 4.156.0），建置已成功，失敗點是缺少 `previews` 區塊；因此加入空的 `previews`，讓預覽繼承頂層 assets／相容設定，不改 dashboard 或正式 deploy 命令。手動 `versions upload` 成功不能代替自動 Preview 流程成功，兩者結果分開核對。

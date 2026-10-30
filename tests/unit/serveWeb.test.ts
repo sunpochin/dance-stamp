@@ -33,7 +33,8 @@ test('獨立包的 HTTP 白名單保留正常回應；啟動後的檔案／父�
     }
     const head = await fetch(url + '/main.js', { method: 'HEAD' })
     expect(head.status).toBe(200); expect(await head.text()).toBe('')
-    for (const path of ['/sentinel.txt', '/.git/config', '/release.json', '/_headers', '/test-reference.mp4']) expect((await fetch(url + path)).status).toBe(404)
+    // 正常主機與下載包不能意外提供本機開發控制。
+    for (const path of ['/sentinel.txt', '/.git/config', '/release.json', '/_headers', '/test-reference.mp4', '/__dev/revision', '/__dev/reload.js']) expect((await fetch(url + path)).status).toBe(404)
     for (const method of ['POST', 'PUT', 'DELETE']) expect((await fetch(url, { method })).status).toBe(404)
     const file = join(root, 'dist/web/main.js')
     // 啟動後才換連結，防止只在啟動時驗一次而留下後續讀檔缺口。
