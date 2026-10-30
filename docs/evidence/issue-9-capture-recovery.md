@@ -228,3 +228,39 @@ PR #87 review 指定只補新守門的失敗接線。原 `take-open-failure.js` 
 本次原 `bun run check` 為 **436 pass／2,048 expects／0 fail**，公開掃描 **240 檔**，harness／文件連結、型別、lint 與原 build 全過，原 19 項 lint info 保留；提交仍執行原 hooks。
 
 本次只補守門接線與資料保全，沒有自然卡頓、Safari／私人模式、真人／裝置、背景／來電或整體 P0 證據；不新增合併、發布或關票授權，#9／#13 仍開啟。
+
+## 2026-10-31 原生 Safari 恢復原片
+
+使用者已手動啟用 Safari 遠端自動化。本輪在專用 clone，以 macOS 27.0.1 arm64、Safari／safaridriver 27.0.1（22625.1.29.11.28）接續 #9。基線為乾淨 `d83755239bf145e9b79d50263208edfad83754e8`／靜態 `6f07212fe275ae3c`；沒有切換或改寫其他聊天的 checkout。
+
+### 真正缺陷與最小修正
+
+以既有產生器的合成 H.264／AAC 檔建立獨立 Blob chunks，明示這是恢復前置資料，不是真正錄影中斷、SIGKILL 或斷電。原生 Safari 的 UI 恢復成功後，take 為 interrupted、asset 為 ready、media 為 175,911 bytes，目標 chunks 已清空；但重新讀取新 media 的 `arrayBuffer()` 回 **NotFoundError**。同一輪舊示範 106,103 bytes／舊自己片 175,911 bytes 均仍可讀。只看當頁播放器、ready 或 Blob.size 會漏掉這個缺陷。
+
+修正集中在 `storage.recoverChunks`：沿用原片段順序／容器檢查，組合後先讀成獨立 ArrayBuffer，核對長度，再建立保留 MIME 的獨立 Blob。原本 finalize／revision 交易、影格確認及成功後才清 chunks 的順序不變；讀回失敗或長度不符就拒絕，片段仍在。這以一份完整原片的記憶體讀回換取 backing 資料獨立，不引入新儲存後端、UA 分支、重置或轉碼。沒有為取得綠燈放寬錄影片長斷言。
+
+### 同一入口的原生結果
+
+受測為上述基線上的修正工作樹，並非乾淨提交的原生重跑。候選靜態 **`45be4c18fbf4f56a`**；產品 `storage.js` SHA256 **`b14256f96279e73f4f5632d908a8713287c599d5073a8da45d725afe0912466b`**。`main.js` 未改，SHA256 `4f0124877c504346ca2225fb570f044dc1b9fe9664acd1f64b7a0815f57adada`。最後文件與提交不會把工作樹收據改標為 clean-head 實測。
+
+QA 沿用產品主機白名單及 CSP，僅在專用 loopback HTML 前載入禁止擷取的測試腳本，另收緊 Permissions-Policy，禁止 camera／microphone／display-capture。只由自製檔案建立 chunks，擷取嘗試為 0；恢復階段七次原生點擊的 isTrusted 均為 true。沒有相機、私人影片或日常 Safari 資料操作。
+
+| 案例 | 實際結果 |
+| --- | --- |
+| 有效兩塊 | 真正呈現影格後保存完整 175,911 bytes，逐 byte 等於原 fixture 與兩塊串接；take 仍 interrupted，只清自己的兩塊 |
+| 缺號 0／2 | 不建立成功 media，兩塊完整 bytes 與 keys 保留，狀態 interrupted |
+| 不可解碼兩塊 | 不建立成功 media，兩塊完整 bytes 保留，原播放器及下載 URL 不變 |
+| 真正重新載入頁面 | 所有原片／恢復片的完整 bytes、筆記、take／recipe／asset 與殘留 chunks 都與重開前相同 |
+
+另獨立核對 **10 階段、67 份完整二進位檔案**的大小、SHA256 及直接 bytes；所有舊 media 每階段都相同，缺號／壞片段保持原樣。恢復原片 SHA256 **`b7f6393b07df4761ee039d785b225a90e16481a7eb4a2f760a75949b95e7755a`**。由儲存 Blob 經 WebDriver 取回到磁碟，不冒稱 OS 下載成功。FFmpeg 全片解碼 exit 0、stderr 空；產品頁／主機停止後，原生 Safari 的 `file:` 播放器透過 trusted 點擊從 0 秒播到 ended，8.000 秒、180×320、error=0。這不是 720p、聲畫同步、喇叭實聽或完整錄影矩陣的通過證明。
+
+基線負向 raw SHA256 `2c7a373a0662bb100eb3636bd0b74573386114fad1399a04465a4cff2e81a396`；修正與重開 raw `fbc56f7eed4c771c716ff972e40e95b3f5f7f221042a943cd49569293a3fef1f`；獨立 bytes／播放 raw `bd693d38692b228c98e00e3623f62f9fec7d70b593718dff6d239e9541150d22`。每輪 driver／自有主機的已知程序群組均退出，確認後才按同 nonce 放鎖。raw、工具、完整二進位及合成媒體留本聊天固定副本的 ignored output，不進 Git 或公開附件。
+
+既有 `capture.js` 補上同一資料保全回歸：測試前置每塊使用獨立 Blob；成功清 chunks 後真正 reload，讀回舊原片及恢復片並比較全部 bytes。此處原生 Safari 使用上述專用 WebDriver 入口，沒有冒稱已執行完整 Chrome `capture.js` 或其他平台矩陣。原 `bun run check`／提交 hooks 的最終結果由本 PR 綁定。
+
+### 保留的失敗與未驗證
+
+- 前輪對話曾觀察 Canvas 1×／15 秒保存與離站播放成功；半速／15 秒為 15.140／15.113333 秒，超過既有 ±100ms 斷言，九案矩陣在第一案停止。原暫存目錄現已不存在，這些數據只保留為前輪觀察，不能重新核對 raw 或當成本次整體通過。此次儲存修正沒有重跑或修好該時序問題，也不由此推定 G2 同步失敗的根因。
+- 前輪未證實相機替身的首案排除；先前外部 HTML 播放前置逾時、誤讀上一個 recorder 的 QA 時序、未完成恢復檢查的 selector 失敗均不算產品通過。本輪等待 option 的引號錯誤及檔案播放器自動播放搶先起播也保留，未降低最終斷言。
+- Safari 對持久化 `Blob.slice` 的診斷曾出現 size 10／11 卻讀回 21 bytes，以及半片卻讀回母片；FileReader 與 arrayBuffer 都曾出現，沒有把這個獨立切片問題宣稱已修好。最終前置是逐塊獨立 bytes 的 Blob，貼近 MediaRecorder 的輸出形態；其清理後的新 media NotFoundError 才是本次修正目標。
+- 真實相機／LED、鎖屏／來電、Safari 私人模式、完整速度／時長與十輪 capture→export、真機 G1／錄影 G6、人工最終審查仍未驗收。iPhone 繼續暫緩；不啟動 iOS、不關閉 #9、不合併或發布。

@@ -150,7 +150,11 @@ export async function saveChunk(id, index, blob) {
 export async function recoverChunks(id) {
   const db = await openStore(), store = db.transaction('chunks').objectStore('chunks'), range = IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER]);
   const [chunks, keys] = await Promise.all([request(store.getAll(range)), request(store.getAllKeys(range))]);
-  return assembleChunks(chunks.map((blob, index) => ({ index: Array.isArray(keys[index]) && keys[index].length === 2 ? Number(keys[index][1]) : -1, blob })));
+  const blob = assembleChunks(chunks.map((blob, index) => ({ index: Array.isArray(keys[index]) && keys[index].length === 2 ? Number(keys[index][1]) : -1, blob })));
+  // Safari 可能讓組合 Blob 仍共用 chunks 的底層檔案；先取得獨立 bytes，清 chunks 才不會連新原片一起失效。
+  const bytes = await blob.arrayBuffer();
+  if (bytes.byteLength !== blob.size) throw new Error('錄影片段讀回長度不符；原片段仍保留，請重試。');
+  return new Blob([bytes], { type: blob.type });
 }
 /** @param {string} id */
 export async function clearChunks(id) {
