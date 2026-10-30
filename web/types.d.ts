@@ -156,6 +156,13 @@ export interface Elements {
   "intersection": HTMLParagraphElement;
   "play": HTMLButtonElement;
   "export": HTMLButtonElement;
+  // 疊影共用來源與控制流程，獨立畫布避免把透明度寫進 VS 輸出。
+  "overlay-canvas": HTMLCanvasElement;
+  "overlay-opacity": HTMLInputElement;
+  "overlay-opacity-value": HTMLOutputElement;
+  "overlay-empty": HTMLParagraphElement;
+  "overlay-play": HTMLButtonElement;
+  "overlay-pause": HTMLButtonElement;
   "canvas": HTMLCanvasElement;
   "progress": HTMLProgressElement;
   "take-download": HTMLAnchorElement;
