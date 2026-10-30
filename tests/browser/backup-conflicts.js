@@ -1,4 +1,5 @@
 /* 檔案用途：驗證備份預覽、衝突副本、取消及原子失敗。所在層：隔離 Web 資料驗收。主要關聯：backup-recovery.js、library.js、storage.js。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, outside = [];
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -23,6 +24,7 @@ async (page) => {
   await page.locator('#export').click(); await idle();
   assert((await page.locator('#status').textContent()).includes('已成檔'), '沒有產生供完整還原的 VS');
   const outputDownload = page.waitForEvent('download'); await page.locator('#output-download').click(); await (await outputDownload).saveAs('output/media-probe/backup12-generated-vs.mp4');
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   const backupDownload = page.waitForEvent('download'); await page.locator('#backup').click(); await (await backupDownload).saveAs('output/media-probe/backup12-original.json'); await idle();
   const original = await snapshot(), originalSources = await sources();
   const canonical = await page.evaluate(async () => (await import('/library.js')).validateBackup((await (await import('/storage.js')).readLibrary()).data));

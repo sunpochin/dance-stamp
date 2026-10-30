@@ -1,4 +1,5 @@
 /* 檔案用途：以合成素材驗證選定分享、隔離接收、原子失敗與逐側重連。所在層：Web 檔案流程驗收。主要關聯：library.js、main.js、issue-18-sharing.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, outside = [], errors = [];
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -28,7 +29,7 @@ async (page) => {
   });
   await page.reload(); await idle(page);
   const original = await snapshot(page), pick = (table, id) => page.locator(`#share-items input[data-table="${table}"][value="${id}"]`);
-  const open = async () => { await page.locator('#share-notes').click(); await idle(page); };
+  const open = async () => { await page.locator('#note-tools').evaluate(d => { d.open = true; }); await page.locator('#share-notes').click(); await idle(page); };
   const preview = async () => { await page.locator('#share-preview').click(); await idle(page); return JSON.parse(await page.locator('#share-content').textContent()); };
   await open(); assert(await page.locator('#share-items input:checked').count() === 0 && await page.locator('#share-fields input:checked').count() === 0, '分享預設暴露內容');
   assert(await page.evaluate(() => document.activeElement.id === 'share-cancel' && document.getElementById('share-dialog').matches(':modal')), '分享 modal 沒有預設關閉焦點');
@@ -110,7 +111,7 @@ async (page) => {
     await receiver.locator('#scrub').fill('1'); await receiver.locator('#scrub').dispatchEvent('change'); await idle(receiver);
     assert(await receiver.evaluate(()=>Math.abs(document.getElementById('reference').currentTime-2)<.05 && Math.abs(document.getElementById('self').currentTime-1.5)<.05),'重連後時間映射錯誤');
     assert(!await receiver.evaluate(()=>window.shareXss || document.querySelector('#markers img')), '筆記執行 HTML');
-    const backupDownload=receiver.waitForEvent('download'); await receiver.locator('#backup').click(); await (await backupDownload).saveAs('output/share18/receiver-backup.dance-stamp.json'); await idle(receiver);
+    await receiver.locator('#note-tools').evaluate(d => { d.open = true; }); const backupDownload=receiver.waitForEvent('download'); await receiver.locator('#backup').click(); await (await backupDownload).saveAs('output/share18/receiver-backup.dance-stamp.json'); await idle(receiver);
     const recoveredContext = await page.context().browser().newContext(); await recoveredContext.addInitScript(init);
     try {
       const recovered = await recoveredContext.newPage(); watch(recovered); await recovered.goto(origin); await idle(recovered);

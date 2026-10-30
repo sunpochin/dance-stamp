@@ -11,6 +11,7 @@ async (controller) => {
     const library = () => page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
     const button = page.getByRole('button', { name: '選擇硬碟影片（MOV／MP4 等）', exact: true });
     assert(await page.locator('#library option').count() === 1, '測試必須從空筆記庫開始');
+    assert(await button.isVisible() && !await page.locator('#backup').isVisible() && !await page.locator('#restore').isVisible(), '開始練習時未區分選片與次要筆記工具');
     const select = async (file, keyboard = false) => {
       const waiting = page.waitForEvent('filechooser');
       if (keyboard) { await button.focus(); await page.keyboard.press('Enter'); } else await button.click();
@@ -22,7 +23,7 @@ async (controller) => {
       const accept = (await page.locator('#' + id).getAttribute('accept')).split(',');
       for (const type of ['.mov', '.mp4', '.m4v', '.webm', '.mkv', 'video/*']) assert(accept.includes(type), id + ' 沒有明列 ' + type);
     }
-    assert(await page.getByLabel('匯入筆記 JSON（分享／備份）', { exact: true }).getAttribute('accept') === '.json,application/json', '筆記匯入失去 JSON 篩選');
+    assert(await page.locator('#restore').getAttribute('accept') === '.json,application/json', '筆記匯入失去 JSON 篩選');
     const played = [];
     for (const [file, keyboard] of [['output/media-probe/reference.mp4', false], ['output/media-probe/player/sample.mov', true]]) {
       await select(file, keyboard);
@@ -45,6 +46,17 @@ async (controller) => {
     await select('output/media-probe/player/sample.mov');
     assert((await page.locator('#status').textContent()).startsWith('老師示範已載入'), '壞檔後無法重新選片');
     const saved = JSON.parse(await library());
+    // 備份工具必須能由鍵盤展開，影片選取則不需要先打開這個區塊。
+    await page.locator('#note-tools > summary').focus(); await page.keyboard.press('Enter');
+    assert(await page.getByLabel('匯入筆記 JSON（分享／備份）', { exact: true }).isVisible(), '展開筆記工具後仍找不到匯入');
+    const downloading = page.waitForEvent('download'); await page.locator('#backup').click(); await downloading; await idle();
+    await page.locator('#share-notes').click(); await idle();
+    assert(await page.locator('#share-dialog').isVisible(), '次要工具無法開啟分享');
+    await page.locator('#share-cancel').click();
+    await page.locator('#delete-video').click(); await idle();
+    assert(await page.locator('#delete-dialog').isVisible(), '次要工具無法預覽刪除');
+    await page.locator('#delete-cancel').click();
+    assert(await library() === JSON.stringify(saved), '預覽或取消次要工具改掉資料');
     await page.locator('#restore').setInputFiles({ name: 'synthetic-picker-notes.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
     await idle(); await page.locator('#import-dialog').waitFor({ state: 'visible' });
     await page.locator('#import-confirm').click(); await idle();
@@ -60,6 +72,6 @@ async (controller) => {
     assert(JSON.parse(await library()).videos.length === saved.videos.length, '重連誤建新筆記');
     await page.setViewportSize({ width: 320, height: 800 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '選片按鈕撐出窄版頁面');
-    return { played, mouseAndKeyboardOpenVideoPicker: true, allVideoInputsListExtensions: true, cancelAndCorruptPreserveSourceAndNotes: true, retryWorks: true, jsonReimportPreserved: true, relinkStillNeedsConfirmation: true, narrowLayoutFits: true, nativeOSDialogNotVerified: true };
+    return { played, mouseAndKeyboardOpenVideoPicker: true, secondaryToolsCollapsedAndKeyboardAccessible: true, backupShareAndDeleteAccessible: true, allVideoInputsListExtensions: true, cancelAndCorruptPreserveSourceAndNotes: true, retryWorks: true, jsonReimportPreserved: true, relinkStillNeedsConfirmation: true, narrowLayoutFits: true, nativeOSDialogNotVerified: true };
   } finally { await context.close(); }
 }

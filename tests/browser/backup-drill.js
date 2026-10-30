@@ -1,4 +1,5 @@
 /* 檔案用途：以三影片、十標記、兩 take 與一 VS 完成清除後恢復及逐檔缺片演練。所在層：隔離瀏覽器驗收。主要關聯：ACCEPTANCE.md、backup-recovery.js。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, browser = page.context().browser();
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -50,6 +51,7 @@ async (page) => {
     const data = await snapshot(current);
     assert(data.videos.length === 3 && data.markers.length === 10 && data.takes.length === 2 && data.recipes.length === 2 && data.exports.length === 1 && data.assets.length === 6, '恢復素材數量不符合驗收');
     const backupPath = 'output/backup-drill/notes.dance-stamp.json';
+    await current.locator('#note-tools').evaluate(d => { d.open = true; });
     await save(current, () => current.locator('#backup').click(), backupPath);
     const inventory = current.locator('#media-inventory'); await inventory.evaluate(el => { el.open = true; });
     for (const [index, asset] of data.assets.entries()) {

@@ -16,14 +16,20 @@
   </header>
   <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選一支本機示範影片。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <details id="offline-panel"><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
-  <section id="library-panel"><h2>我的練舞影片</h2><p id="storage-status" role="status">正在開啟本機筆記…</p>
+  <section id="library-panel"><h2>影片與練習筆記</h2><p>影片用來播放；筆記記錄你練習的位置與心得。</p><p id="storage-status" role="status">正在開啟本機筆記…</p>
     <!-- 影片與 JSON 是不同入口；空筆記庫也要能直接選片，避免誤用備份篩選而看見灰色影片。 -->
     <button type="button" id="select-video" class="primary">選擇硬碟影片（MOV／MP4 等）</button>
-    <p class="hint">新增影片請用上方選片按鈕；重連舊片請先開啟已保存的筆記，再選影片。下方匯入只接受筆記 JSON。</p>
+    <p class="hint">先選老師示範影片開始。影片只在本次開啟，不會自動上傳或另存副本。</p>
+    <h3>繼續之前的練習</h3>
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
-    <div class="actions"><button type="button" id="open-library">開啟筆記／重連影片</button><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入筆記 JSON（分享／備份）<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
-    <p class="hint">備份 JSON 只有筆記及配方，不含影片；示範、自拍和 VS 請另外保存。</p>
-    <p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p>
+    <button type="button" id="open-library">開啟筆記</button>
+    <p class="hint">這裡列的是你做過的筆記。重開時若找不到影片，會請你從硬碟重新選取，再預覽確認。</p>
+    <!-- 日常選片不需要理解備份格式；次要工具用原生 details 收起，保留鍵盤操作。 -->
+    <details id="note-tools"><summary>備份、分享與管理筆記</summary>
+      <p>筆記檔只含文字、時間標記和對齊設定，不含影片。搬到另一台裝置時，請帶走筆記備份，也另外帶走老師原片、自己的原片與合成影片。</p>
+      <div class="actions"><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入筆記 JSON（分享／備份）<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
+      <details><summary>使用舊版備份時的注意事項</summary><p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p></details>
+    </details>
     <details><summary>分類搜尋與動作庫</summary>
       <p>先開啟課程填寫老師、舞風和日期，再把各課程的標記連到同一動作。狀態由你決定，錄影次數不會自動改成「會了」。</p>
       <div class="settings"><label>搜尋關鍵字<input id="library-keyword" type="search" maxlength="500" placeholder="動作、標題或筆記"></label><label>搜尋舞風<input id="library-style" maxlength="200"></label><label>搜尋老師<input id="library-teacher" maxlength="200"></label><label>課程日期從<input id="library-from" type="date"></label><label>課程日期到<input id="library-to" type="date"></label><label>搜尋練習狀態<select id="library-status"><option value="">全部</option><option value="wanted">想練</option><option value="practicing">練習中</option><option value="learned">會了</option></select></label></div>
@@ -32,7 +38,7 @@
       <h3>動作與練習歷史</h3><p class="hint">歷史列出與動作片段重疊的 take；編輯片段範圍或解除關聯會改變此清單，原 take 與比較配方保留。</p><ul id="move-results"></ul>
       <form id="move-form"><h3>新增／編輯動作</h3><label>動作名稱<input id="move-name" maxlength="500" required></label><label>動作舞風<input id="move-style" maxlength="200"></label><label>手動練習狀態<select id="move-status"><option value="wanted">想練</option><option value="practicing">練習中</option><option value="learned">會了</option></select></label><button type="submit">儲存動作</button><button id="cancel-move" type="button">取消動作編輯</button></form>
     </details>
-    <details id="media-inventory"><summary>影片保存清單（JSON 不含影片）</summary><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
+    <details id="media-inventory"><summary>影片副本與重新連結</summary><p>查看哪些影片已存副本、哪些需要從硬碟重新選取，也能另外下載影片檔。</p><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
   <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
     <h2 id="storage-recovery-title">保存狀態未確認</h2>

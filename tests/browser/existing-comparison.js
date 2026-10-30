@@ -1,4 +1,5 @@
 /* 檔案用途：驗證不用相機的既有影片比較、成檔與備份重連。所在層：桌面瀏覽器回歸。主要關聯：main.js、RECORD_COMPARE.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, checks = {};
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -57,6 +58,7 @@ async (page) => {
   assert(await page.locator('#output-download').getAttribute('href') === outputHref, '壞檔破壞舊輸出');
   await change('offset', '100'); assert(await page.locator('#export').isDisabled(), '空交集允許匯出');
   await change('offset', '4');
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   const backing = page.waitForEvent('download'); await page.locator('#backup').click();
   const backup = await backing; await backup.saveAs('output/media-probe/existing-backup.json');
   await page.reload(); await idle();
