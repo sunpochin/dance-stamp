@@ -1,5 +1,5 @@
-<!-- 檔案用途：記錄 VS 分享、保存尾段、刪除及啟動拒絕的資料保全與覆蓋率續補。所在層：匿名工程證據。主要關聯：tests/browser/vs-share.js、vs-save-tail.js、vs-live-delete.js、storage-startup-failure.js、tests/app-coverage/run-app.ts、TECHNICAL.md 第 8 節、issue #103。 -->
-# #103：VS 分享、保存與刪除後的資料保全
+<!-- 檔案用途：記錄 VS 保全、啟動拒絕及原生權限／播放邊界的覆蓋率續補。所在層：匿名工程證據。主要關聯：tests/browser/vs-share.js、vs-save-tail.js、vs-live-delete.js、storage-startup-failure.js、tests/app-coverage/run-app.ts、TECHNICAL.md 第 8 節、issue #103。 -->
+# #103：VS 保全與原生播放／權限回歸
 
 影片做好後，分享被取消或拒絕，都不應讓原片、VS 或筆記不見。這輪像先確認要交給郵差的包裹，再測試「郵差不收、取消寄送、再寄一次」；最後把留在桌上的包裹再拿出來核對，確認仍是同一份。
 
@@ -118,3 +118,45 @@ macOS arm64／Bun1.4.4／隔離Chrome156.0.8078.76；`coverage/app-qqF87Y/run.js
 全部10份都在新隔離Chrome的file頁播到ended、error=0，1280×720、音訊有解碼；FFmpeg對所有影音軌完整解碼無錯誤診斷。9份尾段檔的原生播放器dropped=0；刪除後重做的檔案為1，保留實際結果，不改寫成全部零掉幀。這是合成短片的可播放性與指定分析，真人聽感、完整同步／穩定性、Safari及實體裝置仍另計。
 
 獨立播放收據SHA256：`2dac5ba5d2d9122081ed327fa9ab9eb74377dbe2891f4046b93535dccc68c610`；每檔指紋、播放器數據與9份原分析結果保留在本機`output/vs-protection-playback.local.json`。完整runner的browserClosed／serverStopped為true、lockRetained=false；獨立播放另確認自有已知Chrome PID集合退出，再核對nonce釋放自己的鎖。未使用他人測試程序或鎖來補收尾證據。
+
+
+## 原生相機拒絕與自然播完續補
+
+相機被擋住，不該連舊影片一起弄丟；解除限制後，仍要能再試。練習片自然播完時，也應回到 A 繼續；按停止後就保持停止。
+
+本輪繼續同票、同分支與 #114 前置，parent 為 `aa268aacfc484c4fcc067f6837fac4254c7af04c`。新增兩份瀏覽器案例及完整入口接線，44→46 項；九份產品 JS、HTML／CSS、CSP、儲存格式與發布設定仍和 c351637 前置相同。沒有為覆蓋率修改產品、注入假 ended 或改播放時鐘。
+
+- `camera-policy-denial`：只在獨立測試 context 的首頁回應加 `camera=()`，由真正的 getUserMedia 拒絕兩次。核對原生 DOMException／NotAllowedError、trusted 點按、零串流、可理解提示、原片 URL、完整 library／revision 及每份影片 SHA-256。移除測試標頭後重開，資料仍相等；重新從保存筆記開片後，真正的合成裝置可預覽、沒有音軌，停止釋放全部 tracks，資料維持相等。該 context 停用 SW 是為了不混入快取舊政策，產品 SW 沒有修改；真正 OS 權限視窗與硬體仍未驗。
+- `practice-natural-end`：使用既有三秒合成 MOV，A=0.4、B=原片 duration、練習速度2。真正播放到尾端至少兩次，核對 trusted ended、尾端位置、回 A 後的原生 playing；不另訂閱影格，只觀察產品自己的 callback。停止時 pending=0、同時最多一個 callback，再等過下一輪應播完的時間，確認沒有晚到工作自行重啟，library 前後相等。
+
+重跑沿用現有入口：
+
+```sh
+bun --no-env-file tests/app-coverage/run-app.ts camera-policy-denial practice-natural-end
+bun run test:coverage:app
+bun run check
+```
+
+首輪單項 `coverage/app-KoVZaO` 失敗：重開筆記按鈕 selector 用錯名稱；結尾觀察器又在產品 handler 回捲後才讀時間。改用現有 `open-library`，並在 capture 階段先記原生尾端，再交給產品 handler；原本的原生結尾、B 點、回 A、停止與資料保全斷言全部保留，產品未改。失敗收據保留，不混入成功計數。
+
+修正後單項 `coverage/app-HIzruY` 通過兩項、0 page errors，browserClosed／serverStopped=true，lockRetained=false；兩次原生拒絕、解除後一條無音軌合成串流，兩次原生 ended 均 at=3／ended=true，回 A 的 playing 約0.400秒、所有觀察事件 trusted；最大 callback=1，停止後 pending=0。
+
+### 同輪完整46項結果（2026-10-31）
+
+`coverage/app-24OJcY/run.json` 為 **passed，46/46，0 page errors**，211次導覽前快照；macOS arm64、Bun 1.4.4、隔離 Headless Chrome 156.0.8078.76。來源 parent 為 `aa268aacfc484c4fcc067f6837fac4254c7af04c`、trackedChanges=true；這是提交前完整輪，並非乾淨最終 head 重跑。
+
+| 同輪、同九檔分母 | 行數 | 函式 | 分支 |
+| --- | --- | --- | --- |
+| 單元／VM 基準 | 758/2,010（37.71%） | 276/674（40.94%） | 811/2,163（37.49%） |
+| 完整46項 | 1,999/2,010（99.45%） | 647/674（95.99%） | 1,877/2,163（86.77%） |
+
+對照前一完整44項，增加3行、1函式與6分支；各完整輪獨立計算，沒有混加。main.js 行數99.1%、函式94.53%、分支81.14%；尚有11行未覆蓋：`555,587,588,616,617,618,980,981,1613,1622,1635`。其餘8檔行數100%，函式／分支仍有缺漏，#103保持開啟。
+
+- runner SHA-256：`53fd39a7e8e41b713c9014306549ffc201a24a36177729161a315db59adeee67`。
+- 相機政策案例 SHA-256：`54b16969c398f30e3d70b024a3fa5aa6c4fe0c9f77d6e186a7b65c52ac684060`。
+- 自然播完案例 SHA-256：`adeebd4cb42a650c9bc95ddf693f1b67187cda47cb5395ed770449637af82e57`。
+- 完整 run 收據 SHA-256：`28c0f06b6d71f7f75fefaf46cf445cdf39dbc51c35e8bcb02aebfd13e0781b22`。
+- 新兩項在完整輪亦通過，原生錯誤／結尾與資料保全斷言保留；收尾 browserClosed／serverStopped=true、lockRetained=false。
+- 正常 `bun run check`：645 tests／3,160 expects／0 fail，型別、公開掃描、lint、build完成，19項既有lint info；最終正常hook與精確head CI另記PR。
+
+本輪不新增媒體編碼或產品外傳能力；前次10份下載的離站播放仍綁原收據，不能換標成這輪輸出的獨立驗收。原生Safari、硬體相機／OS權限視窗、真人、實體裝置與完整G1–G7仍各自保留，iPhone暫緩。#114仍保持 c351637 開啟待審查，本輪不合併或正式發布。
