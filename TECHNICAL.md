@@ -324,6 +324,18 @@ PR #84 的獨立續審另重現新 QA runner 的兩個收尾缺陷：launch 已�
 
 更新保留原生等待生命週期，不呼叫 skipWaiting、clients.claim，也不因 controllerchange 重載。顯示新版待用，要求先另存工作及原片、關閉所有本站舊分頁後再開啟。只有 activate 清理本產品舊的公開 cache，不碰 IndexedDB 或其他 cache 名稱。首次在線備妥並重開受控制頁面後才可離線重開；影片需已有副本，或重新選取本機原檔。瀏覽器清除／回收仍可能使應用與媒體分別缺少，重新檢查會報不完整，不承諾永久離線或首次離線開站。生命週期依 [W3C Service Workers](https://www.w3.org/TR/service-workers/)；本節不宣告所有瀏覽器已支援或實測。
 
+### 不需人工版號的自動更新檢查（2026-10-30，#13）
+
+沿用家見路正式 Web 的檢查時機：註冊成功後立即、`visibilitychange`、`pageshow`、`online`，以及前景在線每 15 分鐘呼叫 `registration.update()`。背景／離線略過自動檢查；同一輪尚未完成時不重入，失敗保留目前版本，下次事件或手動按鈕可重試。只在正式 SW 註冊成功後掛排程；本機即時更新模式及不支援 SW 的環境維持原入口。
+
+不需要 `package.json` 的人工版號或新增 `version.json`：建置已有靜態資源及回應政策的 SHA-256 指紋，資源變動會改變固定 `/sw.js` 的內容，瀏覽器以 bytes 判斷新版；相同內容重建不製造更新。註冊沿用 `updateViaCache: 'none'`。參考 [ServiceWorkerRegistration.update](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/update)。
+
+自動檢查／下載與啟用分開：通過完整性驗證的候選仍等待所有舊頁關閉，沿用既有提示。排除強制 skipWaiting／重新載入與照搬 React／Workbox：本專案的錄影、輸出、未存草稿和 session-only 原片不能被背景換版中斷，原生 API 即可補齊檢查，不需新依賴。已長期開著的舊版仍須先正常換到包含本改動的版本，才能使用新增的自動檢查。
+
+回歸入口為 `tests/unit/offline.test.ts` 與 `tests/browser/offline-multi-tab.js`：後者用明示 `pageshow` 事件觸發產品邏輯，核對真實 worker 安裝／等待、草稿、雙舊頁、換版後原 IndexedDB 與其他 cache 保留；事件模擬不當作實體手機背景還原驗收。手機 Chrome、Safari 與實體裝置仍未驗證。
+
+本次工作樹在 macOS 27.0.1／Headless Chrome 156 通過上述雙頁流程，靜態指紋 `b91248d8d88a465d`，測試候選為同份 manifest 的 `-next` worker。真正候選保持 waiting、兩個舊頁均無重載／controller 接管、草稿及換版後完整資料相同，無關 cache 保留，媒體擷取 API 呼叫為 0。Bun 1.4.4 的 `bun run check` 為 634 pass／0 fail，型別、lint、公開掃描與建置通過；此紀錄不代表手機驗收、合併或部署。
+
 快取讀取／開啟失敗或補存遭 quota 拒絕時，仍可提供通過當前 manifest 雜湊的在線回應；實際未補存便維持離線不完整。排除把 Cache API 異常直接變成網路失敗，因為低空間時仍需在線開啟工作台及取出資料；也排除未驗證的 network-first fallback，避免混入新版模組。安裝候選仍要求整批保存成功，任何錯誤都拒絕該候選；此降級只用於既有 worker 的讀取，不放寬更新門檻。針對性重現與限制見 [#13 快取故障證據](docs/evidence/issue-13-cache-failure.md)。
 
 2026-10-29 [有界更新稽核](docs/evidence/issue-13-update-audit.md)補上「第一份已存，第二份才遇網路／HTTP／雜湊／quota 失敗」的候選回滾，以及 install 與 activate 的清理邊界純邏輯回歸；未重現需改 runtime 的 P0 缺陷。既有真正 SW 更新函式只開一個受控制產品頁，handler 單元測試不代替生命週期驗收。後續 `offline-multi-tab.js` 用兩個真正舊控制頁補缺：第一頁關閉後，第二頁可保存同一筆記，第三個新導航也仍用舊 active；剩餘舊頁關閉後才換版，完整資料／revision 與無關 cache 保留。測試沿用原 worker／主機及產品表單，實際版本回覆與 waiting 文字共同作屏障，不以固定等待、直接觸發 activate 或結果欄位名稱當證據；媒體 API 明確禁用，精確提交／結果見交付 PR。

@@ -2,7 +2,7 @@
 import { afterEach, expect, test } from 'bun:test'
 import { startOffline } from '../../web/offline.js'
 
-const originals = new Map(['navigator', 'document', 'location'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
+const originals = new Map(['navigator', 'document', 'window', 'location'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
 afterEach(() => { for (const [key, original] of originals) { if (original) Object.defineProperty(globalThis, key, original); else Reflect.deleteProperty(globalThis, key) } })
 class Control extends EventTarget { textContent = ''; disabled = false }
 // MessageChannel 與 Promise 由執行環境排程；等可觀察結果，避免 CI 忙碌時把固定延遲當成功保證。
@@ -26,16 +26,23 @@ function setup(options: { complete?: boolean; controlled?: boolean; persist?: bo
     persisted() { if (options.storageError) throw new Error('synthetic persisted'); return Promise.resolve(options.persist ?? false) },
     async persist() { persists++; if (options.storageError) throw new Error('synthetic persist'); return options.persist ?? false },
   }
-  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { serviceWorker, storage: options.noStorage ? undefined : storage } })
+  const state = { serviceWorker, storage: options.noStorage ? undefined : storage, onLine: true }
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: state })
   // 真正瀏覽器一定有頁面與來源；保留這兩個最小邊界，才能測正式離線與本機即時更新各自的入口。
-  Object.defineProperty(globalThis, 'document', { configurable: true, value: { documentElement: { dataset: { devReload: String(options.devReload ?? false) } } } })
+  const document = Object.assign(new EventTarget(), { documentElement: { dataset: { devReload: String(options.devReload ?? false) } }, visibilityState: 'visible' })
+  // 攔在頁面計時邊界，才能直接推進十五分鐘並確認沒有留下跨測試的真實計時器。
+  const intervals: { callback: () => void; delay: number }[] = []
+  const window = Object.assign(new EventTarget(), { setInterval(callback: () => void, delay: number) { intervals.push({ callback, delay }); return intervals.length } })
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: document })
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: window })
   Object.defineProperty(globalThis, 'location', { configurable: true, value: { hostname: options.hostname ?? 'synthetic.invalid' } })
-  return { ui, worker, registration, serviceWorker, storage, counts: () => ({ persists, updates, registrations }), start: () => startOffline(ui as any) }
+  return { ui, worker, registration, serviceWorker, storage, state, document, window, intervals, counts: () => ({ persists, updates, registrations }), start: () => startOffline(ui as any) }
 }
 test('即時更新只在明確標記的本機來源停用 SW，其他來源仍可註冊離線資源', async () => {
   for (const hostname of ['localhost', '127.0.0.1', '[::1]']) {
     const current = setup({ devReload: true, hostname }); await current.start()
     expect(current.counts().registrations).toBe(0); expect(current.ui.checkUpdate.disabled).toBe(true)
+    expect(current.intervals).toHaveLength(0)
     expect(current.ui.offline.textContent).toContain('筆記與影片副本仍保留')
   }
   const remote = setup({ devReload: true }); await remote.start()
@@ -65,18 +72,20 @@ test('瀏覽器缺少儲存或 SW 能力仍可開啟，停用不可用操作', a
   const current = setup({ noStorage: true }); Reflect.deleteProperty(navigator, 'serviceWorker'); await current.start()
   expect(current.ui.persist.disabled).toBe(true); expect(current.ui.checkUpdate.disabled).toBe(true)
   expect(current.ui.capacity.textContent).toContain('未提供'); expect(current.ui.offline.textContent).toContain('不支援')
+  expect(current.intervals).toHaveLength(0)
 })
 test('註冊失敗、不完整或無 active worker 不得宣稱可離線重開', async () => {
   for (const options of [{ registerError: true }, { complete: false }, { noWorker: true, controlled: false }, { statusError: true }]) {
     const current = setup(options); await current.start()
     expect(current.ui.offline.textContent).not.toContain('可離線重開')
     expect(current.ui.offline.textContent).toContain(options.statusError ? '無法確認' : options.complete === false ? '不完整' : '未備妥')
+    if (options.registerError) expect(current.intervals).toHaveLength(0)
   }
 })
 test('等待更新只顯示保存提醒；更新、controller 及手動重查皆重新核對狀態', async () => {
   const current = setup(); await current.start()
   current.registration.waiting = {}; current.ui.checkUpdate.dispatchEvent(new Event('click')); await waitFor(() => current.ui.updates.textContent.includes('先保存'))
-  expect(current.counts().updates).toBe(1); expect(current.ui.updates.textContent).toContain('先保存')
+  expect(current.counts().updates).toBe(2); expect(current.ui.updates.textContent).toContain('先保存')
   // 變更回報後才送原生事件，避免只證明有註冊 listener 卻沒真的更新畫面。
   current.worker.postMessage = (_message, ports) => ports[0].postMessage({ complete: false })
   for (const [target, event] of [[current.worker, 'statechange'], [current.serviceWorker, 'controllerchange'], [current.ui.refresh, 'click']] as const) {
@@ -92,4 +101,41 @@ test('檢查更新失敗保留目前版本，之後可再操作', async () => {
   current.ui.checkUpdate.dispatchEvent(new Event('click')); await waitFor(() => current.ui.updates.textContent.includes('現有版本與資料保留'))
   expect(current.ui.updates.textContent).toContain('現有版本與資料保留')
   expect(current.ui.checkUpdate.disabled).toBe(false)
+})
+
+test('啟動、前景、pageshow、恢復連線與十五分鐘會自動檢查，背景及離線不查', async () => {
+  const current = setup(); await current.start()
+  expect(current.counts().updates).toBe(1)
+  expect(current.intervals.map(timer => timer.delay)).toEqual([15 * 60 * 1000])
+  const triggers = [
+    () => current.document.dispatchEvent(new Event('visibilitychange')),
+    () => current.window.dispatchEvent(new Event('pageshow')),
+    () => current.window.dispatchEvent(new Event('online')),
+    () => current.intervals[0].callback(),
+  ]
+  for (const trigger of triggers) {
+    const before = current.counts().updates
+    current.document.visibilityState = 'hidden'; trigger()
+    expect(current.counts().updates).toBe(before)
+    current.document.visibilityState = 'visible'; current.state.onLine = false; trigger()
+    expect(current.counts().updates).toBe(before)
+    current.state.onLine = true; trigger()
+    await waitFor(() => current.counts().updates === before + 1)
+  }
+})
+
+test('自動檢查不重入，失敗解除後由下一次前景事件重試並顯示 waiting', async () => {
+  const current = setup({ updateError: true }); await current.start()
+  expect(current.counts().updates).toBe(1)
+  expect(current.ui.updates.textContent).toContain('現有版本與資料保留')
+  let attempts = 0, release: () => void = () => {}
+  current.registration.update = () => { attempts++; return new Promise<void>(resolve => { release = resolve }) }
+  current.window.dispatchEvent(new Event('online'))
+  current.window.dispatchEvent(new Event('pageshow')); current.intervals[0].callback()
+  expect(attempts).toBe(1)
+  current.registration.waiting = {}; release()
+  await waitFor(() => current.ui.updates.textContent.includes('新版已備妥'))
+  current.document.dispatchEvent(new Event('visibilitychange'))
+  expect(attempts).toBe(2); release()
+  expect(current.ui.updates.textContent).toContain('不會自動重載')
 })

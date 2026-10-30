@@ -19,6 +19,7 @@ function offlineStatus(worker) {
 /** @param {{offline: HTMLElement, capacity: HTMLElement, persistence: HTMLElement, updates: HTMLElement, refresh: HTMLButtonElement, persist: HTMLButtonElement, checkUpdate: HTMLButtonElement}} ui */
 export async function startOffline(ui) {
   let registration;
+  let checkingUpdate = false;
   const refreshCapacity = async () => {
     // 同步拒絕也視為能力未知，不能阻止筆記開啟或 SW 註冊。
     const [estimate, persisted] = await Promise.allSettled([Promise.resolve().then(() => navigator.storage?.estimate?.()), Promise.resolve().then(() => navigator.storage?.persisted?.())]);
@@ -48,10 +49,15 @@ export async function startOffline(ui) {
     } catch { ui.persistence.textContent = '持久保存請求失敗；原資料保留，仍請另存 JSON 及影片。'; }
     finally { ui.persist.disabled = false; }
   });
-  ui.checkUpdate.addEventListener('click', async () => {
-    try { await registration?.update(); updateText(); }
+  const checkForUpdate = async () => {
+    // 回前景與恢復連線可能接連發生；同一輪共用檢查，失敗後仍可重試。
+    if (!registration || checkingUpdate) return;
+    checkingUpdate = true;
+    try { await registration.update(); updateText(); }
     catch { ui.updates.textContent = '目前無法檢查新版；現有版本與資料保留，可稍後再試。'; }
-  });
+    finally { checkingUpdate = false; }
+  };
+  ui.checkUpdate.addEventListener('click', checkForUpdate);
   await refreshCapacity();
   // 本機開發由 watcher 更新；若再註冊正式 SW，舊快取會把修改擋在頁面之外。
   if (document.documentElement?.dataset.devReload === 'true' && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {
@@ -65,6 +71,17 @@ export async function startOffline(ui) {
     watch(registration.installing);
     registration.addEventListener('updatefound', () => { watch(registration.installing); });
     navigator.serviceWorker.addEventListener('controllerchange', () => { refresh().catch(() => {}); });
+    const checkWhenVisible = () => {
+      // 手機背景及離線時不喚醒網路；新版仍走原本 waiting，不能為更新打斷錄影或草稿。
+      if (navigator.onLine && document.visibilityState === 'visible') void checkForUpdate();
+    };
+    document.addEventListener('visibilitychange', checkWhenVisible);
+    window.addEventListener('online', checkWhenVisible);
+    // 從上一頁快取還原不一定改變可見狀態，pageshow 要另查，不能只等重新開站。
+    window.addEventListener('pageshow', checkWhenVisible);
+    window.setInterval(checkWhenVisible, 15 * 60 * 1000);
     await refresh();
+    // 先完成初始狀態顯示，免得隨後的 refresh 把檢查失敗訊息蓋掉。
+    checkWhenVisible();
   } catch { ui.offline.textContent = '離線資源未備妥，請保持連線；本機資料未刪除。'; }
 }
