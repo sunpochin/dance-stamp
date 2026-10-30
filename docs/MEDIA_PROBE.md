@@ -24,10 +24,12 @@ bun --no-env-file scripts/make-media-fixtures.ts
 bun --no-env-file scripts/make-player-fixtures.ts
 bun --no-env-file scripts/make-comparison-fixtures.ts
 bun run check
-bun run dev
+bun --no-env-file scripts/serve-web.ts
 ```
 
 腳本不覆寫既有檔案。ignored `output/media-probe/` 內有 65 秒 testsrc／閃光／660Hz 提示音參考片、15 秒循環假相機及 browser.json；沒有真人或第三方音樂。
+
+媒體／離線回歸使用上方一般主機；`bun run dev` 是即時更新模式，會暫停 SW 快取，不能拿來宣告離線驗收通過。本機即時更新另以 `bun --no-env-file tests/browser/dev-reload.ts /path/to/chrome /path/to/playwright-core/index.mjs` 驗證；工具只改自己的原始碼副本，涵蓋舊 SW 退出但筆記保留、真改檔自動更新、輸入／影片保留與建置失敗後恢復。
 
 在 repo 根目錄，以已安裝的 Playwright CLI 開乾淨隔離 session：
 
