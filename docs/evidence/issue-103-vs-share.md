@@ -168,3 +168,63 @@ bun run check
 macOS原碼單項（`coverage/app-n8ck4T`）與焦點觀察對照（`app-8yfSAg`）通過；帶原本恢復前置後連續十次鍵盤案例（`app-GGRLTv`）亦12/12、0 page errors，不能代替Linux結果。後者收據SHA-256為 `a27b1dc9ad8b0a75b2e5f408d1858f6bcba3c1810c81a40ce8a03c32120c7508`；原前置與十次鍵盤斷言都未改。
 
 接續只在既有鍵盤案例加入唯讀的focus／keydown／keyup／click、trusted、使用者動作資格及頁面可見性紀錄；失敗才輸出匿名控制項ID與順序，不列檔名／筆記／影片。沒有先安裝額外filechooser listener，因為那會提前啟用Playwright攔截而影響待查時序。沒有改產品、選檔方式、焦點斷言、15秒等待或成檔門檻；這是診斷，不能稱為修復。加入紀錄後，本機 `app-NqZ7lQ` 三次原案例通過，0 page errors，正常收尾釋放自有鎖；後續精確head CI結果另記PR。
+
+
+## 接回既有錄影完整性回歸
+
+錄到一半突然停下，也要能把未完成原片拿走；舊自拍、VS及筆記不能跟著消失。刪除無關錄影或按取消，救援下載仍須保留；只有明確刪掉對應錄影或整份影片筆記，才撤銷該連結。
+
+本輪續接同一#103／PR #116，parent `b28dff5406a1e2261dfb2dd8acb02e6b0fc98910`，將已存在的 `tests/browser/capture-integrity.js` 納入完整入口，46→47 項；不另寫一套相同案例。原獨立媒體入口仍保留原預設，只新增明確素材參數，完整量測使用既有清單的65秒640×360示範片與80秒320×180無聲練習片。產品的播放器、錄影／比較程式、資料格式與完整性門檻未改。
+
+同一頁依原階段完成：
+
+1. 正式選兩片、保存自拍、建立非空筆記與標記，真正合成基準VS；記錄舊metadata、原片／保存媒體的完整指紋與播放器／下載URL。
+2. 真正呼叫原生MediaRecorder.stop提早停止，保留trusted stop/dataavailable；新take只能interrupted、不finalize，救援Blob與仍保留chunks的完整bytes／指紋一致，舊資料與URL相等，tracks全部ended。
+3. 將本輪早停真正成檔的短bytes明示注入另一輪錄製，讓播放器自行解碼出短片；驗證既有expected−500ms下限拒絕、不覆寫舊片。這是受控資料故障，不是自然平台截斷重現。
+4. 同頁原生15秒重試成功，舊take／配方／VS完整指紋仍保留；取消刪除、刪無關take保留救援，刪對應take才撤銷。再建一份早停救援，驗整份影片筆記刪除也會撤銷。
+
+接線逐份讀取4份真正下載，核對長度與完整SHA-256等於頁內Blob；以take ID保留獨立檔名，沒有覆寫前次證據。入口的30秒等待僅容納原15秒錄影加倒數與收尾，沒有更改產品時長護欄，也沒有調整既有鍵盤選檔15秒等待。
+
+重跑：
+
+```sh
+bun --no-env-file tests/app-coverage/run-app.ts capture-integrity
+bun run test:coverage:app
+bun run check
+```
+
+單項 `coverage/app-8QF8bm` passed、0 page errors，原生早停兩次的讀回片長為1198／1192ms，真短bytes注入為1198ms；同頁原生重試、取消／無關／對應刪除及完整指紋斷言通過。browserClosed／serverStopped=true，lockRetained=false；不改稱完整47項或原生Safari／硬體／G1–G7通過。完整輪及產品外重播另列。
+
+### 同輪完整47項結果（2026-10-31）
+
+`coverage/app-RxIiA5/run.json` **passed，47/47，0 page errors**，214次導覽前快照；macOS arm64、Bun 1.4.4、隔離Chrome 156.0.8078.76。來源為parent `b28dff5406a1e2261dfb2dd8acb02e6b0fc98910`、trackedChanges=true；完整輪後只補文件，不把結果改稱最終提交的乾淨本機重跑。九份產品JS逐檔與c351637前置相同，HTML／CSS、資料格式與發布設定也未改。
+
+| 同輪、同九檔分母 | 行數 | 函式 | 分支 |
+| --- | --- | --- | --- |
+| 單元／VM基準 | 758/2,010（37.71%） | 276/674（40.94%） | 811/2,163（37.49%） |
+| 完整47項 | 2,006/2,010（99.8%） | 647/674（95.99%） | 1,888/2,163（87.28%） |
+
+對照前一完整46項，增加7行與11分支，函式命中數維持647；沒有跨輪混加計數。main.js行數99.67%、函式94.53%、分支82.01%；剩餘4行 `555,1613,1622,1635`，函式／分支亦未100%，#103仍開啟。沒有為碰到保護分支而取消停用狀態、直接呼叫內部handler或忽略未覆蓋程式。
+
+- runner SHA-256：`f66973448dcebf170f894cca12b45b244c3970437d261ca03631bfb4ce3eccbc`。
+- 既有完整性案例最終SHA-256：`32d0d3a427fd1a17b12ea68e57f67ecdab1916a8e6e986c1c14884bbf5578507`。
+- 完整run SHA-256：`eff117fd623c89c5dc9ef389e9b6d05ce10ed49da22ec0d21c14f0c588d114ca`。
+- 每個原階段、4份真正下載完整指紋與全部原斷言均通過；browserClosed／serverStopped=true，lockRetained=false。
+- 正常check為645 tests／3160 expects／0 fail，型別／公開掃描／lint／build完成，保留19項既有lint info；最終正常hook與精確head CI另記PR。
+
+先前f1ac4ef兩次Linux鍵盤選檔失敗與b28dff5診斷後46項CI成功仍保留各自來源，沒有把本輪較高覆蓋率當成該逾時已修復。Safari桌面仍鎖定，本輪沒有新增Safari、硬體相機、真人或G1–G7證據；iPhone暫緩，#114繼續c351637開啟待審查。
+
+### 本輪4份下載的產品外重播
+
+完整47項收尾後，另啟新隔離Chrome的file原生播放器，逐份讀完整下載指紋、從零播到ended，再以FFmpeg完整解碼全部軌道。4份均ended=true、error=0、完整解碼無錯誤診斷；FFprobe確認有影片軌且沒有音訊軌，播放器audioBytes=0，符合相機不錄麥克風。
+
+| 同一完整輪的真正下載 | 原生播放器片長 | 播放器dropped | 完整SHA-256 |
+| --- | --- | --- | --- |
+| 第一次原生早停 | 1.196500秒 | 1 | `b537f929c28a462aa08dae42ec11267066b81e69ff1a8039a652cfc5ea93d7ab` |
+| 真短bytes注入 | 1.196500秒 | 1 | `b537f929c28a462aa08dae42ec11267066b81e69ff1a8039a652cfc5ea93d7ab` |
+| 15秒同頁重試 | 15.029633秒 | 0 | `0013ea8f886d6667b89080866b8d8737cb09f52520b3368754bdfc0e4f0a580a` |
+| 第二次原生早停 | 1.200833秒 | 1 | `46b9f691e0fe0780b383e29ecbe9dff92f975f61a78601bf65f6f42b614dfad9` |
+
+短bytes注入與第一份早停相同指紋，是刻意沿用真正短片測拒絕，不是另一份獨立原生截斷證據。三份短片各回報1格播放dropped，重試片為0，保留原值；本輪只驗保全與可播放，不宣稱完整G1–G7或全數零掉幀。所有已知自有Chrome PID退出、剩餘清單空白後，再核對nonce釋放自己的鎖，沒有操作別人的程序或profile。
+
+離站播放收據SHA-256：`343d9d6e2565b98bfec0c18176a82bc2e13bdf0aa2108be071ccf0df83781966`；原始逐檔資料保留本機`output/capture-integrity-coverage-playback.local.json`。Safari桌面仍鎖定，該平台與真實硬體驗收維持未驗證。

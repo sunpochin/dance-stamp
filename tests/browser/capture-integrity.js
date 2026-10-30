@@ -54,8 +54,9 @@ async (page, options) => {
     });
     await page.goto(options.origin);
     await page.locator('#existing-mode').click();
-    await page.locator('#reference-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
-    await page.locator('#self-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
+    // 完整量測可明確傳入既有合成素材；原獨立媒體入口仍保留原預設，不複製第二套斷言。
+    await page.locator('#reference-file').setInputFiles(options.reference ?? 'output/media-feasibility/reference.mp4'); await idle();
+    await page.locator('#self-file').setInputFiles(options.self ?? 'output/media-feasibility/self-silent.mp4'); await idle();
     await page.locator('#copy-self').click(); await idle();
     await page.locator('#video-title').fill('合成完整性筆記'); await page.locator('#save-title').click(); await idle();
     await page.locator('#mark').click(); await page.locator('#marker-title').fill('合成保留標記'); await page.locator('#marker-note').fill('合成保留筆記'); await page.locator('#marker-form button[type="submit"]').click(); await idle();

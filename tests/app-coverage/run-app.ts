@@ -71,7 +71,7 @@ const selected = process.argv.slice(2)
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
-const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'camera-policy-denial', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -185,8 +185,29 @@ try {
         result = await scenario(page, { origin, reference: resolve(media, 'comparison/reference.mp4'), self: resolve(media, 'comparison/self-1.mp4'), vs: resolve(media, 'export-failure/self.mp4') }, folder, async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2)), name.endsWith('import') ? 'import' : 'title')
       } else {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
-        const scenario = (0, eval)(`(${source})`) as (page: Page) => Promise<unknown>
-        result = await scenario(page)
+        const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
+        if (name === 'capture-integrity') {
+          // 早停、真短 bytes、同頁重試與救援刪除共用原生回歸；不能以派發 error 事件替代。
+          assert(await page.evaluate(() => (window as any).__danceSyntheticCameraOnly === true), '只允許既有合成相機')
+          mkdirSync(resolve(media, 'media-feasibility'), { recursive: true })
+          const phases: any[] = []
+          const run = async (phase: string, mode = '') => {
+            const value = await scenario(page, { phase, mode, origin, label: 'app-coverage', reference: resolve(media, 'media-probe/reference.mp4'), self: resolve(media, 'comparison/silent.mp4') })
+            const path = value.actualPartialDownload || value.actualRetryDownload
+            if (path) {
+              const bytes = readFileSync(path), expected = value.expectedDownload || { bytes: value.partialBytes, sha256: value.partialSha }
+              assert.equal(bytes.length, expected.bytes, '真正下載與頁內 Blob 長度不同')
+              assert.equal(createHash('sha256').update(bytes).digest('hex'), expected.sha256, '真正下載與頁內 Blob 完整指紋不同')
+            }
+            phases.push({ phase, mode, result: value }); return value
+          }
+          const idle = () => page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')?.getAttribute('aria-busy') !== 'true', null, { timeout: 30_000 })
+          await run('prepare')
+          for (const mode of ['early', 'short']) { await run('start', mode); await idle(); await run('verify-fault', mode) }
+          await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
+          await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
+          result = { phases, actualDownloadsMatchedFullBlobHashes: true }
+        } else result = await scenario(page)
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
