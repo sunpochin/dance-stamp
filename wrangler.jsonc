@@ -4,5 +4,7 @@
   "compatibility_date": "2026-10-23",
   // 預覽上傳也必須先產生 SW manifest、授權與回應標頭，不能直接發布 web 原始碼。
   "build": { "command": "bun run build" },
-  "assets": { "directory": "./dist/web" }
+  "assets": { "directory": "./dist/web" },
+  // Cloudflare 的非正式分支使用 wrangler preview，必須明確允許這條預覽流程。
+  "previews": {}
 }

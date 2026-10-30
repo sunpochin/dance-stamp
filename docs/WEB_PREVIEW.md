@@ -5,6 +5,8 @@
 
 Cloudflare 使用根目錄 `wrangler.jsonc`：先跑既有建置，再只上傳 `dist/web`。不能直接上傳 `web` 或用 `file://` 開原始碼；這兩種方式沒有完整建置的離線 manifest、授權與回應政策。
 
+Cloudflare 的分支自動建置使用 `npx wrangler preview`，設定中的空 `previews` 區塊是此命令的必要入口，靜態資源與相容設定沿用頂層。若建置成功但部署回報缺少 `previews`，請確認該分支包含這份設定；不需改為正式部署。
+
 檢查設定可執行 `npx wrangler versions upload --dry-run`；經使用者授權後，以 `npx wrangler versions upload --preview-alias pr-90` 建立 PR 預覽，使用命令回傳的 HTTPS URL。這不切換正式部署，勿用 `wrangler deploy` 代替。不同網址各自保存瀏覽器筆記，預覽資料不會自動出現在正式站；影片仍只在本機選取。
 
 使用者於 2026-10-27 指定先做 Web，暫不處理 iPhone。此版提供可操作的桌面流程，未公開發布，未完成整體 P0 驗收。
