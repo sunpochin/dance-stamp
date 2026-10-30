@@ -8,7 +8,7 @@ async (page) => {
     URL.createObjectURL = value => { const url = create(value); window.playerURLs.add(url); window.playerURLPeak = Math.max(window.playerURLPeak, window.playerURLs.size); return url; };
     URL.revokeObjectURL = url => { window.playerURLs.delete(url); revoke(url); };
   });
-  const input = page.getByLabel('選老師影片（左）', { exact: true });
+  const input = page.getByLabel('選擇示範影片', { exact: true });
   const settle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
   const frames = async () => page.locator('#reference').evaluate(async video => {
     const muted = video.muted; video.muted = true;
@@ -30,7 +30,7 @@ async (page) => {
   for (const [label, path, required] of cases) {
     await input.setInputFiles(`output/media-probe/${path}`); await settle();
     const status = await page.locator('#status').textContent();
-    if (!status.startsWith('老師示範已載入')) { assert(!required, `${label} 失敗：${status}`); results.push({ label, result: 'unsupported', status }); continue; }
+    if (!status.startsWith('示範影片已載入')) { assert(!required, `${label} 失敗：${status}`); results.push({ label, result: 'unsupported', status }); continue; }
     const observed = await frames();
     assert(observed.width > 0 && observed.height > 0 && observed.time > 0.1 && !observed.error && observed.fit === 'contain', `${label} 沒有實際播放或方向拉伸`);
     if (label === 'portrait' || label === 'rotation') assert(observed.height > observed.width, '直向或旋轉方向錯誤');

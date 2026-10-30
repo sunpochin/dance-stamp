@@ -9,10 +9,11 @@ async (controller) => {
     const idle = () => page.waitForFunction(() => document.getElementById('storage-status').textContent !== '正在開啟本機筆記…' && document.getElementById('library-panel').getAttribute('aria-busy') !== 'true');
     await idle();
     const library = () => page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
-    const button = page.getByRole('button', { name: '選老師影片（左）', exact: true });
+    const button = page.getByRole('button', { name: '選擇示範影片', exact: true });
     assert(await page.locator('#library option').count() === 1, '測試必須從空筆記庫開始');
     assert(await button.isVisible() && !await page.locator('#backup').isVisible() && !await page.locator('#restore').isVisible(), '開始練習時未區分選片與次要筆記工具');
     const select = async (file, keyboard = false) => {
+      if (!await page.locator('#reference-picker').evaluate(details => details.open)) await page.locator('#reference-picker > summary').click();
       const waiting = page.waitForEvent('filechooser');
       if (keyboard) { await button.focus(); await page.keyboard.press('Enter'); } else await button.click();
       const chooser = await waiting;
@@ -27,7 +28,7 @@ async (controller) => {
     const played = [];
     for (const [file, keyboard] of [['output/media-probe/reference.mp4', false], ['output/media-probe/player/sample.mov', true]]) {
       await select(file, keyboard);
-      assert((await page.locator('#status').textContent()).startsWith('老師示範已載入'), '影片選取後未成功載入');
+      assert((await page.locator('#status').textContent()).startsWith('示範影片已載入'), '影片選取後未成功載入');
       await page.locator('#reference').evaluate(async video => { video.muted = true; await video.play(); });
       await page.waitForFunction(() => { const video = document.getElementById('reference'); return video.currentTime > 0.1 && video.videoWidth > 0 && video.videoHeight > 0 && !video.error; });
       await page.locator('#reference').evaluate(video => { video.pause(); });
@@ -44,7 +45,7 @@ async (controller) => {
       assert(await page.locator('#reference-file').inputValue() === '', '未清空選檔，無法再次選取同一檔');
     }
     await select('output/media-probe/player/sample.mov');
-    assert((await page.locator('#status').textContent()).startsWith('老師示範已載入'), '壞檔後無法重新選片');
+    assert((await page.locator('#status').textContent()).startsWith('示範影片已載入'), '壞檔後無法重新選片');
     const saved = JSON.parse(await library());
     // 備份工具必須能由鍵盤展開，影片選取則不需要先打開這個區塊。
     await page.locator('#note-tools > summary').focus(); await page.keyboard.press('Enter');

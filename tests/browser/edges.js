@@ -3,7 +3,7 @@
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   await page.goto('http://127.0.0.1:4173/');
-  await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+  await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.getByLabel('開始（秒）', { exact: true }).fill('1');
   await page.getByLabel('結束（秒）', { exact: true }).fill('1.5');

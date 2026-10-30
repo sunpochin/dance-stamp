@@ -43,8 +43,11 @@ dialog { overflow-wrap: anywhere; width: min(820px, calc(100vw - 24px)); max-hei
 #controls > .players { margin-top: 12px; }
 .video-card { padding: 16px; border: 1px solid #455258; border-radius: 10px; background: #1b272c; }
 .video-card h2 { margin: 0; font-size: 1.15rem; font-weight: 650; color: #b9f2c8; }
-.video-card > button.primary { width: 100%; }
-.video-card > .hint { min-height: 2.8em; }
+.video-card button.primary { width: 100%; }
+/* 檔名只佔一行，避免兩側預覽因長檔名上下錯開；完整名稱仍留在文字內容供讀屏讀取。 */
+.video-picker { margin: 8px 0; }
+.video-picker > summary { color: #c5ced0; }
+.selected-file { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; color: #b6c1c5; }
 .video-card video { margin: 10px 0; }
 .section-intro { margin-top: 0; }
 .segment-settings { margin: 18px 0; }

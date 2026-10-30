@@ -20,7 +20,7 @@ async (page) => {
       return stream;
     };
   });
-  await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+  await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('camera').disabled);
   await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.getByRole('button', { name: '開啟前相機', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('capture').disabled);
@@ -49,11 +49,11 @@ async (page) => {
   await page.waitForFunction(() => !document.getElementById('compare').disabled);
   assert(await page.locator('#output-download').getAttribute('href') === outputHref, '取消破壞上次輸出');
   assert(await page.locator('#take-download').getAttribute('href') === takeHref, '取消破壞自拍原片');
-  await page.getByLabel('我的影片起點（秒）', { exact: true }).fill('100');
-  await page.getByLabel('我的影片起點（秒）', { exact: true }).press('Tab');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).fill('100');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).press('Tab');
   assert(await page.getByRole('button', { name: '輸出單一 VS 影片', exact: true }).isDisabled(), '空交集仍可合成');
-  await page.getByLabel('我的影片起點（秒）', { exact: true }).fill('0');
-  await page.getByLabel('我的影片起點（秒）', { exact: true }).press('Tab');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).fill('0');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).press('Tab');
   await page.setViewportSize({ width: 390, height: 844 });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '手機版面水平溢出');
   return { ...result, cancellationPreservesFiles: true, noMicrophone: true, cameraReleased: true, emptyIntersectionBlocked: true, mobileLayout: '390x844, simulated' };

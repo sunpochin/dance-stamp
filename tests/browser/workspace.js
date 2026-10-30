@@ -3,7 +3,7 @@
 async (page) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   await page.goto('http://127.0.0.1:4173/');
-  await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+  await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.locator('#reference').evaluate(async video => { video.currentTime = 2; await new Promise(r => video.addEventListener('seeked', r, { once: true })); });
   await page.getByRole('button', { name: '標記當下時間', exact: true }).click();
@@ -21,7 +21,7 @@ async (page) => {
   await page.getByRole('button', { name: '開啟筆記', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('尚未連結'));
   assert((await page.locator('#markers').textContent()).includes('合成腳步'), '缺檔時筆記消失');
-  await page.getByLabel('選老師影片（左）', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
+  await page.getByLabel('選擇示範影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4');
   await page.getByRole('button', { name: '已預覽，確認連結到這份筆記', exact: true }).click();
   await page.waitForFunction(() => !document.getElementById('practice').disabled);
   await page.getByRole('button', { name: '保存示範副本到此瀏覽器', exact: true }).click();
