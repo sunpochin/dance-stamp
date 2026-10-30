@@ -1,0 +1,10 @@
+// 檔案用途：固定 Cloudflare 靜態預覽的建置與上傳入口。所在層：部署設定。主要關聯：scripts/build-web.ts、docs/WEB_PREVIEW.md。
+{
+  "name": "dance-stamp",
+  "compatibility_date": "2026-10-23",
+  // 預覽上傳也必須先產生 SW manifest、授權與回應標頭，不能直接發布 web 原始碼。
+  "build": { "command": "bun run build" },
+  "assets": { "directory": "./dist/web" },
+  // Cloudflare 的非正式分支使用 wrangler preview，必須明確允許這條預覽流程。
+  "previews": {}
+}

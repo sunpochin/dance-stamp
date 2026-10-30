@@ -1,4 +1,5 @@
 /* 檔案用途：手動拍點、合成音訊與資料失敗恢復。所在層：隔離瀏覽器回歸。主要關聯：beats.js、DATA_FORMAT.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, checks = {};
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -67,6 +68,7 @@ async (page) => {
     const after = await storage.readLibrary(); return rejected && after.revision === saved.revision && after.data.videos[0].beatGrid.bpm === 120;
   });
   assert(rollback, '交易寫入後取消沒有原子回滾');
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   const backupWait = page.waitForEvent('download'); await page.locator('#backup').click(); const backup = await backupWait; await backup.saveAs('output/beats/notes.dance-stamp.json'); await idle();
   const beforeImport = await library();
   await page.locator('#restore').setInputFiles('output/beats/notes.dance-stamp.json'); await idle(); await page.locator('#import-cancel').click();

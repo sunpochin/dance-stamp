@@ -1,4 +1,5 @@
 /* 檔案用途：驗證個別刪除、跨頁錄影鎖、交易取消與中斷回滾。所在層：隔離 IndexedDB 回歸。主要關聯：planDeletion、main.js、storage.js。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page) => {
   const origin = new URL(page.url()).origin, assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
@@ -63,6 +64,7 @@ async (page) => {
   await preview(page.getByRole('button', { name: '刪除此練習與比較…', exact: true }).last()); await page.locator('#delete-confirm').click(); await idle();
   assert(!(await snapshot()).data.takes.some(t => t.id===active.id), 'take 未刪除');
   assert(await page.evaluate(async id => { const db=await (await import('/storage.js')).openStore(); return new Promise(resolve => { const r=db.transaction('chunks').objectStore('chunks').count(IDBKeyRange.bound([id,0],[id,Number.MAX_SAFE_INTEGER])); r.onsuccess=()=>resolve(r.result===0); }); }, active.cameraAssetId), 'take 殘留 chunks');
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   await preview(page.locator('#delete-video')); await page.locator('#delete-confirm').click(); await idle();
   const empty = await snapshot(); assert(empty.data.videos.length===0 && empty.data.takes.length===0 && empty.data.assets.length===0 && empty.data.exports.length===0, '整份筆記留下孤兒資料');
   await page.reload(); await idle(); assert((await snapshot()).data.videos.length===0, '刪除重開又恢復');

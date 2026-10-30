@@ -1,4 +1,5 @@
 /* 檔案用途：實走跨課程動作、手動狀態、比較歷史、離線與備份恢復。所在層：合成瀏覽器回歸。主要關聯：main.js、library.js、DATA_FORMAT.md。 */
+// 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (root) => {
   const context = await root.context().browser().newContext(), page = await context.newPage();
   const origin = new URL(root.url()).origin, file = 'output/media-probe/reference.mp4';
@@ -46,6 +47,7 @@ async (root) => {
   const latest = data.takes.toSorted((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
   assert(await page.locator('#library').inputValue() === latest.referenceVideoId && !await page.locator('#compare').isDisabled(), '歷史未開啟正確比較');
   const before = await normalized(page);
+  await page.locator('#note-tools').evaluate(d => { d.open = true; });
   const downloading = page.waitForEvent('download'); await page.locator('#backup').click(); await (await downloading).saveAs('output/issue-17/notes.dance-stamp.json'); await idle(page);
   // 僅測本機資源已備妥後的離線，不能冒充另一台裝置或首次離線開站。
   await page.evaluate(async () => { await navigator.serviceWorker.ready; }); await page.reload(); await idle(page);
