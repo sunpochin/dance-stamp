@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { newLibrary, validateBackup, migrateLibrary, parseBackup, planBackupImport, tables } from '../../web/library.js'
 import { assembleChunks } from '../../web/recorder.js'
+import { sourceForVm, vmCoverageContext } from '../app-coverage/instrument'
 
 type Mode = 'complete' | 'error-abort' | 'error-stuck' | 'pending' | 'cancel-stuck'
 class Transaction extends EventTarget {
@@ -70,11 +71,23 @@ async function fixture(behavior: Mode) {
   const db = new Database({ revision: 1, data }, behavior); db.media.set(assetId, new Blob(['old']))
   const indexedDB = { open() { db.opens++; const req: any = { result: db }; queueMicrotask(() => req.onsuccess?.()); return req } }
   // 每個案例用新頁面般的模組狀態；執行真正來源，只替換 import/export 入口，不重寫收尾邏輯。
-  const source = readFileSync(new URL('../../web/storage.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace(/^export /gm, '')
-  const storage = runInNewContext(source + '\n;({ writeLibrary, readLibrary, saveChunk, clearChunks, storageUnconfirmed, storageUnconfirmedMessage })', { indexedDB, newLibrary, validateBackup, migrateLibrary, assembleChunks, Blob, Error, DOMException, AbortController, setTimeout, clearTimeout })
+  const source = sourceForVm('web/storage.js').replace(/^import .*;\n/gm, '').replace(/^export /gm, '')
+  const storage = runInNewContext(source + '\n;({ openStore, writeLibrary, readLibrary, saveChunk, clearChunks, storageUnconfirmed, storageUnconfirmedMessage })', { ...vmCoverageContext(), indexedDB, newLibrary, validateBackup, migrateLibrary, assembleChunks, Blob, Error, DOMException, AbortController, setTimeout, clearTimeout })
   const next = structuredClone(data); next.videos[0].title = '合成待保存筆記'
-  return { db, storage, next, assetId }
+  return { db, storage, next, assetId, indexedDB }
 }
+test('開庫被阻擋後的遲到成功必須關閉；版本通知關閉連線後仍可重新開庫', async () => {
+  const { db, storage, indexedDB } = await fixture('complete'), original = indexedDB.open, before = structuredClone(db.record)
+  let request: any
+  indexedDB.open = () => { request = { result: db }; queueMicrotask(() => request.onblocked()); return request }
+  await expect(storage.openStore()).rejects.toThrow('關閉其他')
+  // blocked 的 Promise 已拒絕；遲到成功不可悄悄佔住另一頁正在升版的連線。
+  request.onsuccess(); expect(db.closes).toBe(1); expect(db.record).toEqual(before)
+  indexedDB.open = original
+  expect(await storage.openStore()).toBe(db)
+  ;(db as any).onversionchange(); expect(db.closes).toBe(2)
+  expect(await storage.openStore()).toBe(db); expect(db.opens).toBe(2)
+})
 const outcome = (promise: Promise<unknown>) => promise.then(value => ({ value, name: 'resolved' }), error => ({ error, name: error.name }))
 
 test('合法中斷錄影備份在讀回補齊 runtime 狀態後，仍可正常與未確認救援下載', async () => {

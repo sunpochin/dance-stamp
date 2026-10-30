@@ -93,7 +93,9 @@ export default async function storageRecoveryKeyboard(page, fixtures, folder, re
   await activate('#takes button[data-focus-key$=":open"]'); await activate('#takes button[data-focus-key$=":download"]');
   const baseline = await snapshot('baseline'); assert.equal(baseline.native.revision, 3);
   const incoming = await page.evaluate(async () => { const data = (await import('/library.js')).newLibrary(); data.videos.push({ id: crypto.randomUUID(), title: '合成尚未確認匯入', durationMs: 3000, revision: 1 }); return data; });
-  const choose = async () => { await page.locator('#restore').setInputFiles({ name: 'synthetic-import.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(incoming)) }); await idle(); assert(await page.locator('#import-dialog').evaluate(el => el.matches(':modal'))); };
+  // 次要工具現在預設收起；先展開並真的以 Tab 到選檔入口，才有可驗證的取消返回焦點。
+  await page.locator('#note-tools').evaluate(details => { details.open = true; });
+  const choose = async () => { await tabTo('#restore'); await page.locator('#restore').setInputFiles({ name: 'synthetic-import.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(incoming)) }); await idle(); assert(await page.locator('#import-dialog').evaluate(el => el.matches(':modal'))); };
   await choose(); await page.keyboard.press('Escape'); await idle();
   assert(await page.locator('#restore').evaluate(el => el === document.activeElement)); await snapshot('escape');
   await choose(); await activate('#import-cancel'); await snapshot('cancel');

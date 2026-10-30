@@ -31,6 +31,11 @@ test('AAC edit list 保留來源零點，僅跳讀封包與有界 moov', async (
   expect(track.times[1]).toBe(0); expect(track.config.numberOfChannels).toBe(2)
   expect(track.offsets[11]).toBe(52); expect(Math.max(...reads)).toBeLessThan(file.size)
   expect(await readAudioTrack(fixture({ silent: true }), signal())).toBeNull()
+  // extended-size atom 不是另一種 codec；有效 64-bit 長度可略過，超出安全整數則必須拒絕。
+  const wide = Buffer.alloc(16); wide.writeUInt32BE(1); wide.write('free', 4); wide.writeBigUInt64BE(16n, 8)
+  expect((await readAudioTrack(new Blob([wide, fixture({ offset: 24 })]), signal()))!.offsets[0]).toBe(24)
+  wide.writeBigUInt64BE(BigInt(Number.MAX_SAFE_INTEGER) + 1n, 8)
+  await expect(readAudioTrack(new Blob([wide]), signal())).rejects.toThrow('Safari')
 })
 test('超額 metadata、封包、sample 數、offset、fragment、不支援 codec 與壞結構安全拒絕', async () => {
   const inputs = [new Blob([be(audioBudget.metadata + 1), Buffer.from('moov'), Buffer.alloc(8)]), fixture({ packet: audioBudget.packet + 1 }), fixture({ samples: 250001 }), fixture({ offset: 1 }), fixture({ fragment: true }), fixture({ codec: 0x29 }), new Blob([be(7), Buffer.from('mdat')])]
@@ -43,7 +48,7 @@ test('超額 metadata、封包、sample 數、offset、fragment、不支援 code
 
 const original = { decoder: globalThis.AudioDecoder, chunk: globalThis.EncodedAudioChunk }
 afterEach(() => { globalThis.AudioDecoder = original.decoder; globalThis.EncodedAudioChunk = original.chunk })
-function environment(options: {fail?: boolean, onFlush?: () => void, rate?: number} = {}) {
+function environment(options: {fail?: boolean, onFlush?: () => void, rate?: number, copyFail?: boolean, decoderError?: boolean} = {}) {
   const audit = { submitted: 0, live: 0, max: 0, closed: 0, framesClosed: 0, allocations: [] as number[] }
   class Decoder {
     static async isConfigSupported() { return { supported: true } }
@@ -54,10 +59,12 @@ function environment(options: {fail?: boolean, onFlush?: () => void, rate?: numb
     async flush() {
       options.onFlush?.()
       for (const chunk of this.queue) {
-        this.callbacks.output({ timestamp: chunk.timestamp, sampleRate: options.rate ?? 48000, numberOfChannels: 2, numberOfFrames: 1024, copyTo: (pcm: Float32Array) => pcm.fill(chunk.timestamp >= 0 ? 0.25 : -0.25), close: () => { audit.framesClosed++ } })
+        this.callbacks.output({ timestamp: chunk.timestamp, sampleRate: options.rate ?? 48000, numberOfChannels: 2, numberOfFrames: 1024, copyTo: (pcm: Float32Array) => { if (options.copyFail) throw new Error('synthetic PCM copy failure'); pcm.fill(chunk.timestamp >= 0 ? 0.25 : -0.25) }, close: () => { audit.framesClosed++ } })
         audit.live--
       }
-      this.queue = []; if (options.fail) throw new Error('synthetic decoder failure')
+      this.queue = []
+      if (options.decoderError) this.callbacks.error(new Error('synthetic native decoder error'))
+      if (options.fail) throw new Error('synthetic decoder failure')
     }
     close() { this.state = 'closed'; this.queue = []; audit.live = 0; audit.closed++ }
   }
@@ -92,8 +99,9 @@ test('前置空 edit 的靜音不能混入已被正常 edit 丟棄的 AAC，片�
 test('預先取消、解碼取消、原生錯誤與輸出規格不符都 close，壞輸出不冒充靜音', async () => {
   const aborted = new AbortController(); aborted.abort()
   const first = environment(); await expect(decodeLocalAudio(fixture(), first.context, 0, .1, aborted.signal)).rejects.toThrow(); expect(first.audit.allocations).toEqual([])
-  for (const mode of ['abort', 'fail', 'rate']) {
-    const controller = new AbortController(), { context, audit } = environment({ onFlush: mode === 'abort' ? () => controller.abort() : undefined, fail: mode === 'fail', rate: mode === 'rate' ? 96000 : 48000 })
+  // 原生 PCM 複製也可能丟例外；必須拒絕壞輸出並關閉 frame，不能當靜音成功。
+  for (const mode of ['abort', 'fail', 'rate', 'copy', 'callback']) {
+    const controller = new AbortController(), { context, audit } = environment({ onFlush: mode === 'abort' ? () => controller.abort() : undefined, fail: mode === 'fail', rate: mode === 'rate' ? 96000 : 48000, copyFail: mode === 'copy', decoderError: mode === 'callback' })
     await expect(decodeLocalAudio(fixture(), context, 0, .1, controller.signal)).rejects.toThrow()
     expect(audit.closed).toBe(1); expect(audit.live).toBe(0)
     expect(audit.framesClosed).toBe(mode === 'abort' ? 0 : audit.submitted)
@@ -105,4 +113,11 @@ test('合法無音軌不配置 PCM；超過60秒在解析前拒絕；等待 reco
   await expect(decodeLocalAudio(fixture(), context, 0, 60.001, signal())).rejects.toThrow('Safari'); expect(audit.allocations).toEqual([])
   const controller = new AbortController(), pending = audioReady(new Promise(() => {}), controller.signal)
   controller.abort(); await expect(pending).rejects.toThrow()
+})
+test('原生音訊承諾永不完成時以逾時結束等待並撤除取消監聽', async () => {
+  const timer = globalThis.setTimeout, controller = new AbortController()
+  // 只壓縮本案例的十秒等待，不更改產品期限或解碼結果。
+  globalThis.setTimeout = ((callback: any, delay: number, ...args: any[]) => timer(callback, delay === 10000 ? 1 : delay, ...args)) as typeof setTimeout
+  try { await expect(audioReady(new Promise(() => {}), controller.signal)).rejects.toThrow('音訊準備逾時'); controller.abort() }
+  finally { globalThis.setTimeout = timer }
 })

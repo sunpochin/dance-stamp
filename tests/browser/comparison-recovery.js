@@ -7,7 +7,8 @@ async (page) => {
   const library = () => restored.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
   await context.addInitScript(() => {
     window.confirm = () => true;
-    navigator.mediaDevices.getUserMedia = async () => { throw new Error('備份驗收禁止相機'); };
+    // context init 會先於實際來源執行，about:blank 缺少媒體 API 時不能製造額外例外。
+    if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { throw new Error('備份驗收禁止相機'); };
   });
   try {
     await restored.goto(origin); await idle();

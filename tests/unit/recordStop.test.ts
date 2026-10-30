@@ -2,6 +2,27 @@
 import { expect, test } from 'bun:test'
 import { record } from '../../web/recorder.js'
 
+test('原生 stop 永不通知時不冒稱完成，保留前塊並撤除落盤監聽', async () => {
+  const original = globalThis.MediaRecorder, timer = globalThis.setTimeout, saved: Blob[] = []
+  let native: FakeRecorder
+  class FakeRecorder extends EventTarget {
+    static isTypeSupported() { return true }
+    state = 'inactive'; mimeType = 'video/mp4'
+    constructor() { super(); native = this }
+    start() { this.state = 'recording' }
+    stop() { this.state = 'inactive' }
+    data(text: string) { this.dispatchEvent(Object.assign(new Event('dataavailable'), { data: new Blob([text], { type: this.mimeType }) })) }
+  }
+  globalThis.MediaRecorder = FakeRecorder as unknown as typeof MediaRecorder
+  // 只加速缺少原生收據的等待；不能偽造 stop 或把逾時當成已保存。
+  globalThis.setTimeout = ((callback: any, delay: number, ...args: any[]) => timer(callback, delay === 15000 ? 1 : delay, ...args)) as typeof setTimeout
+  try {
+    const session = record({} as MediaStream, blob => saved.push(blob)); native!.data('head')
+    await expect(session.stop()).rejects.toThrow('停止逾時'); await expect(session.done).rejects.toThrow('停止逾時')
+    native!.data('late'); expect(await new Blob(saved).text()).toBe('head')
+  } finally { globalThis.MediaRecorder = original; globalThis.setTimeout = timer }
+})
+
 test('stop 等到尾塊才完成；error 先拒絕 done，但不提早移除落盤監聽', async () => {
   const original = globalThis.MediaRecorder, instances: FakeRecorder[] = []
   class FakeRecorder extends EventTarget {
