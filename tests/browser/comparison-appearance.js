@@ -31,7 +31,7 @@ async (page) => {
     // GPU／CPU 字型反鋸齒可不同；驗證文字仍在各側原位置，不以逐像素相等冒充文字方向。
     if (observed.labels.some(count => count < 20)) throw new Error('鏡像讓文字離開原本的位置');
   }
-  if (!await page.getByRole('heading', { name: '左 · 老師示範', exact: true }).isVisible()) throw new Error('老師／自己的角色不清楚');
+  if (!await page.getByRole('heading', { name: '左 · 示範影片', exact: true }).isVisible()) throw new Error('老師／自己的角色不清楚');
   await page.setViewportSize({ width: 390, height: 844 });
   if (!await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)) throw new Error('窄版出現水平溢出');
   return { fourIndependentMirrorCombinations: true, canvasLabelsNotMirrored: true, leftTeacherRightSelf: true, narrowLayout: true };

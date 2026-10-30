@@ -1,4 +1,5 @@
 /* 檔案用途：驗證真正離頁後的自拍片段恢復。所在層：合成媒體瀏覽器驗收。主要關聯：capture.js、storage.js、issue-9-capture-recovery.md。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 async (page, phase = 'prepare') => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const origin = new URL(page.url()).origin;
@@ -28,8 +29,8 @@ async (page, phase = 'prepare') => {
       const store = await import('/storage.js'), { data } = await store.readLibrary(), take = data.takes.at(-1);
       return { take, bytes: (await store.readMedia(take.cameraAssetId)).size };
     });
-    await page.locator('#new-take').click(); await idle();
-    await page.locator('#end').fill('15'); await page.locator('#camera').click(); await idle();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#new-take').click(); await idle();
+    await page.locator('#end').fill('15'); await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
     // 在產品的清理 listener 之後觀測，驗證原生 pagehide 同步停止了 tracks。
     await page.evaluate(() => window.addEventListener('pagehide', event => {
       sessionStorage.setItem('synthetic-pagehide', JSON.stringify({ trusted: event.isTrusted, persisted: event.persisted, released: window.navigationTracks.every(track => track.readyState === 'ended'), referenceAtHideMs: Math.round(document.getElementById('reference').currentTime * 1000) }));

@@ -80,6 +80,7 @@ async page => {
   assert(await page.locator('#overlay-opacity').inputValue() === '51', '透明度無法鍵盤操作');
   await page.locator('#reference-mirror').setChecked(false); await idle();
   await page.locator('section[aria-labelledby="overlay-title"]').screenshot({ path: 'output/playwright/overlay-comparison.png' });
+  await page.locator('#camera-tools').evaluate(el => { el.open = true; });
   await page.locator('#new-take').click(); await idle();
   assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#overlay-play').isDisabled() && previous === await page.locator('#output-download').getAttribute('href'), '新 take 未清空疊影或破壞舊 VS');
   return { fourMirrorCombinations: true, alphaEndpointsAndMix: true, viewOnlySetting: true, timing, negativeOffset: true, invalidRange: true, playbackPauseStop: true, responsiveAndKeyboard: true, previousOutputPreserved: true, download: path };

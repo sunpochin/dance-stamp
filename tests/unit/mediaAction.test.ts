@@ -1,6 +1,6 @@
 /* 檔案用途：防止失敗、取消留下媒體監聽與逾時。所在層：純生命週期回歸。主要關聯：web/recorder.js、main.js。 */
 import { expect, test } from 'bun:test'
-import { mediaAction, seek, presentedFrame } from '../../web/recorder.js'
+import { event, mediaAction, seek, presentedFrame, load } from '../../web/recorder.js'
 class CountedTarget extends EventTarget {
   listeners = new Set<EventListenerOrEventListenerObject>()
   override addEventListener(name: string, callback: EventListenerOrEventListenerObject | null, options?: AddEventListenerOptions | boolean) {
@@ -12,6 +12,48 @@ class CountedTarget extends EventTarget {
     super.removeEventListener(name, callback, options)
   }
 }
+test('格式不支援、解碼失敗及一般媒體錯誤有可辨識提示並清除監聽', async () => {
+  for (const [code, message] of [[4, 'H.264'], [3, '解碼失敗'], [undefined, '媒體無法解碼']] as const) {
+    const target = Object.assign(new CountedTarget(), { error: { code } })
+    const pending = event(target, 'ready', undefined)
+    target.dispatchEvent(new Event('error'))
+    await expect(pending).rejects.toThrow(message); expect(target.listeners.size).toBe(0)
+  }
+})
+test('載入先等可解碼資料、再定位回零；未知長度實際 seek 尾端而非猜測', async () => {
+  class LoadedVideo extends CountedTarget {
+    readyState = 2; videoWidth = 640; videoHeight = 360; src = ''; duration = 2.3456; position = 1; seeks: number[] = []
+    get currentTime() { return this.position }
+    set currentTime(value: number) {
+      this.seeks.push(value); this.position = value
+      if (value === 1e9) this.duration = 2.3456
+      this.dispatchEvent(new Event('seeked'))
+    }
+    load() { this.dispatchEvent(new Event('loadeddata')) }
+  }
+  for (const duration of [2.3456, Infinity]) {
+    const video = new LoadedVideo(); video.duration = duration
+    expect(await load(video, 'blob:synthetic', undefined)).toBe(2346)
+    expect(video.src).toBe('blob:synthetic'); expect(video.currentTime).toBe(0)
+    expect(video.seeks).toEqual(Number.isFinite(duration) ? [0] : [1e9, 0])
+    expect(video.listeners.size).toBe(0)
+  }
+  for (const change of [{ videoWidth: 0 }, { videoHeight: 0 }, { duration: 0 }, { duration: -1 }]) {
+    const video = Object.assign(new LoadedVideo(), change)
+    await expect(load(video, 'blob:synthetic', undefined)).rejects.toThrow()
+    expect(video.listeners.size).toBe(0)
+  }
+})
+test('定位拒絕非法時間與未就緒媒體，同位置不多等事件；缺少影格能力可退回播放等待', async () => {
+  const video = Object.assign(new CountedTarget(), { currentTime: 0, readyState: 2 })
+  for (const value of [-1, NaN, Infinity]) await expect(seek(video, value, undefined)).rejects.toThrow('時間不正確')
+  await seek(video, 0, undefined); expect(video.listeners.size).toBe(0)
+  await expect(seek(video, 0, undefined, true)).rejects.toThrow('無法確認')
+  video.readyState = 0; await expect(seek(video, 0, undefined)).rejects.toThrow('尚未準備')
+  const pending = presentedFrame(video as unknown as HTMLVideoElement, new AbortController().signal)
+  video.dispatchEvent(new Event('playing')); await pending
+  expect(video.listeners.size).toBe(0)
+})
 test('媒體事件與啟動 Promise 兩者都成功才完成，所有監聽移除', async () => {
   const target = new CountedTarget()
   let release!: () => void, complete = false

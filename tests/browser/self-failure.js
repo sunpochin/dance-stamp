@@ -15,8 +15,8 @@ async (page) => {
     assert(await page.locator('#self').getAttribute('src') === before, '自拍換片失敗丟失原片');
     assert(await page.evaluate(() => !document.getElementById('compare').disabled), '自拍換片失敗讓原比較不可用');
   }
-  await page.getByLabel('自拍偏移（秒）', { exact: true }).fill('0.05');
-  await page.getByLabel('自拍偏移（秒）', { exact: true }).press('Tab');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).fill('0.05');
+  await page.getByLabel('練習影片起點（秒）', { exact: true }).press('Tab');
   // 操作結束後再讀實際資料；不能把非同步 predicate 的 Promise 當成保存成功。
   await page.waitForFunction(() => !document.getElementById('controls').disabled);
   const saved = await page.evaluate(async id => {

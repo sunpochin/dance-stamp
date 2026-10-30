@@ -1,4 +1,5 @@
 /* 檔案用途：用原生早停與真短片驗證新擷取不假成功，保留舊片／筆記及可恢復 chunks。所在層：瀏覽器媒體回歸。主要關聯：main.js、capture.js。 */
+// 相機設定已收在選用區；先展開，再沿用原本的錄影與資料保護斷言。
 // 筆記管理收在次要工具，先展開再驗證既有功能；資料斷言維持原樣。
 async (page, options) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
@@ -73,7 +74,7 @@ async (page, options) => {
   }
   if (options.phase === 'start') {
     await page.evaluate(mode => { window.captureIntegrity.mode = mode; }, options.mode);
-    await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
+    await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
     return { started: true, mode: options.mode };
   }
   if (options.phase === 'status') return page.evaluate(() => ({ ready: !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true', status: document.getElementById('status').textContent, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent) }));

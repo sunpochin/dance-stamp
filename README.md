@@ -42,4 +42,6 @@
 
 ## 參與方式
 
+`bun run test:coverage` 重跑同一批單元測試，顯示行數／函式覆蓋率並輸出 `coverage/lcov.info`。這是測試載入模組的統計；`web/main.js`、`web/storage.js` 與以 VM 執行的 `web/sw.js` 尚無此報表的覆蓋率，不能把數字當成整個 Web App 或真機驗收。統計範圍與基準見 [覆蓋率證據](docs/evidence/issue-99-unit-coverage.md)。
+
 先從[路線圖](docs/ROADMAP.md)的可行性驗證開始。已提供 AI harness：先讀 [AGENTS.md](AGENTS.md) 與[工具說明](docs/ai/HARNESS.md)，使用 Bun 1.4.4 執行 `bun run check`，並以 `bun run hooks:install` 安裝此 clone 的 Git 防護。`bun run check` 已包含 Web 建置與邏輯測試；瀏覽器回歸和媒體驗收另記錄，不能把工具檢查寫成整體產品完成。回報問題請提供合成或自有權利的短片，勿把私人課程影片直接貼到公開 issue。
