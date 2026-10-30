@@ -121,3 +121,29 @@ default 的兩組程序數為 13／10，pending-write 的三組為 10／10／8�
 default 原收據 SHA256 `c784d057e88975c176eb5a13f59fd22d4b6b5eff713eac781d6299120e98e7d9`；pending-write 原收據 SHA256 `f7ee39111d3179e601eb08b2471dba715f61696fc962fc325877c696d24b939f`。兩次原生入口沒有失敗或環境拒絕；raw、profile、瀏覽器日誌與獨立查核只留 ignored output，所有歷史失敗與舊來源數據保持原歸屬。
 
 本次只補新 manifest 的更新下載及未提交交易中斷，沒有重跑低空間／配額或影音矩陣，也不涵蓋錄影 chunks、提交瞬間、斷電、永久保存、Safari／私人模式、實體／跨裝置或真實影片品質。後續提交只補本節與技術索引，工具及產品 bytes 仍綁定受測 9e69034，不把文件 head 冒充另一次原生重跑。Claude Code／使用者最終審查與 #13／#1 等未完成驗收保持開啟；iPhone 暫緩，未合併 main、部署、發布或關票。
+
+## d837552 共用鎖釋放後的原生寫入中斷補驗
+
+2026-10-30 20:18:28–20:18:30（Asia/Taipei），依使用者授權重新確認共用媒體鎖不存在後，在本聊天全新隔離 clone，以乾淨 `d83755239bf145e9b79d50263208edfad83754e8`／靜態 `6f07212fe275ae3c` 執行原 `forced-install-restart.ts --pending-write`，首次實際執行即 exit 0、status passed、trackedChanges 為空字串。這不是把上一輪 `5078401` 因 EEXIST 未啟動瀏覽器的紀錄改成成功；前輪阻擋仍保留於 #13。本輪沒有修改產品、測試工具或門檻，後續提交只補本節證據。
+
+環境為 macOS 27.0.1（26A434）／arm64、Darwin 27.0.0、Chrome 156.0.8078.76 headless、Bun 1.4.4、已安裝 Playwright core `1.64.0-alpha-1790635538000`。原工具以原子 mkdir 取得自己的共用鎖，建立全新 profile 與動態 loopback 主機；沒有讀取日常瀏覽器或私人媒體，相機／麥克風／畫面擷取呼叫均為 0。
+
+1. 原生 metadata／media 的兩個 trusted put 已成功，交易內看見候選筆記；兩次 barrier 的 keep-alive ticks **28→3275**，產品 Promise、complete、abort 均未結束，才對本輪自有獨立程序群組送出真正 SIGKILL。原收據確認實際退出 signal 為 SIGKILL、群組程序歸零，沒有用正常 close 或人工 abort 冒充中斷。
+2. 以同一 profile 的新程序讀回，`before` 與 `afterInterruptedWrite` 的完整產品 JSON、原生 metadata、revision **1**、media keys、Blob 大小／類型／SHA 全欄位相同。原工具另逐 byte 核對 1,048,613-byte 舊 sentinel，沒有清庫、換 profile 或匯入重建。
+3. 相同候選筆記、asset 與 Blob 重試，revision **1→2**，原生提交 metadata 精確等於候選，keys 不變，新 Blob 每 byte 符合新公式。正常退出後第三個同 profile 程序的整份 snapshot equality 斷言及 `committed-restart-verified` 事件通過。**第三份 snapshot 仍未另序列化**，raw 也沒有另存完整 Blob bytes，不宣稱有可獨立逐欄／逐 byte 比對的第三份原始檔。
+
+本輪另以只讀程式核對已序列化快照、barrier、重試 metadata、事件順序與來源檔案指紋，並獨立生成兩個完整公式重算 SHA256：舊值 `6ef72dcccd9b51e3a7f384632a9dff22af4c12372f3396fe557011d42e867971`、新值 `bf53d764260842712bdcd2741340db837b4885e87d9fc23e62500135b4650e5c`。這是重新核對原工具收據與已知公式，不能稱為另行讀取原生完整 Blob bytes。
+
+三個自有程序群組的退出均由原工具確認；另只查收據中 **28 個已知自有 PID**，ps 回空且沒有 stderr 診斷，本輪 loopback 埠拒絕連線。原工具核對自己的 nonce 才放鎖，`lockReleased=true`，只讀收尾觀察時共用鎖不存在。沒有刪除他人的鎖、掃殺程序、操作他人 profile 或強制卸載磁碟。
+
+固定指紋：
+
+- runner SHA256：`263155ae73e41925f201e244ed7e3432d892556895e772d63729190562dbda29`。
+- 建置 worker SHA256：`173519cd11ed3f02709a7828c019cfe3e025b0f897d2f5b975444ec98cdb62f2`。
+- storage.js SHA256：`d470fecd1c030878ae2e1750f68d3ad130e84d8393bdfaafb99dbd68a98b2e8a`；source／dist 逐 byte 相同。
+- 原收據 SHA256：`d603e7b824b3f527d937a98a1bb93bab0947c7b24ead4d3f7c08f4ad05fce66d`。
+- 只讀資料／收尾查核收據 SHA256：`d154f63f8668b985b50e88eca410cf0643143ed040fd5310382d77b7dbeb3803`。
+
+乾淨受測來源的完整 `bun run check` 通過 **632 tests／3051 expects／0 fail**，含 harness 指紋、公開掃描、型別、原 lint 與 build；19 項既有 lint info 保留。文件修改後仍執行原 pre-commit／pre-push hooks，不跳過或降低門檻。raw、profiles、程序／主機識別及瀏覽器日誌只留本機 ignored output，不加入 Git 或公開附件。
+
+本輪只補這個固定版本的未提交 metadata＋Blob 交易中斷，不重跑 default、chunks 恢復、VS 保存尾段、低空間／配額、Safari 或影音矩陣；也不證明提交瞬間、斷電、永久保存或其他瀏覽器／裝置。實體離線測試與最終審查依使用者指示保留，#13 保持開啟；iPhone 繼續暫緩，沒有合併、部署或發布。
