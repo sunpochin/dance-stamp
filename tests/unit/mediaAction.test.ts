@@ -152,3 +152,12 @@ test('目標影格比 seeked 先到也保留通知，兩者完成才開始', asy
   video.seeking = false; video.dispatchEvent(new Event('seeked')); await pending
   expect(complete).toBe(true); expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
 })
+test('原生不再交付影格時逾時拒絕，清掉待呈現通知與監聽', async () => {
+  const timer = globalThis.setTimeout, video = new PresentedVideo()
+  // 只加速無通知的計時器；不以假影格滿足產品的呈現屏障。
+  globalThis.setTimeout = ((callback: any, delay: number, ...args: any[]) => timer(callback, delay === 15000 ? 1 : delay, ...args)) as typeof setTimeout
+  try {
+    await expect(presentedFrame(video as unknown as HTMLVideoElement, new AbortController().signal)).rejects.toThrow('畫面逾時')
+    expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
+  } finally { globalThis.setTimeout = timer }
+})

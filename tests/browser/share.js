@@ -7,7 +7,8 @@ async (page) => {
   const snapshot = p => p.evaluate(async () => await (await import('/storage.js')).readLibrary());
   const restore = async (p, data) => { await p.locator('#restore').setInputFiles({ name: 'synthetic.dance-stamp.json', mimeType: 'application/json', buffer: Buffer.from(typeof data === 'string' ? data : JSON.stringify(data)) }); await idle(p); };
   const watch = p => { p.on('request', r => { if ((!r.url().startsWith(origin + '/') && !r.url().startsWith('blob:')) || !['GET','HEAD'].includes(r.method())) outside.push(r.method() + ' ' + r.url()); }); p.on('pageerror', e => errors.push(e.message)); };
-  const init = () => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('分享驗收禁止相機'); }; Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }); };
+  // init 也會先跑在新 context 的 about:blank；沒有安全來源時 API 不存在，不能製造頁面例外。
+  const init = () => { if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { throw new Error('分享驗收禁止相機'); }; Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false }); };
   watch(page); await page.addInitScript(init); await page.goto(origin); await idle(page);
   await page.locator('#existing-mode').click();
   await page.locator('#reference-file').setInputFiles('output/export-failure/reference.mp4'); await idle(page);
