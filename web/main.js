@@ -21,6 +21,7 @@ function drawingContext(canvas) {
 }
 const reference = $('reference'), self = $('self'), preview = $('preview'), output = $('output');
 const canvas = $('canvas'), context = drawingContext(canvas);
+const overlay = $('overlay-canvas'), overlayContext = drawingContext(overlay);
 const localAudio = safariAudio();
 let camera, cameraWatch, active, referenceDurationMs = 0, selfDurationMs = 0, takeBlob, outputBlob;
 let audio, audioSource, monitor, audioDestination;
@@ -134,6 +135,17 @@ function updateControls() {
     for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
     showStorageRecovery();
   }
+  updateOverlayControls();
+}
+function updateOverlayControls() {
+  let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
+  try { if (available) recipe(); } catch { available = false; }
+  const previewing = !$('pause-comparison').hidden;
+  overlay.hidden = !available; $('overlay-empty').hidden = available;
+  $('overlay-opacity').disabled = !available || !!active && !previewing;
+  $('overlay-play').disabled = !available || !!active || storageUnconfirmed();
+  $('overlay-pause').disabled = !previewing;
+  if (available && !active) drawOverlay(recipe());
 }
 async function operation(task) {
   if (active) return;
@@ -149,6 +161,7 @@ async function operation(task) {
   stopPractice();
   $('controls').disabled = true; $('compare').disabled = true;
   reference.controls = false; self.controls = false;
+  updateOverlayControls();
   $('practice').disabled = true;
   for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = true;
   try {
@@ -234,7 +247,21 @@ async function countIn(grid, rate, signal) {
     }
   } finally { cancel(); }
 }
-function draw(value) {
+function drawOverlay(value) {
+  const width = overlay.width, height = overlay.height;
+  overlayContext.fillStyle = '#080c0e'; overlayContext.fillRect(0, 0, width, height);
+  // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
+  // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
+  for (const [video, mirror, alpha] of [[self, value.selfMirror, 1], [reference, value.referenceMirror, Number($('overlay-opacity').value) / 100]]) {
+    if (video.readyState < 2) continue;
+    const rect = contain(video.videoWidth, video.videoHeight, width, height);
+    overlayContext.save();
+    overlayContext.globalAlpha = alpha;
+    overlayContext.translate(mirror ? width : 0, 0); overlayContext.scale(mirror ? -1 : 1, 1);
+    overlayContext.drawImage(video, rect.x, rect.y, rect.width, rect.height); overlayContext.restore();
+  }
+}
+function draw(value, withOverlay = true) {
   context.fillStyle = '#080c0e'; context.fillRect(0, 0, 1280, 720);
   for (const [video, x, mirror, label] of [[reference, 0, value.referenceMirror, '示範'], [self, 640, value.selfMirror, '我']]) {
     if (video.readyState < 2) continue;
@@ -243,6 +270,7 @@ function draw(value) {
     context.drawImage(video, rect.x, rect.y, rect.width, rect.height); context.restore();
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
+  if (withOverlay) drawOverlay(value);
 }
 async function align(value, elapsedMs, signal, waitForFrame = false) {
   reference.pause(); self.pause();
@@ -281,7 +309,8 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
     };
     const paint = now => {
       if (now - lastCaptureAt >= 1000 / 30 - 1) {
-        draw(value); captureFrame();
+        // VS 編碼時不多畫疊影；同一來源仍用原來的左右畫布，避免增加合成負載。
+        draw(value, !exporting); captureFrame();
         lastCaptureAt = now - ((now - lastCaptureAt) % (1000 / 30));
       }
     };
@@ -577,15 +606,23 @@ function updateIntersection() {
     $('play').disabled = false; $('export').disabled = false;
     if (outputBlob) $('output-status').textContent = outputRecipe === recipeSignature(value) ? '這支 VS 對應目前的比較設定。' : '這是先前設定的 VS，原檔仍保留；若要目前設定的畫面，請重新匯出。';
   } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('play').disabled = true; $('export').disabled = true; }
+  updateOverlayControls();
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror', 'preview-mirror'])) $(id).addEventListener('change', () => { mirrors(); if (selfDurationMs) updateIntersection(); });
+// 可見度只影響本次檢視，不寫入配方、不改原片或已完成的 VS。
+$('overlay-opacity').addEventListener('input', () => {
+  $('overlay-opacity-value').textContent = `${$('overlay-opacity').value}%`;
+  if (!overlay.hidden) drawOverlay(recipe());
+});
+$('overlay-play').addEventListener('click', () => $('play').click());
+$('overlay-pause').addEventListener('click', () => $('pause-comparison').click());
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
 $('play').addEventListener('click', () => operation(async signal => {
   const value = recipe(), durationMs = comparison(value).durationMs;
   const startMs = Number($('scrub').value) * 1000;
   await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
-  $('pause-comparison').hidden = false;
-  status('共同預覽中；可一起暫停後拖動時間線，再繼續預覽。鏡像請看下方合成畫面。');
+  $('pause-comparison').hidden = false; updateOverlayControls();
+  status('共同預覽中；疊影與左右畫面一起播放，可調整老師可見度。一起暫停後可拖動共同時間線再繼續。');
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
@@ -607,7 +644,7 @@ $('export').addEventListener('click', () => operation(async signal => {
     status('正在準備比較畫面，請保持此頁在前景。');
     // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
     const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), async () => {
-      draw(value);
+      draw(value, false);
       // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
       // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
       stream = canvas.captureStream(0);

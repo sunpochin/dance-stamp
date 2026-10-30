@@ -301,12 +301,13 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
   node('media-dialog').open = true; node('relink-file').value = 'synthetic candidate'
   const document = { body: {}, documentElement: {}, activeElement: null as any, createElement: () => node('new-download') }; document.activeElement = document.body
   const context: any = { ...storage, writeLibrary: storage.writeLibrary, validateBackup, structuredClone, crypto, Blob, Error, AbortController, document, reference, self,
-    $: node, status: (text: string) => { node('status').textContent = text }, releaseCamera() {}, stopPractice() {}, applyPracticeSettings() {}, drawPractice() {}, renderLibrary() {}, report() {}, focusControl() {},
+    $: node, status: (text: string) => { node('status').textContent = text }, releaseCamera() {}, stopPractice() {}, applyPracticeSettings() {}, drawPractice() {}, updateOverlayControls() {}, renderLibrary() {}, report() {}, focusControl() {},
     ready: Promise.resolve(), comparisonSave: Promise.resolve(), state: structuredClone(db.record), active: null, operationFocus: null, operationTrigger: null, diagnostics: {}, monitor: null, audio: null,
     shareSending: false, shareDraft: null, relinkDraft: null, camera: null, referenceDurationMs: 15000, selfDurationMs: 15000, currentVideoId: data.videos[0].id, activeTakeId: takeId, pendingTakeId: null, existingMode: true,
     currentReferenceFile: new Blob(['reference']), takeBlob: new Blob(['self']), outputBlob: new Blob(['synthetic VS']), outputAssetId: null, urls,
     URL: { createObjectURL(blob: Blob) { const url = 'blob:backup-' + blobs.size; blobs.set(url, blob); return url }, revokeObjectURL(url: string) { revoked.push(url) } },
   }
+  // 疊影只做視覺更新，由瀏覽器回歸驗證；這裡沿用視圖 stub，專測儲存保全。
   // 不啟動 DOM／瀏覽器：取實際控制器函式驗證錯誤傳遞、finally 與救援入口，沒有鏡像一份 UI 邏輯。
   const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
   const functions = ['urlFor', 'showStorageRecovery', 'updateControls', 'operation', 'saveData', 'persistExport', 'downloadBackup'].map(name => {
@@ -360,7 +361,7 @@ test('佇列等待期間轉為未確認，真正「準備下一段」控制器�
       ready: gate === 'ready' ? saving : Promise.resolve(), comparisonSave: gate === 'comparisonSave' ? saving : Promise.resolve(),
       AbortController, Error, operationTrigger: null, operationFocus: null, diagnostics: {}, monitor: null, audio: null,
       reference: { pause() {}, controls: true }, self: { pause() {}, removeAttribute() { sourceChanges++ }, load() { sourceChanges++ }, controls: true },
-      stopPractice() {}, releaseCamera() {}, status() {}, showStorageRecovery() {}, applyPracticeSettings() {}, drawPractice() {}, updateControls() {}, report() {}, focusControl() {},
+      stopPractice() {}, releaseCamera() {}, status() {}, showStorageRecovery() {}, applyPracticeSettings() {}, drawPractice() {}, updateOverlayControls() {}, updateControls() {}, report() {}, focusControl() {},
       takeBlob: original, selfDurationMs: 15000, activeTakeId: 'synthetic take', pendingTakeId: null, urls,
       URL: { revokeObjectURL(url: string) { revoked.push(url) } }, confirm() { confirmations++; return true },
     }

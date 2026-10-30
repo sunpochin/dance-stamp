@@ -102,6 +102,16 @@
     <p id="intersection">載入自拍後顯示共同長度。</p>
     <div class="actions"><button type="button" id="play">一起預覽</button><button type="button" id="export" class="primary">輸出單一 VS 影片</button></div>
   </fieldset>
+  <section aria-labelledby="overlay-title">
+    <h2 id="overlay-title">疊影比較 · 看動作差在哪裡</h2>
+    <p id="overlay-help" class="hint">把老師變成半透明，和自己重疊看。先用上方起點、偏移與鏡像對齊；暫停後可拖動共同時間線逐段比較。</p>
+    <label><span>老師可見度 <output id="overlay-opacity-value" for="overlay-opacity">50%</output></span><input id="overlay-opacity" type="range" min="0" max="100" step="1" value="50" aria-describedby="overlay-help" disabled></label>
+    <p class="hint">往左讓老師更透明，0% 只看自己；往右讓老師更清楚。兩片的拍攝角度與人物大小越接近，越容易比。</p>
+    <div class="actions"><button type="button" id="overlay-play" disabled>播放疊影</button><button type="button" id="overlay-pause" disabled>一起暫停疊影</button></div>
+    <p id="overlay-empty" class="hint">先載入老師與自己的影片，確認有效的共同比較區間後，就能看到疊影。</p>
+    <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
+    <p class="hint">疊影供觀看比較；下方下載的 VS 仍是左右並排影片。合成 VS 時疊影暫停更新。</p>
+  </section>
   <section aria-label="合成結果"><h2>03 · 保存這次練習</h2>
     <canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas>
     <p id="output-status" role="status"></p>

@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+老師半透明與自身錄影的疊影比較，其混色原理、共同時間線、效能取捨與限制見第 47 節。
+
 2026-10-30 的四線來源、收尾衝突保留及封裝結論見[既有整合證據](docs/evidence/p0-safari-reliability-integration.md#2026-10-30-四線整合候選)。產品採 #87 的 chunks 影格確認修正，靜態 7c728c8a5bd7fa2f；其餘三線原生結果維持舊版歸屬，不以整合或合併替代驗收。
 
 新 VS 成檔後的保存尾段回歸見 [#11／#13 證據](docs/evidence/issue-11-vs-save-tail.md)：沿用 `persistExport` 不借用 `active.signal` 的保全契約，新增 Stop／原生拒絕與明示缺通知的可重跑入口；沒有更改產品設計或放寬品質護欄。
@@ -749,3 +751,33 @@ ba89487／1aa1ae164c31d690在真正Chrome已重現標題保存缺口：native me
 此案例重現真正產品缺陷：Chrome 可對沒有任何影格的 752-byte MP4 初始化段回報 loadeddata、尺寸與正時長，舊恢復流程因此 finalize 成 media ready 並清 chunks。最小修正放在 `openTakeUnlocked` 的 recovered 候選 beforeCommit：沿用 `presentedFrame`，本機靜音實播直到原生影格呈現才允許換片與 finalize；失敗／取消會暫停、撤銷等待並由原候選流程還原舊 URL。沒有影格確認能力時保留 chunks 並說明改用受測瀏覽器。排除硬編碼 MP4 檔頭長度或任意最短秒數，因為容器與合法短片不能用大小／時長猜測；不把此限制擴張到選片、已存原片或相機正常完成流程。
 
 PR #87 續審另以 `--recovery-frame` 只驗新 beforeCommit 接線的 Stop／能力缺失／play 拒絕。原 `take-open-failure.js` 停在 loadeddata 之前，`mediaAction.test.ts` 則測共用事件工具，兩者未覆蓋新守門的外層訊號與 finally。新增情境延後送達真正原生影格 callback 的同一份參數，不偽造影格／時長；實點 Stop 後驗原訊號、計時器、abort 監聽、候選 URL 與遲到通知不提交。同頁能力移除及播放拒絕明示為受控注入，三案失敗資料精確保留、同輸入恢復後再核對。此續審只增測試／文件，產品仍是 `5a90f35`／`7c728c8a5bd7fa2f`，舊三套程序中斷收據保持原工具指紋，未在本機重跑。
+
+## 47. #102 半透明疊影比較
+
+使用者結果：保留老師／自己原生播放器、左右比較及帶音訊 VS，另加一個「疊影比較」框，讓人直接看同一時刻的身體與腳步位置差異。透明度預設 50%，0% 只看自己；可在共同播放中或暫停後調整。先各自選同一動作起點，再用既有 offset、鏡像及共同時間線校正。操作說明見 [桌面預覽](docs/WEB_PREVIEW.md#疊影比較)。
+
+### 技術與混色原理
+
+沿用原生 JavaScript、HTML Canvas 2D 與既有兩個 `HTMLVideoElement`，沒有新增 runtime 套件、相機請求、影片上傳或後端。`drawImage(video, …)` 把已解碼的影片影格畫到獨立 960×540 畫布；CSS 延用既有寬度自適應。先畫不透明的自己，再以 `globalAlpha = 老師可見度 / 100` 覆蓋老師。老師必須最後畫，否則後畫的不透明自拍會完全遮住老師。
+
+採 Canvas 預設的 source-over 合成。在兩片影像重疊的像素上，若老師像素為 T、自己為 S、老師可見度為 a，結果 `C = a × T + (1−a) × S`（瀏覽器畫布色彩空間的通道混色，非線性光能運算）。a=0 看自己、a=0.5 各占一半、a=1 老師影像覆蓋自己。這是完整畫面混色，背景也會一起混合；沒有去背、骨架分析或自動評分。
+
+兩側各自呼叫既有 `contain`，等比例縮放、置中、保留全身與腳，不拉伸／裁切。不同長寬比不自動對齊人體；老師影像矩形外仍看得到自己，兩片都未覆蓋處顯示深色底。各側沿用配方的 `referenceMirror`／`selfMirror`，以 `save → translate → scale → drawImage → restore` 隔離變換與透明度，避免污染另一層或控制文字。可見度只留在本次頁面，不寫入 recipe／備份、不改原片、也不影響舊 VS 判定。
+
+參考：[Canvas drawImage](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage)、[globalAlpha](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalAlpha)、[source-over](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/globalCompositeOperation)。
+
+### 同步與資源生命週期
+
+時間契約完全引用 [RECORD_COMPARE 第 4 節](docs/RECORD_COMPARE.md#4-時間與鏡像契約)：示範 `A+r×t`、自己 `t+δ`，從合法交集 L 開始。疊影播放按鈕轉交既有共同預覽；不新增 video、解碼器、音訊節點、計時器或第二份時間／偏移。共同 scrub 等兩側 seek 完再畫；共同預覽同一個 `draw` 呼叫更新左右與疊影，沿用 rAF／rVFC 與 30fps 繪製節奏。只播放老師聲源，自己維持靜音。
+
+暫停、Stop、離頁／背景沿用既有取消與清理，停止後保留畫面供檢查。只有老師片、缺自拍、待人工確認、準備新 take 或非法／空交集時隱藏畫布並停用播放，避免把上一組疊影當新片。可見度在共同預覽期間保持可調，儲存／換片／匯出等其他操作期間鎖定。
+
+疊影額外持有一張 960×540 畫布，名義 RGBA 像素緩衝約 2 MiB，不代表程序實際記憶體峰值；不複製原片或堆積影格。VS 仍只 capture 原 1280×720 左右畫布。匯出錄製迴圈跳過疊影重畫，以免增加編碼時每格負載；完成／取消後由現有操作收尾更新靜止疊影。此功能只交付觀看比較，未新增疊影影片匯出。
+
+### 取捨與限制
+
+排除另放兩個 CSS 疊層 video：會增加解碼與同步 owner，已有同一對來源可直接共用。排除 WebGL、WebCodecs、自建播放引擎及 FFmpeg.wasm：Canvas 2D 足夠呈現透明度，不為一個預覽框增加維護與手機負擔。排除混入既有 VS 畫布：會改變原左右輸出契約；需要疊影下載時另訂輸出需求。排除 AI 姿態／自動對拍與去背：本需求是肉眼比較，兩片仍須人工對齊。
+
+拍攝角度、距離、人體大小與背景不同都可能產生視差；本版沒有人體位置／大小自動配準或數值誤差量測。疊影不能證明動作正確或計算「差幾度／幾毫秒」。建議用接近的角度、全身大小與背景拍攝。既有時間同步護欄不變；正式相機／長片 G1–G7、原生 Safari、實體手機及真人判讀仍需各自驗收，不由合成瀏覽器測試代替。
+
+重現入口為 `tests/browser/comparison-overlay.js`（先執行 `scripts/make-comparison-fixtures.ts`），另跑原有 `comparison-appearance.js` 與 `comparison-pitch.js` 保護左右鏡像及聲路。版本與實際測試結果記在 [#102 證據](docs/evidence/issue-102-overlay.md)。
