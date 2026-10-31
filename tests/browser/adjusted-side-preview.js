@@ -6,7 +6,16 @@ async page => {
   const fields = ['reference', 'self'].flatMap(side => ['scale', 'x', 'y'].map(key => 'adjusted-' + side + '-' + key));
   const values = () => Promise.all(fields.map(id => page.locator('#' + id).inputValue()));
   const signature = (id = 'adjusted-side-canvas') => page.locator('#' + id).evaluate(c => c.toDataURL());
-  const half = side => page.locator('#adjusted-side-canvas').evaluate((c, side) => c.getContext('2d').getImageData(side * 640, 48, 640, 672).data.reduce((sum, value, i) => (sum + value * (i % 97)) % 2147483647, 0), side);
+  const originalDifference = () => page.evaluate(() => {
+    const pixels = id => document.getElementById(id).getContext('2d').getImageData(0, 0, 1280, 720).data;
+    const original = pixels('canvas'), adjusted = pixels('adjusted-side-canvas');
+    return original.reduce((max, value, i) => Math.max(max, Math.abs(value - adjusted[i])), 0);
+  });
+  const half = (side, capture = false) => page.locator('#adjusted-side-canvas').evaluate((c, { side, capture }) => {
+    const pixels = c.getContext('2d').getImageData(side * 640, 48, 640, 672).data;
+    if (capture) { window.adjustedHalfBefore = pixels; return; }
+    return pixels.reduce((result, value, i) => { const difference = Math.abs(value - window.adjustedHalfBefore[i]); result.max = Math.max(result.max, difference); result.sum += difference; result.changed += difference > 0 ? 1 : 0; return result; }, { max: 0, sum: 0, changed: 0 });
+  }, { side, capture });
   const pixel = (x, y, id = 'adjusted-side-canvas') => page.locator('#' + id).evaluate((c, p) => [...c.getContext('2d').getImageData(...p, 1, 1).data].slice(0, 3), [x, y]);
   const red = p => p[0] > 200 && p[2] < 30, blue = p => p[2] > 200 && p[0] < 30, dark = p => p.every(v => v < 25);
   const stored = () => page.evaluate(async () => JSON.stringify(await (await import('/storage.js')).readLibrary()));
@@ -25,13 +34,14 @@ async page => {
   assert(await page.locator('#adjusted-self-x').isDisabled(), '單片就開放調整');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await set('start', 12, 'change'); await set('end', 15, 'change'); await set('offset', 4, 'change');
-  assert(await page.locator('#adjusted-side-canvas').isVisible() && await signature() === await signature('canvas'), '初始畫面未保留原並排');
+  assert(await page.locator('#adjusted-side-canvas').isVisible() && await originalDifference() <= 2, '初始畫面未保留原並排');
   await set('overlay-reference-scale', 120);
   for (const [side, index] of [['reference', 0], ['self', 1]]) {
     await reset();
     await page.locator('#reference-mirror').setChecked(false); await idle();
     await page.locator('#self-mirror').setChecked(false); await idle();
-    const before = await stored(), sideBefore = await signature('canvas'), overlayBefore = await signature('overlay-canvas'), otherBefore = await half(1 - index), x = index * 640;
+    const before = await stored(), sideBefore = await signature('canvas'), overlayBefore = await signature('overlay-canvas'), x = index * 640;
+    await half(1 - index, true);
     await set('adjusted-' + side + '-scale', 50);
     assert(red(await pixel(x + 180, 450)) && dark(await pixel(x + 50, 450)), side + ' 縮小沒有保持圖片中心');
     await set('adjusted-' + side + '-x', 25);
@@ -44,7 +54,9 @@ async page => {
     await set('adjusted-' + side + '-y', -25);
     assert(blue(await pixel(x + 350, 290)), side + ' 向上移動不符');
     await set('adjusted-' + side + '-scale', 400); await set('adjusted-' + side + '-x', index === 0 ? 200 : -200);
-    assert(await half(1 - index) === otherBefore, '畫面跨過中線污染另一側');
+    const otherDifference = await half(1 - index);
+    // 原生影片重畫只有零星一階捨入；逐 channel 限 1，任何明顯跨框像素仍會失敗。
+    assert(otherDifference.max <= 1, '畫面跨過中線污染另一側：' + JSON.stringify(otherDifference));
     await set('adjusted-' + side + '-scale', 25); await reset();
   }
   await page.locator('#reference-mirror').setChecked(false); await idle();
@@ -81,7 +93,9 @@ async page => {
   await set('start', 0, 'change'); await set('end', 2, 'change'); await set('offset', 0, 'change');
   for (const mirror of [false, true]) {
     await page.locator('#reference-mirror').setChecked(mirror); await idle(); await page.locator('#self-mirror').setChecked(!mirror); await idle();
-    assert(await signature() === await signature('canvas'), '直式或鏡像的預設畫面與原並排不符');
+    // 置中變換與原本左上角原點的同圖繪製，沿用跟隨裁切的兩階色值界線。
+    const difference = await originalDifference();
+    assert(difference <= 2, '直式或鏡像的預設畫面與原並排不符：' + difference);
   }
   await page.locator('#adjusted-reference-x').focus(); await page.keyboard.press('ArrowRight');
   assert(await page.locator('#adjusted-reference-x').inputValue() === '0.5', '無法用鍵盤微調');
