@@ -237,6 +237,8 @@ try {
             await page.waitForFunction(() => !!navigator.serviceWorker.controller)
           }
           assert.equal(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).revision), 0, '恢復回歸只允許全新合成資料，不清空舊庫')
+          // 首次安裝不會接管已開分頁；先等 active，再讓原案例重載，避免新 WASM 尚在快取時搶先重開。
+          await page.waitForFunction(async () => (await navigator.serviceWorker.getRegistration())?.active?.state === 'activated')
           try { await module.recoveryFrameGuard({ page, origin, root, run: folder, evidence: frameEvidence, event, ready, fixtureSource: resolve(media, 'media-feasibility/reference.mp4') }); result = { ...frameEvidence, passed: true } }
           catch (error) { frameEvidence.failure = String(error); throw error }
           finally { saveFrame() }
