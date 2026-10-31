@@ -33,7 +33,8 @@ async page => {
     };
   });
   await page.goto(origin); await idle();
-  for (const side of ['reference', 'self']) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + side + '.mp4'); await idle(); if (side === 'reference') { await page.locator('#end').fill('3'); await page.locator('#end').dispatchEvent('change'); await idle(); } }
+  // 與主線可見流程相同，失焦只提交一次片段；避免合成 change 後又觸發原生 blur 重複存配方。
+  for (const side of ['reference', 'self']) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + side + '.mp4'); await idle(); if (side === 'reference') { await page.locator('#end').fill('3'); await page.locator('#end').press('Tab'); await idle(); } }
   await page.locator('#follow-performance > summary').click();
   const state = () => page.evaluate(async () => ({ data: JSON.stringify((await (await import('/storage.js')).readLibrary()).data), times: ['reference', 'self'].map(key => document.getElementById(key).currentTime) }));
   const original = JSON.stringify(await state());

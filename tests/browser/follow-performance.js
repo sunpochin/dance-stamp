@@ -38,7 +38,7 @@ async (page, options = {}) => {
   if (options.cacheReady) { await page.evaluate(() => navigator.serviceWorker.ready.then(() => true)); await page.reload(); await idle(); assert(await page.evaluate(() => !!navigator.serviceWorker.controller), '未取得真正 SW 快取控制'); }
   for (const side of ['reference', 'self']) {
     await page.locator('#' + side + '-file').setInputFiles(source || 'output/follow/' + side + '.mp4'); await idle();
-    if (side === 'reference') { await page.locator('#end').fill(String(durations[0])); await page.locator('#end').dispatchEvent('change'); await idle(); }
+    if (side === 'reference') { await page.locator('#end').fill(String(durations[0])); await page.locator('#end').press('Tab'); await idle(); }
   }
   await page.locator('#follow-performance > summary').click();
   const downloadReport = async () => {
@@ -47,7 +47,11 @@ async (page, options = {}) => {
     const { readFile } = await import('node:fs/promises'); return { path, data: JSON.parse(await readFile(path, 'utf8')) };
   };
   const analyze = async (side, duration, enabled = true, expected = 'complete', cancelAtResult = false, runtime) => {
-    for (const [id, value] of [['start', 0], ['end', duration], ['offset', 0]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); await idle(); }
+    // 準備步驟走真正預設頁；定位與設起點都在計時開始前，不把操作耗時混入分析。
+    for (const [id, value] of [['start', 0], ['end', duration]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).press('Tab'); await idle(); }
+    await page.locator('#self-seek').fill('0'); await page.locator('#self-seek').dispatchEvent('input');
+    await page.waitForFunction(() => { const video = document.getElementById('self'); return !video.seeking && video.currentTime < .02; });
+    await page.locator('#self-start').click(); await idle();
     await page.locator('#follow-metrics-enabled').setChecked(enabled);
     await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle();
     // 四秒回歸素材的人物在兩側邊緣；使用其完整身體選框，不拿中央預設框當模型失敗。

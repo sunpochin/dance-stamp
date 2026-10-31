@@ -63,4 +63,8 @@
 
 交錯收據 `output/follow-benchmark-1793484311763/run.json`，SHA256 `d660200d1aff811e6d54a24acd2c14d1b43bea9ab2874ad221ecdaeb895ea99b`；嚴格比較的 `comparison.json` 留同目錄。零頁面錯誤、自有主機停止、已知程序全退出、自己的nonce鎖正常釋放。原片／原收據與兩個模式的合成幾何均留本機，不上傳原始影格或私人影片。
 
-本輪整合 main `2f3a2c4c85f6500ea03d7cc2cc86ddd2c2c3667c` 的音訊回歸及Safari證據；原77案順序保留，`follow-runtime` 追加為第78案，WebKit供聲分支與SW故障隔離配置均保留。受測產品JS與靜態資源指紋不變，最終完整CI以PR所附同head的run為準。原生Safari、實體手機、私人舞蹈／遮擋／快轉、冷網路及完整G1–G7仍未驗證；本輪結果限於上述合成片與M4 Pro／Chrome，初次下載會增加SIMD資源成本。
+本輪先整合 main `2f3a2c4c85f6500ea03d7cc2cc86ddd2c2c3667c` 的音訊回歸及Safari證據；原77案順序保留，`follow-runtime` 追加為第78案，WebKit供聲分支與SW故障隔離配置均保留。此時受測產品JS與靜態資源指紋不變；整合提交 `72fbecd8af94f53ce5faba23e0fee9b3ed22a10c` 的[完整CI 41248981225](https://github.com/sunpochin/dance-stamp/actions/runs/41248981225)通過701單元、78案（包含恢復守門與WebKit供聲）、兩套離站播放、封裝與Linux中斷檢查。
+
+開PR前 main 又更新為 `19e7c12d24a91586c6ca88ade40c51fcc860a58c`：保留其可見「設為起點」及比較暫停／繼續介面，耗時案例沿用新主線的失焦提交及可見起點準備，與本輪runtime參數／幾何旁聽合併。準備都在確認計時前；人物分析三檔、跟隨／單側輸出模組與固定runtime bytes未改。靜態版本包含新的介面，故不把原長片測速改記成新靜態版本的重新測量；最終介面整合另以PR所附同head的完整CI驗證。
+
+原生Safari、實體手機、私人舞蹈／遮擋／快轉、冷網路及完整G1–G7仍未驗證；本輪結果限於上述合成片與M4 Pro／Chrome，初次下載會增加SIMD資源成本。
