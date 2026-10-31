@@ -9,6 +9,8 @@
 
 整合 main `e6f0300`／靜態 `4525b1293b89a584` 的原生 Safari 九案、非零 A 重錄、重開與真正下載核對見[本輪證據](docs/evidence/issue-9-capture-recovery.md#2026-10-31-整合-main-的原生-safari-矩陣核對)。這是目前整合版的新驗證，原 #117／#119 失敗與 #130 舊候選矩陣仍保持各自來源；原 B／±100ms 未變。
 
+整合版桌面 Safari 的錄影／VS、保存保全與未通過項目見 [2026-10-31 自主驗證](docs/evidence/safari-practice-validation-2026-10-31.md)：長輪第五輪中止、私人 VS／Blob 保存及準備逾時仍待處理；實拍、聽感與 iPhone 驗收分開記錄。
+
 PR #119 調查時，Safari #9 的 0.75× 收尾回跳已由無產品／錄影／儲存的原生播放頁隔離至音高恢復；停止速率只把問題延到下次播放，當時未採用產品修正。現行修正見第 51 節。固定來源、原 B／100ms 失敗、真正下載與保全證據見[本輪根因調查](docs/evidence/issue-9-capture-recovery.md#2026-10-31-safari-075-收尾位置回跳根因)。
 
 #9 的原生 Safari 恢復保全見[2026-10-31 證據](docs/evidence/issue-9-capture-recovery.md#2026-10-31-原生-safari-恢復原片)。恢復時先將組合 Blob 讀成獨立 bytes，再交原交易保存，避免清除 chunks 後新原片的共用底層檔案失效；讀回長度不符則拒絕並保留片段。此步增加一份完整原片的記憶體讀回，不改 schema、正常錄影或匯出；排除延後到刪除後才檢查、永久保留重複 chunks、Safari UA 特例及自動裁切原片。真機與完整 Safari 錄影矩陣仍未驗收。
