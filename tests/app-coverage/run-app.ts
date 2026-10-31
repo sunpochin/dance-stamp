@@ -68,6 +68,7 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -91,6 +92,8 @@ if (!selected.length) scenarios.push('source-time-rulers')
 
 // 簡化介面獨立追加，原有比較／疊影及恢復順序不變。
 if (!selected.length) scenarios.push('simplified-comparison')
+// 新的試看框走真正預設介面，接在原案例之後以保留既有前置順序。
+if (!selected.length) scenarios.push('adjusted-side-preview')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -174,7 +177,7 @@ try {
       window.addEventListener('beforeunload', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) })
       // DOMContentLoaded 後才註冊，讓產品的 pagehide 清理先執行；只用控制器通道，不送 App 網路寫入。
       document.addEventListener('DOMContentLoaded', () => window.addEventListener('pagehide', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) }))
-    }, activeScenario !== 'simplified-comparison')
+    }, !defaultInterfaceScenarios.has(activeScenario))
     context.on('page', watchPage)
     const close = context.close.bind(context)
     context.close = async options => { try { await collectContext(context) } finally { await close(options); contexts.delete(context) } }
@@ -295,10 +298,10 @@ try {
         }
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
-      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
+      evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
       console.log(`PASS ${name} (${Date.now() - started}ms)`)
     } catch (error) {
-      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
+      evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
       console.error(`FAIL ${name}:`, error)
     } finally {
       await context.close(); save(); report('app')
