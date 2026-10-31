@@ -11,7 +11,12 @@ async (page, { boundedAudio = false } = {}) => {
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   await idle();
   for (const [side, file] of [['reference', 'reference'], ['self', 'self-audio']]) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + file + '.mp4'); await idle(); }
-  for (const [id, value] of [['start', '.4'], ['end', '3.4'], ['offset', '.5']]) { await page.locator('#' + id).fill(value); await page.locator('#' + id).dispatchEvent('change'); await idle(); }
+  // 先真正失焦保存片段，再由可見定位尺設 C；保留原 .4／.5 秒時間映射。
+  for (const [id, value] of [['start', '.4'], ['end', '3.4']]) { await page.locator('#' + id).fill(value); await page.locator('#' + id).press('Tab'); await idle(); }
+  // 原生 range 的填值需有前導 0；時間仍是原本的半秒。
+  await page.locator('#self-seek').fill('0.5'); await page.locator('#self-seek').dispatchEvent('input');
+  await page.waitForFunction(() => { const video = document.getElementById('self'); return !video.seeking && Math.abs(video.currentTime - .5) < .02; });
+  await page.locator('#self-start').click(); await idle();
   const originals = await page.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).getAttribute('src')));
   const originalTimes = await page.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).currentTime));
   const stored = await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
