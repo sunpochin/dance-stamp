@@ -12,8 +12,11 @@ async page => {
   assert(await page.locator('#canvas').isHidden(), '左右預覽無法手動收合');
   await page.reload(); await idle();
   assert(await page.locator('#canvas').isVisible(), '重開後左右預覽未恢復預設展開');
-  assert(await page.locator('#export').isDisabled(), '缺片仍可匯出');
-  assert(await page.locator('#overlay-play, #overlay-pause').count() === 0 && await page.locator('#play').count() === 1, '比較播放控制重複');
+  assert(await page.locator('#export').isDisabled() && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '缺片仍可播放或匯出');
+  // 各區只有自己的播放入口，不能再把左右畫面包在疊影區裡；暫停仍沿共同時間線。
+  assert(await page.locator('#play').count() === 1 && await page.locator('#overlay-play').count() === 1 && await page.locator('#overlay-pause').count() === 0, '播放入口未分區或重複');
+  assert(await page.locator('#play').evaluate(el => el.closest('section').getAttribute('aria-labelledby') === 'side-title') && await page.locator('#overlay-play').evaluate(el => el.closest('section').getAttribute('aria-labelledby') === 'overlay-title'), '播放鍵沒有放在對應區塊');
+  assert(await page.locator('#canvas').evaluate(el => !el.closest('section[aria-labelledby="overlay-title"]')), '左右畫面仍混在疊影區');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
   // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
   await page.locator('#end').fill('15');
@@ -23,7 +26,7 @@ async page => {
   const exportFile = async (label, pixels, duration = 3) => {
     await page.locator('#export').click();
     await page.waitForFunction(() => document.getElementById('status').textContent.includes('合成中'));
-    assert(await page.locator('#export-layout').isDisabled() && await page.locator('#overlay-opacity').isDisabled(), '成檔期間仍可改外觀');
+    assert(await page.locator('#export-layout').isDisabled() && await page.locator('#overlay-opacity').isDisabled() && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '成檔期間仍可改外觀或重開比較');
     await idle();
     assert((await page.locator('#status').textContent()).includes('已成檔'), '比較未成檔：' + await page.locator('#status').textContent());
     await page.locator('#output').evaluate(async video => {

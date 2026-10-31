@@ -37,6 +37,16 @@ async (page) => {
     return { library, media };
   });
   await page.locator('#copy-reference').click(); await idle();
+  // 筆記保留原長度，重開練習卻須以真正載入的短片為界；不能靠裁掉舊標記修復。
+  const beforeReopen = await snapshot();
+  await page.locator('#library').selectOption(id); await page.locator('#open-library').click(); await idle();
+  const decodedMs = await page.locator('#reference').evaluate(video => Math.round(video.duration * 1000));
+  assert(Number(await page.locator('#start').inputValue()) === 0 && Math.round(Number(await page.locator('#end').inputValue()) * 1000) === decodedMs && decodedMs < original.duration, '重開短片仍沿用筆記舊片長');
+  assert(JSON.stringify(await snapshot()) === JSON.stringify(beforeReopen), '重開短片改動舊筆記、標記或媒體');
+  await page.locator('#loop').click();
+  await page.waitForFunction(() => !document.getElementById('reference').paused && document.getElementById('reference').currentTime > .1 && document.getElementById('status').textContent.includes('循環練習中'));
+  await page.locator('#loop').click();
+  assert(await page.locator('#reference').evaluate(video => video.paused), '短片循環未正常停止');
   await page.locator('#end').fill('2'); await page.locator('#end').press('Tab'); await idle();
   await page.locator('#self-file').setInputFiles('output/export-failure/self.mp4'); await idle();
   await page.locator('#export').click(); await idle();
@@ -93,5 +103,5 @@ async (page) => {
   assert(bytes.length === expected.bytes && createHash('sha256').update(bytes).digest('hex') === expected.hash, '重試後真正舊 VS 下載不符');
   await page.reload(); await idle(); const reopened = await snapshot();
   assert(JSON.stringify(reopened) === JSON.stringify({ library: { ...before.library, revision: linked.library.revision }, media: before.media }), 'session 重連重開後改動原資料或殘留候選');
-  return { sameFilenameNeedsExplicitConfirmation: true, outOfRangeMarkerRequiresRepair: true, originalNoteAndTimePreserved: true, relinkRecoveryFailure: { fault, nativeUnloadKeepsUnconfirmedCandidate: true, originalErrorPreserved: true, allMetadataAndMediaPreserved: true, cancelledAndRetried: true, sameProfileReload: true, actualVsDownload, expectedVs: expected } };
+  return { reopenedShortCopyUsesDecodedDuration: true, sameFilenameNeedsExplicitConfirmation: true, outOfRangeMarkerRequiresRepair: true, originalNoteAndTimePreserved: true, relinkRecoveryFailure: { fault, nativeUnloadKeepsUnconfirmedCandidate: true, originalErrorPreserved: true, allMetadataAndMediaPreserved: true, cancelledAndRetried: true, sameProfileReload: true, actualVsDownload, expectedVs: expected } };
 }
