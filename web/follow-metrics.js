@@ -22,10 +22,16 @@ export function followMeasurements(clock = performance) {
       let finished = false;
       const probe = {
         samples, processedFrames: 0, workerCreatedNow: 0, workerCreatedAt: 0,
+        /** @type {number|null} */ analysisCompletedMs: null,
+        /** @type {number|null} */ resultMs: null,
         /** @type {number|null} */ workerConstructorMs: null,
         /** @type {number|null} */ workerStartupMs: null,
         /** @type {number|null} */ scriptImportMs: null,
         /** @type {number|null} */ modelInitMs: null,
+        endAnalysis() {
+          // 製片約需片段長度；先停分析碼表，才能分清辨識速度與整體等待。
+          if (probe.analysisCompletedMs === null) probe.analysisCompletedMs = Math.max(0, clock.now() - started);
+        },
         recordWorker(timing) {
           if (!timing) return;
           for (const key of ['scriptImportMs', 'modelInitMs']) if (Number.isFinite(timing[key]) && timing[key] >= 0) probe[key] = rounded(timing[key]);
@@ -37,15 +43,16 @@ export function followMeasurements(clock = performance) {
         /** @param {'complete'|'cancelled'|'failed'} outcome @param {number} trackedFrames */
         finish(outcome, trackedFrames) {
           if (finished) return null; finished = true;
-          const totalMs = Math.max(0, clock.now() - started), clipDurationMs = (config.end - config.start) * 1000;
+          const totalFlowMs = Math.max(0, clock.now() - started), totalMs = probe.analysisCompletedMs ?? totalFlowMs, clipDurationMs = (config.end - config.start) * 1000;
           const stages = Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, distribution(values)]));
           // 比對鍵只活在有界記憶體，不進報告；不能為了辨識同一片而雜湊整支私人影片。
           const key = JSON.stringify([config.side, config.source, config.start, config.end, config.box, config.sampleHz]);
           const last = outcome === 'complete' ? previous.findLast(item => item.key === key) : undefined;
           const report = {
-            schemaVersion: 1, sequence: ++sequence, side: config.side, outcome, sampleHz: config.sampleHz,
+            schemaVersion: 2, sequence: ++sequence, side: config.side, outcome, sampleHz: config.sampleHz,
             clipDurationMs: rounded(clipDurationMs), plannedFrames: config.plannedFrames,
             processedFrames: probe.processedFrames, trackedFrames, totalAnalysisMs: rounded(totalMs),
+            totalFlowMs: rounded(totalFlowMs), resultMs: probe.resultMs === null ? null : rounded(probe.resultMs),
             framesPerSecond: totalMs ? rounded(probe.processedFrames / totalMs * 1000) : null,
             realtimeFactor: totalMs ? rounded(clipDurationMs / totalMs) : null,
             preparation: { loadMs: rounded(config.preparation.loadMs), firstSeekMs: rounded(config.preparation.firstSeekMs) },

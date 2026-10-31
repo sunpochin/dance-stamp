@@ -42,6 +42,14 @@ test('睡眠／時鐘差或缺少回覆時留空，不把估計成本寫成實�
   expect(report.worker).toMatchObject({ startupMs: null, modelInitMs: null, firstRoundTripMs: null })
   expect(report.stages.detect.count).toBe(0)
 })
+test('製片時間與分析速度分開，製片取消不加入成功重跑比較', () => {
+  let now = 0; const history = followMeasurements({ now: () => now, timeOrigin: 0 }), run = history.start(config)
+  run.processedFrames = 2; now = 40; run.endAnalysis(); now = 140; run.resultMs = 100
+  const report = run.finish('cancelled', 2)!
+  expect(report).toMatchObject({ schemaVersion: 2, totalAnalysisMs: 40, totalFlowMs: 140, resultMs: 100, framesPerSecond: 50, sameInputRun: null, comparison: null })
+  const retry = history.start(config); now = 180; retry.endAnalysis(); now = 280; retry.resultMs = 100
+  expect(retry.finish('complete', 2)).toMatchObject({ totalAnalysisMs: 40, totalFlowMs: 140, resultMs: 100, sameInputRun: 1, comparison: null })
+})
 test('Worker 計時不改偵測結果、CPU 選項與關閉影格；關閉計時保留原訊息格式', async () => {
   let now = 0, creates = 0, fail = false; const messages: any[] = [], frames: any[] = [], padded: any[] = []
   const scope: any = { ...vmCoverageContext(), performance: { timeOrigin: 1000, now: () => ++now }, importScripts() {}, postMessage(value: any) { messages.push(JSON.parse(JSON.stringify(value))) },

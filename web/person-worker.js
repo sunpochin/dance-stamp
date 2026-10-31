@@ -6,15 +6,15 @@
   scope.onmessage = async ({ data }) => {
     const bitmap = data.bitmap;
     let input;
-    // 數字隨原本的偵測回覆返回，不加握手或重排抽樣；關閉計時仍保留舊訊息格式。
+    // 數字沿原回覆返回；補邊與清理順序仍使用主線流程，關閉計時保持原訊息。
     const timing = data.measure ? { enteredAt } : null;
     try {
       if (!detector) {
         let began = timing ? performance.now() : 0;
         try { scope.importScripts('/vision-bundle.js'); }
         finally { if (timing) timing.scriptImportMs = performance.now() - began; }
-        // 固定 CPU 推論／非 SIMD 版本，讓同一份離線包不需 GPU delegate、CDN 或跨來源隔離。
         began = timing ? performance.now() : 0;
+        // 固定 CPU 推論／非 SIMD 版本，讓同一份離線包不需 GPU delegate、CDN 或跨來源隔離。
         try { detector = await scope.Vision.ObjectDetector.createFromOptions({ wasmLoaderPath: '/vision-wasm.js', wasmBinaryPath: '/vision-wasm.wasm' }, {
           baseOptions: { modelAssetPath: '/person-model.tflite', delegate: 'CPU' }, runningMode: 'IMAGE', categoryAllowlist: ['person'], scoreThreshold: 0.35, maxResults: 12,
         }); } finally { if (timing) timing.modelInitMs = performance.now() - began; }
@@ -26,11 +26,11 @@
       const context = canvas.getContext('2d'); if (!context) throw new Error('無法建立人物分析畫面。');
       context.fillStyle = '#ccc'; context.fillRect(0, 0, size, size); context.drawImage(bitmap, x, y);
       input = canvas.transferToImageBitmap();
-      const began = timing ? performance.now() : 0, clamp = (value, max) => Math.max(0, Math.min(max, value));
+      const began = timing ? performance.now() : 0;
       let results;
-      // 計時包住原本等比補邊後的 detect；不能因整合碼表而退回拉寬人體的輸入。
       try { results = detector.detect(input); }
       finally { if (timing) timing.detectMs = performance.now() - began; }
+      const clamp = (value, max) => Math.max(0, Math.min(max, value));
       // 模型座標先扣掉補邊，再回傳選框內的比例；補邊裡的假框不能變成追蹤目標。
       const boxes = results.detections.filter(d => d.boundingBox).map(({ boundingBox: b }) => {
         const left = clamp(b.originX - x, bitmap.width), top = clamp(b.originY - y, bitmap.height);

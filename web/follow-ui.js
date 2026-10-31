@@ -23,8 +23,9 @@ export function createFollowUI(videos, options) {
     const ms = value => value === null ? '未取得' : `${value.toFixed(3)} ms`;
     const row = (label, stage) => `${label}：${stage.count} 次；平均 ${ms(stage.meanMs)}／P50 ${ms(stage.p50Ms)}／P95 ${ms(stage.p95Ms)}`;
     const lines = [
-      `第 ${report.sequence} 輪 · ${report.side === 'reference' ? '老師' : '自己'} · ${{ complete: '分析完成', cancelled: '分析已取消（部分數據）', failed: '分析失敗（部分數據）' }[report.outcome]}`,
+      `第 ${report.sequence} 輪 · ${report.side === 'reference' ? '老師' : '自己'} · ${{ complete: '完成', cancelled: '已取消（部分數據）', failed: '失敗（部分數據）' }[report.outcome]}`,
       `確認後總分析 ${ms(report.totalAnalysisMs)}；處理 ${report.processedFrames}／${report.plannedFrames} 格，路徑 ${report.trackedFrames} 格；${report.framesPerSecond ?? '—'} 格／秒`,
+      `單側製片 ${ms(report.resultMs)}；確認後總等待 ${ms(report.totalFlowMs)}（含製片與收尾）`,
       `框選前載入 ${ms(report.preparation.loadMs)}；第一次定位 ${ms(report.preparation.firstSeekMs)}（不含手動框選時間）`,
       `Worker 建構 ${ms(report.worker.constructionMs)}／啟動 ${ms(report.worker.startupMs)}；程式載入 ${ms(report.worker.scriptImportMs)}／模型初始化 ${ms(report.worker.modelInitMs)}`,
       row('逐次定位', report.stages.seek), row('擷取影格', report.stages.bitmap), row('模型推論', report.stages.detect), row('Worker 等待（含初始化與推論）', report.stages.roundTrip),
@@ -34,7 +35,7 @@ export function createFollowUI(videos, options) {
     document.getElementById('follow-metrics-report')?.replaceChildren(lines.join('\n'));
     const link = /** @type {HTMLAnchorElement} */ (document.getElementById('follow-metrics-download'));
     const previous = metricsUrl;
-    metricsUrl = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: 1, reports: measurements.reports }, null, 2)], { type: 'application/json' }));
+    metricsUrl = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: 2, reports: measurements.reports }, null, 2)], { type: 'application/json' }));
     link.href = metricsUrl; link.download = 'dance-follow-timing.json'; link.hidden = false;
     if (previous) URL.revokeObjectURL(previous);
   }
@@ -102,8 +103,8 @@ export function createFollowUI(videos, options) {
     cancelAnalysis(); closeDraft();
     // 返回同頁的 BFCache 仍需原下載 URL；真正離頁才釋放這份本頁結果。
     for (const side of sides) { resultVideo(side).pause(); if (!event.persisted && states[side].result) URL.revokeObjectURL(states[side].result.url); }
-    if (!event.persisted && metricsUrl) URL.revokeObjectURL(metricsUrl);
   });
+  window.addEventListener('pagehide', event => { if (!event.persisted && metricsUrl) URL.revokeObjectURL(metricsUrl); });
   for (const input of inputs) input.addEventListener('change', () => {
     if (!draft || analyzing) return;
     try { setBox(Object.fromEntries(inputs.map(item => [item.name, Number(item.value) / 100]))); message.textContent = '框好完整身體，留一點手腳活動空間，再開始分析。'; }
@@ -230,14 +231,18 @@ export function createFollowUI(videos, options) {
       const track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }, mirror = options.mirror(current.side);
       // 推論已結束就釋放模型，製作影片不需同時占用另一份 WASM 記憶體。
       worker.terminate(); worker = undefined;
-      // 人物分析先結束碼表，之後的即時成片另有進度；編碼取消不能改寫已完成的分析收據。
-      showMetrics(probe?.finish('complete', trackedFrames));
-      const blob = await makeResult(current.side, track, mirror, signal, text => { message.textContent = text; });
+      probe?.endAnalysis();
+      const resultBegan = probe ? performance.now() : 0;
+      let blob;
+      // 製片失敗或取消也保留部分耗時，但仍由原成功交換點保全上次結果。
+      try { blob = await makeResult(current.side, track, mirror, signal, text => { message.textContent = text; }); }
+      finally { if (probe) probe.resultMs = performance.now() - resultBegan; }
       signal.throwIfAborted(); if (options.source(current.side) !== current.source) throw new Error('來源已變更，請重新框選。');
       // 路徑與可播放影片完整成功後一起交換；取消或製作失敗保留上次整組結果。
       const state = states[current.side]; state.source = current.source; state.track = track; state.enabled = true; state.revision++;
       publishResult(current.side, blob, current.source, mirror);
       closeDraft(); options.changed(); options.focus(resultVideo(current.side));
+      outcome = 'complete';
     } catch (caught) {
       if (signal.aborted) outcome = 'cancelled';
       const error = caught instanceof Error ? caught : new Error(String(caught));

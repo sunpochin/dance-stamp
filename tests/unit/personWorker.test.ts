@@ -12,7 +12,9 @@ function worker(failure = '') {
   }
   const detector = { detect() { fail('detect'); return { detections: [{ boundingBox: { originX: 40, originY: 20, width: 80, height: 120 } }, {}] } } }
   const scope: any = {
-    ...vmCoverageContext(), performance,
+    ...vmCoverageContext(),
+    // VM 不自帶 Web Worker 時鐘；提供時鐘才能沿用產品入口，關閉計時的訊息仍須完全相同。
+    performance,
     importScripts(path: string) { calls.imports.push(path); fail('import') },
     Vision: { ObjectDetector: { async createFromOptions(files: unknown, options: unknown) {
       calls.options.push(structuredClone({ files, options })); fail('load'); return detector
@@ -73,7 +75,8 @@ function geometryWorker() {
   const inputs: any[] = [], draws: any[] = [], messages: any[] = [], options: any[] = []
   let detections: any[] = [], failure = false
   const scope: any = {
-    ...vmCoverageContext(), performance,
+    ...vmCoverageContext(),
+    performance,
     importScripts() {}, postMessage(value: any) { messages.push(JSON.parse(JSON.stringify(value))) },
     Vision: { ObjectDetector: { async createFromOptions(_paths: any, value: any) {
       options.push(value)
