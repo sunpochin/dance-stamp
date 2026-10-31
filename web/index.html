@@ -44,6 +44,14 @@
         <div class="follow-tools"><button type="button" id="reference-follow" disabled>框選老師並自動跟隨</button>
           <label class="check-label"><input type="checkbox" id="reference-follow-enabled" disabled>啟用老師跟隨裁切</label><button type="button" id="reference-follow-clear" disabled>清除老師選框</button>
           <p id="reference-follow-status" class="hint" role="status">尚未框選，使用完整畫面。</p></div>
+        <section class="follow-result" aria-labelledby="reference-follow-result-title">
+          <h3 id="reference-follow-result-title">老師的跟隨影片結果</h3>
+          <div class="mirrors"><label><input id="reference-mirror" type="checkbox">老師左右鏡像</label></div>
+          <p id="reference-follow-result-status" class="hint" role="status">框選完成後，這裡會顯示可獨立播放與匯出的跟隨影片。</p>
+          <!-- biome-ignore lint/a11y/useMediaCaption: 結果來自使用者原片，本次不生成字幕。 -->
+          <video id="reference-follow-result" aria-label="老師的單側跟隨影片結果" controls playsinline preload="metadata" tabindex="0" hidden></video>
+          <div class="actions"><button type="button" id="reference-follow-refresh" disabled>更新老師跟隨結果</button><a id="reference-follow-download" href="#reference-follow-result" hidden>匯出老師跟隨影片</a></div>
+        </section>
         <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
         <div class="source-timeline">
           <label for="reference-seek">老師的影片定位 <output id="reference-seek-time" for="reference-seek" aria-live="off">0.000 秒</output></label>
@@ -66,6 +74,14 @@
         <div class="follow-tools"><button type="button" id="self-follow" disabled>框選自己並自動跟隨</button>
           <label class="check-label"><input type="checkbox" id="self-follow-enabled" disabled>啟用自己跟隨裁切</label><button type="button" id="self-follow-clear" disabled>清除自己選框</button>
           <p id="self-follow-status" class="hint" role="status">尚未框選，使用完整畫面。</p></div>
+        <section class="follow-result" aria-labelledby="self-follow-result-title">
+          <h3 id="self-follow-result-title">自己的跟隨影片結果</h3>
+          <div class="mirrors"><label><input id="self-mirror" type="checkbox">自己左右鏡像</label></div>
+          <p id="self-follow-result-status" class="hint" role="status">框選完成後，這裡會顯示可獨立播放與匯出的跟隨影片。</p>
+          <!-- biome-ignore lint/a11y/useMediaCaption: 結果來自使用者原片，本次不生成字幕。 -->
+          <video id="self-follow-result" aria-label="自己的單側跟隨影片結果" controls playsinline preload="metadata" tabindex="0" hidden></video>
+          <div class="actions"><button type="button" id="self-follow-refresh" disabled>更新自己跟隨結果</button><a id="self-follow-download" href="#self-follow-result" hidden>匯出自己跟隨影片</a></div>
+        </section>
         <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
         <div class="source-timeline">
           <label for="self-seek">我的影片定位 <output id="self-seek-time" for="self-seek" aria-live="off">0.000 秒</output></label>
@@ -94,7 +110,6 @@
         <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
       </div>
       <p class="hint">比較每次最多 60 秒，放慢後的時間也要計入。長片先在這裡選短段，再載入右片；原片不會被裁切。</p>
-      <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範影片鏡像</label><label><input id="self-mirror" type="checkbox">練習影片鏡像</label></div>
     </fieldset>
     <!-- 已有影片不需先讀相機設定；原生 details 讓錄影仍能用鍵盤展開。 -->
     <details id="camera-tools" data-deferred><summary>還沒練習影片？邊看示範邊錄影</summary>
@@ -261,7 +276,7 @@
     </div></fieldset>
     <p id="follow-message" role="status"></p>
     <div class="actions follow-dialog-actions"><button id="follow-confirm" type="button" class="primary">確認選框並分析跟隨</button><button id="follow-cancel" type="button">取消，保留原設定</button></div>
-    <p class="hint">只在本機分析目前比較片段。分析後請播放檢查；遮擋、轉身或多人交錯仍可能跟錯，需重新框選或縮短片段。設定只留本頁，下載成品會保留裁切，原片不變。</p>
+    <p class="hint">只在本機分析目前比較片段，接著自動製作單側影片，約需片段長度，可隨時取消。完成後請在各自結果框播放檢查並匯出另存；修改鏡像後按「更新跟隨結果」。遮擋、轉身或多人交錯仍可能跟錯。結果與設定只留本頁，原片不變。</p>
   </dialog>
   <footer data-deferred>免費 · 非商用 · 影片留在裝置</footer>
 </main></body></html>

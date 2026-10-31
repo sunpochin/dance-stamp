@@ -26,7 +26,7 @@ async (page, options = {}) => {
     const path = 'output/playwright/follow-metrics-' + runId + '-' + trials.length + '.json'; await download.saveAs(path);
     const { readFile } = await import('node:fs/promises'); return { path, data: JSON.parse(await readFile(path, 'utf8')) };
   };
-  const analyze = async (side, duration, enabled = true, expected = 'complete') => {
+  const analyze = async (side, duration, enabled = true, expected = 'complete', cancelAtResult = false) => {
     for (const [id, value] of [['start', 0], ['end', duration], ['offset', 0]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); await idle(); }
     await page.locator('#follow-metrics-enabled').setChecked(enabled);
     await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle();
@@ -34,6 +34,7 @@ async (page, options = {}) => {
     if (!source) for (const [name, value] of [['width', side === 'reference' ? 37 : 40], ['x', side === 'reference' ? 3.5 : 55], ['y', 2.5], ['height', 95]]) { await page.locator('#follow-' + name).fill(String(value)); await page.locator('#follow-' + name).dispatchEvent('change'); }
     const before = await page.evaluate(async () => ({ data: JSON.stringify((await (await import('/storage.js')).readLibrary()).data), times: ['reference', 'self'].map(id => document.getElementById(id).currentTime) }));
     const counters = await page.evaluate(() => ({ workers: window.perfWorkers, terminated: window.perfTerminated, frames: window.perfFrames }));
+    const previousResult = await page.locator('#' + side + '-follow-download').getAttribute('href');
     // 外層只量可見的確認→解除忙碌，不把下載、人工框選或 Playwright 往返時間算進去。
     await page.evaluate(() => {
       window.perfWall = null; document.getElementById('follow-confirm').addEventListener('click', () => {
@@ -43,6 +44,7 @@ async (page, options = {}) => {
       }, { once: true, capture: true });
     });
     await page.locator('#follow-confirm').click();
+    if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'));
     if (expected === 'cancelled') await page.locator('#follow-cancel').click();
     await idle(); await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: 180000 });
     const actual = await page.evaluate(old => ({ wallMs: window.perfWall, frames: window.perfFrames - old.frames, workers: window.perfWorkers - old.workers, terminated: window.perfTerminated - old.terminated }), counters);
@@ -58,10 +60,13 @@ async (page, options = {}) => {
         assert(actual.frames === count && report.processedFrames === count && report.trackedFrames === count && report.plannedFrames === count, '計時改變原取樣數或追蹤失敗');
         for (const key of ['seek', 'bitmap', 'roundTrip', 'detect']) { const stage = report.stages[key]; assert(stage.count === count && stage.meanMs >= 0 && stage.p95Ms >= stage.p50Ms, '缺少逐格分布：' + key); }
         assert(report.worker.modelInitMs >= 0 && report.worker.firstRoundTripMs >= report.worker.modelInitMs && report.totalAnalysisMs <= actual.wallMs + 30, '初始化與分析邊界錯誤');
+        assert(report.resultMs > 0 && report.totalFlowMs >= report.totalAnalysisMs + report.resultMs - 1 && report.totalFlowMs <= actual.wallMs + 30, '製片與總等待混入分析速度');
       } else assert(report.sameInputRun === null && report.comparison === null, '失敗／取消誤算成成功比較');
+      if (cancelAtResult) assert(report.resultMs >= 0 && report.totalFlowMs >= report.totalAnalysisMs, '製片取消缺少部分耗時');
     } else assert(actual.frames === Math.ceil(duration * 8) + 1, '關閉計時改變分析');
     const after = await page.evaluate(async () => ({ data: JSON.stringify((await (await import('/storage.js')).readLibrary()).data), times: ['reference', 'self'].map(id => document.getElementById(id).currentTime) }));
     assert(JSON.stringify(before) === JSON.stringify(after), '計時改了筆記或原播放器位置');
+    if (expected !== 'complete') assert(await page.locator('#' + side + '-follow-download').getAttribute('href') === previousResult, '取消／失敗換掉上次跟隨影片');
     if (await page.locator('#follow-dialog').evaluate(d => d.open)) await page.locator('#follow-cancel').click();
     const trial = { side, duration, enabled, ...actual, report, path }; trials.push(trial); options.progress?.(trial); return trial;
   };
@@ -75,6 +80,8 @@ async (page, options = {}) => {
     await page.evaluate(() => { window.perfHold = true; });
     await analyze('reference', durations[0], true, 'cancelled');
     await page.evaluate(() => { window.perfHold = false; });
+    // 原本的待推論取消與製片取消是兩個階段，兩者都須保留舊成品。
+    await analyze('reference', durations[0], true, 'cancelled', true);
     await page.evaluate(() => { window.perfSavedWorker = window.Worker; window.Worker = class { constructor() { throw new Error('synthetic constructor failure'); } }; });
     await analyze('reference', durations[0], true, 'failed');
     await page.evaluate(() => { window.Worker = window.perfSavedWorker; });

@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { root } from './instrument'
 
 export const fixtureFiles = [
-  'follow/reference.mp4', 'follow/self.mp4',
+  'follow/reference.mp4', 'follow/self.mp4', 'follow/self-audio.mp4',
   'media-probe/reference.mp4', 'media-probe/short/reference.mp4', 'media-probe/empty/reference.mp4',
   ...['portrait.mp4', 'orientation.mp4', 'sample.mov', 'vfr.mp4', 'renamed.data', 'corrupt.mp4'].map(name => `media-probe/player/${name}`),
   'export-failure/reference.mp4', 'export-failure/self.mp4', 'media-feasibility/reference.mp4',

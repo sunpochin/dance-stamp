@@ -1,12 +1,13 @@
 /* 檔案用途：雙側共用的本機框選與可取消人物分析。所在層：畫面控制。主要關聯：follow.js、person-worker.js、main.js。 */
 import { validBox, matchPerson, followBox, smoothTrack } from './follow.js';
-import { load, seek } from './recorder.js';
+import { load, seek, extension } from './recorder.js';
+import { exportFollow } from './follow-export.js';
 import { followMeasurements } from './follow-metrics.js';
 
 /** @typedef {'reference'|'self'} Side */
-/** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number}} FollowState */
+/** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number,result?:{url:string,source:string,mirror:boolean,revision:number}}} FollowState */
 /** @param {{reference:HTMLVideoElement,self:HTMLVideoElement}} videos
- * @param {{source:(side:Side)=>string|undefined, range:(side:Side)=>number[], busy:()=>boolean, operate:(task:(signal:AbortSignal)=>Promise<void>)=>Promise<void>, changed:()=>void}} options */
+ * @param {{source:(side:Side)=>string|undefined,file:(side:Side)=>Blob|undefined,mirror:(side:Side)=>boolean,focus:(element:HTMLElement)=>void,playbackChanged:()=>void, range:(side:Side)=>number[], busy:()=>boolean, operate:(task:(signal:AbortSignal)=>Promise<void>)=>Promise<void>, changed:()=>void}} options */
 export function createFollowUI(videos, options) {
   const dialog = /** @type {HTMLDialogElement} */ (document.getElementById('follow-dialog'));
   const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('follow-canvas'));
@@ -24,6 +25,7 @@ export function createFollowUI(videos, options) {
     const lines = [
       `第 ${report.sequence} 輪 · ${report.side === 'reference' ? '老師' : '自己'} · ${{ complete: '完成', cancelled: '已取消（部分數據）', failed: '失敗（部分數據）' }[report.outcome]}`,
       `確認後總分析 ${ms(report.totalAnalysisMs)}；處理 ${report.processedFrames}／${report.plannedFrames} 格，路徑 ${report.trackedFrames} 格；${report.framesPerSecond ?? '—'} 格／秒`,
+      `單側製片 ${ms(report.resultMs)}；確認後總等待 ${ms(report.totalFlowMs)}（含製片與收尾）`,
       `框選前載入 ${ms(report.preparation.loadMs)}；第一次定位 ${ms(report.preparation.firstSeekMs)}（不含手動框選時間）`,
       `Worker 建構 ${ms(report.worker.constructionMs)}／啟動 ${ms(report.worker.startupMs)}；程式載入 ${ms(report.worker.scriptImportMs)}／模型初始化 ${ms(report.worker.modelInitMs)}`,
       row('逐次定位', report.stages.seek), row('擷取影格', report.stages.bitmap), row('模型推論', report.stages.detect), row('Worker 等待（含初始化與推論）', report.stages.roundTrip),
@@ -33,7 +35,7 @@ export function createFollowUI(videos, options) {
     document.getElementById('follow-metrics-report')?.replaceChildren(lines.join('\n'));
     const link = /** @type {HTMLAnchorElement} */ (document.getElementById('follow-metrics-download'));
     const previous = metricsUrl;
-    metricsUrl = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: 1, reports: measurements.reports }, null, 2)], { type: 'application/json' }));
+    metricsUrl = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: 2, reports: measurements.reports }, null, 2)], { type: 'application/json' }));
     link.href = metricsUrl; link.download = 'dance-follow-timing.json'; link.hidden = false;
     if (previous) URL.revokeObjectURL(previous);
   }
@@ -51,6 +53,27 @@ export function createFollowUI(videos, options) {
   const toggle = side => /** @type {HTMLInputElement} */ (document.getElementById(`${side}-follow-enabled`));
   const clear = side => /** @type {HTMLButtonElement} */ (document.getElementById(`${side}-follow-clear`));
   const note = side => /** @type {HTMLElement} */ (document.getElementById(`${side}-follow-status`));
+  const resultVideo = side => /** @type {HTMLVideoElement} */ (document.getElementById(`${side}-follow-result`));
+  const resultStatus = side => /** @type {HTMLElement} */ (document.getElementById(`${side}-follow-result-status`));
+  const refresh = side => /** @type {HTMLButtonElement} */ (document.getElementById(`${side}-follow-refresh`));
+  const download = side => /** @type {HTMLAnchorElement} */ (document.getElementById(`${side}-follow-download`));
+  async function makeResult(side, track, mirror, signal, showProgress) {
+    const file = options.file(side); if (!file) throw new Error('找不到這一側的原片，請重新選片。');
+    for (const key of sides) videos[key].pause();
+    let last = -1;
+    return exportFollow(file, track, mirror, signal, fraction => {
+      const percent = Math.floor(fraction * 100); if (percent === last) return; last = percent;
+      showProgress(`正在製作${side === 'reference' ? '老師' : '自己'}的單側跟隨影片 ${percent}%；約需片段長度，可隨時取消。`);
+    });
+  }
+  function publishResult(side, blob, source, mirror) {
+    const state = states[side], previous = state.result?.url, url = URL.createObjectURL(blob), video = resultVideo(side), link = download(side);
+    state.result = { url, source, mirror, revision: state.revision };
+    video.pause(); video.src = url; video.hidden = false; video.load();
+    link.href = url; link.download = `dance-${side}-follow.${extension(blob.type)}`; link.hidden = false;
+    // 新檔已獨立驗證才能換掉前次結果；失敗／取消不會執行到這裡。
+    if (previous) URL.revokeObjectURL(previous);
+  }
   function paint() {
     if (!draft || !context) return;
     const { video, box } = draft;
@@ -71,12 +94,16 @@ export function createFollowUI(videos, options) {
     if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);
     pointer = null;
     if (draft) { draft.video.pause(); draft.video.removeAttribute('src'); draft.video.load(); }
-    draft = null; if (dialog.open) dialog.close(); trigger?.focus();
+    draft = null; if (dialog.open) dialog.close(); if (trigger) options.focus(trigger);
   }
   const cancel = () => { if (analyzing) cancelAnalysis(); else closeDraft(); };
   document.getElementById('follow-cancel')?.addEventListener('click', cancel);
   dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
-  window.addEventListener('pagehide', () => { cancelAnalysis(); closeDraft(); });
+  window.addEventListener('pagehide', event => {
+    cancelAnalysis(); closeDraft();
+    // 返回同頁的 BFCache 仍需原下載 URL；真正離頁才釋放這份本頁結果。
+    for (const side of sides) { resultVideo(side).pause(); if (!event.persisted && states[side].result) URL.revokeObjectURL(states[side].result.url); }
+  });
   window.addEventListener('pagehide', event => { if (!event.persisted && metricsUrl) URL.revokeObjectURL(metricsUrl); });
   for (const input of inputs) input.addEventListener('change', () => {
     if (!draft || analyzing) return;
@@ -110,7 +137,7 @@ export function createFollowUI(videos, options) {
       closeDraft(); const source = options.source(side), [start, end] = options.range(side);
       if (!source) throw new Error('請先選好兩側影片。');
       const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.preload = 'auto';
-      const trigger = /** @type {HTMLElement|null} */ (document.activeElement);
+      const trigger = button(side);
       const measuring = metricsEnabled.checked;
       try {
         // 分析播放器不掛在畫面上；等解碼 seeked 即可，不能等待不存在的螢幕呈現通知。
@@ -121,12 +148,26 @@ export function createFollowUI(videos, options) {
         draft = { side, video, source, start, end, box: { x: 0.2, y: 0.05, width: 0.6, height: 0.9 }, trigger, measuring, preparation: { loadMs, firstSeekMs } };
         canvas.width = 640; canvas.height = Math.round(640 * video.videoHeight / video.videoWidth);
         dialog.querySelector('h2')?.replaceChildren(`框選${side === 'reference' ? '老師' : '自己'} · ${label(side)}`);
-        controls.disabled = false; confirm.disabled = false; message.textContent = `從比較起點 ${start.toFixed(2)} 秒開始，拖曳框住完整身體，再分析到 ${end.toFixed(2)} 秒。`;
+        controls.disabled = false; confirm.disabled = false; message.textContent = `從比較起點 ${start.toFixed(2)} 秒開始，框住完整身體後分析到 ${end.toFixed(2)} 秒，接著自動製作可播放、下載的單側結果。`;
         setBox(draft.box); dialog.showModal(); canvas.focus();
       } catch (error) { video.removeAttribute('src'); video.load(); throw error; }
     }));
     toggle(side).addEventListener('change', () => { states[side].enabled = toggle(side).checked; options.changed(); update(true); });
     clear(side).addEventListener('click', () => { states[side].track = null; states[side].enabled = false; states[side].revision++; options.changed(); update(true); });
+    for (const type of ['play', 'pause', 'ended']) resultVideo(side).addEventListener(type, () => {
+      if (!resultVideo(side).paused) {
+        if (options.busy()) resultVideo(side).pause();
+        else { for (const other of sides) { videos[other].pause(); if (other !== side) resultVideo(other).pause(); } }
+      }
+      options.playbackChanged();
+    });
+    refresh(side).addEventListener('click', () => options.operate(async signal => {
+      const state = states[side], source = options.source(side), track = state.track, mirror = options.mirror(side);
+      if (!source || state.source !== source || !track) throw new Error('請先框選這一側並完成分析。');
+      const blob = await makeResult(side, track, mirror, signal, text => { resultStatus(side).textContent = text; });
+      signal.throwIfAborted(); if (options.source(side) !== source) throw new Error('來源已變更，原結果保留。');
+      publishResult(side, blob, source, mirror); options.focus(resultVideo(side));
+    }));
   }
   confirm.addEventListener('click', () => options.operate(async parentSignal => {
     if (!draft || analyzing) return;
@@ -187,9 +228,20 @@ export function createFollowUI(videos, options) {
       }
       signal.throwIfAborted();
       if (options.source(current.side) !== current.source) throw new Error('來源已更換，請重新框選。');
-      // 完整成功才交換路徑；取消、偵測失敗或 Worker 錯誤都保留上次成功的設定。
-      const state = states[current.side]; state.source = current.source; state.track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }; state.enabled = true; state.revision++;
-      closeDraft(); options.changed();
+      const track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }, mirror = options.mirror(current.side);
+      // 推論已結束就釋放模型，製作影片不需同時占用另一份 WASM 記憶體。
+      worker.terminate(); worker = undefined;
+      probe?.endAnalysis();
+      const resultBegan = probe ? performance.now() : 0;
+      let blob;
+      // 製片失敗或取消也保留部分耗時，但仍由原成功交換點保全上次結果。
+      try { blob = await makeResult(current.side, track, mirror, signal, text => { message.textContent = text; }); }
+      finally { if (probe) probe.resultMs = performance.now() - resultBegan; }
+      signal.throwIfAborted(); if (options.source(current.side) !== current.source) throw new Error('來源已變更，請重新框選。');
+      // 路徑與可播放影片完整成功後一起交換；取消或製作失敗保留上次整組結果。
+      const state = states[current.side]; state.source = current.source; state.track = track; state.enabled = true; state.revision++;
+      publishResult(current.side, blob, current.source, mirror);
+      closeDraft(); options.changed(); options.focus(resultVideo(current.side));
       outcome = 'complete';
     } catch (caught) {
       if (signal.aborted) outcome = 'cancelled';
@@ -206,12 +258,20 @@ export function createFollowUI(videos, options) {
       const state = states[side], source = options.source(side);
       if (state.source !== source) { state.source = source; state.track = null; state.enabled = false; state.revision++; }
       const track = state.track;
+      const result = state.result, current = result && track && result.source === source && result.revision === state.revision && result.mirror === options.mirror(side);
+      const busy = options.busy(); refresh(side).disabled = !track || state.source !== source || busy;
+      refresh(side).classList.toggle('primary', !!track && !!result && !current);
+      download(side).textContent = `匯出${result && !current ? '上次' : ''}${side === 'reference' ? '老師' : '自己'}跟隨影片`;
+      if (busy) resultVideo(side).pause(); resultVideo(side).controls = !busy;
+      resultStatus(side).textContent = !result ? '框選完成後，這裡會顯示可獨立播放與匯出的跟隨影片。' : current ? '這是目前選框與鏡像的單側結果，以原速播放並保留該側原片聲音。請匯出另存；結果只留本頁。' : '這是先前影片或設定的結果，原檔保留。請重新框選，或按「更新跟隨結果」套用目前鏡像，再匯出。';
       button(side).disabled = !available || options.busy(); toggle(side).disabled = !track || options.busy(); clear(side).disabled = !track || options.busy(); toggle(side).checked = state.enabled;
       note(side).textContent = track ? `${state.enabled ? '已開啟跟隨' : '跟隨已暫停'} · ${track.start.toFixed(2)}–${track.end.toFixed(2)} 秒${track.held ? `；${track.held} 個分析點暫用前次位置，請預覽檢查。` : '；請預覽確認全段都跟對人。'} 設定只留本頁，匯出影片會保留裁切。` : '尚未框選，使用完整畫面。';
     }
   }
   return {
     update,
+    playing() { return sides.some(side => !resultVideo(side).paused); },
+    pauseResults() { for (const side of sides) resultVideo(side).pause(); },
     /** @param {Side} side */
     track(side) { const state = states[side]; return state.enabled && state.source === options.source(side) && videos[side].getAttribute('src') === state.source ? state.track : null; },
     signature() { return sides.map(side => [states[side].enabled, states[side].revision]); },
