@@ -62,3 +62,12 @@ nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
 #overlay-layout, .overlay-layout > fieldset { margin: 0; }
 .overlay-layout { grid-template-columns: 1fr; }
 @media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } .overlay-workspace > canvas { position: static; } }
+
+/* 兩片各自有秒數尺，找畫面與提交起點分開；文字放大時刻度仍維持可讀。 */
+.source-timeline { margin: 10px 0 16px; border-top: 1px solid #455258; padding-top: 8px; }
+.source-timeline label { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.source-timeline output, .chosen-start { color: #b9f2c8; font-variant-numeric: tabular-nums; }
+.time-ruler { display: flex; justify-content: space-between; gap: 4px; padding-top: 10px; color: #b6c1c5; font-size: .78rem; font-variant-numeric: tabular-nums; background: repeating-linear-gradient(to right, #718087 0, #718087 1px, transparent 1px, transparent 5%) left top / 100% 7px no-repeat; }
+.time-ruler span { min-width: 0; text-align: center; }
+.time-ruler span:first-child { text-align: left; } .time-ruler span:last-child { text-align: right; }
+.chosen-start { margin: 8px 0; font-size: .88rem; }
