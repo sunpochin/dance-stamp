@@ -11,6 +11,8 @@
 
 #103 已開舊頁遇到另一分頁升版的原生連線與備份保全見[資料庫升版回歸證據](docs/evidence/issue-103-storage-version-change.md)。回歸檢查舊頁停止保存、草稿與原片仍可另存；同輪 CI 在網站關閉後另以原生 file 播放器重開真下載。這是未知版本控制測試，產品 schema 不改。
 
+#103 的人物背景分析回覆、重試與影格釋放補測見[背景工作單元證據](docs/evidence/issue-103-person-worker.md)。沿既有 VM／來源綁定計數器執行原 handler，量到的是背景控制碼，不是模型推論或真機品質。
+
 #103 錄影供聲的停止、原期限逾時及原生聲音中斷回歸見[錄影供聲保全證據](docs/evidence/issue-103-webkit-capture.md)。沿原 WebKit 匯出基線與合成檔案相機，確認舊片／筆記保留及同頁重試；Chromium 條件分支測試不代表原生 Safari 或真機驗收。
 
 整合 main `e6f0300`／靜態 `4525b1293b89a584` 的原生 Safari 九案、非零 A 重錄、重開與真正下載核對見[本輪證據](docs/evidence/issue-9-capture-recovery.md#2026-10-31-整合-main-的原生-safari-矩陣核對)。這是目前整合版的新驗證，原 #117／#119 失敗與 #130 舊候選矩陣仍保持各自來源；原 B／±100ms 未變。
