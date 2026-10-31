@@ -53,6 +53,8 @@ export async function presentedFrame(video, signal, accept = _frame => true) {
       try {
         id = video.requestVideoFrameCallback((_now, frame) => {
           id = undefined;
+          // 取消後排隊中的舊通知仍可能送達；不能讓不合格影格重新訂閱已結束的暖機。
+          if (finished) return;
           // 暖機用來源時間確認播放確實前進；定位後則只把此通知當成呈現步驟屏障。
           try { if (accept(frame)) finish(); else watch(); } catch (error) { finish(error); }
         });

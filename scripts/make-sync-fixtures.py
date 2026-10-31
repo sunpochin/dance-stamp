@@ -1,8 +1,12 @@
 """用途：製作有逐幀編號的合成測片。所在層：#3 驗證工具。關聯：analyze-media.py、MEDIA_PROBE.md。"""
+import argparse
 import json
 import subprocess
 from pathlib import Path
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--reference-only', action='store_true', help='只產生原65秒合成示範，不產生相機素材或設定檔')
+args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 folder = root / 'output/media-feasibility'
 folder.mkdir(parents=True, exist_ok=True)
@@ -18,6 +22,10 @@ subprocess.run(['ffmpeg', '-v', 'error', '-n', '-f', 'lavfi', '-i', 'testsrc=siz
                 '-f', 'lavfi', '-i', 'aevalsrc=sin(2*PI*660*t)*lt(mod(t\\,1)\\,0.06):s=48000:d=65',
                 '-vf', ','.join(filters), '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac', '-movflags', '+faststart', str(reference)], check=True)
+# 影格恢復回歸只讀示範來源；保留同一測片，省去未使用的65秒相機大檔與設定檔。
+if args.reference_only:
+    print('已建立原65秒逐幀合成示範；未產生相機素材或瀏覽器設定。')
+    raise SystemExit(0)
 # 65 秒涵蓋單次 60 秒 take，避免短測片重複編號；相機模擬仍不代表硬體驗收。
 subprocess.run(['ffmpeg', '-v', 'error', '-n', '-i', str(reference), '-an', '-pix_fmt', 'yuv420p',
                 '-f', 'yuv4mpegpipe', str(camera)], check=True)

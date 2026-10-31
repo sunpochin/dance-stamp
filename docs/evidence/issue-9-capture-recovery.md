@@ -228,3 +228,244 @@ PR #87 review 指定只補新守門的失敗接線。原 `take-open-failure.js` 
 本次原 `bun run check` 為 **436 pass／2,048 expects／0 fail**，公開掃描 **240 檔**，harness／文件連結、型別、lint 與原 build 全過，原 19 項 lint info 保留；提交仍執行原 hooks。
 
 本次只補守門接線與資料保全，沒有自然卡頓、Safari／私人模式、真人／裝置、背景／來電或整體 P0 證據；不新增合併、發布或關票授權，#9／#13 仍開啟。
+
+## 2026-10-31 原生 Safari 恢復原片
+
+使用者已手動啟用 Safari 遠端自動化。本輪在專用 clone，以 macOS 27.0.1 arm64、Safari／safaridriver 27.0.1（22625.1.29.11.28）接續 #9。基線為乾淨 `d83755239bf145e9b79d50263208edfad83754e8`／靜態 `6f07212fe275ae3c`；沒有切換或改寫其他聊天的 checkout。
+
+### 真正缺陷與最小修正
+
+以既有產生器的合成 H.264／AAC 檔建立獨立 Blob chunks，明示這是恢復前置資料，不是真正錄影中斷、SIGKILL 或斷電。原生 Safari 的 UI 恢復成功後，take 為 interrupted、asset 為 ready、media 為 175,911 bytes，目標 chunks 已清空；但重新讀取新 media 的 `arrayBuffer()` 回 **NotFoundError**。同一輪舊示範 106,103 bytes／舊自己片 175,911 bytes 均仍可讀。只看當頁播放器、ready 或 Blob.size 會漏掉這個缺陷。
+
+修正集中在 `storage.recoverChunks`：沿用原片段順序／容器檢查，組合後先讀成獨立 ArrayBuffer，核對長度，再建立保留 MIME 的獨立 Blob。原本 finalize／revision 交易、影格確認及成功後才清 chunks 的順序不變；讀回失敗或長度不符就拒絕，片段仍在。這以一份完整原片的記憶體讀回換取 backing 資料獨立，不引入新儲存後端、UA 分支、重置或轉碼。沒有為取得綠燈放寬錄影片長斷言。
+
+### 同一入口的原生結果
+
+受測為上述基線上的修正工作樹，並非乾淨提交的原生重跑。候選靜態 **`45be4c18fbf4f56a`**；產品 `storage.js` SHA256 **`b14256f96279e73f4f5632d908a8713287c599d5073a8da45d725afe0912466b`**。`main.js` 未改，SHA256 `4f0124877c504346ca2225fb570f044dc1b9fe9664acd1f64b7a0815f57adada`。最後文件與提交不會把工作樹收據改標為 clean-head 實測。
+
+QA 沿用產品主機白名單及 CSP，僅在專用 loopback HTML 前載入禁止擷取的測試腳本，另收緊 Permissions-Policy，禁止 camera／microphone／display-capture。只由自製檔案建立 chunks，擷取嘗試為 0；恢復階段七次原生點擊的 isTrusted 均為 true。沒有相機、私人影片或日常 Safari 資料操作。
+
+| 案例 | 實際結果 |
+| --- | --- |
+| 有效兩塊 | 真正呈現影格後保存完整 175,911 bytes，逐 byte 等於原 fixture 與兩塊串接；take 仍 interrupted，只清自己的兩塊 |
+| 缺號 0／2 | 不建立成功 media，兩塊完整 bytes 與 keys 保留，狀態 interrupted |
+| 不可解碼兩塊 | 不建立成功 media，兩塊完整 bytes 保留，原播放器及下載 URL 不變 |
+| 真正重新載入頁面 | 所有原片／恢復片的完整 bytes、筆記、take／recipe／asset 與殘留 chunks 都與重開前相同 |
+
+另獨立核對 **10 階段、67 份完整二進位檔案**的大小、SHA256 及直接 bytes；所有舊 media 每階段都相同，缺號／壞片段保持原樣。恢復原片 SHA256 **`b7f6393b07df4761ee039d785b225a90e16481a7eb4a2f760a75949b95e7755a`**。由儲存 Blob 經 WebDriver 取回到磁碟，不冒稱 OS 下載成功。FFmpeg 全片解碼 exit 0、stderr 空；產品頁／主機停止後，原生 Safari 的 `file:` 播放器透過 trusted 點擊從 0 秒播到 ended，8.000 秒、180×320、error=0。這不是 720p、聲畫同步、喇叭實聽或完整錄影矩陣的通過證明。
+
+基線負向 raw SHA256 `2c7a373a0662bb100eb3636bd0b74573386114fad1399a04465a4cff2e81a396`；修正與重開 raw `fbc56f7eed4c771c716ff972e40e95b3f5f7f221042a943cd49569293a3fef1f`；獨立 bytes／播放 raw `bd693d38692b228c98e00e3623f62f9fec7d70b593718dff6d239e9541150d22`。每輪 driver／自有主機的已知程序群組均退出，確認後才按同 nonce 放鎖。raw、工具、完整二進位及合成媒體留本聊天固定副本的 ignored output，不進 Git 或公開附件。
+
+既有 `capture.js` 補上同一資料保全回歸：測試前置每塊使用獨立 Blob；成功清 chunks 後真正 reload，讀回舊原片及恢復片並比較全部 bytes。此處原生 Safari 使用上述專用 WebDriver 入口，沒有冒稱已執行完整 Chrome `capture.js` 或其他平台矩陣。原 `bun run check`／提交 hooks 的最終結果由本 PR 綁定。
+
+### 保留的失敗與未驗證
+
+- 前輪對話曾觀察 Canvas 1×／15 秒保存與離站播放成功；半速／15 秒為 15.140／15.113333 秒，超過既有 ±100ms 斷言，九案矩陣在第一案停止。原暫存目錄現已不存在，這些數據只保留為前輪觀察，不能重新核對 raw 或當成本次整體通過。此次儲存修正沒有重跑或修好該時序問題，也不由此推定 G2 同步失敗的根因。
+- 前輪未證實相機替身的首案排除；先前外部 HTML 播放前置逾時、誤讀上一個 recorder 的 QA 時序、未完成恢復檢查的 selector 失敗均不算產品通過。本輪等待 option 的引號錯誤及檔案播放器自動播放搶先起播也保留，未降低最終斷言。
+- Safari 對持久化 `Blob.slice` 的診斷曾出現 size 10／11 卻讀回 21 bytes，以及半片卻讀回母片；FileReader 與 arrayBuffer 都曾出現，沒有把這個獨立切片問題宣稱已修好。最終前置是逐塊獨立 bytes 的 Blob，貼近 MediaRecorder 的輸出形態；其清理後的新 media NotFoundError 才是本次修正目標。
+- 真實相機／LED、鎖屏／來電、Safari 私人模式、完整速度／時長與十輪 capture→export、真機 G1／錄影 G6、人工最終審查仍未驗收。iPhone 繼續暫緩；不啟動 iOS、不關閉 #9、不合併或發布。
+
+## 2026-10-31 半速錄影起播延遲
+
+### 先核對 PR #115
+
+[PR #115](https://github.com/sunpochin/dance-stamp/pull/115) head `076c3936184e0aec681fdbd95f985f3afeabc310` 的 [Harness CI](https://github.com/sunpochin/dance-stamp/actions/runs/41101534690) success；自動程式審查完成、沒有 findings／未解決審查串。security review 的 findings 欄為 null，不另宣稱安全審查無問題；沒有正式人工 review，仍待 Claude Code／使用者最終審查。PR 未合併。本輪從 main `d83755239bf145e9b79d50263208edfad83754e8` 新分支處理時序，沒有帶入 #115 的儲存修正或承接其恢復測試結果。
+
+### 原生失敗與單變因對照
+
+macOS 27.0.1、Safari／safaridriver 27.0.1（22625.1.29.11.28）、Bun 1.4.4。使用 `make-sync-fixtures.py` 的 65 秒自製圖樣／660Hz 示範 MP4，1,789,027 bytes，SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`；相機是正常同源 script 在 main 載入前提供的已知 Canvas stream（640×360、請求 30fps），沒有呼叫或保留實體 getUserMedia。預覽必須等於該 stream，MediaRecorder 建構亦只接受它。測試主機額外回 `Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()`；非相機格式／時鐘／duration 模擬。
+
+固定 A=0、B=7.5、0.5×、倒數 3 秒、一般練習 2×。保留 native recorder、示範 playing／pause／play resolve 事件與每 10ms 來源時鐘讀值；觀察器不訂閱額外 rVFC、不更動來源時間。沿用原 `capture-matrix.js` 的 ±100ms，另直接檢查原始浮點時長 `abs(duration−15) <= 0.1`，沒有放寬或四捨五入規避。
+
+| 乾淨 main／靜態 `6f07212fe275ae3c` | 實際秒數 | 誤差 | 原門檻 |
+| --- | --- | --- | --- |
+| 原設定，首輪 | 15.131667 | +131.667ms | 失敗 |
+| 只在 play 前設 `preservesPitch=false`，獨立新 session | 15.051667 | +51.667ms | 通過（診斷控制） |
+| 再開獨立新 session、原設定 | 15.110000 | +110.000ms | 失敗 |
+
+對照的自然變調時鐘起播等待約 70ms，原設定約 133ms（以 `performance.now − currentTime/r×1000` 的穩定段相對 play 呼叫估計）；`play()` resolve 與 recorder start 時來源均仍為 0。這是有界原生觀測，沒有聲稱 `play()`／JS 事件等於第一格呈現或硬體取樣同步。原設定兩片及控制片都保留完整 raw、SHA256 與 FFmpeg 全片解碼成功結果。
+
+首輪想在同 session 接跑診斷控制時，等待 capture enabled 逾時；當時 QA 只等 controls，未等比較保存佇列，逾時原因尚未確認。該輪第二例沒有錄影，不能算控制通過或已確認的產品缺陷。後續兩個診斷用獨立 session，候選矩陣的 idle 同時等待 controls 與 comparison busy 結束。前輪暫存 raw 已遺失的 15.140／15.113333 秒觀察不計本輪證據。
+
+基線首輪／獨立控制／獨立再現 raw 收據 SHA256 依序為 `da866cd595839400cbf876900692bd3696efbad4d5bc0d4b9abd97105a2a6bbc`、`cbdeae56aec785cdaf9758a33f399739419bf07fbb807c401106a33ae8adef86`、`6b8e9dd7a6090507e416a8f963afc5e7c2642cf594c6b43ba0fc626995c247f6`。完整工具、原始檔案與收據只留本聊天 ignored `output/issue9-timing-20261031/`，不公開媒體。
+
+### 最小修正與候選驗證
+
+錄影設定速度後、倒數前關閉示範音高保持；完成／取消／失敗沿原 `operation` 收尾恢復一般練習音高與速度。介面明示錄影時聲音隨速度變調。沒有延後開錄、提早在 B 前停止、裁片、補影格、改 raw bytes 或改時間門檻；取捨見 TECHNICAL 第 49 節。
+
+受測來源為 `d837552` 上明示修改工作樹，靜態 **`9d1a66df3f6c05c0`**；沒有改標成提交後乾淨 head 重跑。`main.js` SHA256 `f48474b8257a16ba99189c4293a1d5b0d6bbc3d82ede379f782bc4bcd1d978c0`。同一原生 Safari session／資料庫的下列五案通過，沒有強制 pitch override：
+
+| 0.5×／倒數 3 秒 | 實際原片秒數 | 誤差 | 原片 bytes | 保留舊原片數 |
+| --- | --- | --- | --- | --- |
+| 15 秒重測 1 | 15.070000 | +70.000ms | 283583 | 0 |
+| 15 秒重測 2 | 15.081667 | +81.667ms | 280696 | 1 |
+| 15 秒矩陣案例 | 15.088333 | +88.333ms | 280670 | 2 |
+| 30 秒矩陣案例 | 30.073333 | +73.333ms | 554402 | 3 |
+| 60 秒矩陣案例 | 60.058333 | +58.333ms | 1106262 | 4 |
+
+五案均為 native ready take，示範到 B 才停、track ended、無麥克風請求、練習 2×／音高保持恢復、原片實播前進且 error=0。每案逐一讀回所有舊原片 SHA256，沒有覆寫。五份完整原 Blob 經 WebDriver 取回本機，皆 FFmpeg 全片解碼 exit 0／stderr 空；獨立第二入口重新讀五份本機檔，完整 bytes／SHA256 逐份相符。關閉產品主機後，在新原生 Safari session 用 `file:` 播放 15.088333 秒原片；trusted 點按從 0 到 ended、error=0、640×360。這是原 Blob 取回檔，**不是 OS 下載動作、真相機或 G2–G7 驗收**。
+
+原生同頁矩陣在轉到 0.75× 前，開錄前等待 capture enabled 逾時而停止。另用新 session 的 0.75×／15 秒診斷，時長 15.075 秒合格、原生 pause 位置 11.260520 秒已過 B=11.25，但收尾讀到 `currentTime=8.333333`，**原停止位置斷言失敗**；保留失敗，不改成檢查 pause 事件來取得綠燈。該檔另獨立完整解碼成功；收尾後時鐘倒退原因尚未確認。本輪不宣稱三速度九案或同頁完整矩陣通過，0.75／1× 的完整驗證仍缺。先前第一個 0.75× 診斷也在相同保全斷言失敗，僅保留 raw，未儲存完整 case，不能補成通過。
+
+五案後中斷的原生收據 SHA256 `b8899f5d21558b837715fddf76bcc26dc4917da366e93da548be72c80c7e31f5`；獨立 bytes／離站播放 `72d4dbfe671ccd259d6c50baee919525e649bf83484c0c53b415aa544fe48875`；0.75× 停止位置失敗 `9a9366f9f37c46ebe43184de206f0392da2e6da6dc6d5a4477712d1f00eb19f4`。候選 runner SHA256 `8b1c57b8ca40ee8c42336a42c433d039d94072e4a32c6332245b6fc7d77fd5b7`、合成相機／時鐘觀察器 `7639e4ad6920fc610560f3c64ee9de8e35b392ee5faf2b975269788518fcf964`。各輪 session 正常刪除、自有 driver／server 群組確認退出、按同 nonce 釋放自己的共用鎖；沒有停止他人工作。
+
+完整 `bun run check` 通過 **632 tests／3,052 expects／0 fail**，型別、lint、建置及公開掃描通過，原 19 項 lint info 保留。初跑兩失敗保留：本機服務測試需獲准綁定 loopback；新增規格連結曾指向未隨包帶出的根 TECHNICAL，已改指隨包證據，原封裝連結測試未變。改正後以原權限需求完整重跑通過。
+
+另以獨立 headless Chrome／明確 fake-camera flags 執行實際修改的兩支既有回歸：`capture-matrix.js` 半速 15 秒為 15.033 秒，錄影時自然變調、到 B 自停、完成後恢復 2×／音高均通過；完整 `practice.js` 的六速度實播、120 次循環、取消、失敗、換片及離頁回歸全過，最大呈現越界 83.333ms／150ms 原門檻、同時 callback 最大 1、重疊 seek 0，倒數取消後音高保持已恢復。Chrome 收據 SHA256 `9d4ed963f4776d27a062dfb396ec596d00ce15e12d83e77c4d0a739e32ae7a6a`；這些不是 Safari／實體背景證據。此後只更新文件，產品資源仍與上述原生候選相同；提交 hook 仍跑原入口，不略過檢查。
+
+#9 保持開啟，原驗收勾選不變；真相機／LED、音樂聽感、鎖屏／來電、Safari 私人模式、真機 G1／連續十輪 capture→export G6 與最終獨立審查仍缺。iPhone 繼續暫緩。本輪未合併、部署或發布。
+
+## 2026-10-31 Safari 0.75× 收尾位置回跳根因
+
+### 來源與範圍
+
+本輪只接續 [#9](https://github.com/sunpochin/dance-stamp/issues/9)／[PR #117](https://github.com/sunpochin/dance-stamp/pull/117) 的保留失敗。原生產品受測來源是獨立 managed worktree 的**乾淨 `2c29fc9e95dd0a8bad4389658eb9d748421e1443`**，從同步 main `d83755239bf145e9b79d50263208edfad83754e8` 明示接入既有 #117；靜態 `9d1a66df3f6c05c0`，`main.js` SHA256 `f48474b8257a16ba99189c4293a1d5b0d6bbc3d82ede379f782bc4bcd1d978c0`。未接入 #115 的 Blob 修正或 #114 的其他產品變更，也未寫入或執行其他聊天的 checkout。
+
+Safari／safaridriver 27.0.1、macOS 27.0.1，Bun 1.4.4。沿用同一份 65 秒合成示範（1,789,027 bytes，SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`）、640×360 Canvas 合成相機與 native MediaRecorder；主機禁止實體相機／麥克風／畫面擷取。錄影開始、保存副本、恢復音高、下載與外站播放的按鍵均使用 WebDriver 原生點按，保留 trusted 證據，沒有用 DOM click 替代；欄位前置設定及 Blob 讀回由 QA 腳本完成，不當作原生輸入操作證據。
+
+本次交付分支另從同步 main 建立，只記錄調查，**產品與既有 B 點／±100ms 斷言完全不變**。為讓 linked worktree 的正常提交 hook 不污染共用 Git，依 [#113](https://github.com/sunpochin/dance-stamp/issues/113) 只接入 `c3516376982e646097a7700798cf88a0fd438649` 的 `tests/unit/releasePackage.test.ts` 隔離修正；沒有接入該整合提交的其他檔案，不跳過 hook、不修改共用 `core.bare`。這項測試前置是在原生測試全部收尾後才接入，不混進產品時鐘對照。
+
+### 完整原生順序與單變因對照
+
+固定 A=0、B=11.25、0.75×、實際 15 秒、倒數 5 秒、一般練習 2×。每 10ms 觀察包含 paused 區間；原生 setter／pause／load 包裝只把相同參數轉交原方法並記錄前後讀值，不新增影格 callback、不設定收尾 currentTime、不更動原片 bytes。
+
+乾淨 #117 再現為 **15.095 秒**，時長合格，但原 B 斷言失敗。第一個 reference pause 在 **11.267404**；native dataavailable／stop、自拍 loadedmetadata／loadeddata、外層第二次 pause 都仍在同位置。恢復 defaultPlaybackRate、playbackRate、preservesPitch 的同步前後讀值也未變，約一秒後原生 ratechange／timeupdate 才讀到 **8.333333**；期間沒有來源 currentTime setter 或 seeking。不能只憑較晚的 ratechange 事件反推是哪個 setter 造成。
+
+| 診斷控制（不是產品修正） | 原片秒數 | 收尾來源秒數 | 原判定與限制 |
+| --- | --- | --- | --- |
+| 只暫扣恢復音高，仍恢復 2× | 15.066667 | 11.265892 | B／時長合格，但 pitch=false，原設定恢復斷言失敗，不算正式成功。 |
+| 只暫扣恢復速度，仍恢復音高 | 15.041667 | 8.333333 | 原 B 斷言失敗；恢復速度不是必要觸發因素。 |
+| 暫停後先設原速，再恢復音高／原速度 | 15.063333 | 8.333333 | 原 B 斷言失敗，未採用。 |
+| 在原 pause 呼叫前恢復音高 | 15.086667 | 8.333333 | 原 B 斷言失敗，未改產品順序或延後停止。 |
+| 全程保持音高 | 15.125000 | 11.270512 | 原 ±100ms 失敗，不能退回這個設定假稱修好。 |
+
+### 排除產品、錄影與儲存後仍會發生
+
+另用只有同一合成示範的原生 `<video>` 頁；沒有產品程式、MediaRecorder、自拍、AudioContext 或 IndexedDB，沒有在 B 補 seek。原生 trusted 按鍵開始 0.75×／pitch=false，到 B 暫停後保持一秒，再由另一個 trusted 按鍵設 pitch=true：
+
+- 正常控制 **11.269438 → 8.333333**；即使暫停一秒後才設定仍會回跳，再播放也從錯位處開始。
+- 暫時停用原音軌再設定音高，**11.253175 → 8.333333**；沒有採用此無效方案。
+- 到 B 的原 pause 前先設播放速率 0，收尾可暫時維持 **11.258350**，但下一次 trusted 播放 2×／pitch=true 又退到 **8.333333**，實播約 1.2 秒後只有 **10.237976**。因此不能只因收尾 B 斷言變綠就採用；它只是把問題延到下一次練習。
+
+這些原生對照支持的原因是：**此受測 Safari 在已用自然變調播放的來源上切回音高保持，會使播放位置退回；不是保存原片或讀取自拍所必需的行為。** 原合成輸入的視訊關鍵影格為 0、8.333333、16.666667 等，回跳值符合前一關鍵影格。WebKit 公開程式也顯示[音高設定交給 AVFoundation 的音訊演算法](https://github.com/WebKit/WebKit/blob/main/Source/WebCore/platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm)，且[暫停時的 DOM 速度設定不立即送入播放器](https://chromium.googlesource.com/external/github.com/WebKit/webkit/+/61117dc2de25c1caca02cb1ae82437a45df3f232/Source/WebCore/html/HTMLMediaElement.cpp)。管線重建／關鍵影格回退是與這些資料相符的**推論**，沒有聲稱已追到 Safari 27.0.1 的內部呼叫或證明所有影片／版本都相同。
+
+### 舊資料、真正下載與獨立播放
+
+最後再用乾淨 #117 的產品流程，先保存合成老師原片及一份先前合成自拍，再開新 take；錄前／錄後讀出完整 library、media／chunks keys 與全部 bytes。兩份舊 Blob、所有既有資料列均原樣保留；獨立入口另核對 **5 份**完整二進位快照及舊 Blob 的直接逐 byte equality。
+
+新原片為 **275,561 bytes／15.041667 秒**，SHA256 `23c28e32211465c595957868b1876601c2105d8d0cb1f2178c720af95dec7758`，FFmpeg 完整解碼 exit 0／stderr 空。由產品原下載連結實際 trusted 點按，只有合成下載名稱改為本輪唯一名稱，避免覆寫使用者檔案；**OS Downloads 的實際檔案、儲存 Blob、下載副本與快照逐 byte 一致**。產品主機真正停止、自有群組消失後，以原生 Safari `file:` 的獨立播放頁 trusted 點按，從 0 播到 15.041667 秒 ended、640px、error=0。這次包含真正下載，不只 WebDriver 取回 Blob。
+
+同輪收尾位置仍為 **8.333333**，原 `abs(duration−15) <= 0.1 && sourceAtStop >= 11.25` 仍實際失敗；資料保全及成檔通過不取代它。獨立 audit 另核對本輪 **7 份**錄影原片的完整 bytes／SHA256 與全片解碼，均 exit 0／stderr 空，並確認 **22 個**已知自有 driver／server 程序群組均退出。各輪只按自己的 nonce 釋放共用鎖；其他持有者仍活著時等待，沒有刪鎖、終止他人程序或修改 OS／Safari 設定。
+
+乾淨 #117 再現 raw SHA256 `96cb9ce2ed43965d8252c7e1305a21ce4bf74f18697bfdab691b05825d2b57fa`；三個縮小重現 raw `8871e63b64ff1992e3c7c96a6ffd3e1cae6a3b782acf24b52ce7dae1098699c1`；完整保全／真正下載 raw `754899cdcfeb8ea3d821cc5c515e760cae12116b300e062c570f474df131d12b`；獨立 audit `e2922e5aefb9e3fcf9e3154f691b3203dd75da6bae122b2418e4a0303e513cce`。完整工具、各變體副本、成功及失敗 raw、快照、原片／下載檔只留本聊天 ignored output，不進 Git 或公開附件。
+
+前置失敗完整保留：失焦未送達的原生點按（以 WebDriver 選回自有 window 後才真正送達）、共用鎖忙碌／有界等待逾時（未啟動瀏覽器）、縮小頁內嵌腳本被既有 CSP 擋下（改同源外部 script，沒有放寬 CSP）、第三次點按前取快照造成的 QA 計數斷言失敗（補取真正第三次 trusted click）。均不算產品失敗／通過；觀察逾時沒有重啟尚在執行的同一瀏覽器。首輪原保留失敗收據仍為 `9a9366f9f37c46ebe43184de206f0392da2e6da6dc6d5a4477712d1f00eb19f4`。
+
+### 交付檢查與界線
+
+交付分支的原 `bun run check` 使用 Bun 1.4.4，**632 tests／3,057 expects／0 fail**；harness 指紋／文件連結、264 檔公開掃描、型別、lint 與 build 全過，原 19 項 lint info 保留。交付分支的產品靜態仍為 main 的 `6f07212fe275ae3c`；它只交調查與 #113 測試前置，沒有把原生 `2c29fc9` 的結果改標為這個分支的新產品驗收。
+
+**尚未修正產品。** 沒有採用已證實無效的設定重排、停止速率 workaround 或把音高延到下一次播放；沒有補 seek 到 B、裁片／補影格、延後開錄、提前停止、重置儲存或更換 oracle。若後續改變播放聲路／音高策略，須另做可審查設計及同版原生前後對照；本輪不直接擴成媒體架構重寫，也不以瀏覽器內部機制推論代替實測修正。
+
+#9 保持開啟，#117／#114 保持原 head 待審查；本次不承接 #115 的恢復驗收。既有半速成功仍歸屬原版本，本輪沒有新的修正版、三速度完整矩陣或 G1–G7 通過。真相機／LED、真人聽感、私人模式、背景／鎖屏／來電、同機連續十輪 capture→export G6 與 Claude Code／使用者最終審查仍缺；iPhone 繼續暫緩。未合併、部署或發布。
+
+## #119 續作：錄影聲路與一般練習音高
+
+### 受測來源與單變因結果
+
+接續 [PR #119](https://github.com/sunpochin/dance-stamp/pull/119) 的根因，從同步 main `d83755239bf145e9b79d50263208edfad83754e8` 建獨立分支。#114 `c3516376982e646097a7700798cf88a0fd438649`、#117 `2c29fc9e95dd0a8bad4389658eb9d748421e1443` 與 #119 `6219982ec7dee5fc82692886a42cd4af7c4c3977` 均保持原 head／開啟狀態，未合併或發布。只重用 #113 的 `releasePackage.test.ts` Git fixture 隔離前置，讓正常 hook 不污染 linked worktree 的共用 Git；沒有接入 #114 其他產品變更。
+
+Safari／safaridriver 27.0.1、macOS 27.0.1、Bun 1.4.4；65 秒合成示範 1,789,027 bytes／SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`。主機禁止實體相機／麥克風／畫面擷取，只注入 640×360 Canvas 合成相機及觀察原生 MediaRecorder／setter／聲音節點；不取代時鐘或編碼。開始、恢復、下一次播放及產品按鍵由真實 WebDriver 輸入並核對 trusted；檔案與欄位設定僅作前置。所有程序共用原子媒體鎖，確認自有 session／程序群組退出及 nonce 相同才放鎖，未碰其他持有人。
+
+固定 A=0、r=0.75、15 秒、B=11.25 的原生獨立頁面先比較聲路／音高策略，沒有產品主流程、儲存或 UI 混因：
+
+| 單變因策略 | 原生片長 | B／下次播放 | 結論 |
+| --- | --- | --- | --- |
+| 原生元素聲路、錄影自然變調後恢復音高 | 15.086667 秒 | 回到 8.333333，失敗 | 保留 #119 根因 |
+| 同源 MediaElementAudioSource 路由 | 15.463333 秒 | 同樣回跳，失敗 | 排除；路由沒有消除音高切換 |
+| 全程自然變調 | 15.068333 秒 | 通過 | 一般練習失去音高保持，不採用 |
+| 全程保持音高且元素出聲 | 15.121667 秒 | 通過 | 超過原 ±100ms，不採用 |
+| 全程保持音高，只在錄影靜音元素 | 15.043333 秒 | 通過 | 沒有跟跳聲音，僅作控制 |
+| 上項加同原片 A–B 有界 PCM 供聲 | 15.036667 秒 | 通過 | 支持保留音高且拆出錄影供聲 |
+
+加 PCM 的原生延長對照 15／30／60 秒分別為 15.066667／30.038333／60.038333 秒，B 分別 11.273691／22.512972／45.010647；下一次 2× 播放也通過。這是獨立頁面結果，沒有移記成產品成功。
+
+### 編碼聲畫見證與啟播順序
+
+另將實際來源時間碼／閃光影格與有界 PCM 經原生 WebM VP8／Opus 編成單檔，使用原 `analyze-media.py` 的 `probe`／`frames` 函式、原 RMS 提示音門檻及 100ms／250ms／24fps 判定。這是合成來源畫面／聲音見證，不是實體相機或產品 VS。
+
+最初在 play 前供聲，0.75× 的 15 秒見證最大聲畫差 94ms、1× 88ms，但半速達 **107ms，失敗**；失敗原檔／收據完整保留。只將供聲順序改成原生 `play()` Promise 完成後啟動，半速新見證為 15.060 秒、完整 8 個提示音、最大聲畫差 **82ms**、29.68fps、最長重複 160ms／內容時鐘差 149ms，原 scoped 門檻全過。排除固定延遲補償及弱化門檻。額外等待首影格方案在原生查詢逾時，重查原 session 後正常關閉；沒有完整收據，未採用、不列成功。
+
+半速通過檔 926,152 bytes／SHA256 `1c5de10101c7f9847b56576ef970b9bcce7e3f6276084c825a30ed71cb27584d`；收據 SHA256 `36a39c1585ea4f895230ce3843dc14c696fc5dde4a7e6821a10e6384bf7eb58f`。零星 WebDriver 按鍵未送達、原生查詢逾時的輪次保留失敗／未驗歸屬；不以後來成功覆寫原 raw。
+
+選定順序另起原生 cohort 重跑三速度各 15 秒，B／±100ms／下一次播放／音高恢復全過；獨立解碼結果如下，收據 SHA256 `338f1614c898124f82abdb262d72fde3bac089df3cc4b91fd0f6ba259d968445`。全部提示音數、來源首尾覆蓋、fps≥24、停格與內容時鐘≤250ms、單音軌皆通過原 scoped 門檻。
+
+| r | 見證檔時長 | 最大聲畫差 | 原檔 SHA256 |
+| --- | --- | --- | --- |
+| 0.5 | 15.058 秒 | 76ms | `eba4062ebb4c596388f914daaeb71bba92da5b5e1b8eec8a37e2f6009c12a411` |
+| 0.75 | 15.050 秒 | 69ms | `8f7148407fa4b96f3fdddab69b3e1dfac948c32f151bb075c36034dda09a95d6` |
+| 1 | 15.044 秒 | 54ms | `ea327361a874ed3b681f59e847686ce62aff67db9bdce3e391dea7055d7a903b` |
+
+60 秒見證續測保留了否決反例。三速度的編碼聲畫與完整覆蓋皆通過，但 **1× 的下次播放失敗**，不能把本候選稱為修好，也不能只用 15 秒結果交付。收據 SHA256 `2c32e53ace6fd9520d758e6a9982aec1cd6fc2cce5af2090acce133188f112de`。
+
+| r | 見證檔時長 | 最大聲畫差 | 原 B 讀值 | 下次播放 |
+| --- | --- | --- | --- | --- |
+| 0.5 | 60.055 秒 | 97ms | 30.013874 秒 | 通過 |
+| 0.75 | 60.058 秒 | 86ms | 45.014274 秒 | 通過 |
+| 1 | 60.047 秒 | 83ms | 60.021828 秒 | 原生 playing／play Promise 完成已變為 **58.333333 秒**，失敗 |
+
+1× 反例從停止、自拍 metadata 讀回、設定恢復到下一次播放前，來源一直為 60.021828；pitch 全程 true、沒有收尾 currentTime setter／seeking。下一次 play 才退到前一關鍵影格，故單靠避免 false→true 仍不充分。原片 B／聲畫／片長成功與下次播放失敗分開記錄；不補 seek、不改 oracle，也不延後恢復設定來隱藏。
+
+後續實驗曾有 QA 前置錯誤：複製的主機白名單仍指向舊試驗頁，四個附加 variant 標籤沒有真正生效；該組不能用於判斷不同恢復策略，原始檔／錯誤 sidecar 保留。修正後強制逐 byte 核對實際 HTTP 腳本／頁面與預期來源，並在原生開始前斷言頁面載入的 variant。另一次產品原速前置把 select 值寫為 `1.0` 而未選中 `1`，相機未開啟；修正數值傳遞並記錄欄位實值後重跑，不列產品失敗。
+
+### 產品候選及驗收界線
+
+產品最小修正與格式／資源取捨見 TECHNICAL 第 49 節。受測是明示未提交工作樹，靜態 `61449677fa441d43`；`main.js` SHA256 `22bf11b4bce66d4d80238d3b5e3908332e003e49c55a8591c0d0c33f12726a73`，`recorder.js`、`local-audio.js`、`storage.js` 沒有修改。原生產品結果以執行時 source bytes、patch SHA256、靜態版本及合成 fixture 綁定，不冒稱乾淨提交 head。
+
+首個產品 0.75×／15 秒案例：原片 15.031667 秒、B 停在 11.267400 秒；下一次原生 2× 播放沒有回跳，pitch=true、muted=false。新片 ready、完整 FFmpeg 解碼成功；舊資料及全部媒體 bytes 保留，decoder 關閉、本輪聲音停止／斷線、合成相機 tracks 全 ended，沒有麥克風／畫面存取。
+
+同一候選另跑三個原生保全分支：解碼 flush 已原生完成但 QA 暫扣送達時實點 Stop、倒數時實點 Stop、錄影約一秒後由 trusted 按鍵停止本輪 AudioContext。前兩者標 failed、沒有 recorder／BufferSource 啟動；音訊中斷標 interrupted 且保留 partial 原片／chunks，舊播放器與原片下載 URL 不變。所有舊 metadata／media／chunks 全量比對保留、decoder 關閉、聲音停止／斷線、相機 tracks ended。解除晚到 flush 後完整快照仍不變，同頁同 File 重試通過三門檻。
+
+重試原片 276,125 bytes／SHA256 `254e63953d7df818f07c3341febf2c9649a2baafa3746d86e6799ad55236c945`，與 IndexedDB 及真實 Safari 下載逐 byte 相等；產品主機停止後，獨立 file 頁透過 trusted Play 從零播到 ended，時長 15.043333 秒、無解碼錯誤。此保全／下載輪收據 SHA256 `a76f9bb5d1c5f959253cc5e6025f051a959160f92179b4e75d8969b8b3b41258`。
+
+### 暖機續修與舊影格反例
+
+修正試驗來源核對後，原生 1×／60 秒的「略過重複 pitch 寫入」仍失敗；開錄前 2× 暖機、見到前進影格後回 A，以及收尾後重新載入並 seek 原停止點，則各自通過 B／原片 ±100ms／下一次播放。選開錄前暖機，避免在 B 修補位置。暖機組的原倒數到開錄為 5.001 秒、控制為 5.002 秒；60.055 秒見證檔最大聲畫差 76ms、首尾覆蓋／所有提示音／24fps／250ms 全過，並無延後開錄或少錄開頭。原檔 SHA256 `655494cfd6b986ea188f27bec767464cbba8d0a21d84aa6cc119f33807ab1bcd`，收據 `e410155c549ee05d7305daf95d8c213f6bda0913041afd544cc623e9ce17612c`。收尾重載原型的同組對照也過，但未採入產品。
+
+完整產品未暖機的 1×／60 秒亦實際重現：60.056667 秒、B＝60.029811，下一次播放回跳，原草案否決。初版暖機讓原速長段通過，卻在重用播放器時出現半速中斷；最早一輪沒有保存失敗頁的完整狀態，僅留「new raw missing」與 before 快照，不推測原因。補齊失敗收據後另一輪明確抓到：回 A＝0 後，原生 callback 的 mediaTime 仍為前輪 **17.666667 秒**，當時 currentTime＝0。僅用 mediaTime>A 的判斷誤接受舊影格；正式半速播放位置幾乎未動，而聲音已前進約 0.12 秒。
+
+原 100ms 聲音護欄正確拒絕 ready，保留 110ms 中斷原片及一塊 6,098-byte chunks，聲音停止／斷線，take 為 interrupted。另將原生 before／failure 快照的五份舊媒體直接逐 byte 比對，舊 metadata 全欄位及所有舊媒體均保留。失敗收據 SHA256 `fc99a5313640b3fca8d377baaa4de386a25dd4d77024b435a63964de80b5ceb4`。修正只接受來源位置也真的前進、且影格與該輪 2× 時鐘在原 100ms 內相符的通知；沒有放寬同步或片長容差。
+
+另新增取消後遲到零時間影格的回歸：原 helper 會重新訂閱（12 案中 1 fail，callback 尚存 1 個），加入 finished 檢查後 12 pass／72 expects。先前暖機 QA 曾錯用 play Promise 完成時的位置判斷影格（當時可仍為零）；核心三門檻雖過，該附加斷言不成立，原失敗保留。最後改為被動記錄產品原有 rVFC 的原生參數，不新增影格訂閱或改動 metadata。
+
+最終候選靜態 `b3ebbe3fd8a7a0bc`，main.js SHA256 `e2919c9e095d287e79be030bfbcefe72469815ea57f264a4acbbe2e1b0a433c0`、recorder.js SHA256 `f1e217b85e8fa8c068fc024a552da6ae939d8da5dec6b0c585b670b613c4deb7`。前述 61449677／95ae4617／88627d83 工作樹結果各保留來源，不能移記為此版本的完整矩陣。
+
+### b3ebbe3 完整產品同版矩陣
+
+同一原生 Safari session／資料庫，以最終 runtime bytes 從頭完成九組及 A＝5 秒附加案例。每案在原 B 讀值封存後才點下一次播放，原片使用未取整的片長與 ±100ms，下一次以 2× 播放至少 1.5 秒、全程最小位置須不早於 B；音高 true、原靜音 false 均恢復。各案 ready、完整 FFmpeg 解碼 exit 0、解碼器關閉、BufferSource 停止／斷線、合成相機 tracks ended，無麥克風或畫面擷取。
+
+| r | 計畫秒數 | 原片秒數 | 原生 B 停止秒數 | B／±100ms／下次播放 |
+| --- | --- | --- | --- | --- |
+| 0.5 | 15 | 15.015000 | 7.506289 | 全過 |
+| 0.5 | 30 | 30.008333 | 15.004418 | 全過 |
+| 0.5 | 60 | 60.011667 | 30.006923 | 全過 |
+| 0.75 | 15 | 15.033333 | 11.269858 | 全過 |
+| 0.75 | 30 | 30.000000 | 22.511730 | 全過 |
+| 0.75 | 60 | 60.025000 | 45.006598 | 全過 |
+| 1 | 15 | 15.035000 | 15.006391 | 全過 |
+| 1 | 30 | 30.035000 | 30.004460 | 全過 |
+| 1 | 60 | 60.033333 | 60.007649 | 全過 |
+
+A＝5、B＝16.25、r＝0.75 的 15 秒附加案例為 15.040000 秒、停止 16.269657；三門檻及一般練習設定同樣通過。十案最大片長誤差 40ms；所有下一次播放的最小讀值也未低於各自原停止讀值。每案所有來源 currentTime setter 都發生在 recorderRequestedMs 之前，收尾沒有 B 位置修補。舊 metadata 每列保留，另獨立直接逐 byte 核對 65 組舊媒體 before／after 檔案。
+
+完整收據 SHA256 `a42217df3d5ccb74ce6e2415c29c29c5a37666515c0ad41bec13264398627f6b`；這是 main 基線上的明示未提交工作樹結果，與本節所列 main.js／recorder.js／靜態 bytes 綁定，後續文件提交不冒充重跑。此十案是不同速度／長度的捕捉矩陣，**不是同機連續十輪 capture→export G6**。所有前述失敗、QA 設定錯誤與中斷仍保留，不以此次成功覆寫。
+
+最終暖機／時鐘一致策略另外補半速與 0.75× 各 60 秒編碼見證，兩份均為 60.044 秒、來源首尾覆蓋誤差 0ms、完整提示音／單音軌／24fps／250ms 原門檻全過；最大聲畫差分別 **75ms／77ms**，最長重複影格 146ms／138ms。與前述 1× 暖機見證分開歸屬，仍不是實體相機或產品 VS。收據 SHA256 `b0b6c54955961f03f64df8fceb43cc0f448c082f52ffd09d2de0d53bc3afd2ef`，原檔分別 `3345117be8749aea6cf93624d20f5ba699b0627fad8e930015df157b02f276fd`、`39bbfca48bd298741a74ec1d896c855843de4b2f0dc78af5910a72e8ab774311`。
+
+同一最終 runtime 再通過五個原生保全分支：取消解碼、暖機真正收到通知但暫扣送達時實點 Stop、相同暖機等待的 2 秒逾時、取消倒數、錄影中停止本輪音訊。前四者為 failed、沒有開錄／BufferSource；音訊中斷為 interrupted、保留原片／chunks且舊播放器／下載 URL 不變。每輪原有 metadata／全部媒體／chunks 保留，decoder 關閉、聲音節點停止／斷線、相機 tracks ended。
+
+暖機取消暫扣的真正原生通知 mediaTime＝0、當時位置 0.020304；逾時組為 mediaTime＝0.033333、位置 0.042434。取消／逾時完成後再送回同一份原生參數，沒有新增影格訂閱，完整快照仍不變，未偽造影格或 metadata。同頁同 File 重試的 0.75×／15 秒為 15.020 秒、B＝11.269458，三門檻通過。真實下載 274,112 bytes／SHA256 `be53580b1f26de6d6b57b0a386e1cfe8d98776626b41819a59d4ca06b7341028` 與原片逐 byte 相同；停掉產品主機後，獨立 file 頁以 trusted Play 從零播至 ended、無解碼錯誤。保全／下載收據 SHA256 `1a6a1f2f8b1a7a54c8f8fec768233d8fa1d109208f99c8d79e4cef7cf288e03b`。
+
+原 `bun run check` 通過 **633 tests／3,061 expects／0 fail**、17 個 harness 指紋／本機文件連結、264 檔公開掃描、型別、lint 及 build；原 19 項 lint info 保留。正常 commit／push hooks 及 PR head CI 另綁；產品最終 bytes 與上述 source 指紋相同，未以文件提交冒充新的媒體執行。
+
+下列仍獨立保留：真相機／LED、人工聽感、私人模式、背景／鎖屏／來電、同機連續十輪 capture→export G6、完整 G1–G7 與 Claude Code／使用者最終審查；iPhone 暫緩。工程證據不關閉 #9，不授權合併或發布。

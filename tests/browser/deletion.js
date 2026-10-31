@@ -78,5 +78,44 @@ async (page) => {
   await preview(page.getByRole('button',{name:'刪除此練習與比較…',exact:true})); await page.locator('#delete-confirm').click(); await idle();
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   assert(await page.locator('#confirm-take').isHidden() && (await snapshot()).data.takes.length===1 && (await snapshot()).data.takes[0].id!==missing.id, '刪除缺片練習後仍卡在舊重連');
-  return { copyOnlyKeepsRelationsAndSession: true, lostCopyMissingAfterReload: true, defaultCancelEscapeKeyboardAndNarrowLayout: true, otherTabTakeLockProtected: true, staleDeletePreviewRejected: true, abortAndCancelAtomic: true, exportAndTakeDeletedSeparately: true, chunksCleanedAtomically: true, notebookCascadeReopensCleanly: true, deletingPendingMissingTakeAllowsNewPair: true };
+  // 空清單無法證明其他練習仍安全；另留已保存原片與非空筆記，再刪除正在補片的另一段。
+  const mediaState = () => page.evaluate(async () => {
+    const store = await import('/storage.js'), rows = [];
+    for (const id of (await store.readMediaKeys()).sort()) {
+      const blob = await store.readMedia(id), hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(v => v.toString(16).padStart(2, '0')).join('');
+      rows.push({ id, bytes: blob.size, type: blob.type, hash });
+    }
+    return rows;
+  });
+  await page.locator('#end').fill('3'); await page.locator('#end').dispatchEvent('change'); await idle();
+  await page.locator('#copy-self').click(); await idle();
+  await page.locator('#mark').click(); await page.locator('#marker-title').fill('合成多段保留'); await page.locator('#marker-note').fill('刪除另一段仍保留這份筆記');
+  await page.locator('#marker-form button[type=submit]').click(); await idle();
+  const kept = await snapshot(), keptTake = kept.data.takes.at(-1), keptIds = kept.data.takes.map(t => t.id), originalMedia = await mediaState();
+  assert(keptIds.length > 0 && originalMedia.some(row => row.id === keptTake.cameraAssetId), '沒有其他已保存練習可驗證保全');
+  await page.locator('#self-file').setInputFiles('output/comparison/self-0.75.mp4'); await idle();
+  const withMissing = await snapshot(), pendingTake = withMissing.data.takes.find(t => !keptIds.includes(t.id));
+  assert(pendingTake && withMissing.data.takes.length === keptIds.length + 1 && pendingTake.referenceVideoId === keptTake.referenceVideoId, '沒有建立同課程另一段待補原片的練習');
+  await page.reload(); await idle(); await page.locator('#library').selectOption(pendingTake.referenceVideoId); await page.locator('#open-library').click(); await idle();
+  await page.locator(`[data-focus-key="take:${pendingTake.id}:open"]`).click(); await idle();
+  assert((await page.locator('#status').textContent()).includes('缺少') && !await page.locator('#self').getAttribute('src'), '不是重開後的真正缺片等待');
+  const beforeDelete = await snapshot();
+  // 用穩定ID選目標，不能依清單位置誤刪保留中的另一段。
+  await preview(page.locator(`[data-focus-key="take:${pendingTake.id}:delete"]`)); await page.locator('#delete-confirm').click(); await idle();
+  const afterDelete = await snapshot(), retainedMedia = await mediaState();
+  for (const [key, rows] of Object.entries(kept.data)) if (Array.isArray(rows)) assert(JSON.stringify(afterDelete.data[key]) === JSON.stringify(rows), '刪除待補片段改動其他資料表：' + key);
+  assert(afterDelete.revision === beforeDelete.revision + 1 && JSON.stringify(retainedMedia) === JSON.stringify(originalMedia), '刪除未單次提交或改動另一段的完整原生媒體');
+  assert(await page.locator('#confirm-take').isHidden() && await page.locator('#take-download').isHidden() && !await page.locator('#self').getAttribute('src'), '刪除後仍留下待補片或下載狀態');
+  await page.locator(`[data-focus-key="take:${keptTake.id}:open"]`).click(); await idle();
+  assert(await page.locator('#self').evaluate(video => video.readyState >= 2 && !video.error), '另一段已保存原片無法經公開入口重開');
+  await page.locator('#export').click(); await idle(); assert((await page.locator('#status').textContent()).includes('已成檔'), '刪除另一段後無法重新匯出');
+  const exported = await snapshot(), artifact = exported.data.exports.at(-1), exportedMedia = await mediaState(), expectedVs = exportedMedia.find(row => row.id === artifact?.assetId);
+  assert(expectedVs && JSON.stringify(exported.data.takes.filter(t => keptIds.includes(t.id))) === JSON.stringify(kept.data.takes), '重新匯出未保存VS或改動保留中的練習');
+  assert(JSON.stringify(exportedMedia.filter(row => originalMedia.some(old => old.id === row.id))) === JSON.stringify(originalMedia), '重新匯出改動保留中的完整原片');
+  const waiting = page.waitForEvent('download'); await page.locator('#output-download').click(); const file = await waiting;
+  const actualVsDownload = 'output/comparison/pending-multi-vs.' + file.suggestedFilename().split('.').pop(); await file.saveAs(actualVsDownload);
+  const bytes = await (await import('node:fs/promises')).readFile(actualVsDownload), { createHash } = await import('node:crypto');
+  assert(bytes.length === expectedVs.bytes && createHash('sha256').update(bytes).digest('hex') === expectedVs.hash, '刪除後真正VS下載與完整原生保存不符');
+  const multiPending = { deletedTakeId: pendingTake.id, keptTakeIds: keptIds, allTableArraysRestored: true, originalMedia, retainedMedia, deletionRevisionIncrement: afterDelete.revision - beforeDelete.revision, pendingControlsCleared: true, savedTakeReopened: true, actualVsDownload, expectedVs };
+  return { copyOnlyKeepsRelationsAndSession: true, lostCopyMissingAfterReload: true, defaultCancelEscapeKeyboardAndNarrowLayout: true, otherTabTakeLockProtected: true, staleDeletePreviewRejected: true, abortAndCancelAtomic: true, exportAndTakeDeletedSeparately: true, chunksCleanedAtomically: true, notebookCascadeReopensCleanly: true, deletingPendingMissingTakeAllowsNewPair: true, multiPending };
 }

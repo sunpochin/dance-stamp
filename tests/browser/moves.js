@@ -36,8 +36,16 @@ async (root) => {
     await page.getByRole('button', { name: '開啟指定片段', exact: true }).nth(i).click(); await idle(page);
     assert(await page.locator('#library').inputValue() === data.videos[i].id && Math.abs(await page.locator('#reference').evaluate(v => v.currentTime) - 2) < .05, '跨影片片段未跳到原位置');
   }
+  const beforeCourses = await snapshot(page);
+  // 課程與動作片段是不同入口；先換到另一課，避免按到原課卻誤認已驗證切換。
+  await page.locator('#search-videos > li').filter({ hasText: data.videos[0].title }).getByRole('button', { name: '開啟課程', exact: true }).click(); await idle(page);
+  assert(await page.locator('#library').inputValue() === data.videos[0].id && await page.locator('#video-title').inputValue() === data.videos[0].title, '搜尋課程未切回第一堂筆記');
   await page.locator('#library-keyword').fill('ＳＵＺＹ 重心'); await page.locator('#library-style').fill('salsa'); await page.locator('#library-teacher').fill('老師乙'); await page.locator('#library-from').fill('2026-10-21'); await page.locator('#library-to').fill('2026-10-21');
   assert(await page.locator('#search-videos > li').count() === 1 && await page.getByRole('button', { name: '開啟指定片段', exact: true }).count() === 1, '組合搜尋不正確');
+  await page.getByRole('button', { name: '開啟課程', exact: true }).click(); await idle(page);
+  assert(await page.locator('#library').inputValue() === data.videos[1].id && await page.locator('#video-title').inputValue() === data.videos[1].title && await page.locator('#video-teacher').inputValue() === '老師乙', '篩選後開到其他課程');
+  assert(await page.locator('#reference').evaluate(v => v.readyState >= 2 && v.duration > 0 && !v.error) && (await page.locator('#markers').textContent()).includes('重心先移'), '搜尋課程未讀回已存示範或筆記');
+  assert(JSON.stringify(await snapshot(page)) === JSON.stringify(beforeCourses), '只開啟搜尋課程卻改寫筆記或revision');
   await page.locator('#library-reset').click();
   await page.getByRole('button', { name: '編輯動作／狀態', exact: true }).click(); await idle(page);
   await page.locator('#move-status').selectOption('practicing'); await page.getByRole('button', { name: '儲存動作', exact: true }).click(); await idle(page);
@@ -57,6 +65,11 @@ async (root) => {
     await page.reload(); await idle(page); await expand(page);
     await page.locator('#library-keyword').fill('Suzy'); await page.locator('#library-status').selectOption('practicing');
     assert(await page.getByRole('button', { name: '開啟指定片段', exact: true }).count() === 2 && await page.getByRole('button', { name: '開啟這次比較配方', exact: true }).count() === 2, '離線搜尋或歷史遺失');
+    await page.locator('#library-teacher').fill('老師甲');
+    await page.getByRole('button', { name: '開啟課程', exact: true }).click(); await idle(page);
+    assert(await page.locator('#library').inputValue() === data.videos[0].id && await page.locator('#video-title').inputValue() === data.videos[0].title && await page.locator('#reference').evaluate(v => v.readyState >= 2 && !v.error), '離線搜尋未開啟指定課程及保存副本');
+    // 後段仍要驗證跨兩課程的解除關聯／刪除，不能讓此處的單一老師篩選藏掉原按鈕。
+    await page.locator('#library-teacher').fill('');
     assert(JSON.stringify(await normalized(page)) === JSON.stringify(before), '離線重開改寫筆記');
   } finally { await page.context().setOffline(false); }
   const fresh = await page.context().browser().newContext(), restored = await fresh.newPage();
@@ -68,6 +81,14 @@ async (root) => {
     const after = await normalized(restored); after.exportedAt = before.exportedAt;
     assert(JSON.stringify(after) === JSON.stringify(before), '新環境還原的分類、狀態或關聯不一致');
     assert((await restored.evaluate(async () => await (await import('/storage.js')).readMediaKeys())).length === 0, 'JSON 偷帶影片');
+    // JSON沒有影片；搜尋仍須開對筆記並保留缺片提示，不能靠片段按鈕代替這條路徑。
+    await restored.locator('#library-teacher').fill('老師甲');
+    await restored.getByRole('button', { name: '開啟課程', exact: true }).click(); await idle(restored);
+    assert(await restored.locator('#library').inputValue() === data.videos[0].id && await restored.locator('#video-title').inputValue() === data.videos[0].title && (await restored.locator('#markers').textContent()).includes('重心先移'), '缺片搜尋課程未開到原筆記');
+    assert((await restored.locator('#status').textContent()).includes('尚未連結') && await restored.locator('#reference').getAttribute('src') === null, '缺片搜尋誤顯示已連結或舊影片');
+    const opened = await normalized(restored); opened.exportedAt = before.exportedAt;
+    assert(JSON.stringify(opened) === JSON.stringify(before), '缺片搜尋改寫還原資料');
+    await restored.locator('#library-teacher').fill('');
     await restored.getByRole('button', { name: '開啟指定片段', exact: true }).first().click(); await idle(restored);
     assert((await restored.locator('#status').textContent()).includes('尚未連結') && (await restored.locator('#markers').textContent()).includes('重心先移'), '缺片筆記不可讀');
     await restored.locator('#reference-file').setInputFiles(file); await idle(restored); await restored.locator('#confirm-link').click(); await idle(restored);
@@ -96,6 +117,6 @@ async (root) => {
     await restored.screenshot({ path: 'output/issue-17/moves-narrow.png', fullPage: true });
   } finally { await fresh.close(); }
   assert(!errors.length && !outside.length, '瀏覽器錯誤或外部請求 ' + errors.join(';'));
-  return { courses: 2, markers: 2, takes: 2, manualStatus: true, search: true, crossVideoSeek: true, historyRecipe: true, offlineReload: true, backupFreshContext: true, missingNotesAndExplicitRelink: true, unlinkAndDeletePreserveMedia: true, narrowLayout: true, pageErrors: errors.length, outsideRequests: outside.length };
+  return { courses: 2, markers: 2, takes: 2, manualStatus: true, search: true, courseSearchOpen: { online: true, offline: true, restoredWithoutMedia: true }, crossVideoSeek: true, historyRecipe: true, offlineReload: true, backupFreshContext: true, missingNotesAndExplicitRelink: true, unlinkAndDeletePreserveMedia: true, narrowLayout: true, pageErrors: errors.length, outsideRequests: outside.length };
   } finally { await context.close(); }
 }

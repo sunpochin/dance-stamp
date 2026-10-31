@@ -2,9 +2,10 @@
 async (page, phase = 'auto') => {
   const origin = new URL(page.url()).origin, assert = (ok, message) => { if (!ok) throw new Error(message); };
   if (phase === 'verify-navigation' || phase === 'auto' && await page.evaluate(() => !!window.moveDraftExpected)) {
-    const result = await page.evaluate(() => ({ event: window.moveDraftNavigation, expected: window.moveDraftExpected, url: location.href, values: ['move-name', 'move-style', 'move-status'].map(id => document.getElementById(id)?.value) }));
-    assert(result.event?.trusted && result.event.prevented && result.url.startsWith(result.expected?.origin) && JSON.stringify(result.values) === JSON.stringify(result.expected?.values), '真正離頁沒有保護動作草稿：' + JSON.stringify(result));
-    return { realBeforeUnloadDismissed: true, draftRetained: true, event: result.event };
+    const result = await page.evaluate(async () => ({ event: window.moveDraftNavigation, expected: window.moveDraftExpected, url: location.href, values: ['move-name', 'move-style', 'move-status'].map(id => document.getElementById(id)?.value), savedLibrary: await (await import('/storage.js')).readLibrary() }));
+    // 表單值仍在不代表已存內容安全；拒絕原生離頁後也要讀回完整資料。
+    assert(result.event?.trusted && result.event.prevented && result.url.startsWith(result.expected?.origin) && JSON.stringify(result.values) === JSON.stringify(result.expected?.values) && JSON.stringify(result.savedLibrary) === JSON.stringify(result.expected?.savedLibrary), '真正離頁沒有保護動作草稿或已存資料：' + JSON.stringify(result));
+    return { realBeforeUnloadDismissed: true, draftRetained: true, savedLibraryRetained: true, event: result.event };
   }
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled);
   const snapshot = () => page.evaluate(async () => await (await import('/storage.js')).readLibrary());
@@ -43,10 +44,11 @@ async (page, phase = 'auto') => {
   const newer = await snapshot(); await save();
   assert(JSON.stringify(await snapshot()) === JSON.stringify(newer) && (await values())[0] === '合成衝突草稿', '衝突覆寫較新版本或清掉輸入');
   await edit('合成動作乙'); await idle(); assert((await values())[0] === '合成衝突草稿', '衝突後失去草稿保護');
-  await page.evaluate(() => {
-    window.moveDraftExpected = { origin: location.origin, values: ['move-name', 'move-style', 'move-status'].map(id => document.getElementById(id).value) };
-    // 真正導覽另由 CLI 發起與拒絕；單次 run-code 在原生 modal 出現時可能先回傳空結果。
+  const savedLibrary = await snapshot();
+  await page.evaluate(savedLibrary => {
+    window.moveDraftExpected = { origin: location.origin, values: ['move-name', 'move-style', 'move-status'].map(id => document.getElementById(id).value), savedLibrary };
+    // 真正導覽另由控制器發起與拒絕；單次 run-code 在原生 modal 出現時可能先回傳空結果。
     window.addEventListener('beforeunload', event => { window.moveDraftNavigation = { trusted: event.isTrusted, prevented: event.defaultPrevented }; }, { once: true });
-  });
+  }, savedLibrary);
   return { existingAndNewDraftPreserved: true, explicitSaveAndCancelWork: true, quotaAndRealTabConflictPreserveDraft: true, beforeUnloadPrepared: true, noMediaOrCamera: true };
 }

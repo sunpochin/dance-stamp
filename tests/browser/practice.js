@@ -144,7 +144,8 @@ async (page) => {
   await page.waitForFunction(() => document.getElementById('status').textContent.includes('秒後開始'));
   assert(await page.evaluate(() => ['controls', 'practice'].every(id => document.getElementById(id).disabled) && ['start', 'end', 'rate', 'practice-rate'].every(id => document.getElementById(id).matches(':disabled'))), '倒數錄影未鎖定區間／速度');
   await page.locator('#stop').click(); await idle();
-  assert(await page.locator('#reference').evaluate(v => v.playbackRate === 2) && await page.locator('#practice-rate').inputValue() === '2', '取消錄影後練習速度丟失');
+  // 取消也會走錄影收尾；不能把錄影的自然變調留給下一次一般練習。
+  assert(await page.locator('#reference').evaluate(v => v.playbackRate === 2 && v.preservesPitch === true) && await page.locator('#practice-rate').inputValue() === '2', '取消錄影後練習速度／音高丟失');
   checks.captureLocksAndRestoresPracticeSpeed = true;
   await stage('replacement');
   await page.locator('#loop').click(); await page.waitForFunction(() => !document.getElementById('reference').paused);

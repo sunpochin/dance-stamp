@@ -134,6 +134,16 @@ test('暖機要看到真正前進的影格；取消仍移除待呈現訂閱', as
   expect(video.callbacks.size).toBe(0); expect(video.listeners.size).toBe(0)
 })
 
+test('暖機取消後遲到的不合格影格不能重新訂閱', async () => {
+  const video = new PresentedVideo(), controller = new AbortController()
+  const pending = presentedFrame(video as unknown as HTMLVideoElement, controller.signal, frame => frame.mediaTime > 0)
+  // 原生通知已排入送達佇列時，取消訂閱仍可能收到它；零時間影格不能讓已結束的暖機復活。
+  const late = [...video.callbacks.values()][0]!
+  controller.abort(); await expect(pending).rejects.toThrow()
+  late(0, { mediaTime: 0 } as VideoFrameCallbackMetadata)
+  expect(video.callbacks.size).toBe(0); expect(video.nextId).toBe(1)
+})
+
 test('起點影格等待遇到 seek 或原生訂閱錯誤仍清理', async () => {
   const video = new PresentedVideo()
   Object.defineProperty(video, 'currentTime', { get: () => 1, set: () => { throw new Error('synthetic seek failure') } })

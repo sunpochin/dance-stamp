@@ -115,6 +115,9 @@ function stop() {
   reference.pause(); self.pause();
   releaseCamera();
   stopPractice();
+  // 原生錯誤可能先把影片變成 paused，pause() 就不再發事件；閒置停止仍須明確暫停音訊。
+  // active 的成檔保全由 operation 收尾持有，不能借一般停止提早截斷它的音訊生命週期。
+  if (!active && audio?.state === 'running') audio.suspend().catch(() => {});
 }
 function updateControls() {
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
@@ -561,14 +564,35 @@ $('capture').addEventListener('click', () => operation(async signal => {
   // 確認框的取消也會關閉預覽，避免使用者退出重錄後相機仍持續開啟。
   if (takeBlob && !confirm('請先下載目前自拍與 VS。重錄會建立新 take，已保存的舊段仍會保留，確定繼續？')) { releaseCamera(); status('已取消新錄影，原自拍與已保存的舊段都保留。'); return; }
   const info = /** @type {import('./types').CaptureInfo} */ ({ rate: value.rate, interrupted: true }); diagnostics.capture = info;
-  let recording, take, partialBlob, captureIntegrityError, stopRequested = false, chunkQueue = Promise.resolve(), chunkError, persistenceError, chunkIndex = 0;
+  let recording, take, partialBlob, captureIntegrityError, captureBuffer, captureSource, captureGain, captureAudioAt = NaN, stopRequested = false, chunkQueue = Promise.resolve(), chunkError, persistenceError, chunkIndex = 0;
+  const muted = reference.muted;
   try {
     take = await beginTake(value);
     // 與恢復操作共用原生鎖，避免另一分頁把尚在錄製的 take 當成中斷接管。
     await withTakeLock(take.id, async () => {
       try {
         await prepareAudio();
+        if (localAudio) {
+          // Safari 切回音高保持會回跳；示範維持音高設定並靜音，只從同一原片準備本輪有界聲音。
+          reference.muted = true;
+          if ('preservesPitch' in reference && !reference.preservesPitch) reference.preservesPitch = true;
+          if (!muted && reference.volume > 0) captureBuffer = await decodeLocalAudio(currentReferenceFile, audio, value.startMs / 1000, (value.endMs - value.startMs) / 1000, signal);
+        }
         await seek(reference, value.startMs / 1000, signal);
+        if (localAudio) {
+          // 先用非原速喚醒真實影格再回 A；否則原速長段在下一次改速播放仍可能退回關鍵影格。
+          const warming = new AbortController(), cancelWarm = () => warming.abort(signal.reason);
+          const timer = setTimeout(() => warming.abort(new Error('示範畫面準備逾時，請重新錄影。')), 2000);
+          signal.addEventListener('abort', cancelWarm, { once: true });
+          if (signal.aborted) cancelWarm();
+          try {
+            reference.playbackRate = 2;
+            // 回 A 後可能收到前輪 17 秒的舊通知；位置真的前進且影格符合本輪 2× 的原 100ms 容差才算暖機。
+            await Promise.all([presentedFrame(reference, warming.signal, frame => frame.mediaTime > value.startMs / 1000 + 0.001 && reference.currentTime > value.startMs / 1000 + 0.001 && Math.abs(frame.mediaTime - reference.currentTime) * 1000 / 2 <= 100), reference.play()]);
+            reference.pause();
+            await seek(reference, value.startMs / 1000, warming.signal);
+          } finally { reference.pause(); warming.abort(); clearTimeout(timer); signal.removeEventListener('abort', cancelWarm); }
+        }
         reference.playbackRate = value.rate;
         if (take.beatGrid?.countInBeats) await countIn(take.beatGrid, value.rate, signal);
         else for (let n = Number($('countdown').value); n > 0; n--) { status(`${n} 秒後開始，請就定位。`); await wait(1000, signal); }
@@ -588,18 +612,36 @@ $('capture').addEventListener('click', () => operation(async signal => {
             active.abort(captureIntegrityError); stop();
           }
         }, error => { if (active?.signal === signal && !signal.aborted) { active.abort(error); stop(); } });
+        if (captureBuffer) {
+          captureSource = audio.createBufferSource(); captureGain = audio.createGain();
+          captureSource.buffer = captureBuffer; captureSource.playbackRate.value = value.rate;
+          captureGain.gain.value = reference.volume;
+          captureSource.connect(captureGain).connect(audio.destination);
+        }
         const began = performance.now();
         await reference.play();
         info.referencePlayResolvedMs = Math.round(performance.now()); info.referenceAtPlayMs = Math.round(reference.currentTime * 1000); info.interrupted = false;
+        if (captureSource) {
+          // 錄影仍先於示範；等原生啟播接受後才供聲，避免聲音先跑，並沿用既有 10ms 排程而非裝置補償值。
+          try { captureAudioAt = audio.currentTime + 0.01; captureSource.start(captureAudioAt); }
+          catch (error) { captureIntegrityError = error instanceof Error ? error : new Error('示範聲音無法啟動。'); throw captureIntegrityError; }
+        }
         status('錄影中。示範到片段終點會停止，也可隨時按停止。');
         while (reference.currentTime * 1000 < value.endMs && !reference.ended) {
           if (performance.now() - began > 62_000) throw new Error('播放／錄影逾時。');
           if (reference.paused) throw new Error('示範播放中斷。');
+          // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
+          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - (audio.currentTime - captureAudioAt) * 1000) > 100)) {
+            captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。'); throw captureIntegrityError;
+          }
           await wait(30, signal);
           renderBeatPosition();
         }
       } finally {
         reference.pause();
+        // 先停聲再等編碼／保存尾段；取消或失敗也不能留下播放中的本輪音訊。
+        if (captureSource) { try { captureSource.stop(); } catch { /* 尚未排程也必須斷線。 */ } captureSource.disconnect(); captureSource.buffer = null; }
+        captureGain?.disconnect(); captureBuffer = null;
         if (recording) {
           info.interrupted = signal.aborted || reference.currentTime * 1000 < value.endMs - 100;
           try {
@@ -646,7 +688,7 @@ $('capture').addEventListener('click', () => operation(async signal => {
     if (captureIntegrityError) throw captureIntegrityError;
     if (persistenceError) throw new Error(`自拍無法保存在此瀏覽器，請立即下載自拍原片。${persistenceError.message}`);
     throw error;
-  } finally { releaseCamera(); await chunkQueue; }
+  } finally { reference.muted = muted; releaseCamera(); await chunkQueue; }
 }));
 function updateIntersection() {
   try {
