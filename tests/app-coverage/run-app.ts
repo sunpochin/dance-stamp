@@ -68,7 +68,8 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow'])
+// 獨立跟隨結果也走真正預設頁；整合時不能退回暫藏工具全開的介面。
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -96,6 +97,8 @@ if (!selected.length) scenarios.push('simplified-comparison')
 if (!selected.length) scenarios.push('adjusted-side-preview')
 // 跟隨分析使用真正的本機模型，與合成匯出共用相同資源政策。
 if (!selected.length) scenarios.push('person-follow')
+// 單側結果與原本 VS 分開驗，確保各自的原片聲音與真正下載都存在。
+if (!selected.length) scenarios.push('follow-results')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
