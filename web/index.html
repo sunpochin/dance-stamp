@@ -136,8 +136,8 @@
     </div>
     </div>
     <p class="hint">使用上方「播放比較」播放兩種預覽；狀態列的「一起暫停」會同時暫停兩片。</p>
-    <!-- 左右畫布是即時預覽與合成來源；收起供選看，保存區只呈現真正完成的影片。 -->
-    <details id="side-preview"><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
+    <!-- 比較動作需要直接看到左右畫面；預設展開，仍可手動收起以騰出空間。 -->
+    <details id="side-preview" open><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
     <p class="hint">下方可選擇匯出左右並排或目前疊影。合成期間預覽暫停更新。</p>
   </section>
   <section id="save-result" aria-label="合成結果"><h2>03 · 合成與下載</h2>

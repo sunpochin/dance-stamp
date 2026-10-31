@@ -34,6 +34,8 @@ async page => {
   await page.locator('#storage-recovery').evaluate(element => { element.hidden = true; });
   await choose('self-file', 'output/export-failure/self.mp4');
   for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
+  // 簡化選片不能蓋掉較新主線明確開放的身體對齊控制。
+  assert(await page.locator('#overlay-layout').isVisible() && await page.locator('#overlay-reference-scale').isEnabled(), '整合後疊影大小位置控制消失');
   for (const [id, value] of [['start', '0.2'], ['end', '2.2'], ['offset', '0.1']]) {
     await page.locator('#' + id).fill(value); await page.locator('#' + id).dispatchEvent('change'); await idle();
   }
