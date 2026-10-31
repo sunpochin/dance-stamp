@@ -3,7 +3,38 @@
 
 中斷的練習片找回並存好後，清掉暫存片段只是收尾。即使收尾失敗，完整原片和其他筆記也應留下；重新開啟要直接讀已保存的原片，不重複保存。之後只刪這一段時，也應能連同殘留暫存清掉，其他影片與筆記不變。
 
-## 固定來源與範圍
+## 接到目前main的驗證
+
+PR #132已由外部操作合併，main更新到`3aa50ad3d3b15678338f50f9445b33b18a52e900`。本工作分支接入此固定版本，產品`web/`與該main逐檔完全相同；本PR自己的恢復案例仍為`901a5ecd3e4befb292946c0bdb5844dd213cb22dbbd7ce0a47f140dae48c1cee`，相對目前main只新增原測試尾段與兩份文件。
+
+新main含Safari錄影聲路、恢復bytes獨立化與對應回歸調整，不能把下方舊產品的本機數字改記到新版。以下新輪的head仍為380e2b1、trackedChanges=true，工作樹包含MERGE_HEAD 3aa50ad；九份產品SHA逐一等於該main，同一HEAD字串不代表與舊CI #228相同產品。main本身的[CI #227](https://github.com/sunpochin/dance-stamp/actions/runs/41170754067)三項success，已核對checkout 3aa50ad與Linux67 PASS／0 FAIL，行數99.02%／函式97.19%／分支87.63%；其結果與本PR新輪各自歸屬。
+
+新正常check648項／3178斷言／0失敗、公開掃描302檔、型別／lint／build完成，19項既有lint資訊，靜態版4525b1293b89a584。新原守門單項`coverage/app-m6CYdH/run.json` 1/1 passed、20,332ms、0頁面例外，收據SHA-256 `d4b42f05b4ede0c295dfe423473f5cdfffefc4f8ff33ea929315e886e5751d75`。新獨立入口`output/recovery-frame-tqkfH9/evidence.local.json` passed／exit0，同一守門901a5ec、靜態4525b129、擷取0、自有程序群組remaining0、nonce核對釋鎖；收據SHA-256 `5c71dec6560f21dcfc96d519703c202df77d922072876332f738f208c4e87a47`。兩輪原三條守門及新增清理保全都成立，原生清理abort各恰一次。
+
+新自然完整輪`coverage/app-VxAb5J/run.json` 67/67 passed、exit0、0頁面例外、303次導航收集，案例時間合計483,046ms；原67條名稱／順序與runner不變。守門19,705ms、原生清理abort恰一次、目前main.js:1204的原catch函式量測命中2次，並保留全部舊資料／chunks、同profile重開不重寫與公開只刪目標；2是累積量測值，不當作兩次原生故障。原鍵盤825ms成功。新同輪單元基準行數764/2048（37.30%）、函式277/678（40.85%）、分支819/2207（37.10%）；完整輪如下，skipped皆0。
+
+| 模組 | 行數 | 函式 | 分支 |
+| --- | --- | --- | --- |
+| web/beats.js | 18/18（100%） | 5/5（100%） | 23/23（100%） |
+| web/library.js | 266/266（100%） | 124/124（100%） | 348/363（95.86%） |
+| web/local-audio.js | 144/144（100%） | 32/32（100%） | 171/187（91.44%） |
+| web/main.js | 1244/1264（98.41%） | 374/388（96.39%） | 1071/1296（82.63%） |
+| web/offline.js | 68/68（100%） | 21/24（87.50%） | 50/50（100%） |
+| web/recorder.js | 121/121（100%） | 45/45（100%） | 132/138（95.65%） |
+| web/storage.js | 107/107（100%） | 41/42（97.61%） | 79/86（91.86%） |
+| web/sw.js | 37/37（100%） | 12/12（100%） | 25/25（100%） |
+| web/timeline.js | 23/23（100%） | 6/6（100%） | 39/39（100%） |
+| 合計 | 2028/2048（99.02%） | 660/678（97.34%） | 1938/2207（87.81%） |
+
+本輪未覆蓋20行都在main.js：577,578,579,584,585,586,587,588,589,591,592,593,594,616,617,618,619,626,627,635，屬新增Safari錄影分支；不以舊產品100%替代，也不把原生Safari其他來源的見證加進本輪。尚有18函式／269分支臂；未覆蓋函式位置為main.js的120,209,428,541,584,585,591,687,818,822,823,1533,1671,1739，offline.js的48,78,81及storage.js的53。全部原branch map與逐臂缺口留在原合併coverage，不刪檔案或重跑追高。
+
+新完整輪原收據SHA-256 `c0ebd36f8a287518ba7080ecfb3f64c25cedbde89e58613f3fd0ea0ea3aec78b`，app.json `da06ea17ea407f15d86913e21abcff8341b731e740778e0733fd11b8387a4c93`，合併coverage `c9c8e0ff4ecfcb5e576cb283f36be378ece7ff47077f5a48e7318ad01a490190`。browserClosed／serverStopped均true、lockRetained=false，九個已記錄自有程序全部退出，自有nonce釋放。
+
+網站停止後只取上述新版三輪各一份真正原片與VS，共六份實際下載；控制器另核對當前九份產品SHA、獨立入口4525版本與worker／storage原碼，避免混用舊來源。全新Chrome原生file播放器／真正Space由零播至ended，6/6 error0、各一音軌、音訊解碼bytes正值，全影音軌完整解碼6/6 exit0／stderr空。獨立入口的VS回報掉1格，其餘五份0格，照實保留不重跑；原片時長均4.010秒，VS分別1.999467／1.999167／2.000900秒。站外收據SHA-256 `ae1e1476d2d8da7d1278d466b9291a84d7f041002ed95d8416f0337c51ada897`，控制器 `17cd5d357519db88037ca01bee0f19ecaf0be444fe79304534ef49682324bdce`；另八個站外播放器自有程序全部退出，自有nonce核對後釋放。
+
+新完整UI輪後產品／案例／runner不變，只補新版文件與交付證據；最終正常hook及新精確head CI另驗，未完成不先當作通過。新版原始收據、全部量測、原生二進位快照與真正下載另存本聊天附件`chunk-cleanup-recovery-103/main3aa`，舊來源及原CI歷史保留在原子目錄，不互相覆寫。
+
+## 初版固定來源與範圍
 
 2026-10-31，接續 [#103](https://github.com/sunpochin/dance-stamp/issues/103)，承接 [#131](https://github.com/sunpochin/dance-stamp/pull/131) 固定候選`53a8f097fb3f7257b82d13f9ae77c68e15594020`。前置本機完整67/67、0頁面例外，行數100%／函式97.62%／分支88.54%；該精確head [CI #223](https://github.com/sunpochin/dance-stamp/actions/runs/41168496630)三項success、Linux67 PASS／0 FAIL，行數100%／函式97.62%／分支88.58%，與本機及本次新來源各自歸屬；人工審查另計。
 
@@ -21,7 +52,7 @@
 
 注入只在目標交易啟用一次，finally核對持有人後恢復原delete方法。這是受控原生交易中止，不冒稱自然磁碟／瀏覽器故障；原片保全、重開與公開刪除是實際產品路徑。
 
-## 驗證紀錄
+## 初版驗證紀錄（舊產品來源）
 
 選定原恢復入口`coverage/app-PQUOgq/run.json`：1/1 passed、exit0、22,472ms、0頁面例外、7次導航收集，來源53a8f09加本次工作樹、trackedChanges=true。原守門流程直到最後完成事件前的全部步驟與斷言逐byte相同，才接新增尾段；原三個守門與全部同輸入重試保留。指定清理交易原生abort恰一次，trusted request AbortError與chunks-only readwrite abort各一次；pending、完整舊資料與暫存保全、同profile重開不重寫、公開只刪目標均成立。main.js:1165的原catch函式於合併coverage見2次命中，不把累積量測值說成兩次原生故障。
 
@@ -39,9 +70,11 @@
 
 完整UI輪後產品／案例／runner指紋不變，只補文件與交付證據。最終正常hook及新精確head CI另驗，未完成不先當作通過。全部原始收據、完整coverage／baseline、原生二進位快照、六份真正下載、來源與全軌解碼另存本聊天附件`chunk-cleanup-recovery-103`，逐檔manifest核對；不公開profile或真人影片。這次未發現產品缺陷，不為覆蓋率修改產品保護或期限。
 
-## main同期更新的交付核對
+## 初版main同期更新的交付核對
 
 交付時讀回GitHub，main已到`65eb135490ad1418df0ddd4f95dfb9256e425834`並合入原#118；#134因舊鍵盤診斷的重複來源發生衝突，CI尚未啟動。把該main接到本工作分支、保留來源提交，鍵盤檔維持本分支已含原#118與訂閱RPC就緒修正的完整版本。更正文案前，解決後的整份暫存樹與原ddf11ba樹完全相同，皆為`8bee018da55b2220e70389e5f00fb162a1c4b1be`，不只比九份產品JS；之後只更正本文外部狀態並記此核對。原本機UI收據仍歸53a8f09工作樹，新head正常hook／精確CI另驗，不改稱重跑本機UI。
+
+後續精確舊head380e2b1的[CI #228](https://github.com/sunpochin/dance-stamp/actions/runs/41170845797)三項success，核對checkout此head、Linux67 PASS／0 FAIL，行數100%／函式97.77%／分支88.86%，守門48,285ms。此輪仍為舊產品d4a2a50194888b79，不能替代上方main3aa／4525的新來源驗證；原始日誌與同head jobs另存。
 
 ## 重跑與界線
 
