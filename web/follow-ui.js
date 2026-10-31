@@ -1,6 +1,7 @@
 /* 檔案用途：雙側共用的本機框選與可取消人物分析。所在層：畫面控制。主要關聯：follow.js、person-worker.js、main.js。 */
 import { validBox, matchPerson, followBox, smoothTrack } from './follow.js';
 import { load, seek } from './recorder.js';
+import { followMeasurements } from './follow-metrics.js';
 
 /** @typedef {'reference'|'self'} Side */
 /** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number}} FollowState */
@@ -13,11 +14,34 @@ export function createFollowUI(videos, options) {
   const controls = /** @type {HTMLFieldSetElement} */ (document.getElementById('follow-controls'));
   const confirm = /** @type {HTMLButtonElement} */ (document.getElementById('follow-confirm'));
   const message = /** @type {HTMLElement} */ (document.getElementById('follow-message'));
+  const metricsEnabled = /** @type {HTMLInputElement} */ (document.getElementById('follow-metrics-enabled'));
+  const measurements = followMeasurements();
+  let metricsUrl;
+  function showMetrics(report) {
+    if (!report) return;
+    const ms = value => value === null ? '未取得' : `${value.toFixed(3)} ms`;
+    const row = (label, stage) => `${label}：${stage.count} 次；平均 ${ms(stage.meanMs)}／P50 ${ms(stage.p50Ms)}／P95 ${ms(stage.p95Ms)}`;
+    const lines = [
+      `第 ${report.sequence} 輪 · ${report.side === 'reference' ? '老師' : '自己'} · ${{ complete: '完成', cancelled: '已取消（部分數據）', failed: '失敗（部分數據）' }[report.outcome]}`,
+      `確認後總分析 ${ms(report.totalAnalysisMs)}；處理 ${report.processedFrames}／${report.plannedFrames} 格，路徑 ${report.trackedFrames} 格；${report.framesPerSecond ?? '—'} 格／秒`,
+      `框選前載入 ${ms(report.preparation.loadMs)}；第一次定位 ${ms(report.preparation.firstSeekMs)}（不含手動框選時間）`,
+      `Worker 建構 ${ms(report.worker.constructionMs)}／啟動 ${ms(report.worker.startupMs)}；程式載入 ${ms(report.worker.scriptImportMs)}／模型初始化 ${ms(report.worker.modelInitMs)}`,
+      row('逐次定位', report.stages.seek), row('擷取影格', report.stages.bitmap), row('模型推論', report.stages.detect), row('Worker 等待（含初始化與推論）', report.stages.roundTrip),
+      report.comparison ? `同來源／片段／選框第 ${report.sameInputRun} 次，比上次 ${ms(report.comparison.differenceMs)}。` : '尚無相同來源、片段及選框的完成輪可比較。',
+      '各段可能包含或重疊，不能全部相加；再次分析仍建立新 Worker／模型。',
+    ];
+    document.getElementById('follow-metrics-report')?.replaceChildren(lines.join('\n'));
+    const link = /** @type {HTMLAnchorElement} */ (document.getElementById('follow-metrics-download'));
+    const previous = metricsUrl;
+    metricsUrl = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: 1, reports: measurements.reports }, null, 2)], { type: 'application/json' }));
+    link.href = metricsUrl; link.download = 'dance-follow-timing.json'; link.hidden = false;
+    if (previous) URL.revokeObjectURL(previous);
+  }
   const inputs = /** @type {HTMLInputElement[]} */ ([...dialog.querySelectorAll('input[type=number]')]);
   const sides = /** @type {Side[]} */ (['reference', 'self']);
   /** @type {Record<Side,FollowState>} */
   const states = { reference: { track: null, enabled: false, revision: 0 }, self: { track: null, enabled: false, revision: 0 } };
-  /** @type {{side:Side,video:HTMLVideoElement,source:string,start:number,end:number,box:import('./follow').Box,trigger:HTMLElement|null}|null} */
+  /** @type {{side:Side,video:HTMLVideoElement,source:string,start:number,end:number,box:import('./follow').Box,trigger:HTMLElement|null,measuring:boolean,preparation:{loadMs:number,firstSeekMs:number}}|null} */
   let draft = null;
   let analyzing = false, cancelAnalysis = () => {};
   /** @type {{x:number,y:number,id:number}|null} */
@@ -53,6 +77,7 @@ export function createFollowUI(videos, options) {
   document.getElementById('follow-cancel')?.addEventListener('click', cancel);
   dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
   window.addEventListener('pagehide', () => { cancelAnalysis(); closeDraft(); });
+  window.addEventListener('pagehide', event => { if (!event.persisted && metricsUrl) URL.revokeObjectURL(metricsUrl); });
   for (const input of inputs) input.addEventListener('change', () => {
     if (!draft || analyzing) return;
     try { setBox(Object.fromEntries(inputs.map(item => [item.name, Number(item.value) / 100]))); message.textContent = '框好完整身體，留一點手腳活動空間，再開始分析。'; }
@@ -86,10 +111,14 @@ export function createFollowUI(videos, options) {
       if (!source) throw new Error('請先選好兩側影片。');
       const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.preload = 'auto';
       const trigger = /** @type {HTMLElement|null} */ (document.activeElement);
+      const measuring = metricsEnabled.checked;
       try {
         // 分析播放器不掛在畫面上；等解碼 seeked 即可，不能等待不存在的螢幕呈現通知。
-        await load(video, source, signal); await seek(video, start, signal);
-        draft = { side, video, source, start, end, box: { x: 0.2, y: 0.05, width: 0.6, height: 0.9 }, trigger };
+        let began = measuring ? performance.now() : 0;
+        await load(video, source, signal); const loadMs = measuring ? performance.now() - began : 0;
+        began = measuring ? performance.now() : 0;
+        await seek(video, start, signal); const firstSeekMs = measuring ? performance.now() - began : 0;
+        draft = { side, video, source, start, end, box: { x: 0.2, y: 0.05, width: 0.6, height: 0.9 }, trigger, measuring, preparation: { loadMs, firstSeekMs } };
         canvas.width = 640; canvas.height = Math.round(640 * video.videoHeight / video.videoWidth);
         dialog.querySelector('h2')?.replaceChildren(`框選${side === 'reference' ? '老師' : '自己'} · ${label(side)}`);
         controls.disabled = false; confirm.disabled = false; message.textContent = `從比較起點 ${start.toFixed(2)} 秒開始，拖曳框住完整身體，再分析到 ${end.toFixed(2)} 秒。`;
@@ -102,42 +131,58 @@ export function createFollowUI(videos, options) {
   confirm.addEventListener('click', () => options.operate(async parentSignal => {
     if (!draft || analyzing) return;
     const current = draft, controller = new AbortController(), signal = controller.signal;
+    const sampleHz = 8, count = Math.ceil((current.end - current.start) * sampleHz);
+    const probe = current.measuring ? measurements.start({ side: current.side, source: current.source, start: current.start, end: current.end, box: current.box, sampleHz, plannedFrames: count + 1, preparation: current.preparation }) : null;
+    /** @type {'complete'|'cancelled'|'failed'} */
+    let outcome = 'failed';
+    let trackedFrames = 0;
     const aborted = () => controller.abort(parentSignal.reason);
     parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();
     analyzing = true; cancelAnalysis = () => controller.abort(); controls.disabled = true; confirm.disabled = true;
     let worker;
     try {
+      if (probe) { probe.workerCreatedNow = performance.now(); probe.workerCreatedAt = performance.timeOrigin + probe.workerCreatedNow; }
       worker = new Worker('/person-worker.js');
+      if (probe) probe.workerConstructorMs = performance.now() - probe.workerCreatedNow;
       const detect = async search => {
         signal.throwIfAborted();
         // 只看選框／目標附近，避免團體寬畫面把人物縮得太小而漏偵測；座標再映回完整原片。
         const width = search.width * current.video.videoWidth, height = search.height * current.video.videoHeight;
+        const began = probe ? performance.now() : 0;
         const bitmap = await createImageBitmap(current.video, search.x * current.video.videoWidth, search.y * current.video.videoHeight, width, height, { resizeWidth: Math.round(640 * width / Math.max(width, height)), resizeHeight: Math.round(640 * height / Math.max(width, height)) });
+        probe?.samples.bitmap.push(performance.now() - began);
         if (signal.aborted) { bitmap.close(); signal.throwIfAborted(); }
         return /** @type {Promise<import('./follow').Box[]>} */ (new Promise((resolve, reject) => {
-          const finish = (error, boxes) => { clearTimeout(timer); signal.removeEventListener('abort', abort); worker.onmessage = null; worker.onerror = null; error ? reject(error) : resolve(boxes); };
+          const requested = probe ? performance.now() : 0;
+          let settled = false;
+          const finish = (error, boxes) => { if (settled) return; settled = true; probe?.samples.roundTrip.push(performance.now() - requested); clearTimeout(timer); signal.removeEventListener('abort', abort); worker.onmessage = null; worker.onerror = null; error ? reject(error) : resolve(boxes); };
           const abort = () => finish(signal.reason, null);
           const timer = setTimeout(() => finish(new Error('人物分析逾時，請縮短片段後重試。'), null), 30_000);
           signal.addEventListener('abort', abort, { once: true });
-          worker.onmessage = ({ data }) => finish(data.error ? new Error(data.error) : null, data.boxes?.map(box => ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height })));
+          worker.onmessage = ({ data }) => {
+            probe?.recordWorker(data.timing); if (probe && !data.error) probe.processedFrames++;
+            finish(data.error ? new Error(data.error) : null, data.boxes?.map(box => ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height })));
+          };
           worker.onerror = () => finish(new Error('無法啟動本機人物分析，請確認應用資源完整。'), null);
-          try { worker.postMessage({ bitmap }, [bitmap]); }
+          try { worker.postMessage({ bitmap, measure: !!probe }, [bitmap]); }
           catch (error) { bitmap.close(); finish(error, null); }
         }));
       };
       let first, previous, lastSeen = current.start, held = 0;
       /** @type {import('./follow').Sample[]} */
       const samples = [];
-      const count = Math.ceil((current.end - current.start) * 8);
       for (let index = 0; index <= count; index++) {
-        const time = Math.min(current.end, current.start + index / 8);
+        const time = Math.min(current.end, current.start + index / sampleHz);
+        const began = probe ? performance.now() : 0;
         await seek(current.video, Math.min(time, current.video.duration - 0.02), signal);
+        probe?.samples.seek.push(performance.now() - began);
         const search = previous ? validBox({ x: previous.x - previous.width * 0.75, y: previous.y - previous.height * 0.2, width: previous.width * 2.5, height: previous.height * 1.4 }) : current.box;
         const person = matchPerson(await detect(search), previous || current.box);
         if (!person && !first) throw new Error('選框中未找到明確人物，請只框住一個人的完整身體後重試。');
         if (person) { first ||= person; previous = person; lastSeen = time; }
         else { held++; if (time - lastSeen > 0.75) throw new Error(`在 ${time.toFixed(2)} 秒無法確定同一個人，請縮短片段或重新框選。`); }
         samples.push({ time, ...followBox(current.box, first, previous) });
+        trackedFrames++;
         message.textContent = `只在本機分析 ${Math.round(index / count * 100)}%（${time.toFixed(2)} 秒）；可隨時取消。`;
       }
       signal.throwIfAborted();
@@ -145,12 +190,15 @@ export function createFollowUI(videos, options) {
       // 完整成功才交換路徑；取消、偵測失敗或 Worker 錯誤都保留上次成功的設定。
       const state = states[current.side]; state.source = current.source; state.track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }; state.enabled = true; state.revision++;
       closeDraft(); options.changed();
+      outcome = 'complete';
     } catch (caught) {
+      if (signal.aborted) outcome = 'cancelled';
       const error = caught instanceof Error ? caught : new Error(String(caught));
       message.textContent = error.name === 'AbortError' ? '已取消分析，原片與上次成功的追蹤保留；可以調整選框再試。' : `${error.message} 上次成功的追蹤保留。`;
       throw error;
     } finally {
       worker?.terminate(); parentSignal.removeEventListener('abort', aborted); analyzing = false; cancelAnalysis = () => {}; controls.disabled = false; confirm.disabled = false;
+      showMetrics(probe?.finish(outcome, trackedFrames));
     }
   }));
   function update(available) {

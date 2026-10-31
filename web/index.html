@@ -80,6 +80,12 @@
         <button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button>
       </div>
     </section>
+    <details id="follow-performance"><summary>人物分析耗時（僅本機數字）</summary>
+      <label class="check-label"><input id="follow-metrics-enabled" type="checkbox" checked>記錄這次分析耗時</label>
+      <p class="hint">只留本頁最近十次彙總，不含影片、影格、檔名、網址或選框。再次分析同一來源、片段與選框可比較；每輪仍重新初始化模型。下載的報告不會自動外傳。</p>
+      <pre id="follow-metrics-report">尚未分析。</pre>
+      <a id="follow-metrics-download" href="#follow-performance" hidden>另存耗時報告 JSON</a>
+    </details>
     <p class="hint">MOV／MP4 等影片只在這次開啟，不會上傳或自動另存副本。兩片選好後，各自播放同一個動作並設起點；原片不會被裁切。</p>
     <fieldset class="segment-settings"><legend>選想練的片段</legend>
       <div class="settings">

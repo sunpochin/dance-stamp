@@ -1,0 +1,62 @@
+/* 檔案用途：用固定合成長 GOP 影片量測人物分析；只由自有原子鎖保護本機執行。所在層：開發效能工具。主要關聯：follow-performance.js、MEDIA_PROBE.md。 */
+import assert from 'node:assert/strict'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { chromium } from 'playwright-core'
+import { webPaths, webHeaders } from './web-assets'
+const root = resolve(import.meta.dir, '..'), directory = resolve(root, 'output', 'follow-benchmark-' + Date.now()), nonce = randomUUID()
+assert.equal(Bun.version, readFileSync(resolve(root, '.bun-version'), 'utf8').trim())
+const lock = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock')
+// flag wx 原子取得；既有測試不論多久都不搶鎖，也不先開主機或瀏覽器。
+writeFileSync(lock, JSON.stringify({ owner: 'follow-performance-benchmark', pid: process.pid, nonce }), { flag: 'wx' })
+mkdirSync(directory, { recursive: true }); mkdirSync(resolve(root, 'output/playwright'), { recursive: true })
+const sha = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
+const command = (cmd: string[]) => { const result = Bun.spawnSync(cmd, { cwd: root }); assert.equal(result.exitCode, 0, result.stderr.toString()); return result.stdout.toString().trim() }
+const evidence: any = { scope: 'Synthetic local benchmark only; not physical device, real dance, arbitrary codec or optimization acceptance.', started: new Date().toISOString(), results: [], errors: [] }
+let server, browser, attempted = false, closed = false
+const save = () => writeFileSync(resolve(directory, 'run.json'), JSON.stringify(evidence, null, 2))
+try {
+  evidence.sourceHead = command(['git', 'rev-parse', 'HEAD']); evidence.trackedChanges = !!command(['git', 'status', '--porcelain', '--untracked-files=no'])
+  evidence.staticBuild = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([^']+)'/)?.[1]
+  const fixture = resolve(directory, 'synthetic-long-gop.mp4'), image = resolve(root, 'tests/fixtures/follow-person.jpg')
+  // 同一支 60 秒影片供所有區間、兩側及重跑；不讀私人來源、不覆寫舊輪。
+  command(['ffmpeg', '-v', 'error', '-n', '-f', 'lavfi', '-i', 'color=c=0xcccccc:s=960x540:r=30:d=60', '-loop', '1', '-i', image, '-f', 'lavfi', '-i', 'sine=frequency=660:sample_rate=48000:duration=60', '-filter_complex', "[1:v]scale=320:480[person];[0:v][person]overlay=x='240+180*sin(t/2)':y=30:shortest=1[v]", '-map', '[v]', '-map', '2:a', '-t', '60', '-c:v', 'libx264', '-preset', 'fast', '-crf', '18', '-g', '300', '-keyint_min', '300', '-sc_threshold', '0', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-movflags', '+faststart', fixture])
+  evidence.fixture = { sha256: sha(readFileSync(fixture)), imageSha256: sha(readFileSync(image)), dimensions: '960x540', fps: 30, durationSeconds: 60, keyframeIntervalFrames: 300 }
+  const keyframes = JSON.parse(command(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-skip_frame', 'nokey', '-show_frames', '-show_entries', 'frame=best_effort_timestamp_time', '-of', 'json', fixture])).frames.map(frame => Number(frame.best_effort_timestamp_time))
+  assert.deepEqual(keyframes, [0, 10, 20, 30, 40, 50]); evidence.fixture.keyframesSeconds = keyframes
+  evidence.sources = Object.fromEntries(['web/follow-ui.js', 'web/person-worker.js', 'web/follow-metrics.js'].map(file => [file, sha(readFileSync(resolve(root, file)))]))
+  evidence.environment = { bun: Bun.version, platform: process.platform, cpu: process.platform === 'darwin' ? command(['sysctl', '-n', 'machdep.cpu.brand_string']) : command(['uname', '-m']), os: process.platform === 'darwin' ? command(['sw_vers', '-productVersion']) : command(['uname', '-sr']), ffmpeg: command(['ffmpeg', '-version']).split('\n')[0] }
+  server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
+    const file = webPaths.get(new URL(request.url).pathname)
+    if (!file || !['GET', 'HEAD'].includes(request.method)) return new Response('', { status: 404 })
+    return new Response(request.method === 'HEAD' ? null : Bun.file(resolve(root, 'dist/web', file)), { headers: { ...webHeaders, 'Content-Type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.wasm') ? 'application/wasm' : file.endsWith('.css') ? 'text/css' : file.endsWith('.tflite') ? 'application/octet-stream' : 'text/html' } })
+  } })
+  const executablePath = process.env.DANCE_STAMP_CHROMIUM || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : Bun.which('google-chrome'))
+  assert(executablePath && existsSync(executablePath), '沿用已安裝 Chrome，不下載')
+  attempted = true; browser = await chromium.launch({ executablePath, headless: true, args: ['--mute-audio'] }); evidence.environment.browser = browser.version(); evidence.origin = String(server.url)
+  const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1280, height: 960 } }), page = await context.newPage()
+  context.on('page', page => page.on('pageerror', error => evidence.errors.push(error.message)))
+  page.on('pageerror', error => evidence.errors.push(error.message)); page.setDefaultTimeout(180000)
+  const began = performance.now(); await page.goto(String(server.url))
+  const scenario = new Function('return (' + readFileSync(resolve(root, 'tests/browser/follow-performance.js'), 'utf8') + ')')()
+  const result = await scenario(page, { benchmark: true, cacheReady: true, source: fixture, durations: [10, 30, 60], sides: ['reference', 'self'], repeats: 2, controls: true, progress(trial) {
+    evidence.results.push(trial); save(); console.log(JSON.stringify({ side: trial.side, seconds: trial.duration, run: trial.report?.sameInputRun, enabled: trial.enabled, wallMs: trial.wallMs, analysisMs: trial.report?.totalAnalysisMs, frames: trial.frames }))
+  } })
+  evidence.elapsedMs = performance.now() - began; evidence.status = 'passed'; evidence.checks = { ...result, trials: undefined }; assert.equal(evidence.errors.length, 0)
+  await context.close()
+} catch (error) { evidence.status = 'failed'; evidence.failure = String(error); process.exitCode = 1; console.error(error) }
+finally {
+  try {
+    if (browser) {
+      const cdp = await browser.newBrowserCDPSession(); evidence.knownProcessIds = (await cdp.send('SystemInfo.getProcessInfo')).processInfo.map(row => row.id); await browser.close()
+      for (let attempt = 0; attempt < 40; attempt++) { const state = Bun.spawnSync(['ps', '-p', evidence.knownProcessIds.join(','), '-o', 'pid=,stat=,comm=']); assert([0, 1].includes(state.exitCode) && !state.stderr.length); evidence.remainingProcesses = state.stdout.toString().trim(); if (!evidence.remainingProcesses) break; await Bun.sleep(100) }
+      assert.equal(evidence.remainingProcesses, '', '未確認自有瀏覽器全退出，保留鎖'); closed = true
+    }
+    server?.stop(true)
+  } finally {
+    if (!attempted || closed) { assert.equal(JSON.parse(readFileSync(lock, 'utf8')).nonce, nonce); unlinkSync(lock); evidence.lockReleased = true }
+    evidence.finished = new Date().toISOString(); save(); console.log(JSON.stringify({ directory, status: evidence.status, lockReleased: evidence.lockReleased }))
+  }
+}

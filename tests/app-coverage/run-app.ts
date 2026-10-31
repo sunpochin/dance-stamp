@@ -68,7 +68,7 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow'])
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-performance'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -96,6 +96,8 @@ if (!selected.length) scenarios.push('simplified-comparison')
 if (!selected.length) scenarios.push('adjusted-side-preview')
 // 跟隨分析使用真正的本機模型，與合成匯出共用相同資源政策。
 if (!selected.length) scenarios.push('person-follow')
+// 計時只驗數字與保全；CI 機器速度不當成效能門檻或最佳化證據。
+if (!selected.length) scenarios.push('follow-performance')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
