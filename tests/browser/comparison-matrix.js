@@ -18,6 +18,8 @@ async (page) => {
   for (const item of cases) {
     await page.locator('#existing-mode').click();
     await page.locator('#reference-file').setInputFiles(`output/comparison/${item.silent ? 'silent' : 'reference'}.mp4`); await idle();
+    // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+    await page.locator('#end').fill('15');
     await page.locator('#self-file').setInputFiles(`output/comparison/self-${item.rate}.mp4`); await idle();
     await page.locator('#start').fill('12'); await page.locator('#start').dispatchEvent('change'); await idle();
     // 先調短結尾再切慢速，避免舊的合法區間在新比例下超過 60 秒。

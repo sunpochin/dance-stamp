@@ -8,6 +8,8 @@ async page => {
   const results = [];
   for (const rate of [0.5, 0.75, 1]) {
     await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+    // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+    await page.locator('#end').fill('15');
     await page.locator('#self-file').setInputFiles('output/comparison/self-' + rate + '.mp4'); await idle();
     await change('start', '12'); await change('end', String(12 + rate * 3));
     await page.locator('#rate').selectOption(String(rate)); await idle(); await change('offset', '4');

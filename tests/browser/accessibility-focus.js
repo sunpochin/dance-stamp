@@ -7,6 +7,8 @@ async page => {
   await page.locator('.skip-link').focus();await page.keyboard.press('Enter');assert(await focused()==='controls','跳到內容未帶到選片');
   await page.locator('#existing-mode').focus();await page.keyboard.press('Enter');assert(await focused()==='select-video','入口未帶到選片');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4');await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4');await idle();
   await page.locator('#copy-reference').focus();await page.keyboard.press('Enter');await idle();assert(await focused()==='copy-reference','副本保存後焦點遺失');
   await page.locator('#mark').focus();await page.keyboard.press('Enter');assert(await focused()==='marker-title','新增標記未進入輸入');

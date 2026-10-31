@@ -67,6 +67,8 @@ async page => {
   assert(await page.evaluate(() => window.audioAudit.created === window.audioAudit.closed), '直接解碼未釋放');
   await page.locator('#existing-mode').click();
   await page.locator('#reference-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
   const change = async (id, value) => { await page.locator(`#${id}`).fill(value); await page.locator(`#${id}`).dispatchEvent('change'); await idle(); };
   await change('end', '3');
@@ -142,6 +144,8 @@ async page => {
   assert(afterShortRetry !== afterRetry && (await page.locator('#status').textContent()).includes('已成檔'), '片長拒絕後無法同頁重試');
   assert(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data.exports.length) === savedBeforeShort + 1, '片長重試沒有只新增一份成功輸出');
   await page.locator('#reference-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
+  // 無聲長片也需明確選短段，才會進到本例要驗的音訊與匯出路徑。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
   await change('end', '3'); await page.locator('#export').click(); await idle();
   assert(await page.locator('#output-download').getAttribute('href') !== afterShortRetry, '無音軌來源未成檔');

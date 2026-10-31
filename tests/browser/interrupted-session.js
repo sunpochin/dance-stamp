@@ -6,6 +6,8 @@ async (page) => {
   await page.addInitScript(() => { window.confirm = () => true; navigator.mediaDevices.getUserMedia = async () => { throw new Error('此回歸禁止相機'); }; });
   await page.goto(origin); await idle(page);
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle(page);
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/media-probe/reference.mp4'); await idle(page);
   const backup = await page.evaluate(async () => {
     const store = await import('/storage.js'), { data } = await store.readLibrary();

@@ -192,6 +192,8 @@ try {
         for (const id of ['reference-file', 'self-file']) {
           await page.locator(`#${id}`).setInputFiles(resolve(media, 'media-probe/reference.mp4'))
           await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')?.getAttribute('aria-busy') !== 'true')
+          // 此準備流程需建立 15 秒比較，不依賴新選片的完整長度預設。
+          if (id === 'reference-file') await page.locator('#end').fill('15')
         }
       }
       // 操作外錯誤須由公開播放／循環入口驗證，不能直接呼叫內部 handler 湊行數。

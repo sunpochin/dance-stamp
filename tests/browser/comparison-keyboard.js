@@ -42,6 +42,8 @@ async (page, options = {}) => {
   // 成功輪也保留相同格式；只有失敗收據無法與 Linux 的正常按鍵順序對照。兩個時鐘不可跨層相減。
   const keyboardChooser = { inputId: chooserInput, ...await chooserSnapshot() };
   console.log('comparison-keyboard native events:', JSON.stringify(keyboardChooser));
+  // 鍵盤案例沿用原 15 秒比較；選片預設全長後須明確選段。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   for (const [id, value] of [['start', '12'], ['end', '17'], ['offset', '4']]) {
     await page.locator(`#${id}`).fill(value); await page.locator(`#${id}`).dispatchEvent('change'); await idle();
