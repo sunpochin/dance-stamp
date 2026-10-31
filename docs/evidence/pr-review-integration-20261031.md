@@ -96,3 +96,14 @@
 `e260b58` 的 [CI](https://github.com/sunpochin/dance-stamp/actions/runs/41196320388) 顯示 harness 已使用主線 `9457a2f69cf050b411ba422ec9719383a468c60f` 建立合併候選 `b76c8f5`，下載包版本已變成 `ba070f1e8109b3c8`；App 工作則仍按原設計 checkout PR head。因此接回該主線再跑完整整合，不能把不同 runtime 的兩份結果混用。這是其他作業已合併 #153 的同步，不把它算成原本 11 份的代合併。
 
 已審查 #153 的完整主線增量：控制從 HTML 起即存在、窄版先顯示滑桿、停用原因與頂部新版提醒；waiting 提醒沿既有訊號，不自動啟用或重載。保留其原 overlay／多分頁／單元斷言，71 個情境名稱與順序不變，沒有另加版本時鐘或媒體聲路。同步無程式衝突；最新 head 的檢查與審查另記於整合 PR，不以舊候選是否完成代替。
+
+
+### 新原生紀錄定位到真正的測試前置競爭
+
+精確 `dd6616962982b75bcde6192b33f1abfb4a48c783` 的 [完整 CI](https://github.com/sunpochin/dance-stamp/actions/runs/41196653581) 仍為 **70 PASS／1 FAIL**。新增觀察顯示 stopRequestedAt=0，之後才依序收到 trusted start、0-byte dataavailable、stop；指定 metadata AbortError／abort 成立。這否決「只把最後一包改看完整事件就已修好」的推測：測試在真正 start／非空資料前就停止，前一修正只補足必要的觀察，沒有解決前置等待。
+
+定位固定 Playwright 1.64.1 `coreBundle.js` 的 waitForFunctionExpression：poller 同步判斷 predicate 回值是否 truthy，再 fulfill 該值，未先 await 非同步 predicate 的布林結果。以該原碼片段執行兩組有界控制，async false 只呼叫一次便返回 false、未排下一輪；同步 false 則排下一輪，條件變 true 才完成。原 capture 案的 async IndexedDB count 因此不是有效的「等到有 chunks」屏障。
+
+修正仍用原 15 秒等待：以同一錄影器的 trusted start／非空 dataavailable 作同步條件，再明確 await 原生 IndexedDB count，要求本輪 chunks 真正大於零才注入原 metadata abort 並 stop。完整原生事件、非空資料、尾包順序及所有原資料／真下載／恢復斷言保留；不改產品、錄影時長或用固定 sleep 換綠。原首輪與此次失敗均保留。
+
+原完整 App 工作已接近 15 分鐘，且失敗後未跑到後續恢復／獨立播放；只將 CI 工作總預算提高到 20 分鐘，保留 71 案及正常收尾。個別媒體、離線、影格、播放器與交易期限全不變，不刪案例、縮短素材或以單項通過冒充完整輪。

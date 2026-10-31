@@ -194,10 +194,17 @@ async (page) => {
   const started = await full(), target = started.saved.data.takes.at(-1);
   assert(target.state === 'recording' && !before.saved.data.takes.some(t => t.id === target.id) && started.saved.revision === before.saved.revision + 1, '新錄影沒有單獨建立工作記錄');
   for (const [table, rows] of Object.entries(before.saved.data)) if (Array.isArray(rows)) assert(started.saved.data[table].length === rows.length + (['assets', 'takes', 'recipes'].includes(table) ? 1 : 0) && equal(started.saved.data[table].filter(row => rows.some(old => old.id === row.id)), rows), '建立新錄影改動原資料表：' + table);
-  await page.waitForFunction(async id => {
+  // 固定 SDK 的 poller 把 Promise 物件當 truthy；非同步 DB predicate 會在 false 時也提前返回。
+  // 先以同步原生事件等到本輪真的有資料，再明確 await 讀回交易，不能在 start 前就按停止。
+  await page.waitForFunction(() => {
+    const recorder = window.captureRecorders.at(-1), events = window.captureRecorderEvents.get(recorder) || [];
+    return recorder?.state === 'recording' && events.some(event => event.name === 'start' && event.trusted) && events.some(event => event.name === 'dataavailable' && event.trusted && event.bytes > 0);
+  });
+  const chunkCount = await page.evaluate(async id => {
     const db = await (await import('/storage.js')).openStore();
-    return await new Promise(resolve => { const req = db.transaction('chunks').objectStore('chunks').count(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])); req.onsuccess = () => resolve(req.result > 0); });
+    return await new Promise((resolve, reject) => { const req = db.transaction('chunks').objectStore('chunks').count(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
   }, target.cameraAssetId);
+  assert(chunkCount > 0, '本輪原生非空錄影資料尚未真正落盤');
   await page.evaluate(id => {
     const put = IDBObjectStore.prototype.put;
     const audit = window.stoppedStateFailure = { puts: 0, errors: [], aborts: [], recorderEvents: [], unhandled: [], restored: false };
