@@ -1,0 +1,53 @@
+# 檔案用途：限定 #103 後續分支的固定Linux因果對照。所在層：一次候選的工程診斷。主要關聯：keyboard-linux-controls.ts、issue-103-keyboard-chooser.md。
+name: Keyboard Linux controls
+on:
+  pull_request:
+    # PR paths使用整張三點差異；僅限建立事件，避免文件synchronize又重跑同一實驗。
+    types: [opened]
+    paths:
+      - .github/workflows/keyboard-linux-controls.yml
+      - tests/browser/keyboard-linux-controls.ts
+permissions:
+  contents: read
+concurrency:
+  group: keyboard-controls-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  controls:
+    if: github.head_ref == 'codex/issue-103-linux-controls'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [cold, prefix, delayed, ready, cancel-input]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: probe
+      # 歷史產品／案例／runner完整固定；不把後續主分支的修正混入 #203 對照。
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: f1ac4efa3d0277a9c5b605a2acbe639ef22a7aec
+          path: historical
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: probe/.bun-version
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: bun install --frozen-lockfile --ignore-scripts
+        working-directory: historical
+      - name: One fixed historical run with passive event and protocol capture
+        working-directory: probe
+        run: |
+          uname -srmo
+          google-chrome --version
+          export DANCE_STAMP_CHROMIUM="$(command -v google-chrome)"
+          bun --no-env-file tests/browser/keyboard-linux-controls.ts "$GITHUB_WORKSPACE/historical" "${{ matrix.arm }}"
+      - name: Preserve only the anonymous receipt, including on failure
+        if: always()
+        run: |
+          receipt="probe/output/keyboard-linux-controls/${{ matrix.arm }}/evidence.json"
+          if [ -f "$receipt" ]; then cat -- "$receipt"; fi

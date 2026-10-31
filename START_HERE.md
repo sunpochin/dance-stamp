@@ -37,6 +37,8 @@ JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外
 
 若出現「保存狀態未確認」，請保持原分頁，先使用影片下載連結另存原片及可下載的 VS，再按「另存本頁筆記備份」。這份備份只有最後確認的筆記，不含未保存的表單草稿或影片；確認下載完成後才按「已另存，重新開啟同一頁讀回」。不要清除網站資料或另開私人分頁代替原頁，也不要把等待結束當作已保存或已回滾。詳見[未確認保存與救援界線](docs/evidence/issue-13-unconfirmed-storage.md)。
 
+**Safari 私人瀏覽提醒：** 本次 Safari 27.0.1 對照中，一般視窗能保存合成影片副本，私人視窗則寫入失敗。若使用私人視窗，先完成上方的另存與原頁讀回，確認原片、可下載的 VS 及筆記備份已保存，再到一般視窗手動匯入 JSON、逐份重新選片與確認。兩種視窗的資料不會自動搬過去；不要為了換視窗先關閉尚未另存的原頁。詳見[私人保存限制與原生對照](docs/evidence/issue-13-safari-private-storage.md)。
+
 換瀏覽器、網址或連接埠後：開啟新版本 → 匯入 JSON → 檢視預覽並明確確認 → 依影片清單逐份選回原片並預覽確認。只有想保留副本時才勾保存；同名不代表同一支片。衝突校正會另存可選的練習副本，不覆蓋原筆記。詳細契約見 [資料格式 v1／v2](docs/DATA_FORMAT.md)。
 
 更新前先下載 JSON、原片與 VS，再關閉本站全部分頁；在原位置以新版包啟動同一個網址。新版會先等待，不在錄影／匯出中強制重載。不要用清除網站資料或解除安裝來更新。若要回到舊程式，先保留新備份；回滾程式不保證可以讀取未來的資料格式。此功能候選的保存與備份採 v2，可讀 v1；第一次成功編輯才升版。舊程式不能讀 v2，升版前請用舊版保存 v1 備份並另存影片；回復舊版時在另一環境還原舊備份，現有 v2 資料保留。
@@ -48,7 +50,7 @@ JSON 備份只有筆記及配方，**不含影片**。請下載 JSON，並另外
 | 組合 | 證據與限制 |
 | --- | --- |
 | macOS 27.0.1／Chrome 156 | 99a2169 已完成[標題／副本真正Stop與新版更新中斷重驗](docs/evidence/issue-13-unconfirmed-storage.md#99a2169-同版獨立-stop-與-manifest-重驗)。完整合成相機24組、48份下載與三份網站外播放仍屬[9e6f0ef](docs/evidence/p0-safari-reliability-integration.md#9e6f0ef-擷取完整性與同版-chrome-再驗證)，未改標新版本。人工／實體相機、聽感及完整G1–G7仍未通過 |
-| macOS Safari 27.0.1 | 不需改 Profiles 或日常設定；345b2d1 一般模式已有合成九案／十輪、網站外播放與同origin重載證據。私人模式仍被原護欄拒絕，新 VS 失敗／未確認救援未驗；最新擷取保護未由真實Safari相機驗證，本次保存Stop也仍只有Chrome證據。見[原生與私人模式界線](docs/evidence/p0-safari-reliability-integration.md#345b2d1-原生-safari-的同版證據)及[儲存救援](docs/evidence/issue-13-unconfirmed-storage.md) |
+| macOS Safari 27.0.1 | 固定 e6f0300 的[原生合成證據](https://github.com/sunpochin/dance-stamp/blob/26479366afa5fa6282da9b312243bf971da51bee/docs/evidence/safari-practice-validation-2026-10-31.md)含一般模式九案錄影、九案雙片 VS 與四種保存核心保全契約；連續十輪在第五輪失敗，私人 VS 未通過。私人影片副本寫入亦失敗，見[儲存對照與另存步驟](docs/evidence/issue-13-safari-private-storage.md)。仍未完成整體 Safari、真實相機、聽感與裝置驗收；不以舊版十輪通過記錄替目前版本簽收 |
 | iPhone Safari／主畫面安裝 | 依使用者決定暫緩，未驗證 |
 | Windows／Linux／其他瀏覽器 | 原始碼可取得，實機使用流程未驗證；CI 建置不算桌面／裝置驗收 |
 | 讀屏、五位舞者、喇叭／藍牙、背景／鎖屏／來電 | 未完成，不預填通過；未承諾背景錄製或永久離線 |
