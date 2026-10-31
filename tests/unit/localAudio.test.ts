@@ -48,21 +48,31 @@ test('超額 metadata、封包、sample 數、offset、fragment、不支援 code
 
 const original = { decoder: globalThis.AudioDecoder, chunk: globalThis.EncodedAudioChunk }
 afterEach(() => { globalThis.AudioDecoder = original.decoder; globalThis.EncodedAudioChunk = original.chunk })
-function environment(options: {fail?: boolean, onFlush?: () => void, rate?: number, copyFail?: boolean, decoderError?: boolean} = {}) {
-  const audit = { submitted: 0, live: 0, max: 0, closed: 0, framesClosed: 0, allocations: [] as number[] }
+function environment(options: {fail?: boolean, onFlush?: () => void, rate?: number, copyFail?: boolean, decoderError?: boolean, overlapReset?: boolean, oneAtATime?: boolean, stall?: boolean, onFull?: (decoder: any) => void} = {}) {
+  const audit = { submitted: 0, live: 0, max: 0, closed: 0, framesClosed: 0, flushes: 0, allocations: [] as number[] }
   class Decoder {
     static async isConfigSupported() { return { supported: true } }
-    state = 'configured'; callbacks: any; queue: any[] = []
+    state = 'configured'; callbacks: any; queue: any[] = []; lostOverlap = false
     constructor(callbacks: any) { this.callbacks = callbacks }
     configure() {}
-    decode(chunk: any) { audit.submitted++; this.queue.push(chunk); audit.max = Math.max(audit.max, ++audit.live) }
-    async flush() {
-      options.onFlush?.()
-      for (const chunk of this.queue) {
-        this.callbacks.output({ timestamp: chunk.timestamp, sampleRate: options.rate ?? 48000, numberOfChannels: 2, numberOfFrames: 1024, copyTo: (pcm: Float32Array) => { if (options.copyFail) throw new Error('synthetic PCM copy failure'); pcm.fill(chunk.timestamp >= 0 ? 0.25 : -0.25) }, close: () => { audit.framesClosed++ } })
+    decode(chunk: any) {
+      audit.submitted++; this.queue.push(chunk); audit.max = Math.max(audit.max, ++audit.live)
+      if (this.queue.length === audioBudget.batch) {
+        options.onFull?.(this)
+        if (!options.stall) queueMicrotask(() => this.drain(options.oneAtATime ? 1 : this.queue.length))
+      }
+    }
+    drain(count: number) {
+      for (const chunk of this.queue.splice(0, count)) {
+        const disrupted = this.lostOverlap; this.lostOverlap = false
+        this.callbacks.output({ timestamp: chunk.timestamp, sampleRate: options.rate ?? 48000, numberOfChannels: 2, numberOfFrames: 1024, copyTo: (pcm: Float32Array) => { if (options.copyFail) throw new Error('synthetic PCM copy failure'); pcm.fill(options.overlapReset && disrupted ? 0 : chunk.timestamp >= 0 ? 0.25 : -0.25) }, close: () => { audit.framesClosed++ } })
         audit.live--
       }
-      this.queue = []
+    }
+    async flush() {
+      audit.flushes++; options.onFlush?.(); this.drain(this.queue.length)
+      // 模擬已由原生對照重現的 AAC 重疊窗斷點，讓回歸核對真正 PCM 連續性。
+      this.lostOverlap = true
       if (options.decoderError) this.callbacks.error(new Error('synthetic native decoder error'))
       if (options.fail) throw new Error('synthetic decoder failure')
     }
@@ -81,6 +91,35 @@ test('固定片段 PCM、每批最多八包、依來源 edit 時戳裁入；重�
   expect(audit.framesClosed).toBe(audit.submitted); expect(audit.closed).toBe(1)
   await decodeLocalAudio(fixture({ edit: 0 }), context, 0.02, 0.1, signal())
   expect(audit.closed).toBe(2); expect(audit.allocations.length).toBe(2)
+})
+test('原生逐包交付時仍保留八包上限與連續 PCM，只在片段尾端 flush', async () => {
+  const { context, audit } = environment({ overlapReset: true, oneAtATime: true })
+  const buffer = await decodeLocalAudio(fixture({ samples: 64 }), context, 0, 1, signal())
+  expect(buffer!.getChannelData(0).every(value => value === 0.25)).toBe(true)
+  expect(buffer!.getChannelData(1).every(value => value === 0.25)).toBe(true)
+  expect(audit.max).toBe(8); expect(audit.flushes).toBe(1)
+  expect(audit.framesClosed).toBe(audit.submitted); expect(audit.closed).toBe(1); expect(audit.live).toBe(0)
+})
+test('八包尚未交付時取消會立即關閉，不再讀下一包或留下等待', async () => {
+  const controller = new AbortController(), { context, audit } = environment({ stall: true, onFull: () => queueMicrotask(() => controller.abort()) })
+  await expect(decodeLocalAudio(fixture({ samples: 64 }), context, 0, 1, controller.signal)).rejects.toThrow()
+  expect(audit.submitted).toBe(8); expect(audit.closed).toBe(1); expect(audit.live).toBe(0); expect(audit.flushes).toBe(0)
+})
+test('滿額等待遇到原生解碼錯誤就拒絕並 close，不等待額外輸出', async () => {
+  const { context, audit } = environment({ stall: true, onFull: decoder => queueMicrotask(() => decoder.callbacks.error(new Error('synthetic queued decode failure'))) })
+  await expect(decodeLocalAudio(fixture({ samples: 64 }), context, 0, 1, signal())).rejects.toThrow('Safari')
+  expect(audit.submitted).toBe(8); expect(audit.closed).toBe(1); expect(audit.live).toBe(0); expect(audit.flushes).toBe(0)
+})
+test('八包永不交付沿原十秒期限拒絕，重試使用新的 decoder', async () => {
+  const timer = globalThis.setTimeout, { context, audit } = environment({ stall: true })
+  // 僅壓縮測試鐘；產品的準備期限與資源額度不變。
+  globalThis.setTimeout = ((callback: any, delay: number, ...args: any[]) => timer(callback, delay === 10000 ? 1 : delay, ...args)) as typeof setTimeout
+  try { await expect(decodeLocalAudio(fixture({ samples: 64 }), context, 0, 1, signal())).rejects.toThrow('音訊準備逾時') }
+  finally { globalThis.setTimeout = timer }
+  expect(audit.submitted).toBe(8); expect(audit.closed).toBe(1); expect(audit.live).toBe(0)
+  const retry = environment()
+  expect(await decodeLocalAudio(fixture(), retry.context, 0, .1, signal())).not.toBeNull()
+  expect(retry.audit.closed).toBe(1)
 })
 test('前置空 edit 的靜音不能混入已被正常 edit 丟棄的 AAC，片段從空白中途開始亦同', async () => {
   const { context, audit } = environment(), file = fixture({ samples: 120, edit: 48000, delay: 96000 })
