@@ -12,7 +12,7 @@ async page => {
   const deferred = page.locator('[data-deferred]');
   for (const element of await deferred.all()) assert(!await element.isVisible(), '暫藏工具仍出現在預設頁面');
   assert(!await page.locator('#stop').isVisible(), '閒置停止鍵仍顯示');
-  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(!await page.locator(selector).isVisible(), '未選雙片就顯示後續工具');
+  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#play', '#overlay-play', '#overlay-opacity']) assert(!await page.locator(selector).isVisible(), '未選雙片就顯示後續工具');
   for (let i = 0; i < 24; i++) {
     await page.keyboard.press('Tab');
     assert(await page.evaluate(() => !document.activeElement.closest('[data-deferred]')), '鍵盤進入暫藏工具');
@@ -33,7 +33,7 @@ async page => {
   assert(await page.locator('#reference-download').isVisible(), '尚缺右片時藏掉救援下載');
   await page.locator('#storage-recovery').evaluate(element => { element.hidden = true; });
   await choose('self-file', 'output/export-failure/self.mp4');
-  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
+  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#play', '#overlay-play', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
   // 簡化選片不能蓋掉較新主線明確開放的身體對齊控制。
   assert(await page.locator('#overlay-layout').isVisible() && await page.locator('#overlay-reference-scale').isEnabled(), '整合後疊影大小位置控制消失');
   for (const [id, value] of [['start', '0.2'], ['end', '2.2'], ['offset', '0.1']]) {
@@ -42,11 +42,19 @@ async page => {
   const read = () => page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
   const beforePreview = await read();
   await page.locator('#play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
+  assert((await page.locator('#status').textContent()).includes('左右比較') && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '左右播放未標示或可同時啟動另一輪');
   assert(await page.locator('#stop').isVisible(), '預覽時無法停止');
   await page.locator('#stop').focus(); await page.keyboard.press('Enter'); await idle();
   assert(!await page.locator('#stop').isVisible() && await page.evaluate(() => document.activeElement.id === 'play'), '停止後未收起或鍵盤焦點遺失');
   assert(await read() === beforePreview, '停止預覽改動資料');
   assert(!(await page.locator('#status').textContent()).includes('正在保留已錄到'), '仍顯示錄影中的誤導訊息');
+  // 新入口也要真正走到播放與共用暫停，不能只驗 HTML 有第二顆按鈕。
+  await page.locator('#overlay-play').focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
+  assert((await page.locator('#status').textContent()).includes('疊影比較') && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '疊影播放未標示或可重複啟動');
+  await page.locator('#pause-comparison').click(); await idle();
+  assert(await page.evaluate(() => document.activeElement.id === 'overlay-play') && await page.locator('#play').isEnabled() && await page.locator('#overlay-play').isEnabled(), '暫停後未還原兩區入口或鍵盤焦點');
+  assert(await read() === beforePreview, '切換比較入口改動資料');
   await page.locator('#export').click();
   await page.waitForFunction(() => document.getElementById('controls').disabled);
   assert(await page.locator('#stop').isVisible(), '合成時無法取消');

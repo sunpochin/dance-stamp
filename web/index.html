@@ -110,39 +110,12 @@
     <p class="hint" id="comparison-pitch-status">比較預覽與 VS 的聲音會隨速度變調，以維持聲畫同步。</p>
     <label>共同時間線（秒）<input id="scrub" aria-describedby="intersection audio-status" type="range" min="0" max="1" value="0" step="0.01"></label>
     <p id="intersection">選好右邊練習影片後，這裡會顯示可比較的長度。</p>
-    <div class="actions"><button type="button" id="play">播放比較（左右與疊影）</button></div>
   </fieldset>
-  <section aria-labelledby="overlay-title">
-    <h2 id="overlay-title">疊影比較 · 看動作差在哪裡</h2>
-    <p id="overlay-help" class="hint">把老師變成半透明，和自己重疊看。先用上方起點、偏移與鏡像對齊；暫停後可拖動共同時間線逐段比較。</p>
-    <label><span>老師可見度 <output id="overlay-opacity-value" for="overlay-opacity">50%</output></span><input id="overlay-opacity" type="range" min="0" max="100" step="1" value="50" aria-describedby="overlay-help" disabled></label>
-    <p class="hint">往左讓老師更透明，0% 只看自己；往右讓老師更清楚。兩片的拍攝角度與人物大小越接近，越容易比。</p>
-    <div class="overlay-workspace">
-    <!-- 控制先存在於 HTML；缺片只停用，不收合或等待影片事件才插入。 -->
-    <fieldset id="overlay-layout" aria-describedby="overlay-layout-status overlay-layout-help" disabled><legend>對齊身體的大小與位置</legend>
-      <p id="overlay-layout-status" class="hint" role="status">先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。</p>
-      <p id="overlay-layout-help" class="hint">先調大小，再調左右與上下。左右正值往右、上下正值往下；放大或移到邊緣會裁掉超出框外的畫面。</p>
-      <div class="settings overlay-layout">
-        <fieldset><legend>老師 · 示範影片</legend>
-          <label><span>大小 <output id="overlay-reference-scale-value" for="overlay-reference-scale">100%</output></span><input id="overlay-reference-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="overlay-layout-help"></label>
-          <label><span>左右位置 <output id="overlay-reference-x-value" for="overlay-reference-x">0%</output></span><input id="overlay-reference-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
-          <label><span>上下位置 <output id="overlay-reference-y-value" for="overlay-reference-y">0%</output></span><input id="overlay-reference-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
-        </fieldset>
-        <fieldset><legend>我 · 練習影片</legend>
-          <label><span>大小 <output id="overlay-self-scale-value" for="overlay-self-scale">100%</output></span><input id="overlay-self-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="overlay-layout-help"></label>
-          <label><span>左右位置 <output id="overlay-self-x-value" for="overlay-self-x">0%</output></span><input id="overlay-self-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
-          <label><span>上下位置 <output id="overlay-self-y-value" for="overlay-self-y">0%</output></span><input id="overlay-self-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
-        </fieldset>
-      </div>
-      <button type="button" id="overlay-layout-reset">重設兩側大小與位置</button>
-      <p class="hint">套用於疊影預覽與疊影匯出；換影片會重設，左右並排不套用大小與位置。</p>
-    </fieldset>
-    <div class="overlay-preview">
-      <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
-      <p id="overlay-empty" class="hint">載入兩片並確認有效的比較區間後，這裡會顯示疊影預覽。</p>
-    </div>
-    </div>
-    <p class="hint">使用上方「播放比較」播放兩種預覽；狀態列的「一起暫停」會同時暫停兩片。</p>
+  <!-- 播放入口跟各自畫面放同區，時間與聲源仍共用，避免兩套進度混在一起。 -->
+  <section aria-labelledby="side-title">
+    <h2 id="side-title">左右比較 · 並排看動作</h2>
+    <p class="hint">左邊看示範，右邊看自己；使用上方的起點、鏡像與共同時間線對齊。</p>
+    <div class="actions"><button type="button" id="play" aria-controls="canvas adjusted-side-canvas" disabled>播放左右比較</button></div>
     <!-- 比較動作需要直接看到左右畫面；預設展開，仍可手動收起以騰出空間。 -->
     <details id="side-preview" open><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
     <section class="adjusted-side-section" aria-labelledby="adjusted-side-title">
@@ -171,7 +144,40 @@
         </div>
       </div>
     </section>
-    <p class="hint">下方可選擇匯出左右並排或目前疊影。合成期間預覽暫停更新。</p>
+    <p class="hint">狀態列的「一起暫停」可暫停比較，再拖上方共同時間線看同一拍。</p>
+  </section>
+  <section aria-labelledby="overlay-title">
+    <h2 id="overlay-title">疊影比較 · 看動作差在哪裡</h2>
+    <p id="overlay-help" class="hint">把老師變成半透明，和自己重疊看。先用上方起點、偏移與鏡像對齊；暫停後可拖動共同時間線逐段比較。</p>
+    <div class="actions"><button type="button" id="overlay-play" aria-controls="overlay-canvas" disabled>播放疊影比較</button></div>
+    <label><span>老師可見度 <output id="overlay-opacity-value" for="overlay-opacity">50%</output></span><input id="overlay-opacity" type="range" min="0" max="100" step="1" value="50" aria-describedby="overlay-help" disabled></label>
+    <p class="hint">往左讓老師更透明，0% 只看自己；往右讓老師更清楚。兩片的拍攝角度與人物大小越接近，越容易比。</p>
+    <div class="overlay-workspace">
+    <!-- 控制先存在於 HTML；缺片只停用，不收合或等待影片事件才插入。 -->
+    <fieldset id="overlay-layout" aria-describedby="overlay-layout-status overlay-layout-help" disabled><legend>對齊身體的大小與位置</legend>
+      <p id="overlay-layout-status" class="hint" role="status">先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。</p>
+      <p id="overlay-layout-help" class="hint">先調大小，再調左右與上下。左右正值往右、上下正值往下；放大或移到邊緣會裁掉超出框外的畫面。</p>
+      <div class="settings overlay-layout">
+        <fieldset><legend>老師 · 示範影片</legend>
+          <label><span>大小 <output id="overlay-reference-scale-value" for="overlay-reference-scale">100%</output></span><input id="overlay-reference-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="overlay-layout-help"></label>
+          <label><span>左右位置 <output id="overlay-reference-x-value" for="overlay-reference-x">0%</output></span><input id="overlay-reference-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
+          <label><span>上下位置 <output id="overlay-reference-y-value" for="overlay-reference-y">0%</output></span><input id="overlay-reference-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
+        </fieldset>
+        <fieldset><legend>我 · 練習影片</legend>
+          <label><span>大小 <output id="overlay-self-scale-value" for="overlay-self-scale">100%</output></span><input id="overlay-self-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="overlay-layout-help"></label>
+          <label><span>左右位置 <output id="overlay-self-x-value" for="overlay-self-x">0%</output></span><input id="overlay-self-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
+          <label><span>上下位置 <output id="overlay-self-y-value" for="overlay-self-y">0%</output></span><input id="overlay-self-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="overlay-layout-help"></label>
+        </fieldset>
+      </div>
+      <button type="button" id="overlay-layout-reset">重設兩側大小與位置</button>
+      <p class="hint">套用於疊影預覽與疊影匯出；換影片會重設，左右並排不套用大小與位置。</p>
+    </fieldset>
+    <div class="overlay-preview">
+      <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
+      <p id="overlay-empty" class="hint">載入兩片並確認有效的比較區間後，這裡會顯示疊影預覽。</p>
+    </div>
+    </div>
+    <p class="hint">狀態列的「一起暫停」可暫停比較。下方合成區可選左右並排或目前疊影，合成期間預覽暫停更新。</p>
   </section>
   <section id="save-result" aria-label="合成結果"><h2>03 · 合成與下載</h2>
     <fieldset id="export-controls" disabled><legend>合成一支比較影片</legend>

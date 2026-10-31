@@ -12,7 +12,7 @@ async page => {
   });
   await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('疊影測試禁止相機／麥克風'); }; window.confirm = () => true; });
   await page.goto(origin); await idle();
-  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#play').isDisabled(), '缺片仍能播放疊影');
+  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#overlay-play').isDisabled(), '缺片仍能播放疊影');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
   // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
   await page.locator('#end').fill('15');
@@ -45,7 +45,7 @@ async page => {
     const times = await page.evaluate(() => ({ reference: document.getElementById('reference').currentTime, self: document.getElementById('self').currentTime }));
     assert(Math.abs(times.reference - (12 + rate * 1.25)) < 0.05 && Math.abs(times.self - 5.25) < 0.05, '共同定位未沿用比例與 offset');
     const first = await signature();
-    await page.locator('#play').click();
+    await page.locator('#overlay-play').click();
     await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
     assert(await page.locator('#overlay-opacity').isEnabled() && await page.locator('#pause-comparison').isEnabled(), '預覽時無法調透明度或暫停');
     await opacity(40); await opacity(50);
@@ -60,11 +60,11 @@ async page => {
   const negative = await page.evaluate(() => [document.getElementById('reference').currentTime, document.getElementById('self').currentTime]);
   assert(Math.abs(negative[0] - 13.2) < 0.05 && Math.abs(negative[1] - 1) < 0.05, '負偏移未沿用合法交集');
   await change('offset', '1000');
-  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#play').isDisabled(), '無交集仍顯示可用疊影');
+  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#overlay-play').isDisabled() && await page.locator('#play').isDisabled(), '無交集仍能播放比較');
   await change('offset', '4');
-  await page.locator('#play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
+  await page.locator('#overlay-play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
   await page.locator('#stop').click(); await idle();
-  assert(await page.locator('#play').isEnabled() && await page.locator('#pause-comparison').isHidden(), '停止後不能重試');
+  assert(await page.locator('#overlay-play').isEnabled() && await page.locator('#pause-comparison').isHidden(), '停止後不能重試');
   // 真正下載舊有 VS，驗證額外畫布沒有取代錄製來源；長片品質仍由既有媒體矩陣驗收。
   await page.locator('#export').click();
   await page.waitForTimeout(800);
@@ -84,6 +84,6 @@ async page => {
   await page.locator('section[aria-labelledby="overlay-title"]').screenshot({ path: 'output/playwright/overlay-comparison.png' });
   await page.locator('#camera-tools').evaluate(el => { el.open = true; });
   await page.locator('#new-take').click(); await idle();
-  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#play').isDisabled() && previous === await page.locator('#output-download').getAttribute('href'), '新 take 未清空疊影或破壞舊 VS');
+  assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#overlay-play').isDisabled() && previous === await page.locator('#output-download').getAttribute('href'), '新 take 未清空疊影或破壞舊 VS');
   return { fourMirrorCombinations: true, alphaEndpointsAndMix: true, viewOnlySetting: true, timing, negativeOffset: true, invalidRange: true, playbackPauseStop: true, responsiveAndKeyboard: true, previousOutputPreserved: true, download: path };
 }

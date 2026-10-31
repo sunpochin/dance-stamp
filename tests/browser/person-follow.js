@@ -74,6 +74,13 @@ async page => {
     // 原生影片重畫可能有一階色彩捨入；逐 channel 限定 1，仍會抓到另一側被移動或翻轉。
     assert(mirrored.points > 100 && mirrored.mirrorError < mirrored.identityError * .35 && mirrored.otherMax <= 1, side + ' 裁切鏡像錯誤或影響另一側：' + JSON.stringify(mirrored));
   }
+  // 未調整側直接沿用原並排；雙側人物鏡像後也應保留完全相同的像素。
+  const adjustedDifference = await page.evaluate(() => {
+    const pixels = id => document.getElementById(id).getContext('2d').getImageData(0, 0, 1280, 720).data;
+    const original = pixels('canvas'), adjusted = pixels('adjusted-side-canvas');
+    return original.reduce((result, value, i) => { const difference = Math.abs(value - adjusted[i]); result.max = Math.max(result.max, difference); result.sum += difference; result.changed += difference > 0 ? 1 : 0; return result; }, { max: 0, sum: 0, changed: 0 });
+  });
+  assert(adjustedDifference.max === 0, '可調並排沒有沿用人物跟隨裁切：' + JSON.stringify(adjustedDifference));
   const metrics = async (id, times, layout) => page.locator('#' + id).evaluate(async (video, { times, layout }) => {
     const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 720; const context = canvas.getContext('2d'), results = [];
     for (const time of times) {

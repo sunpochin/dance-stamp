@@ -192,6 +192,8 @@ function updateOverlayControls() {
   let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
   try { if (available) recipe(); } catch { available = false; }
   const previewing = !$('pause-comparison').hidden;
+  // 播放鍵移出比較 fieldset 後，必須明確沿用缺片、非法區間、忙碌與保存未確認的封鎖。
+  for (const id of /** @type {const} */ (['play', 'overlay-play'])) $(id).disabled = !available || $('compare').disabled || $('export').disabled || storageUnconfirmed();
   following.update(available);
   overlay.hidden = !available; $('overlay-empty').hidden = available;
   $('overlay-opacity').disabled = !available || !!active && !previewing;
@@ -808,9 +810,9 @@ function updateIntersection() {
     following.assertCoverage();
     $('scrub').max = String(range.durationMs / 1000); $('scrub').value = String(Math.min(Number($('scrub').value), range.durationMs / 1000));
     $('intersection').textContent = `共同長度 ${(range.durationMs / 1000).toFixed(2)} 秒；老師 ${((value.startMs + value.rate * range.lowerMs) / 1000).toFixed(3)} 秒／我 ${((range.lowerMs + value.offsetMs) / 1000).toFixed(3)} 秒起跳，示範 ${value.rate}×。${range.durationMs < (value.endMs - value.startMs) / value.rate ? '片尾不足，只輸出兩片都有畫面的區間。' : ''}`;
-    $('play').disabled = false; $('export').disabled = false;
+    $('export').disabled = false;
     if (outputBlob) $('output-status').textContent = outputRecipe === recipeSignature(value) ? `這支${$('export-layout').value === 'overlay' ? '疊影' : '左右並排'}影片對應目前的比較設定。` : '這是先前設定的 VS，原檔仍保留；若要目前設定的畫面，請重新匯出。';
-  } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('play').disabled = true; $('export').disabled = true; }
+  } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('export').disabled = true; }
   updateOverlayControls(); updateSourceTimelines();
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror', 'preview-mirror'])) $(id).addEventListener('change', () => { mirrors(); if (selfDurationMs) updateIntersection(); });
@@ -834,13 +836,14 @@ for (const [input, output] of adjustedSideFields) $(input).addEventListener('inp
 $('adjusted-side-reset').addEventListener('click', () => resetAdjustedSide());
 $('export-layout').addEventListener('change', updateIntersection);
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
-$('play').addEventListener('click', () => operation(async signal => {
+// 兩區各有清楚入口，但共用操作鎖與時間映射，不能同時啟動兩套音訊或播放迴圈。
+for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) $(id).addEventListener('click', () => operation(async signal => {
   following.assertCoverage();
   const value = recipe(), durationMs = comparison(value).durationMs;
   const startMs = Number($('scrub').value) * 1000;
   await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
   $('pause-comparison').hidden = false; updateOverlayControls();
-  status('共同預覽中；疊影與左右畫面一起播放，可調整老師可見度。一起暫停後可拖動共同時間線再繼續。');
+  status(`共同預覽中：${label}；一起暫停後可拖動共同時間線再繼續。`);
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
