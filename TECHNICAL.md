@@ -9,6 +9,8 @@
 
 #103 的更新啟用失敗收尾補測見[本輪證據](docs/evidence/issue-103-update-cleanup.md)：原訊息傳送失敗或十秒逾時後，頁面恢復、通道／監聽／計時器清理與同頁重試均檢查；產品與原期限不改，局部行數100%不代表全App100%。
 
+版本號、更新紀錄與里程碑草稿流程見[版本與更新說明](docs/RELEASE.md#版本與更新說明)。
+
 #165 的雙側人物框選、跟隨裁切與鏡像見[本次設計](#165-雙側人物跟隨裁切)及[合成驗證](docs/evidence/issue-165-person-follow.md)；手動對齊仍保留。
 
 #11 固定 e6f0300 的原生 Safari 一般視窗十輪錄影／VS 成檔、完整檔案與同頁重開保全見[十輪對照](docs/evidence/issue-11-safari-ten-cycle.md)。本輪只減少旁聽並保留來源可見性紀錄，產品程式與原同步門檻未改；同來源先前第五輪失敗仍保留，不能由這次成功判定唯一根因或整體 Safari 已驗收。
@@ -1161,3 +1163,11 @@ App 回歸的既有完整介面案例在產品模組執行前明確移除 DOM �
 ### #19 拍號與顯示秒數使用同一毫秒快照
 
 播到一拍交界時，秒數與拍號現在看同一個時間點。原生時間如0.349999秒會顯示0.350，但舊拍號仍以未取整時間判成「第一拍之前」；先以直接執行原renderBeatPosition的單元重現紅燈，修正後一次讀取來源時間，取整到畫面既有的毫秒精度供秒數與拍號共用。不改來源時鐘、BPM、播放／匯出映射或純beatPosition的精度。完整CI ee18a11保留74／75，beats原錯誤沒有快照，不能把此邊界缺陷宣稱為唯一成因；瀏覽器原120ms／速度／拍號斷言與期限均保留，只補失敗快照診斷，新head另跑完整75案。
+
+## 55. #182 版本更新紀錄與里程碑草稿
+
+2026-11-01：用官方 release-please manifest 的單一根目錄 node 策略更新 `package.json`、版本 manifest 與 `CHANGELOG.md`，不新增產品執行期依賴。空 manifest／開發版 `0.0.0` 不虛構發行；首次版本 `0.1.0`，bootstrap 固定導入前 main，之後按 Conventional Commits 推進 SemVer。使用者版本號不取代既有 SW／下載包內容雜湊或 sourceRevision。
+
+採明確里程碑的 workflow_dispatch，分 prepare PR 與 draft Release；固定 action commit、main 與本 repo，只有該 job 提升必要寫入權限。`draft=true` 保留人工公開發布，未啟用強制 tag、資產上傳或部署。Harness CI 增加手動入口，補內建 token 建 PR 不觸發 CI 的官方限制；同一 head 仍須通過完整檢查。
+
+排除每次 Preview Deploy／push 都發布、付費服務、私人 token、自寫 commit 解析器及將完整 Git history 貼成公告。版本 PR 的檔案與 PR 筆記須一起人工整理；draft 階段只讀已合併 PR 以免覆寫筆記。設定驗證不代表遠端發布、真機驗收或 #15 完成。操作與官方依據統一放 [RELEASE.md](docs/RELEASE.md#版本與更新說明)。
