@@ -6,11 +6,14 @@ async page => {
   await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('框選只允許本機合成影片'); }; window.confirm = () => true; });
   await page.goto(origin);
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
-  const set = async (id, value) => { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); await idle(); };
   await idle();
   assert(await page.locator('body').getAttribute('data-comparison-only') !== null, '人物跟隨沒有走真正預設介面');
   for (const side of ['reference', 'self']) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + side + '.mp4'); await idle(); }
-  await set('end', 3); await set('offset', 0);
+  // 與真正預設頁一樣先提交片段，再用定位尺設起點；不操作已收起的舊輸入。
+  await page.locator('#end').fill('3'); await page.locator('#end').press('Tab'); await idle();
+  await page.locator('#self-seek').fill('0'); await page.locator('#self-seek').dispatchEvent('input');
+  await page.waitForFunction(() => { const video = document.getElementById('self'); return !video.seeking && video.currentTime < .02; });
+  await page.locator('#self-start').click(); await idle();
   const open = async side => { await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle(); };
   const analyze = async () => { await page.locator('#follow-confirm').click(); await page.waitForFunction(() => !document.getElementById('follow-dialog').open || !document.getElementById('controls').disabled && document.getElementById('follow-message').textContent.includes('保留'), null, { timeout: 60000 }); await idle(); assert(!await page.locator('#follow-dialog').evaluate(d => d.open), '分析失敗：' + await page.locator('#follow-message').textContent()); };
   await open('reference');

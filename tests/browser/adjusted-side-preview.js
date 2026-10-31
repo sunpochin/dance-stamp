@@ -2,7 +2,19 @@
 async page => {
   const origin = new URL(page.url()).origin, assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
-  const set = async (id, value, event = 'input') => { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent(event); if (event === 'change') await idle(); };
+  const set = async (id, value, event = 'input') => {
+    await page.locator('#' + id).fill(String(value));
+    // 片段欄位以真正失焦提交，避免手送 change 後再失焦而重複保存、覆蓋後續定位。
+    if (event === 'change' && ['start', 'end'].includes(id)) await page.locator('#' + id).press('Tab');
+    else await page.locator('#' + id).dispatchEvent(event);
+    if (event === 'change') await idle();
+  };
+  const selfStart = async seconds => {
+    // 預設頁只從可見的定位尺設起點，不重新顯示已收起的舊欄位。
+    await set('self-seek', seconds);
+    await page.waitForFunction(seconds => { const video = document.getElementById('self'); return !video.seeking && Math.abs(video.currentTime - seconds) < .02; }, seconds);
+    await page.locator('#self-start').click(); await idle();
+  };
   const fields = ['reference', 'self'].flatMap(side => ['scale', 'x', 'y'].map(key => 'adjusted-' + side + '-' + key));
   const values = () => Promise.all(fields.map(id => page.locator('#' + id).inputValue()));
   const signature = (id = 'adjusted-side-canvas') => page.locator('#' + id).evaluate(c => c.toDataURL());
@@ -26,7 +38,7 @@ async page => {
   // 全長預設保留 80 秒原片；先選本例原有短段，再載入右片，不繞過 60 秒護欄。
   await set('end', 15, 'change');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
-  await set('start', 12, 'change'); await set('end', 15, 'change'); await set('offset', 4, 'change');
+  await set('start', 12, 'change'); await set('end', 15, 'change'); await selfStart(4);
   assert(await page.locator('#adjusted-side-canvas').isVisible() && await signature() === await signature('canvas'), '初始畫面未保留原並排');
   await set('overlay-reference-scale', 120);
   for (const [side, index] of [['reference', 0], ['self', 1]]) {
@@ -66,9 +78,10 @@ async page => {
   await page.locator('#self-file').setInputFiles({ name: 'synthetic-invalid.mp4', mimeType: 'video/mp4', buffer: Buffer.from('synthetic-invalid-video') }); await idle();
   await page.locator('#self-file').setInputFiles([]); await idle();
   assert(JSON.stringify(await values()) === JSON.stringify(preserved), '壞檔或取消清掉調整');
-  await set('offset', 1000, 'change');
+  // 從來源片尾開始也沒有共同畫面；沿用原無交集與恢復斷言，使用真正可達的操作。
+  await selfStart(await page.locator('#self').evaluate(video => video.duration));
   assert(await page.locator('#adjusted-side-canvas').isHidden() && await page.locator('#adjusted-reference-scale').isDisabled(), '空交集仍開放試看');
-  await set('offset', 4, 'change');
+  await selfStart(4);
   await set('adjusted-reference-scale', 400); await set('adjusted-reference-x', 200);
   await page.locator('#export').click(); await page.waitForFunction(() => document.getElementById('status').textContent.includes('合成中'));
   assert(await page.locator('#adjusted-reference-x').isDisabled(), '匯出期間仍能調整');
@@ -82,7 +95,7 @@ async page => {
   assert(JSON.stringify(await values()) === JSON.stringify(['100', '0', '0', '100', '0', '0']), '成功換片未重設');
   await page.locator('#reference-file').setInputFiles('output/media-probe/player/portrait.mp4'); await idle();
   await page.locator('#self-file').setInputFiles('output/media-probe/player/portrait.mp4'); await idle();
-  await set('start', 0, 'change'); await set('end', 2, 'change'); await set('offset', 0, 'change');
+  await set('start', 0, 'change'); await set('end', 2, 'change'); await selfStart(0);
   for (const mirror of [false, true]) {
     await page.locator('#reference-mirror').setChecked(mirror); await idle(); await page.locator('#self-mirror').setChecked(!mirror); await idle();
     assert(await signature() === await signature('canvas'), '直式或鏡像的預設畫面與原並排不符');
