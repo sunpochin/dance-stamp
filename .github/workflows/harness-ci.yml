@@ -31,7 +31,9 @@ jobs:
   app-coverage:
     needs: harness
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    # 完整67條加單元與素材前置已實際撞到12分鐘，保留整輪收尾餘裕。
+    # 只調工作總預算；原五秒離線、十五秒影格守門等各案期限不變。
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

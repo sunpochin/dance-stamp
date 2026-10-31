@@ -82,6 +82,33 @@ test('註冊失敗、不完整或無 active worker 不得宣稱可離線重開',
     if (options.registerError) expect(current.intervals).toHaveLength(0)
   }
 })
+test('較早的離線回覆晚到，不可覆蓋較新手動檢查的結果', async () => {
+  for (const [older, newer] of [[true, false], [false, true]]) {
+    const current = setup(), ports: MessagePort[] = []
+    current.worker.postMessage = (message, sent) => { expect(message).toEqual({ type: 'CHECK_OFFLINE' }); ports.push(sent[0]) }
+    const starting = current.start(); await waitFor(() => ports.length === 1)
+    current.ui.refresh.dispatchEvent(new Event('click')); await waitFor(() => ports.length === 2)
+    // 用真正 MessageChannel 讓後問的先回；舊的「完整」不得蓋掉新版已確認的不完整，反向也一樣。
+    ports[1].postMessage({ complete: newer, version: 'newer' })
+    await waitFor(() => current.ui.offline.textContent.includes(newer ? '（newer）' : '不完整'))
+    const latest = current.ui.offline.textContent
+    ports[0].postMessage({ complete: older, version: 'older' }); await starting
+    expect(current.ui.offline.textContent).toBe(latest)
+  }
+})
+test('初次檢查的真正逾時，不可覆蓋 controller 事件後的成功', async () => {
+  const current = setup(), ports: MessagePort[] = []
+  current.worker.postMessage = (_message, sent) => { ports.push(sent[0]) }
+  const starting = current.start(); await waitFor(() => ports.length === 1)
+  current.serviceWorker.dispatchEvent(new Event('controllerchange')); await waitFor(() => ports.length === 2)
+  ports[1].postMessage({ complete: true, version: 'newer' })
+  await waitFor(() => current.ui.offline.textContent.includes('（newer）'))
+  const latest = current.ui.offline.textContent
+  // 第一個真正訊息通道不回覆，等產品原本五秒期限；不縮短計時器或手動呼叫錯誤處理。
+  await starting
+  expect(current.ui.offline.textContent).toBe(latest)
+  expect(current.ui.refresh.disabled).toBe(false)
+}, 10_000)
 test('等待更新只顯示保存提醒；更新、controller 及手動重查皆重新核對狀態', async () => {
   const current = setup(); await current.start()
   current.registration.waiting = {}; current.ui.checkUpdate.dispatchEvent(new Event('click')); await waitFor(() => current.ui.updates.textContent.includes('先保存'))

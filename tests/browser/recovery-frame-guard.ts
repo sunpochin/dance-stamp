@@ -5,14 +5,15 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export async function recoveryFrameGuard({ page, origin, root, run, evidence, event, ready }: any) {
+export async function recoveryFrameGuard({ page, origin, root, run, evidence, event, ready, fixtureSource }: any) {
   const hash = bytes => createHash('sha256').update(bytes).digest('hex')
-  const source = join(root, 'output/media-feasibility/reference.mp4'), fixture = join(run, 'synthetic.mp4')
+  // 完整量測讀自己複製的同一來源；原獨立工具未傳參數時仍沿原檔。
+  const source = fixtureSource ?? join(root, 'output/media-feasibility/reference.mp4'), fixture = join(run, 'synthetic.mp4')
   assert(existsSync(source), '先用原 make-sync-fixtures.py 準備合成來源，不能改用私人影片')
   // 只需短片觸發新守門，避免把本次失敗分支補驗擴成完整媒體矩陣。
   execFileSync('ffmpeg', ['-v', 'error', '-n', '-i', source, '-t', '4', '-c', 'copy', '-movflags', '+faststart', fixture])
   const fixtureBytes = readFileSync(fixture)
-  evidence.fixture = { bytes: fixtureBytes.length, sha256: hash(fixtureBytes), sourceSha256: hash(readFileSync(source)) }
+  evidence.fixture = { file: fixture, source, bytes: fixtureBytes.length, sha256: hash(fixtureBytes), sourceSha256: hash(readFileSync(source)) }
   const idle = () => page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')!.getAttribute('aria-busy') !== 'true')
   const snapshot = async label => {
     const result = await page.evaluate(async () => {
@@ -87,6 +88,12 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
   await page.locator('#copy-self').click(); await idle()
   await page.locator('#export').click(); await idle()
   assert(await page.locator('#output-download').isVisible(), '舊 VS 前置失敗不能略過')
+  // 可見連結還不足以證明檔案可用；保留真正下載供網站外重播，並在每個基準核對完整bytes。
+  const downloading = page.waitForEvent('download'); await page.locator('#output-download').click()
+  const downloaded = await downloading, suffix = downloaded.suggestedFilename().split('.').pop()
+  assert(['mp4', 'webm'].includes(suffix!))
+  const vsFile = join(run, `baseline-vs.${suffix}`); await downloaded.saveAs(vsFile)
+  const vsBytes = readFileSync(vsFile); evidence.vsDownload = { file: vsFile, bytes: vsBytes.length, sha256: hash(vsBytes) }
   const targets = await page.evaluate(async () => {
     const storage = await import('/storage.js'), saved = await storage.readLibrary(), old = saved.data.takes.at(-1), original = await storage.readMedia(old.cameraAssetId), targets = []
     saved.data.markers.push({ id: crypto.randomUUID(), videoId: old.referenceVideoId, title: '合成守門筆記', note: '停止與拒絕不能改寫舊資料', startMs: 500, revision: 1 })
@@ -114,6 +121,8 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
   for (const target of targets.targets) {
     await open(targets.oldTakeId)
     const before = await snapshot(`${target.mode}-before`), previous = await ui()
+    const vsAsset = before.native.data.assets.find(asset => asset.kind === 'vs'), vsIndex = before.media.findIndex(row => row.key === vsAsset?.id)
+    assert(vsIndex >= 0); assert.deepEqual(readFileSync(join(run, `${target.mode}-before-media-${vsIndex}.bin`)), vsBytes, '實際舊VS下載與原生保存bytes不同')
     await page.evaluate(mode => {
       const w = window as any, video = document.getElementById('self') as HTMLVideoElement; w.guardAudit.reset(mode)
       if (mode === 'missing') Object.defineProperty(video, 'requestVideoFrameCallback', { configurable: true, value: undefined })

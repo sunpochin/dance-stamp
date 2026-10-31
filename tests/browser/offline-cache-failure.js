@@ -21,6 +21,43 @@ async (entry) => {
     });
     const before = await snapshot(), worker = context.serviceWorkers().find(w => new URL(w.url()).pathname === '/sw.js');
     assert(worker, '沒有真正的 Service Worker');
+    await page.evaluate(() => {
+      const descriptor = Object.getOwnPropertyDescriptor(MessagePort.prototype, 'onmessage');
+      window.offlineOrderResponses = []; window.offlineOrderDescriptor = descriptor;
+      // 只旁聽真正訊息送達；原 handler 接收同一個事件，避免靠固定等待猜遲到回覆已被處理。
+      Object.defineProperty(MessagePort.prototype, 'onmessage', { ...descriptor, set(handler) {
+        descriptor.set.call(this, typeof handler === 'function' ? function(event) {
+          const result = handler.call(this, event);
+          if (typeof event.data?.complete === 'boolean') window.offlineOrderResponses.push({ complete: event.data.complete, trusted: event.isTrusted });
+          return result;
+        } : handler);
+      } });
+    });
+    await worker.evaluate(() => {
+      const original = MessagePort.prototype.postMessage; let resolve, holding = true;
+      self.offlineOrder = { original, ready: new Promise(done => { resolve = done; }) };
+      // 明示延遲一份真正完整性回覆；不偽造結果，後續查詢仍由原 worker 核對實際快取。
+      MessagePort.prototype.postMessage = function(value, ...args) {
+        if (holding && typeof value?.complete === 'boolean') {
+          holding = false; self.offlineOrder.send = () => original.call(this, value, ...args); resolve(value); return;
+        }
+        return original.call(this, value, ...args);
+      };
+    });
+    await page.locator('#offline-panel').evaluate(panel => { panel.open = true; }); await page.locator('#check-offline').click();
+    assert((await worker.evaluate(() => self.offlineOrder.ready)).complete === true, '未攔到真正的完整快取回覆');
+    await page.evaluate(async () => { for (const name of (await caches.keys()).filter(k => k.startsWith('dance-stamp-web-'))) await (await caches.open(name)).delete('/timeline.js'); });
+    await page.locator('#check-offline').click(); await page.waitForFunction(() => document.getElementById('offline-status').textContent.includes('不完整'));
+    const latestStatus = await page.locator('#offline-status').textContent();
+    await worker.evaluate(() => self.offlineOrder.send());
+    await page.waitForFunction(() => window.offlineOrderResponses.length === 2);
+    const orderedResponses = await page.evaluate(() => window.offlineOrderResponses);
+    assert(orderedResponses[0].complete === false && orderedResponses[1].complete === true && orderedResponses.every(reply => reply.trusted), '沒有收到新不完整、舊完整兩份原生回覆');
+    assert(await page.locator('#offline-status').textContent() === latestStatus && JSON.stringify(await snapshot()) === JSON.stringify(before), '遲到回覆誤報可離線或改動舊資料');
+    await worker.evaluate(() => { MessagePort.prototype.postMessage = self.offlineOrder.original; delete self.offlineOrder; });
+    await page.evaluate(() => { Object.defineProperty(MessagePort.prototype, 'onmessage', window.offlineOrderDescriptor); });
+    await page.evaluate(async () => { await (await fetch('/timeline.js', { cache: 'reload' })).arrayBuffer(); });
+    await page.locator('#check-offline').click(); await ready();
     await worker.evaluate(() => {
       const open = CacheStorage.prototype.open, match = Cache.prototype.match, put = Cache.prototype.put;
       const timeline = key => new URL(typeof key === 'string' ? key : key.url, self.location.origin).pathname === '/timeline.js';
@@ -47,6 +84,6 @@ async (entry) => {
     await page.locator('#offline-panel').evaluate(d => { d.open = true; }); await page.locator('#check-offline').click(); await ready();
     await context.setOffline(true); await page.reload(); await ready();
     assert(JSON.stringify(await snapshot()) === JSON.stringify(before), '修復後離線重開改動資料');
-    return { realWorker: true, corruptCacheNeverServed: true, quotaOpenAndReadFailureKeepOnlineAppUsable: true, incompleteUntilRepair: true, repairedOfflineReload: true, notesAndSyntheticBytesPreserved: true };
+    return { realWorker: true, orderedResponses, staleRealReplyCannotClaimOfflineReady: true, corruptCacheNeverServed: true, quotaOpenAndReadFailureKeepOnlineAppUsable: true, incompleteUntilRepair: true, repairedOfflineReload: true, notesAndSyntheticBytesPreserved: true };
   } finally { await context.close(); }
 }

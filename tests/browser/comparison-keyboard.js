@@ -1,5 +1,5 @@
 /* 檔案用途：驗證雙片入口、播放暫停與微調可由鍵盤操作。所在層：Web 介面驗收。主要關聯：existing-comparison.js、frontend-review。 */
-async (page) => {
+async (page, options = {}) => {
   const origin = new URL(page.url()).origin;
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
@@ -20,9 +20,15 @@ async (page) => {
   const chooserSnapshot = async () => ({ steps, ...await page.evaluate(() => ({ trace: window.comparisonKeyboardTrace, truncated: window.comparisonKeyboardTraceTruncated === true, active: document.activeElement?.id, focused: document.hasFocus(), visibility: document.visibilityState, activation: navigator.userActivation.isActive })).catch(() => ({ unavailable: true })) });
   let chooserInput;
   try {
-    // requested 只代表呼叫等待，不宣稱瀏覽器已確認攔截；送 Enter 前不可插入額外等待來遮住競爭。
+    // 等待呼叫會非同步啟用攔截；完整量測須等原訂閱RPC確認，再送真正Enter，不能靠固定延遲猜就緒。
     mark('waiter-requested');
     const choosing = page.waitForEvent('filechooser').then(chooser => { mark('chooser-resolved'); return chooser; });
+    if (options.interceptionReady) {
+      let armed = false; mark('interception-wait-requested');
+      // 沿同一個15秒選檔等待限制準備階段；不能另開更長期限或接受按鍵前憑空出現的chooser。
+      await Promise.race([options.interceptionReady().then(() => { armed = true; }), choosing.then(() => { if (!armed) throw new Error('按鍵前出現非預期選檔事件'); })]);
+      mark('interception-confirmed');
+    }
     mark('enter-requested'); await page.keyboard.press('Enter'); mark('enter-completed');
     const chooser = await choosing;
     chooserInput = await chooser.element().getAttribute('id');

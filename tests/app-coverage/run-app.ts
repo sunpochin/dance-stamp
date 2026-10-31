@@ -9,6 +9,7 @@ import { chromium, type BrowserContext, type Page } from 'playwright-core'
 import { appFiles, emptyCoverage, instrument, mergeReceipt, receipt, root, sourceHashes } from './instrument'
 import { notices, webFiles, webHeaders, webNotice } from '../../scripts/web-assets'
 import { fixtureFiles } from './prepare-fixtures'
+import { observeKeyboardProtocol } from './keyboard-protocol'
 
 assert.equal(Bun.version, readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), '請使用指定 Bun 版本')
 mkdirSync(resolve(root, 'coverage'), { recursive: true })
@@ -67,14 +68,26 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
+// 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
+const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
-const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+// 恢復守門沿原函式接入，不改前51條順序，保留既有鍵盤故障的前置環境。
+// 匯出暖機中的停止須沿既有回歸執行，恢復片段或保存尾段不能代替這條生命週期。
+if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind), 'export-ready')
+// 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
+if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
+  {
+    // 前置單元測試較久，先取得同一把鎖，避免備妥後才與另一輪 QA 搶跑；失敗仍只釋放自有 nonce。
+    const fd = openSync(lockPath, 'wx'); ownsLock = true
+    try { writeFileSync(fd, JSON.stringify({ owner: 'app-coverage-103', nonce, pid: process.pid })); } finally { closeSync(fd) }
+  }
   save()
   const result = Bun.spawn([process.execPath, '--no-env-file', 'test', '--isolate', '--preload', './tests/app-coverage/unit-preload.ts', './tests/unit'], {
     cwd: root, env: { ...process.env, DANCE_STAMP_COVERAGE_DIR: units }, stdout: Bun.file(resolve(directory, 'unit.log')), stderr: Bun.file(resolve(directory, 'unit-errors.log')),
@@ -125,11 +138,6 @@ try {
   const executable = process.env.DANCE_STAMP_CHROMIUM || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome')
   assert(existsSync(executable), '請用 DANCE_STAMP_CHROMIUM 指定已安裝 Chromium；不自動下載瀏覽器')
   assert(existsSync(resolve(root, 'output/media-probe/camera.y4m')), '請先產生合成測片：bun scripts/make-media-fixtures.ts')
-  {
-    // 長片／相機回歸與其他聊天共用互斥鎖；已存在就停止，不推測舊鎖失效或刪掉他人的鎖。
-    const fd = openSync(lockPath, 'wx'); ownsLock = true
-    try { writeFileSync(fd, JSON.stringify({ owner: 'app-coverage-103', nonce, pid: process.pid })); } finally { closeSync(fd) }
-  }
   launchAttempted = true
   browser = await chromium.launch({ executablePath: executable, headless: true, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', `--use-file-for-fake-video-capture=${resolve(root, 'output/media-probe/camera.y4m')}`, '--mute-audio'] })
   evidence.environment.chromium = browser.version()
@@ -167,18 +175,42 @@ try {
           await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement).disabled && document.getElementById('compare')?.getAttribute('aria-busy') !== 'true')
         }
       }
+      // 操作外錯誤須由公開播放／循環入口驗證，不能直接呼叫內部 handler 湊行數。
+      const practiceError = name.startsWith('practice-native-') ? name.slice('practice-native-'.length) : undefined
       const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
-      const path = resolve(root, 'tests/browser', `${tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
+      const metadataKind = name.startsWith('metadata-stop-') ? name.slice('metadata-stop-'.length) : undefined
+      const frameGuard = name === 'recovery-frame-guard'
+      // 影格守門也以recovery開頭，必須留在原TS函式入口，不能被一般恢復分流攔走。
+      const recovery = !frameGuard && name.startsWith('recovery-') ? name.slice('recovery-'.length) : undefined
+      const path = resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.${frameGuard ? 'ts' : 'js'}`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
-      if (tail) {
-        const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
+      if (tail || metadataKind || frameGuard) {
+        const module = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
         let captureCalls = 0
         await context.exposeBinding('blockedMedia', () => { captureCalls++ })
         await context.addInitScript(() => {
-          for (const key of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[key] = () => { (window as any).blockedMedia(); throw new Error('保存尾段只允許合成檔案，不可擷取硬體') }
+          for (const key of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[key] = () => { (window as any).blockedMedia(); throw new Error('保存回歸只允許合成檔案，不可擷取硬體') }
         })
-        result = await scenario(page, { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }, folder, tail, async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2)))
+        const fixtures = { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }
+        const reportCase = async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2))
+        // 保存與恢復共用硬體禁用邊界，案例本身仍由原函式執行。
+        if (frameGuard) {
+          const frameEvidence: any = { events: [], scope: 'Original native recovery frame guard; controlled chunks and failures, not process termination or camera.' }
+          const saveFrame = () => writeFileSync(resolve(folder, 'evidence.local.json'), JSON.stringify(frameEvidence, null, 2))
+          const event = (type: string, detail: any = {}) => { frameEvidence.events.push({ type, ...detail }); saveFrame() }
+          const ready = async (page: Page) => {
+            await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement)?.disabled && document.getElementById('offline-status')?.textContent?.includes('已檢查應用資源完整'))
+            await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+          }
+          assert.equal(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).revision), 0, '恢復回歸只允許全新合成資料，不清空舊庫')
+          try { await module.recoveryFrameGuard({ page, origin, root, run: folder, evidence: frameEvidence, event, ready, fixtureSource: resolve(media, 'media-feasibility/reference.mp4') }); result = { ...frameEvidence, passed: true } }
+          catch (error) { frameEvidence.failure = String(error); throw error }
+          finally { saveFrame() }
+        } else {
+          const scenario = module.default
+          result = metadataKind ? await scenario(page, fixtures, folder, reportCase, { kind: metadataKind }) : await scenario(page, fixtures, folder, tail, reportCase)
+        }
         assert.equal(captureCalls, 0); result.cameraMicrophoneAndScreenCaptureCalls = captureCalls
       } else if (name.startsWith('storage-recovery-')) {
         const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
@@ -186,7 +218,25 @@ try {
       } else {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
-        if (name === 'capture-integrity') {
+        if (name === 'comparison-keyboard') {
+          const observing = observeKeyboardProtocol(page)
+          try { result = await scenario(page, { interceptionReady: observing.interceptionReady }) }
+          finally {
+            // 成功與失敗同留原生回覆；只看DOM click無法分辨瀏覽器未開啟或driver尚未備妥。
+            evidence.keyboardProtocol = observing.stop()
+            console.log('comparison-keyboard native protocol:', JSON.stringify(evidence.keyboardProtocol))
+          }
+        } else if (name === 'move-draft') {
+          const prepared = await scenario(page)
+          assert.equal(prepared.beforeUnloadPrepared, true, '動作草稿尚未備妥真正離頁驗證')
+          // 草稿預備不代表離頁保護已驗證；真正導航、拒絕原生提示後才執行既有回查階段。
+          const asking = page.waitForEvent('dialog')
+          const leaving = page.goto('about:blank').then(() => ({ resolved: true }), error => ({ resolved: false, error: String(error) }))
+          const dialog = await asking, type = dialog.type(); await dialog.dismiss()
+          assert.equal(type, 'beforeunload', '沒有真正的離頁確認提示')
+          const navigationAttempt = await leaving
+          result = { ...prepared, ...await scenario(page, 'verify-navigation'), nativeDialogType: type, navigationAttempt }
+        } else if (name === 'capture-integrity') {
           // 早停、真短 bytes、同頁重試與救援刪除共用原生回歸；不能以派發 error 事件替代。
           assert(await page.evaluate(() => (window as any).__danceSyntheticCameraOnly === true), '只允許既有合成相機')
           mkdirSync(resolve(media, 'media-feasibility'), { recursive: true })
@@ -207,7 +257,7 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page)
+        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : undefined)
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
