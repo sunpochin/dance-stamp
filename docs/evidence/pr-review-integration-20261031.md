@@ -80,3 +80,12 @@
 - 本機共用媒體鎖由其他作業使用，本輪不接管、刪鎖或啟動第二套相機／媒體測試；完整整合回歸使用原 CI 的隔離環境。工作期間新開 #152／#153 不屬於這 11 份固定範圍。
 
 本輪不關閉仍缺裝置／真人證據的 issue。Safari 私人保存、長輪同步、真相機／LED、實體離線／跨裝置、聽感、完整 G1–G7／G6 仍各自保留；iPhone 暫緩。未新增必要外部服務、改授權、清庫或手動正式發布。
+
+
+### 第一輪整合 CI：70／71，停止觀察範圍修正
+
+精確 head `1bc0b3c95c44fc019b4b65e82938b42f12cd3847` 的 [CI #156 首輪](https://github.com/sunpochin/dance-stamp/actions/runs/41194920278) 保留 **70 PASS／1 FAIL**：`capture` 在 #142 新尾段的「沒有真正原生尾塊與停止事件」斷言失敗；供聲、升版、秒數尺與其餘 70 案通過。harness、Linux 及 64 檔封裝通過不會把此輪改成成功，網站外播放步驟因前置失敗未執行。
+
+原測試在原生 chunks 已落盤後才旁聽 dataavailable，卻要求之後最後一包非空，會漏掉先前已收到的有效資料。[W3C MediaStream Recording](https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-stop) 定義停止時送目前累積的 Blob 再送 stop；週期分包之後，應核對整份資料與停止順序，而非把最後一包一定非空當引擎保證。首輪失敗沒有輸出完整事件陣列，無法倒推該次究竟缺哪個事件；此限制保留，不以推測改寫失敗紀錄。
+
+修正只把本案例的原生觀察器移到每個 MediaRecorder 建立時，以 WeakMap 分開各候選實例，不把格式 fallback 混進真正本輪；停止故障仍是原生 stop，原交易 abort 與全部筆記／媒體／chunks、真正下載及重開斷言不改。保留「完整錄影須有非空原生資料」，另外要求單一 trusted start／stop、無 error，以及停止要求之後的 dataavailable 緊接 stop；失敗會包含完整匿名事件，CI 也列出該順序與 bytes。排除延後停止、縮短／延長期限、重錄追綠或改產品編碼器。後續完整 CI 另綁新 head。

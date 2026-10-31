@@ -8,14 +8,22 @@ async (page) => {
   const stage = value => page.evaluate(value => { window.capture9Stage = value; }, value);
   await page.addInitScript(() => {
     const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices), NativeRecorder = window.MediaRecorder;
-    window.captureTracks = []; window.captureRequests = []; window.captureRecorders = [];
+    window.captureTracks = []; window.captureRequests = []; window.captureRecorders = []; window.captureRecorderEvents = new WeakMap();
     navigator.mediaDevices.getUserMedia = async constraints => {
       if (!window.__danceSyntheticCameraOnly) throw new Error('必須使用合成相機');
       window.captureRequests.push(constraints);
       if (window.captureFailNext) { const name = window.captureFailNext; window.captureFailNext = null; throw new DOMException('synthetic device error', name); }
       const stream = await original(constraints); window.captureTracks.push(...stream.getTracks()); return stream;
     };
-    window.MediaRecorder = class extends NativeRecorder { constructor(...args) { super(...args); window.captureRecorders.push(this); } };
+    window.MediaRecorder = class extends NativeRecorder {
+      constructor(...args) {
+        super(...args); window.captureRecorders.push(this);
+        // 從建立時旁聽，才不漏掉已由 timeslice 送出的非空資料；stop 的最後一包可合法為空。
+        // 每個實例分開記錄，格式啟動失敗後的 fallback 不能混進本輪成功編碼器。
+        const events = []; window.captureRecorderEvents.set(this, events);
+        for (const name of ['start', 'dataavailable', 'stop', 'error']) this.addEventListener(name, event => events.push({ name, trusted: event.isTrusted, bytes: event.data?.size }));
+      }
+    };
     // 只對此隔離頁的合成資料確認保留／重錄，不操作真人素材。
     window.confirm = () => true;
   });
@@ -208,13 +216,17 @@ async (page) => {
     // 真正停止原生編碼器造成提前結束，不派送假 error／stop，原完整性護欄仍須拒絕。
     const recorder = window.captureRecorders.at(-1);
     if (recorder.state !== 'recording') throw new Error('原生編碼器已提前結束，不能當成本次早停證據');
-    for (const name of ['stop', 'dataavailable']) recorder.addEventListener(name, event => audit.recorderEvents.push({ name, trusted: event.isTrusted, bytes: event.data?.size }));
+    audit.recorderEvents = window.captureRecorderEvents.get(recorder);
+    audit.stopRequestedAt = audit.recorderEvents.length;
     recorder.stop();
   }, target.id);
   await idle();
   const failed = await full(), audit = await page.evaluate(() => window.stoppedStateFailure);
   assert(audit.puts === 1 && audit.restored && audit.errors.length === 1 && audit.errors[0].trusted && audit.errors[0].name === 'AbortError' && audit.aborts.length === 1 && audit.aborts[0].trusted && audit.aborts[0].mode === 'readwrite' && audit.unhandled.length === 0, '不是指定狀態寫入的原生中止或留下未處理拒絕');
-  assert(audit.recorderEvents.some(event => event.name === 'stop') && audit.recorderEvents.some(event => event.name === 'dataavailable' && event.bytes > 0) && audit.recorderEvents.every(event => event.trusted), '沒有真正原生尾塊與停止事件');
+  const events = audit.recorderEvents, stopAt = events.findIndex(event => event.name === 'stop');
+  console.log('停止狀態原生錄影事件：', JSON.stringify({ events, stopRequestedAt: audit.stopRequestedAt }));
+  // 完整錄影須有非空資料；另核對 stop 後的原生尾包順序，不把最後一包非空當成引擎保證。
+  assert(events[0]?.name === 'start' && events.filter(event => event.name === 'start').length === 1 && events.filter(event => event.name === 'stop').length === 1 && events.some(event => event.name === 'dataavailable' && event.bytes > 0) && events.every(event => event.trusted) && !events.some(event => event.name === 'error') && stopAt > audit.stopRequestedAt && events[stopAt - 1]?.name === 'dataavailable', '沒有完整原生錄影資料與停止順序：' + JSON.stringify(audit));
   assert(equal(failed.saved, started.saved) && equal(failed.media, before.media) && equal(failed.chunks.filter(row => row.id[0] !== target.cameraAssetId), before.chunks), '狀態失敗改掉已確認 metadata、原媒體或其他 chunks');
   assert((await page.locator('#status').textContent()).includes('錄影未完成') && await page.locator('#partial-download').isVisible() && await page.evaluate(() => window.captureRequests.every(c => c.audio === false) && window.captureTracks.every(t => t.readyState === 'ended') && !document.getElementById('preview').srcObject && document.getElementById('storage-recovery').hidden), '早停失敗沒有救援原片、停止相機、禁用麥克風或保留原完整性提示');
   const stoppedBytes = await page.evaluate(async id => {
