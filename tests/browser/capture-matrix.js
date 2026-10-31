@@ -38,12 +38,21 @@ async (page, scenario = { rate: 1, seconds: 15, countdown: 3 }) => {
     const reference = document.getElementById('reference'), self = document.getElementById('self');
     await self.play(); const start = self.currentTime; await new Promise(r => setTimeout(r, 200)); self.pause();
     const preserved = await Promise.all(saved.data.takes.filter(t => beforeIds.includes(t.id)).map(async t => !!await storage.readMedia(t.cameraAssetId)));
-    return { state: take.state, rate: take.rate, plannedMs: (take.referenceEndMs - take.referenceStartMs) / take.rate, decodedMs: Math.round(self.duration * 1000), sourceAtStopMs: Math.round(reference.currentTime * 1000), bytes: blob?.size, metadataBytes: asset.byteLength, played: self.currentTime > start, oldTakesPreserved: preserved.every(Boolean), sourceRateAfter: reference.playbackRate, allTracksEnded: window.captureMatrixTracks.every(t => t.readyState === 'ended'), noMicrophone: window.captureMatrixRequests.every(c => c.audio === false), captureTiming: take.captureTiming, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent).capture };
+    // 先封存原 B 讀值，再測下一次播放；不能讓已前進的位置替收尾過關，也不能把回跳延到下一次。
+    const sourceAtStopMs = Math.round(reference.currentTime * 1000), sourcePitchAfter = reference.preservesPitch, sourceMutedAfter = reference.muted;
+    await reference.play();
+    let minimumMs = Math.min(sourceAtStopMs, reference.currentTime * 1000);
+    const began = performance.now();
+    while (performance.now() - began < 1500 && !reference.ended) { await new Promise(r => setTimeout(r, 30)); minimumMs = Math.min(minimumMs, reference.currentTime * 1000); }
+    reference.pause();
+    const nextPlayback = { minimumMs, endMs: reference.currentTime * 1000, rate: reference.playbackRate, pitch: reference.preservesPitch };
+    return { state: take.state, rate: take.rate, plannedMs: (take.referenceEndMs - take.referenceStartMs) / take.rate, decodedMs: Math.round(self.duration * 1000), sourceAtStopMs, sourcePitchAfter, sourceMutedAfter, nextPlayback, bytes: blob?.size, metadataBytes: asset.byteLength, played: self.currentTime > start, oldTakesPreserved: preserved.every(Boolean), sourceRateAfter: reference.playbackRate, allTracksEnded: window.captureMatrixTracks.every(t => t.readyState === 'ended'), noMicrophone: window.captureMatrixRequests.every(c => c.audio === false), captureTiming: take.captureTiming, diagnostics: JSON.parse(document.getElementById('diagnostics').textContent).capture };
   }, before.takes.map(t => t.id));
   assert(result.state === 'ready' && result.rate === rate && result.plannedMs === seconds * 1000 && result.played && result.bytes > 0 && result.bytes === result.metadataBytes, `原片未完整保存或播放：${JSON.stringify(result)}`);
   // 這是合成案例的長度檢查；真機 G1 與成檔 G2 仍需獨立證據。
   assert(Math.abs(result.decodedMs - result.plannedMs) <= 100 && result.sourceAtStopMs >= seconds * rate * 1000, `時長或 B 停止不符：${JSON.stringify(result)}`);
-  assert(result.oldTakesPreserved && result.allTracksEnded && result.noMicrophone && result.sourceRateAfter === 2, '覆寫舊 take、漏關相機或速度未恢復');
+  assert(result.oldTakesPreserved && result.allTracksEnded && result.noMicrophone && result.sourceRateAfter === 2 && result.sourcePitchAfter && !result.sourceMutedAfter, '覆寫舊 take、漏關相機或練習聲音未恢復');
+  assert(result.nextPlayback.minimumMs >= seconds * rate * 1000 && result.nextPlayback.minimumMs >= result.sourceAtStopMs - 100 && result.nextPlayback.endMs > result.sourceAtStopMs + 50 && result.nextPlayback.rate === 2 && result.nextPlayback.pitch, `下一次播放回跳或未恢復練習設定：${JSON.stringify(result.nextPlayback)}`);
   assert(Number.isSafeInteger(result.captureTiming?.recorderRequestedMs) && Number.isSafeInteger(result.captureTiming?.recorderStartedMs) && Number.isSafeInteger(result.captureTiming?.referencePlayResolvedMs), '缺少原生 start／播放觀測對照');
   return { scenario, ...result };
 }
