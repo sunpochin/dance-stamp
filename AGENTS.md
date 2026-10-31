@@ -76,6 +76,7 @@ PR 合併、程式驗證、真機驗收、發布分開記錄，不能互相代�
 | 本機資料、備份、migration | [資料格式](docs/DATA_FORMAT.md) |
 | 手機、媒體與發布驗證 | [驗收計畫](docs/ACCEPTANCE.md)、[證據範本](docs/agents/acceptance-template.md) |
 | 選用或修改 skill | [Skill 使用規則](docs/agents/skills.md) |
+| 共用的開工、排查、審查、介面及 skill 檢查 | [Agent Work Methods v0.1.0](docs/agents/work-methods.md)，產品規則仍讀本檔與下列補充 |
 | 程式分工、非同步狀態與競態 | [程式慣例](docs/agents/code-conventions.md) |
 | 審查、失敗排查與交接 | [審查方法](docs/agents/review.md) |
 | 外部工具或 skill 的相依與權限 | [Skill 安全](docs/agents/skill-security.md) |

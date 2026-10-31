@@ -342,7 +342,9 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 
 2026-11-01（#177）決策：開發與維護只依本 repo 的追蹤內容。採用工具、完整必要相依、規則、skills、測試、文件與授權直接納入 Git；移除依賴本機來源副本的檢查入口。來源清單只核對公開且受 Git 追蹤的檔案、適配與指紋，歷史來源署名集中在 THIRD_PARTY_NOTICES.md；授權路徑改為中性的 `vendor/harness/`，下載包一併保留。
 
-通用方法整理為 [程式慣例](docs/agents/code-conventions.md)、[審查與交接](docs/agents/review.md)、[Skill 安全](docs/agents/skill-security.md) 與 [介面檢查](docs/agents/ui-review.md)，由根規則及工作流程按需導覽。保留狀態分離、競態防護、先重現、版本證據與完整相依；排除其他產品專用規則、特定 bot 豁免、部署與內部事件。不整包複製未採用資產，也不因獨立化重寫既有 shell parser；其相依與正常／負向回歸保留。
+2026-11-01（#184）共用方法改採 [Agent Work Methods v0.1.0](docs/agents/work-methods.md)：像放一本完整手冊在 repo，工具只用相對書籤讀它。commit `938619f5472ff4475f702d51e2a466ab0cc63f60` 的 33 檔原樣納入 `vendor/agent-work-methods/`，[固定清單](docs/ai/work-methods-lock.json) 記錄發行包與逐檔 SHA-256。五個 `awm-*` 只存一份正文，root skills 與三個工具入口相對連結到同一份本地內容；一般檢查核對 bytes、Git 追蹤集合與實體目標，不需 Python、下載或外部 checkout。
+
+原 [程式慣例](docs/agents/code-conventions.md)、[審查](docs/agents/review.md)、[Skill 安全](docs/agents/skill-security.md)、[介面檢查](docs/agents/ui-review.md) 改為產品補充；舊 skill 名稱保留薄接線，不再維護第二套通用正文。影片與資料保全、同步／音訊門檻、手機驗收、語言、分支／推送與發布授權仍由本產品規則決定。通用修改回來源發布，產品透過固定版本 PR 升級；刻意保留跨 repo 的完整副本來換取各自自足，排除會依賴外部狀態的跨 repo symlink、submodule、即時規則服務及自動更新。原 shell parser 與正常／負向回歸不變。
 
 `bun run check` 驗證指紋、Git 追蹤內容、入口、文件、公開內容、工具／產品邏輯、TypeScript checkJs、Biome 與 Web 建置；不代替 G1–G7。以只含公開 Git 內容的乾淨副本執行安裝、check 與封裝，確認沒有靠原工作目錄的隱藏文件通過。CI 以 `.github/workflows/harness-ci.yml` 的實際設定為準，不新增遠端服務或部署步驟。
 

@@ -1,6 +1,12 @@
 /* 檔案用途：檢查公開內容常見的私人識別。所在層：純判斷。主要關聯：check-public.ts、harness.test.ts。 */
 import { containsSecret, protectedPath } from './stagedSafety'
 
+export function pinnedSkillAlias(path: string, actualTarget: string): boolean {
+  // 只擴充這五個固定入口，不把整個 vendor/ 或任意 repo 內連結列入白名單。
+  const name = path.match(/^(?:skills|\.(?:agents|codex|claude)\/skills)\/(awm-(?:onboarding|debugging|review-evidence|frontend-review|skill-safety))$/)?.[1]
+  return !!name && actualTarget === `vendor/agent-work-methods/skills/${name}`
+}
+
 export function publicProblems(path: string, content: string): string[] {
   const problems: string[] = []
   // 未整理的本機副本不能因換了目錄名稱就繞過公開邊界。
