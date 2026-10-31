@@ -19,7 +19,8 @@ const server = Bun.serve({
     let content: Blob = Bun.file(resolve(root, file))
     if (file === 'sw.js' && mode !== 'current') { let source = await content.text(); source = source.replace(/const version = '([^']+)'/, (_, v) => `const version = '${v}-${mode}'`); if (mode === 'bad') source = source.replace(/(\"\/style.css\":\")[a-f0-9]+/, '$1' + '0'.repeat(64)); content = new Blob([source]); }
     return new Response(request.method === 'HEAD' ? null : content, { headers: {
-      'Content-Type': file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
+      // 更新測試仍提供真正人物模型；WASM 的 MIME 不能被當一般文字而失去串流編譯。
+      'Content-Type': file.endsWith('.wasm') ? 'application/wasm' : file.endsWith('.tflite') ? 'application/octet-stream' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
       ...webHeaders,
     } })
   },

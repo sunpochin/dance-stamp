@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { root } from './instrument'
 
 export const fixtureFiles = [
+  'follow/reference.mp4', 'follow/self.mp4',
   'media-probe/reference.mp4', 'media-probe/short/reference.mp4', 'media-probe/empty/reference.mp4',
   ...['portrait.mp4', 'orientation.mp4', 'sample.mov', 'vfr.mp4', 'renamed.data', 'corrupt.mp4'].map(name => `media-probe/player/${name}`),
   'export-failure/reference.mp4', 'export-failure/self.mp4', 'media-feasibility/reference.mp4',
@@ -24,6 +25,7 @@ if (import.meta.main) {
     mkdirSync(resolve(path, '..'), { recursive: true })
     assert.equal(Bun.spawnSync(['ffmpeg', '-v', 'error', '-n', '-i', resolve(root, 'output/export-failure', `${source}.mp4`), '-t', duration, '-c', 'copy', path], { stdout: 'inherit', stderr: 'inherit' }).exitCode, 0)
   }
+  assert.equal(Bun.spawnSync([process.execPath, '--no-env-file', 'scripts/make-follow-fixtures.ts'], { cwd: root, stdout: 'inherit', stderr: 'inherit' }).exitCode, 0)
   for (const file of fixtureFiles) assert(existsSync(resolve(root, 'output', file)), `缺少合成素材：${file}`)
   console.log('全 App 覆蓋率合成素材已備妥；未覆寫既有檔案。')
 }

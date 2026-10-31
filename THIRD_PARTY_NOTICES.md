@@ -17,3 +17,9 @@
 - `playwright-core` 1.64.1：Apache-2.0，來源 https://github.com/microsoft/playwright 。沿用已安裝瀏覽器，不自動下載瀏覽器或進入產品資源。
 
 精確解析與完整性見 bun.lock；只安裝目前平台的工具，不進瀏覽器產物。原包保留授權，本產品的非商用條件不取代它們的條款。
+
+## 本機人物跟隨（#165）
+
+- `@mediapipe/tasks-vision` 1.2.0：Apache-2.0，來源 https://github.com/google-ai-edge/mediapipe ，精確版本與完整性見 bun.lock。瀏覽器包包含其 vision bundle、非 SIMD WASM 與載入器。僅將載入器兩處 Emscripten 虛擬家目錄改為公開範例路徑，避免被誤認成私人路徑；不改 WASM 或偵測模型。
+- EfficientDet-Lite0 int8 模型 revision 1：Apache-2.0，官方來源 https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/1/efficientdet_lite0.tflite 。SHA256 `0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb`。模型以 COCO 類別偵測人物，不提供身分辨認或正確率保證。
+- 完整 [Apache-2.0 授權](vendor/mediapipe/LICENSE) 隨下載包提供。模型與分析程式都由同一包載入；不連 CDN、不上傳影片，非商用根授權不取代上述第三方授權。
