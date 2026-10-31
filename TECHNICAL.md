@@ -1,7 +1,7 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-#103 已開舊頁遇到另一分頁升版的原生連線與備份保全見[資料庫升版回歸證據](docs/evidence/issue-103-storage-version-change.md)。回歸檢查舊頁停止保存、草稿與原片仍可另存；這是未知版本控制測試，產品 schema 不改。
+#103 已開舊頁遇到另一分頁升版的原生連線與備份保全見[資料庫升版回歸證據](docs/evidence/issue-103-storage-version-change.md)。回歸檢查舊頁停止保存、草稿與原片仍可另存；同輪 CI 在網站關閉後另以原生 file 播放器重開真下載。這是未知版本控制測試，產品 schema 不改。
 
 #103 錄影供聲的停止、原期限逾時及原生聲音中斷回歸見[錄影供聲保全證據](docs/evidence/issue-103-webkit-capture.md)。沿原 WebKit 匯出基線與合成檔案相機，確認舊片／筆記保留及同頁重試；Chromium 條件分支測試不代表原生 Safari 或真機驗收。
 
