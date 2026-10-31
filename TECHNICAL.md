@@ -928,6 +928,14 @@ Safari 錄影沿用 `decodeLocalAudio` 的原片 A–B 有界 AAC 解碼，在�
 排除 video→MediaElementAudioSource 路由（同樣回跳且時長更差）、整體停用音高保持（會改變一般練習）、只靜音（跟跳失去聲音）、延後恢復 pitch／rate（下一次仍失敗），以及固定裝置補償值。最初在 play 前供聲的半速見證檔曾達 107ms 聲畫差，未放寬門檻；只改成 play Promise 完成後供聲，原生逐幀／提示音對照降為 82ms。額外等待首影格的方案遇到原生查詢逾時，未取得完整結果、不採用。實際產品矩陣與 scoped 見證檔分開記錄，不以 JS 時鐘代替成檔影音或完整 G1–G7。
 
 
+### PR #130 收尾審查：B 後仍須驗聲音
+
+照常按錄影即可；如果聲音在最後一刻停住，這次會標成「未完成」並保留舊片，不會當成成功錄影。因為畫面可能已經先跑到 B，結束前仍要再確認聲音跟得上。一般練習維持原音高。
+
+原生影片可在主執行緒忙碌時跨過 B，下一輪 while 條件直接為 false，會略過只放在迴圈內的音訊檢查。Safari 實測已出現原片 15.090 秒、B／±100ms／下一次播放均合格，音訊卻已停止且時鐘差約 120ms，take 仍為 ready。只把狀態檢查留在迴圈內不足以保護新的分離聲路。
+
+沿用同一 checkCaptureAudio，在每輪及自然退出迴圈後各呼叫，仍使用原音訊狀態與 100ms 來源／音訊映射；不改 B、開錄／停止時機、seek 或片長判定。完整性錯誤也必須保留在 diagnostics.capture.interrupted，不能因位置已過 B 而覆寫為完成。既有 beforeCommit 會拒絕取代舊播放器，保留 interrupted take、原片與 chunks。原生重現及本機修正結果見 [#130 收尾審查](docs/evidence/issue-9-capture-recovery.md#pr-130-c4cc5fb-收尾審查)。
+
 ## 52. 2026-10-31 既有 PR 整合
 
 錄影中斷後能保留原片，停止後也能接著練習；離線檢查以最後一輪結果為準。整合來源與衝突取捨見[審查紀錄](docs/evidence/pr-review-integration-20261031.md)。

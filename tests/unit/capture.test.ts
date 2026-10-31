@@ -1,8 +1,30 @@
 /* 檔案用途：驗證新錄影時長、錯誤提示與暫存片段完整性。所在層：媒體純邏輯測試。主要關聯：timeline.js、recorder.js、storage.js。 */
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { captureDuration } from '../../web/timeline.js'
 import { assembleChunks, cameraError, normalizedVideo } from '../../web/recorder.js'
 import { newLibrary, validateBackup } from '../../web/library.js'
+
+test('等待期間跨過 B 仍檢查聲音狀態與原 100ms 界線', async () => {
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const source = main.match(/status\('錄影中。[^]*?(?=\n      } finally \{)/)![0]
+  const completion = main.match(/info\.interrupted = signal\.aborted[^;]*;/)![0]
+  // 直接跑產品迴圈；只模擬 await 期間原生影像已跨 B，防止測試複製檢查而漏掉收尾位置。
+  // 暫停案刻意對齊時鐘，才能獨立驗證狀態檢查。
+  for (const [state, elapsed, rejected] of [['running', 15.068, false], ['running', 14.969, false], ['running', 14.967, true], ['suspended', 15.068, true]] as const) {
+    const reference = { currentTime: 14.93, ended: false, paused: false }, audio = { state: 'running', currentTime: 14.93 }
+    const info = { interrupted: false }
+    const pending = runInNewContext(`(async () => { let captureIntegrityError; try { ${source} } finally { ${completion} } })()`, {
+      reference, audio, info, value: { startMs: 0, endMs: 15_000, rate: 1 }, captureSource: {}, captureAudioAt: 0,
+      began: 0, performance: { now: () => 0 }, signal: new AbortController().signal, status() {}, renderBeatPosition() {},
+      wait: async () => { reference.currentTime = 15.068; audio.state = state; audio.currentTime = elapsed },
+    })
+    if (rejected) await expect(pending).rejects.toThrow('示範聲音中斷或不同步')
+    else await expect(pending).resolves.toBeUndefined()
+    expect(info.interrupted).toBe(rejected)
+  }
+})
 
 test('EBML 容器依文件類型辨識 WebM 與 Matroska，補正 MIME 不更動原片 bytes', async () => {
   // 兩種容器共用 EBML magic；只看開頭四 bytes 會把 Matroska 誤叫成 WebM。
