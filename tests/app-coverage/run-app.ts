@@ -69,7 +69,7 @@ function watchPage(page: Page) {
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
 // 獨立跟隨結果也走真正預設頁；整合時不能退回暫藏工具全開的介面。
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance'])
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance', 'webkit-follow-results'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -101,6 +101,8 @@ if (!selected.length) scenarios.push('person-follow')
 if (!selected.length) scenarios.push('follow-results')
 // 計時只驗數字與保全；CI 機器速度不當成效能門檻或最佳化證據。
 if (!selected.length) scenarios.push('follow-performance')
+// Chrome 元素供聲不能替 Safari 的有界 AAC 供聲背書；重用完整單側結果案例並保留原76條順序。
+if (!selected.length) scenarios.push('webkit-follow-results')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -194,7 +196,7 @@ try {
     activeScenario = name
     updateMode = 'current'
     assert(/^[a-z][a-z-]+$/.test(name), '只接受明確的瀏覽器回歸名稱')
-    const context = await browser.newContext(name === 'webkit-audio-branch' || name === 'webkit-capture-branch' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
+    const context = await browser.newContext(name === 'webkit-audio-branch' || name === 'webkit-capture-branch' || name === 'webkit-follow-results' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
     try {
       await page.goto(origin)
       if (name === 'self-failure') {
@@ -213,7 +215,7 @@ try {
       const frameGuard = name === 'recovery-frame-guard'
       // 影格守門也以recovery開頭，必須留在原TS函式入口，不能被一般恢復分流攔走。
       const recovery = !frameGuard && name.startsWith('recovery-') ? name.slice('recovery-'.length) : undefined
-      const path = resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.${frameGuard ? 'ts' : 'js'}`)
+      const path = resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name === 'webkit-follow-results' ? 'follow-results' : name}.${frameGuard ? 'ts' : 'js'}`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
       if (tail || metadataKind || frameGuard) {
@@ -293,7 +295,7 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : name === 'storage-version-change' ? { directory: media } : undefined)
+        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : name === 'storage-version-change' ? { directory: media } : name === 'follow-results' || name === 'webkit-follow-results' ? { boundedAudio: name === 'webkit-follow-results' } : undefined)
       }
       // 兩條回歸共用逐檔完整核對；產品內Blob的指紋不能代替真正下載內容。
       if (name === 'webkit-capture-branch' || name === 'storage-version-change') {
