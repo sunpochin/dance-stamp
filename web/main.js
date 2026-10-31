@@ -23,6 +23,8 @@ const reference = $('reference'), self = $('self'), preview = $('preview'), outp
 const canvas = $('canvas'), context = drawingContext(canvas);
 const overlay = $('overlay-canvas'), overlayContext = drawingContext(overlay);
 const localAudio = safariAudio();
+// 只控制當前開放的介面；不改既有資料格式，也不刪除之後要恢復的功能。
+const comparisonOnly = document.body.hasAttribute('data-comparison-only');
 let camera, cameraWatch, active, referenceDurationMs = 0, selfDurationMs = 0, takeBlob, outputBlob;
 let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
@@ -58,6 +60,12 @@ let beatEditorVideoId, beatDirty = false;
 let looping = false, practiceStarting = false, practiceController, practiceSeek, practiceFrame, practiceFrameUsesVideo, practiceToken = 0;
 
 function status(message) { $('status').textContent = message; }
+function updateStopControl() {
+  const stoppable = !!active || !!camera || looping || practiceStarting || !reference.paused || !self.paused;
+  $('stop').toggleAttribute('data-stoppable', stoppable);
+  // 閒置會收起停止鍵，先交回可見控制，避免鍵盤焦點落在已隱藏的按鈕。
+  if (comparisonOnly && !stoppable && document.activeElement === $('stop')) focusControl(operationTrigger || (referenceDurationMs ? reference : $('select-video')));
+}
 function showStorageRecovery() {
   if (!storageUnconfirmed()) return;
   // 使用記憶體中的原片／VS 與最後確認的筆記另存；不重新讀取可能仍卡住的 DB。
@@ -112,6 +120,7 @@ function releaseCamera() {
   $('preview-frame').hidden = true;
   self.hidden = false;
   $('capture').disabled = true;
+  updateStopControl();
 }
 function stop() {
   active?.abort();
@@ -122,6 +131,7 @@ function stop() {
   // 原生錯誤可能先把影片變成 paused，pause() 就不再發事件；閒置停止仍須明確暫停音訊。
   // active 的成檔保全由 operation 收尾持有，不能借一般停止提早截斷它的音訊生命週期。
   if (!active && audio?.state === 'running') audio.suspend().catch(() => {});
+  updateStopControl();
 }
 function updateControls() {
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
@@ -142,7 +152,7 @@ function updateControls() {
     }
   }
   $('reference-file-hint').textContent = referenceDurationMs ? `已載入示範影片 · ${(referenceDurationMs / 1000).toFixed(1)} 秒${pendingLinkId ? '；請先預覽並確認連結。' : '。'}` : '支援 MOV／MP4 等；選片不會自動上傳。';
-  $('self-file-hint').textContent = selfDurationMs ? `已載入練習影片 · ${(selfDurationMs / 1000).toFixed(1)} 秒${pendingTakeId ? '；請先預覽並確認連結。' : '。'}` : !currentVideoId ? '先選左邊示範影片；若正在重連，請先預覽並確認。' : '選已錄好的影片放在右邊；還沒錄好可展開下方相機錄影。';
+  $('self-file-hint').textContent = selfDurationMs ? `已載入練習影片 · ${(selfDurationMs / 1000).toFixed(1)} 秒${pendingTakeId ? '；請先預覽並確認連結。' : '。'}` : !currentVideoId ? '先選左邊示範影片；若正在重連，請先預覽並確認。' : comparisonOnly ? '選自己已錄好的練習影片，放在右邊比較。' : '選已錄好的影片放在右邊；還沒錄好可展開下方相機錄影。';
   $('new-take').disabled = !referenceDurationMs || !currentVideoId || !!active;
   $('capture').disabled = !camera;
   $('compare').disabled = !referenceDurationMs || !selfDurationMs || !!pendingTakeId || !activeTakeId || !!active;
@@ -161,7 +171,7 @@ function updateControls() {
     for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
     showStorageRecovery();
   }
-  updateOverlayControls(); updateSourceTimelines();
+  updateOverlayControls(); updateSourceTimelines(); updateStopControl();
 }
 function updateOverlayControls() {
   let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
@@ -217,7 +227,7 @@ async function operation(task) {
   if (storageUnconfirmed()) { showStorageRecovery(); return; }
   const controller = new AbortController(), trigger = document.activeElement;
   operationTrigger = trigger; operationFocus = null;
-  active = controller;
+  active = controller; updateStopControl();
   for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'true');
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
   $('share-controls').disabled = true;
@@ -494,7 +504,7 @@ $('select-video').addEventListener('click', () => $('reference-file').click());
 $('select-self-video').addEventListener('click', () => $('self-file').click());
 $('reference-file').addEventListener('change', () => operation(async signal => {
   if (keepMarkerDraft()) { $('reference-file').value = ''; return; }
-  if (takeBlob && !pendingLinkId && !confirm('更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
+  if (takeBlob && !pendingLinkId && !confirm(comparisonOnly ? '更換示範影片前，請先下載目前的 VS。確定更換？' : '更換示範前，請先下載自拍與 VS。確定改選？')) { $('reference-file').value = ''; return; }
   releaseCamera();
   const videoId = crypto.randomUUID(), assetId = crypto.randomUUID();
   const selected = await chooseFile($('reference-file'), reference, 'reference', signal, async candidate => {
@@ -519,11 +529,11 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
   const previous = urls.get('self'); if (previous) URL.revokeObjectURL(previous); urls.delete('self');
   currentVideoId = videoId; sessionMedia.set(assetId, selected.file);
   $('video-title').value = requireCurrentVideo().title; renderLibrary();
-  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可選練習影片比較，也可錄下自己。`);
+  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。請選右邊練習影片，對齊同一個動作。`);
 }));
 $('self-file').addEventListener('change', () => operation(async signal => {
   if (!referenceDurationMs || !currentVideoId) throw new Error('請先載入並連結示範影片。');
-  if (takeBlob && !pendingTakeId && !confirm('請先下載上一段自拍。確定載入另一段？')) { $('self-file').value = ''; return; }
+  if (takeBlob && !pendingTakeId && !confirm(comparisonOnly ? '確定更換練習影片？已匯出的 VS 仍會保留。' : '請先下載上一段自拍。確定載入另一段？')) { $('self-file').value = ''; return; }
   releaseCamera();
   let savedTake;
   const selected = await chooseFile($('self-file'), self, 'self', signal, async candidate => {
@@ -543,7 +553,7 @@ $('self-file').addEventListener('change', () => operation(async signal => {
   if (pendingTakeId) { $('confirm-take').hidden = false; status('請播放預覽自拍原片，再確認連結到待恢復的 take。'); return; }
   activeTakeId = savedTake.id; $('rate').value = '1'; $('offset').value = '0';
   sessionMedia.set(savedTake.cameraAssetId, selected.file);
-  status('兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
+  status(comparisonOnly ? '兩片已載入。設定同一個動作的起點，再一起預覽或輸出 VS。原片不會上傳。' : '兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
 }));
 $('camera-facing').addEventListener('change', () => {
   if (active) return;
@@ -871,7 +881,13 @@ $('share').addEventListener('click', async () => {
   catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); status(error.name === 'AbortError' ? '已取消分享，影片仍保留。' : '分享失敗，影片仍可下載或重試。'); }
 });
 $('pause-comparison').addEventListener('click', () => { stop(); status('兩片已一起暫停；可拖動共同時間線再預覽。'); });
-$('stop').addEventListener('click', () => { stop(); status('已要求停止，正在保留已錄到的資料。'); });
+$('stop').addEventListener('click', () => {
+  const working = !!active; stop();
+  // 非同步保全的結果由 operation 回報；一般暫停不冒稱仍在保存錄影。
+  if (!comparisonOnly) status('已要求停止，正在保留已錄到的資料。');
+  else if (!working) status('已暫停。');
+});
+for (const video of [reference, self]) for (const type of ['play', 'pause', 'ended']) video.addEventListener(type, updateStopControl);
 document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
 window.addEventListener('orientationchange', stop);
 document.addEventListener('freeze', () => { stop(); audio?.suspend().catch(() => {}); });
@@ -883,7 +899,7 @@ window.addEventListener('pagehide', e => {
   urls.forEach(url => { URL.revokeObjectURL(url); }); urls.clear(); sessionMedia.clear();
 });
 // BFCache 仍是原模組與原連線；返回上一頁不能解除未確認旗標，必須真正重新導航讀回。
-window.addEventListener('pageshow', e => { if (e.persisted) { status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); updateControls(); } });
+window.addEventListener('pageshow', e => { if (e.persisted) { status(comparisonOnly ? '已返回頁面。請確認兩側影片與起點，再繼續比較。' : '已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); updateControls(); } });
 // 更新與離頁共用草稿判斷，不能讓「立即更新」繞過原本的保存保護。
 function hasUnsavedWork() {
   const video = state?.data.videos.find(value => value.id === currentVideoId);
@@ -1633,7 +1649,7 @@ function clearPracticeWatch() {
 }
 function stopPractice() {
   looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null; practiceSeek = null;
-  reference.pause(); $('loop').textContent = '開始 A–B 循環';
+  reference.pause(); $('loop').textContent = '開始 A–B 循環'; updateStopControl();
 }
 function applyPracticeSettings() {
   const rate = Number($('practice-rate').value);
@@ -1661,7 +1677,7 @@ async function rewindPractice(seconds, signal) {
   try { await pending; } finally { if (practiceSeek === pending) practiceSeek = null; }
 }
 async function playLoopFromA(controller) {
-  practiceStarting = true;
+  practiceStarting = true; updateStopControl();
   try {
     const { a } = practiceRange(); reference.pause();
     await rewindPractice(a, controller.signal); controller.signal.throwIfAborted();
@@ -1815,5 +1831,5 @@ ready = (async () => {
     // 保存佇列、播放與相機也要結束；已選 File 則由提示明說重載後須重新選取。
     canUpdate: () => !hasUnsavedWork() && !camera && reference.paused && self.paused && !looping && !practiceStarting && !practiceSeek && !document.querySelector('[aria-busy="true"]'),
     refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
-})().catch(error => { $('storage-status').textContent = `本機儲存無法開啟：${error.message} 沒有重置或刪除舊資料。`; throw error; });
+})().catch(error => { $('storage-status').textContent = `本機儲存無法開啟：${error.message} 沒有重置或刪除舊資料。`; status($('storage-status').textContent); throw error; });
 ready.catch(() => {}); report();

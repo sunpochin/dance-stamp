@@ -5,7 +5,7 @@
 
 **產品目標：完全免費、非商用、原始碼公開。平台順序：Web 優先；核心功能無法可靠完成時，iOS 優先於 Android。**
 
-已有可執行的桌面 Web 預覽版：選片、時間筆記、變速／A–B、錄影、校正、單一 VS 影片與備份。依使用者本次決定，先做桌面 Web，iPhone／iOS 驗收不阻擋此預覽交付；未宣稱手機支援或完整 P0 驗收。詳見 [Web 使用說明](docs/WEB_PREVIEW.md)。
+目前桌面 Web 預覽只開放兩支已錄影片的選片、校正、比較與單一 VS 下載；即時錄影、筆記與其他管理工具暫時隱藏，原有資料保留。依使用者本次決定，先做桌面 Web，iPhone／iOS 驗收不阻擋此預覽交付；未宣稱手機支援或完整 P0 驗收。詳見 [Web 使用說明](docs/WEB_PREVIEW.md)。
 
 使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
 
