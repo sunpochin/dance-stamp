@@ -934,7 +934,9 @@ Safari 錄影沿用 `decodeLocalAudio` 的原片 A–B 有界 AAC 解碼，在�
 
 原生影片可在主執行緒忙碌時跨過 B，下一輪 while 條件直接為 false，會略過只放在迴圈內的音訊檢查。Safari 實測已出現原片 15.090 秒、B／±100ms／下一次播放均合格，音訊卻已停止且時鐘差約 120ms，take 仍為 ready。只把狀態檢查留在迴圈內不足以保護新的分離聲路。
 
-沿用同一 checkCaptureAudio，在每輪及自然退出迴圈後各呼叫，仍使用原音訊狀態與 100ms 來源／音訊映射；不改 B、開錄／停止時機、seek 或片長判定。完整性錯誤也必須保留在 diagnostics.capture.interrupted，不能因位置已過 B 而覆寫為完成。既有 beforeCommit 會拒絕取代舊播放器，保留 interrupted take、原片與 chunks。原生重現及本機修正結果見 [#130 收尾審查](docs/evidence/issue-9-capture-recovery.md#pr-130-c4cc5fb-收尾審查)。
+沿用同一 checkCaptureAudio，在每輪及自然退出迴圈後各呼叫，仍使用原音訊狀態與 100ms 來源／音訊映射；不改 B、開錄／停止時機或 seek。完整性錯誤也必須保留在 diagnostics.capture.interrupted，不能因位置已過 B 而覆寫為完成。既有 beforeCommit 會拒絕取代舊播放器，保留 interrupted take、原片與 chunks。原生重現及本機修正結果見 [#130 收尾審查](docs/evidence/issue-9-capture-recovery.md#pr-130-c4cc5fb-收尾審查)。
+
+若片段剛好錄到示範影片結尾，聲音播完不應被當成故障；但拖長的錄影仍不能當成功。PR #138 審查另以原生 Safari 重現 15.098333 秒的合格原片因全域 AudioContext 時鐘繼續走而被誤拒。聲音位置因此限制在已準備的 PCM 終點，保留狀態檢查及原 100ms；不截斷示範位置、停止讀值或成檔。這也使非 EOF 超過 B 映射 100ms 的晚停無法靠全域時鐘一起前進而過關。只有有界供聲且自然 EOF 的成功候選，另在 beforeCommit 以原生 self.duration 未四捨五入值守住既有 ±100ms，超差仍保留舊片與 chunks。其他聲路、原 expected−500ms 下限及合法中斷片保全不變；排除只略過 EOF 檢查或只截斷聲音時鐘、卻接受過長原片的做法。EOF 的原 raw-play 續播判定仍照實記失敗，不能改標為原 #119 續播 gate 通過。
 
 ## 52. 2026-10-31 既有 PR 整合
 

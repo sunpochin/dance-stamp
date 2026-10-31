@@ -629,7 +629,8 @@ $('capture').addEventListener('click', () => operation(async signal => {
         status('錄影中。示範到片段終點會停止，也可隨時按停止。');
         const checkCaptureAudio = () => {
           // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
-          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - (audio.currentTime - captureAudioAt) * 1000) > 100)) {
+          // PCM 播完後 context 時鐘仍前進；只界定真正已播出的聲音位置，不改示範或 B 的讀值。
+          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - Math.min((audio.currentTime - captureAudioAt) * 1000, expectedDurationMs)) > 100)) {
             captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。'); throw captureIntegrityError;
           }
         };
@@ -663,6 +664,12 @@ $('capture').addEventListener('click', () => operation(async signal => {
               if (!info.interrupted && candidate.duration <= expectedDurationMs - 500) {
                 info.interrupted = true;
                 captureIntegrityError = new Error('錄影未完成：原片長度不足。未完成原片可另存；舊自拍與 VS 保留。');
+                throw captureIntegrityError;
+              }
+              // EOF 的聲音時鐘有終點，須另守住原生未四捨五入片長，不能把晚停的長片當成功。
+              if (!info.interrupted && captureSource && reference.ended && Math.abs(self.duration * 1000 - expectedDurationMs) > 100) {
+                info.interrupted = true;
+                captureIntegrityError = new Error('錄影未完成：原片長度不符。未完成原片可另存；舊自拍與 VS 保留。');
                 throw captureIntegrityError;
               }
               return Promise.resolve();
