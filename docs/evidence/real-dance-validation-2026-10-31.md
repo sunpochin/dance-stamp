@@ -1,6 +1,8 @@
 <!-- 檔案用途：區分可自主重現的練舞工具流程與仍需真實素材／本人操作的驗證。所在層：版本固定的驗收證據。主要關聯：WEB_USABILITY_CHECK.md、ACCEPTANCE.md、issue #1／#14。 -->
 # 2026-10-31 真實練舞情境與自主驗證
 
+同日後續的整合版桌面 Safari 結果見 [Safari 自主驗證](safari-practice-validation-2026-10-31.md)；本頁原 48 條 Chrome 結果仍屬下列 `65eb135`，不移記新版本。
+
 先把工具會不會把影片弄錯查清楚，再用自己的舞步確認比較真的有幫助。用法見 [既有真人操作單](../WEB_USABILITY_CHECK.md#先用一組真實影片開始)：先一組示範／練習原片做個人短流程，再由同一批五位舞者觀察三項核心任務。沒有新增驗收門檻；G1–G7 仍只引用 [RECORD_COMPARE.md](../RECORD_COMPARE.md)。
 
 ## 範圍與來源
