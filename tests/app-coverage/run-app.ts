@@ -9,6 +9,7 @@ import { chromium, type BrowserContext, type Page } from 'playwright-core'
 import { appFiles, emptyCoverage, instrument, mergeReceipt, receipt, root, sourceHashes } from './instrument'
 import { notices, webFiles, webHeaders, webNotice } from '../../scripts/web-assets'
 import { fixtureFiles } from './prepare-fixtures'
+import { observeKeyboardProtocol } from './keyboard-protocol'
 
 assert.equal(Bun.version, readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), '請使用指定 Bun 版本')
 mkdirSync(resolve(root, 'coverage'), { recursive: true })
@@ -195,7 +196,15 @@ try {
       } else {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
-        if (name === 'move-draft') {
+        if (name === 'comparison-keyboard') {
+          const observing = observeKeyboardProtocol(page)
+          try { result = await scenario(page) }
+          finally {
+            // 成功與失敗同留原生回覆；只看DOM click無法分辨瀏覽器未開啟或driver尚未備妥。
+            evidence.keyboardProtocol = observing.stop()
+            console.log('comparison-keyboard native protocol:', JSON.stringify(evidence.keyboardProtocol))
+          }
+        } else if (name === 'move-draft') {
           const prepared = await scenario(page)
           assert.equal(prepared.beforeUnloadPrepared, true, '動作草稿尚未備妥真正離頁驗證')
           // 草稿預備不代表離頁保護已驗證；真正導航、拒絕原生提示後才執行既有回查階段。
