@@ -24,6 +24,7 @@ function drawingContext(canvas) {
 const reference = $('reference'), self = $('self'), preview = $('preview'), output = $('output');
 const canvas = $('canvas'), context = drawingContext(canvas);
 const overlay = $('overlay-canvas'), overlayContext = drawingContext(overlay);
+const adjustedSide = $('adjusted-side-canvas'), adjustedSideContext = drawingContext(adjustedSide);
 const localAudio = safariAudio();
 // 只控制當前開放的介面；不改既有資料格式，也不刪除之後要恢復的功能。
 const comparisonOnly = document.body.hasAttribute('data-comparison-only');
@@ -42,6 +43,10 @@ let overlaySources = '';
 const overlayLayoutFields = /** @type {const} */ ([
   ['overlay-reference-scale', 'overlay-reference-scale-value'], ['overlay-reference-x', 'overlay-reference-x-value'], ['overlay-reference-y', 'overlay-reference-y-value'],
   ['overlay-self-scale', 'overlay-self-scale-value'], ['overlay-self-x', 'overlay-self-x-value'], ['overlay-self-y', 'overlay-self-y-value'],
+]);
+const adjustedSideFields = /** @type {const} */ ([
+  ['adjusted-reference-scale', 'adjusted-reference-scale-value'], ['adjusted-reference-x', 'adjusted-reference-x-value'], ['adjusted-reference-y', 'adjusted-reference-y-value'],
+  ['adjusted-self-scale', 'adjusted-self-scale-value'], ['adjusted-self-x', 'adjusted-self-x-value'], ['adjusted-self-y', 'adjusted-self-y-value'],
 ]);
 const sourceTimelines = [
   { video: reference, slider: $('reference-seek'), time: $('reference-seek-time'), ruler: $('reference-ruler'), chosen: $('reference-chosen-start'), buttons: $('reference-seek-buttons'), duration: () => referenceDurationMs, start: () => Number($('start').value) },
@@ -187,19 +192,24 @@ function updateOverlayControls() {
   let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
   try { if (available) recipe(); } catch { available = false; }
   const previewing = !$('pause-comparison').hidden;
+  // 播放鍵移出比較 fieldset 後，必須明確沿用缺片、非法區間、忙碌與保存未確認的封鎖。
+  for (const id of /** @type {const} */ (['play', 'overlay-play'])) $(id).disabled = !available || $('compare').disabled || $('export').disabled || storageUnconfirmed();
   following.update(available);
   overlay.hidden = !available; $('overlay-empty').hidden = available;
   $('overlay-opacity').disabled = !available || !!active && !previewing;
   $('overlay-layout').disabled = $('overlay-opacity').disabled;
   // 控制始終可見，停用時要交代缺片或處理中的原因，避免使用者以為滑桿消失。
   $('overlay-layout-status').textContent = !available ? '先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。' : $('overlay-layout').disabled ? '正在處理影片，完成後即可繼續調整。' : '拖動下方的大小、左右位置與上下位置，讓老師與自己的身體對齊。';
+  adjustedSide.hidden = !available; $('adjusted-side-empty').hidden = available;
+  $('adjusted-side-layout').disabled = $('overlay-layout').disabled;
+  $('adjusted-side-status').textContent = !available || $('adjusted-side-layout').disabled ? $('overlay-layout-status').textContent : '左右各自調大小與位置，試著讓兩邊的人物一樣大、靠近中間。';
   if (available) {
     // 只認已提交成功的來源 URL；壞檔與取消回復舊片時，不能順便丟掉使用者的對齊。
     const sources = `${urls.get('reference')}\n${urls.get('self')}`;
-    if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); }
+    if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); resetAdjustedSide(false); }
   }
   $('export-controls').disabled = !available || !!active || storageUnconfirmed();
-  if (available && !active) drawOverlay(recipe());
+  if (available && !active) { const value = recipe(); drawOverlay(value); drawAdjustedSide(value); }
 }
 function updateSourceTimelines() {
   for (const entry of sourceTimelines) {
@@ -339,28 +349,54 @@ function resetOverlayLayout(repaint = true) {
   }
   if (repaint && !overlay.hidden) drawOverlay(recipe());
 }
+function resetAdjustedSide(repaint = true) {
+  for (const [input, output] of adjustedSideFields) {
+    $(input).value = $(input).defaultValue; $(output).textContent = `${$(input).value}%`;
+  }
+  if (repaint && !adjustedSide.hidden) drawAdjustedSide(recipe());
+}
+/** @param {import('./types').OverlayPresentation['reference']} layer */
+function drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha = 1, anchor = 0.5) {
+  if (video.readyState < 2) return;
+  // 所有試看先使用同一人物裁切，再做各框自己的縮放與鏡像，避免新框退回未跟隨的原畫面。
+  const crop = sourceCrop(video, following.track(video === reference ? 'reference' : 'self'));
+  const rect = contain(crop.width, crop.height, width, height);
+  targetContext.save();
+  // 平移在鏡像／縮放之外，向右仍是向右；失敗也還原，避免下一幀累加變換。
+  try {
+    targetContext.globalAlpha = alpha;
+    targetContext.translate((width - rect.width) * anchor + rect.width / 2 + layer.x * width, height / 2 + layer.y * height);
+    targetContext.scale(layer.scale * (mirror ? -1 : 1), layer.scale);
+    targetContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, -rect.width / 2, -rect.height / 2, rect.width, rect.height);
+  } finally { targetContext.restore(); }
+}
 function drawOverlay(value, target = overlay, targetContext = overlayContext, presentation = overlayPresentation()) {
   const width = target.width, height = target.height;
   targetContext.fillStyle = '#080c0e'; targetContext.fillRect(0, 0, width, height);
   // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
   // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
-  for (const [video, mirror, alpha, scale, x, y] of [
-    [self, value.selfMirror, 1, presentation.self.scale, presentation.self.x, presentation.self.y],
-    [reference, value.referenceMirror, presentation.opacity, presentation.reference.scale, presentation.reference.x, presentation.reference.y],
+  for (const [video, mirror, alpha, layer] of [
+    [self, value.selfMirror, 1, presentation.self],
+    [reference, value.referenceMirror, presentation.opacity, presentation.reference],
   ]) {
-    if (video.readyState < 2) continue;
-    const crop = sourceCrop(video, following.track(video === reference ? 'reference' : 'self'));
-    const rect = contain(crop.width, crop.height, width, height);
-    targetContext.save();
-    // 解碼／繪製失敗也須還原變換，否則重試會累加縮放與透明度。
+    drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha);
+  }
+}
+function drawAdjustedSide(value) {
+  if (adjustedSide.hidden) return;
+  const target = adjustedSideContext, values = adjustedSideFields.map(([input]) => Number($(input).value) / 100);
+  // 未調整側沿用原並排像素，避免直式／鏡像另畫的原生色彩捨入，也省去重複影片繪圖。
+  target.drawImage(canvas, 0, 0);
+  // 共用已解碼的兩片與疊影變換；各裁在自己的半框，不能把老師拖到右邊蓋住自己。
+  for (const [video, x, mirror, index] of [[reference, 0, value.referenceMirror, 0], [self, 640, value.selfMirror, 3]]) {
+    const [scale, dx, dy] = values.slice(index, index + 3);
+    if (scale === 1 && dx === 0 && dy === 0) continue;
+    target.save();
     try {
-      targetContext.globalAlpha = alpha;
-      // 位移先放在畫框座標，鏡像只翻人物；向右不應因勾鏡像而變成向左。
-      targetContext.translate(width / 2 + x * width, height / 2 + y * height);
-      targetContext.scale(scale * (mirror ? -1 : 1), scale);
-      // 預覽與成品都先取同一來源裁切，再做鏡像及手動對齊，避免方向切換時追到另一個人。
-      targetContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, rect.x - width / 2, rect.y - height / 2, rect.width, rect.height);
-    } finally { targetContext.restore(); }
+      target.beginPath(); target.rect(x, 48, 640, 672); target.clip(); target.translate(x, 48);
+      target.fillStyle = '#080c0e'; target.fillRect(0, 0, 640, 672);
+      drawVideoLayer(target, video, 640, 672, mirror, { scale, x: dx, y: dy }, 1, x === 0 ? 1 : 0);
+    } finally { target.restore(); }
   }
 }
 function draw(value, withOverlay = true) {
@@ -375,7 +411,8 @@ function draw(value, withOverlay = true) {
     context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, rect.y, rect.width, rect.height); context.restore();
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
-  if (withOverlay) drawOverlay(value);
+  // 合成時只畫輸出來源，額外試看框不增加編碼期間的繪圖負擔。
+  if (withOverlay) { drawOverlay(value); drawAdjustedSide(value); }
 }
 async function align(value, elapsedMs, signal, waitForFrame = false) {
   reference.pause(); self.pause();
@@ -773,9 +810,9 @@ function updateIntersection() {
     following.assertCoverage();
     $('scrub').max = String(range.durationMs / 1000); $('scrub').value = String(Math.min(Number($('scrub').value), range.durationMs / 1000));
     $('intersection').textContent = `共同長度 ${(range.durationMs / 1000).toFixed(2)} 秒；老師 ${((value.startMs + value.rate * range.lowerMs) / 1000).toFixed(3)} 秒／我 ${((range.lowerMs + value.offsetMs) / 1000).toFixed(3)} 秒起跳，示範 ${value.rate}×。${range.durationMs < (value.endMs - value.startMs) / value.rate ? '片尾不足，只輸出兩片都有畫面的區間。' : ''}`;
-    $('play').disabled = false; $('export').disabled = false;
+    $('export').disabled = false;
     if (outputBlob) $('output-status').textContent = outputRecipe === recipeSignature(value) ? `這支${$('export-layout').value === 'overlay' ? '疊影' : '左右並排'}影片對應目前的比較設定。` : '這是先前設定的 VS，原檔仍保留；若要目前設定的畫面，請重新匯出。';
-  } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('play').disabled = true; $('export').disabled = true; }
+  } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('export').disabled = true; }
   updateOverlayControls(); updateSourceTimelines();
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror', 'preview-mirror'])) $(id).addEventListener('change', () => { mirrors(); if (selfDurationMs) updateIntersection(); });
@@ -791,15 +828,22 @@ for (const [input, output] of overlayLayoutFields) $(input).addEventListener('in
   updateIntersection();
 });
 $('overlay-layout-reset').addEventListener('click', () => { resetOverlayLayout(); updateIntersection(); });
+for (const [input, output] of adjustedSideFields) $(input).addEventListener('input', () => {
+  $(output).textContent = `${$(input).value}%`;
+  // 試看不寫配方，也不改原並排、疊影與匯出，方便同頁比較效果。
+  if (!adjustedSide.hidden) drawAdjustedSide(recipe());
+});
+$('adjusted-side-reset').addEventListener('click', () => resetAdjustedSide());
 $('export-layout').addEventListener('change', updateIntersection);
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
-$('play').addEventListener('click', () => operation(async signal => {
+// 兩區各有清楚入口，但共用操作鎖與時間映射，不能同時啟動兩套音訊或播放迴圈。
+for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) $(id).addEventListener('click', () => operation(async signal => {
   following.assertCoverage();
   const value = recipe(), durationMs = comparison(value).durationMs;
   const startMs = Number($('scrub').value) * 1000;
   await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
   $('pause-comparison').hidden = false; updateOverlayControls();
-  status('共同預覽中；疊影與左右畫面一起播放，可調整老師可見度。一起暫停後可拖動共同時間線再繼續。');
+  status(`共同預覽中：${label}；一起暫停後可拖動共同時間線再繼續。`);
   diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
 }));
 $('export').addEventListener('click', () => operation(async signal => {
@@ -1433,7 +1477,8 @@ async function openVideoNotes(id, signal) {
     status('筆記仍在，示範尚未連結。請選片、預覽後確認；不會依同名自動配對。');
   }
   // 重開筆記與新選片使用相同預設；指定 take 仍由 openTakeUnlocked 還原原配方。
-  $('start').value = '0'; $('end').value = String(video.durationMs / 1000); renderLibrary();
+  // 重連短片必須能練完整的實際媒體；舊筆記片長／超界標記仍保留，缺片時才顯示原筆記範圍。
+  $('start').value = '0'; $('end').value = String((referenceDurationMs || video.durationMs) / 1000); renderLibrary();
   return true;
 }
 $('open-library').addEventListener('click', () => operation(signal => openVideoNotes($('library').value, signal)));

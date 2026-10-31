@@ -8,6 +8,7 @@ async page => {
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   const set = async (id, value) => { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); await idle(); };
   await idle();
+  assert(await page.locator('body').getAttribute('data-comparison-only') !== null, '人物跟隨沒有走真正預設介面');
   for (const side of ['reference', 'self']) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + side + '.mp4'); await idle(); }
   await set('end', 3); await set('offset', 0);
   const open = async side => { await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle(); };
@@ -24,6 +25,30 @@ async page => {
   for (const [id, value] of [['follow-width', 40], ['follow-x', 55], ['follow-y', 2.5], ['follow-height', 95]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); }
   await analyze();
   for (const side of ['reference', 'self']) assert(await page.locator('#' + side + '-follow-enabled').isChecked(), side + ' 未開啟獨立跟隨');
+  // 兩功能共存時，試看也必須取同一人物來源；用實際上衣位置／面積核對，而非只看滑桿值。
+  const matching = await page.evaluate(() => {
+    const measure = id => {
+      const c = document.getElementById(id), pixels = c.getContext('2d').getImageData(0, 0, 1280, 720).data;
+      return [0, 1].map(side => {
+        let xSum = 0, ySum = 0, count = 0;
+        for (let y = 60; y < 680; y += 2) for (let x = side * 640; x < (side + 1) * 640; x += 2) {
+          const p = (y * 1280 + x) * 4;
+          if (pixels[p] > 170 && pixels[p + 1] < 165 && pixels[p + 2] < 175 && pixels[p] > pixels[p + 1] * 1.35) { xSum += x; ySum += y; count++; }
+        }
+        return { x: xSum / count, y: ySum / count, count };
+      });
+    };
+    return { original: measure('canvas'), adjusted: measure('adjusted-side-canvas') };
+  });
+  for (let side = 0; side < 2; side++) {
+    const a = matching.original[side], b = matching.adjusted[side];
+    assert(a.count > 500 && b.count > 500 && Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && Math.abs(a.count - b.count) / a.count < .02, '可調並排沒有沿用同一人物裁切：' + JSON.stringify(matching));
+  }
+  const fixedViews = await page.evaluate(() => ['canvas', 'overlay-canvas', 'adjusted-side-canvas'].map(id => document.getElementById(id).toDataURL()));
+  await page.locator('#adjusted-reference-scale').fill('150'); await page.locator('#adjusted-reference-scale').dispatchEvent('input');
+  const changedViews = await page.evaluate(() => ['canvas', 'overlay-canvas', 'adjusted-side-canvas'].map(id => document.getElementById(id).toDataURL()));
+  assert(fixedViews[0] === changedViews[0] && fixedViews[1] === changedViews[1] && fixedViews[2] !== changedViews[2], '跟隨啟用時，試看設定污染原並排／疊影');
+  await page.locator('#adjusted-side-reset').click();
   const trackedStatus = await page.locator('#reference-follow-status').textContent();
   for (const [side, half] of [['reference', 0], ['self', 1]]) {
     await page.locator('#canvas').evaluate(canvas => { window.followMirrorBefore = canvas.getContext('2d').getImageData(0, 0, 1280, 720).data; });
@@ -49,6 +74,13 @@ async page => {
     // 原生影片重畫可能有一階色彩捨入；逐 channel 限定 1，仍會抓到另一側被移動或翻轉。
     assert(mirrored.points > 100 && mirrored.mirrorError < mirrored.identityError * .35 && mirrored.otherMax <= 1, side + ' 裁切鏡像錯誤或影響另一側：' + JSON.stringify(mirrored));
   }
+  // 未調整側直接沿用原並排；雙側人物鏡像後也應保留完全相同的像素。
+  const adjustedDifference = await page.evaluate(() => {
+    const pixels = id => document.getElementById(id).getContext('2d').getImageData(0, 0, 1280, 720).data;
+    const original = pixels('canvas'), adjusted = pixels('adjusted-side-canvas');
+    return original.reduce((result, value, i) => { const difference = Math.abs(value - adjusted[i]); result.max = Math.max(result.max, difference); result.sum += difference; result.changed += difference > 0 ? 1 : 0; return result; }, { max: 0, sum: 0, changed: 0 });
+  });
+  assert(adjustedDifference.max === 0, '可調並排沒有沿用人物跟隨裁切：' + JSON.stringify(adjustedDifference));
   const metrics = async (id, times, layout) => page.locator('#' + id).evaluate(async (video, { times, layout }) => {
     const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 720; const context = canvas.getContext('2d'), results = [];
     for (const time of times) {
@@ -96,5 +128,5 @@ async page => {
   await open('self'); await page.locator('#follow-dialog').screenshot({ path: selectionScreenshot }); await page.locator('#follow-cancel').click();
   assert(requests.every(request => request.method === 'GET' && (request.url.startsWith(origin + '/') || request.url.startsWith('blob:'))), '人物分析有外部請求或寫入');
   assert(requests.some(request => request.url.endsWith('/person-model.tflite')), '未真正執行本機人物模型');
-  return { downloads, selectionScreenshot, bothSidesTracked: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
+  return { downloads, selectionScreenshot, bothSidesTracked: true, adjustablePreviewSharesCropWithoutChangingOutput: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
 }
