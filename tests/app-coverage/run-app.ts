@@ -81,6 +81,9 @@ if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCase
 // 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
 if (!selected.length) scenarios.push('overlay-export')
 if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
+// 秒數尺另接在既有流程之後，保留原本媒體與恢復案例的相對順序。
+if (!selected.length) scenarios.push('source-time-rulers')
+
 // 簡化介面獨立追加，原有比較／疊影及恢復順序不變。
 if (!selected.length) scenarios.push('simplified-comparison')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()

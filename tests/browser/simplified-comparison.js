@@ -12,7 +12,7 @@ async page => {
   const deferred = page.locator('[data-deferred]');
   for (const element of await deferred.all()) assert(!await element.isVisible(), '暫藏工具仍出現在預設頁面');
   assert(!await page.locator('#stop').isVisible(), '閒置停止鍵仍顯示');
-  for (const selector of ['.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(!await page.locator(selector).isVisible(), '未選雙片就顯示後續工具');
+  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(!await page.locator(selector).isVisible(), '未選雙片就顯示後續工具');
   for (let i = 0; i < 24; i++) {
     await page.keyboard.press('Tab');
     assert(await page.evaluate(() => !document.activeElement.closest('[data-deferred]')), '鍵盤進入暫藏工具');
@@ -33,7 +33,7 @@ async page => {
   assert(await page.locator('#reference-download').isVisible(), '尚缺右片時藏掉救援下載');
   await page.locator('#storage-recovery').evaluate(element => { element.hidden = true; });
   await choose('self-file', 'output/export-failure/self.mp4');
-  for (const selector of ['.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
+  for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
   for (const [id, value] of [['start', '0.2'], ['end', '2.2'], ['offset', '0.1']]) {
     await page.locator('#' + id).fill(value); await page.locator('#' + id).dispatchEvent('change'); await idle();
   }

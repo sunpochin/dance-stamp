@@ -36,6 +36,15 @@
         <p id="reference-file-hint" class="hint">支援 MOV／MP4 等；選片不會自動上傳。</p></details>
         <!-- biome-ignore lint/a11y/useMediaCaption: 來源是使用者本機影片，不能憑空附上假字幕；本版不處理字幕生成。 -->
         <video id="reference" aria-label="示範影片播放器" aria-describedby="audio-status" controls playsinline preload="metadata"></video>
+        <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
+        <div class="source-timeline">
+          <label for="reference-seek">老師的影片定位 <output id="reference-seek-time" for="reference-seek" aria-live="off">0.000 秒</output></label>
+          <input id="reference-seek" type="range" min="0" max="1" step="0.01" value="0" aria-describedby="reference-seek-help reference-chosen-start" disabled>
+          <div id="reference-ruler" class="time-ruler" aria-hidden="true"><span>0 秒</span><span>—</span></div>
+          <p id="reference-chosen-start" class="chosen-start">尚未選片</p>
+          <div id="reference-seek-buttons" class="actions"><button type="button" data-seek="-0.1" disabled>往前 0.1 秒</button><button type="button" data-seek="0.1" disabled>往後 0.1 秒</button></div>
+          <p id="reference-seek-help" class="hint">拖尺找到動作，或用方向鍵微調 0.01 秒；再按下方「設為起點」。拖曳不會改掉已設的起點。</p>
+        </div>
         <div class="actions"><button type="button" id="reference-start" disabled>老師當下畫面設為起點</button><button type="button" id="reference-end" disabled>老師當下畫面設為結尾</button></div>
         <button type="button" id="confirm-link" hidden>已預覽，確認連結到這份筆記</button>
       </div>
@@ -46,6 +55,15 @@
         <button type="button" id="select-self-video" class="primary" aria-describedby="self-file-hint" disabled>選擇練習影片</button><input id="self-file" type="file" aria-label="選擇練習影片" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*" hidden>
         <p id="self-file-hint" class="hint">先選左邊示範影片，再選練習影片。</p></details>
         <video id="self" aria-label="練習影片播放器" controls playsinline muted preload="metadata"></video>
+        <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
+        <div class="source-timeline">
+          <label for="self-seek">我的影片定位 <output id="self-seek-time" for="self-seek" aria-live="off">0.000 秒</output></label>
+          <input id="self-seek" type="range" min="0" max="1" step="0.01" value="0" aria-describedby="self-seek-help self-chosen-start" disabled>
+          <div id="self-ruler" class="time-ruler" aria-hidden="true"><span>0 秒</span><span>—</span></div>
+          <p id="self-chosen-start" class="chosen-start">尚未選片</p>
+          <div id="self-seek-buttons" class="actions"><button type="button" data-seek="-0.1" disabled>往前 0.1 秒</button><button type="button" data-seek="0.1" disabled>往後 0.1 秒</button></div>
+          <p id="self-seek-help" class="hint">拖尺找到動作，或用方向鍵微調 0.01 秒；再按下方「設為起點」。拖曳不會改掉已設的起點。</p>
+        </div>
         <div id="preview-frame" class="preview-frame" hidden><video id="preview" aria-label="相機即時取景預覽" playsinline muted hidden></video><div class="body-guide" aria-hidden="true"></div></div>
         <button type="button" id="self-start" disabled>我的當下畫面設為起點</button>
         <button type="button" id="confirm-take" hidden>已預覽，確認連結自拍</button>
