@@ -58,7 +58,7 @@ const sourceTimelines = [
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
 let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
-let operationTrigger, operationFocus;
+let operationTrigger, operationFocus, comparisonPlayback;
 /** @type {{ file: File, revision: number } | null} */
 let shareDraft = null;
 let shareSending = false;
@@ -196,8 +196,13 @@ function updateOverlayControls() {
   let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
   try { if (available) recipe(); } catch { available = false; }
   const previewing = !$('pause-comparison').hidden;
-  // 播放鍵移出比較 fieldset 後，必須明確沿用缺片、非法區間、忙碌與保存未確認的封鎖。
-  for (const id of /** @type {const} */ (['play', 'overlay-play'])) $(id).disabled = !available || $('compare').disabled || $('export').disabled || storageUnconfirmed();
+  // 正在預覽的入口要能暫停；另一區、準備中與合成仍沿用操作鎖，避免重複啟動聲音。
+  for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) {
+    const playing = previewing && comparisonPlayback === id;
+    $(id).disabled = !available || storageUnconfirmed() || !playing && ($('compare').disabled || $('export').disabled);
+    const resumable = Number($('scrub').value) > 0 && Number($('scrub').value) * 1000 < Number($('scrub').max) * 1000 - 20;
+    $(id).textContent = `${playing ? '暫停' : resumable ? '繼續' : '播放'}${label}`;
+  }
   following.update(available);
   overlay.hidden = !available; $('overlay-empty').hidden = available;
   $('overlay-opacity').disabled = !available || !!active && !previewing;
@@ -272,14 +277,14 @@ async function operation(task) {
   }
   catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
     releaseCamera();
-    status(storageUnconfirmed() ? storageUnconfirmedMessage : error.name === 'AbortError' ? '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);
+    status(storageUnconfirmed() ? storageUnconfirmedMessage : error.name === 'AbortError' ? comparisonPlayback ? '兩片已一起暫停；可繼續播放或拖動共同時間線。' : '已停止，原片與上次成功的輸出仍保留。' : `${error.message} 原片仍保留，可重試。`);
     // 原生錯誤可能含檔名／裝置資訊；可帶走的診斷只留分類，詳細說明留在本機狀態。
     diagnostics.lastError = storageUnconfirmed() ? 'storage-unconfirmed' : error.name === 'AbortError' ? 'cancelled' : error.name === 'QuotaExceededError' ? 'storage-full' : 'operation-failed';
   } finally {
     reference.pause(); self.pause();
     if (monitor) monitor.gain.value = 1;
     if (audio?.state === 'running') await audio.suspend().catch(() => {});
-    active = null; $('controls').disabled = false; $('pause-comparison').hidden = true;
+    active = null; comparisonPlayback = null; $('controls').disabled = false; $('pause-comparison').hidden = true;
     // 比較結束先收起暫停控制，再恢復練習速度，避免下一次播放沿用合成設定。
     applyPracticeSettings(); drawPractice();
     reference.controls = true; self.controls = true;
@@ -841,15 +846,21 @@ $('adjusted-side-reset').addEventListener('click', () => resetAdjustedSide());
 $('export-layout').addEventListener('change', updateIntersection);
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
 // 兩區各有清楚入口，但共用操作鎖與時間映射，不能同時啟動兩套音訊或播放迴圈。
-for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) $(id).addEventListener('click', () => operation(async signal => {
-  following.assertCoverage();
-  const value = recipe(), durationMs = comparison(value).durationMs;
-  const startMs = Number($('scrub').value) * 1000;
-  await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
-  $('pause-comparison').hidden = false; updateOverlayControls();
-  status(`共同預覽中：${label}；一起暫停後可拖動共同時間線再繼續。`);
-  diagnostics.preview = await timeline(value, signal, false); status('預覽結束，可調整偏移或輸出。');
-}));
+for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) $(id).addEventListener('click', () => {
+  if (active && comparisonPlayback === id) { stop(); return; }
+  return operation(async signal => {
+    following.assertCoverage();
+    const value = recipe(), durationMs = comparison(value).durationMs;
+    // 沿用共同時間線續播；片尾才回頭，暫停不重設起點或另建播放器。
+    const startMs = Number($('scrub').value) * 1000;
+    await saveCurrentRecipe(value, signal); await prepareAudio(); await align(value, startMs >= durationMs - 20 ? 0 : startMs, signal);
+    comparisonPlayback = id; $('pause-comparison').hidden = false; updateOverlayControls();
+    status(`共同預覽中：${label}；再按同一按鈕可暫停，之後從原位置繼續。`);
+    diagnostics.preview = await timeline(value, signal, false);
+    // 最後一幀可能略早於片尾；完成後明確標到終點，下次按播放才會從頭開始。
+    $('scrub').value = String(durationMs / 1000); status('預覽結束，可調整對齊或輸出。');
+  });
+});
 $('export').addEventListener('click', () => operation(async signal => {
   following.assertCoverage();
   const value = recipe(), presentation = currentPresentation();
