@@ -191,6 +191,24 @@ export interface Elements {
   "overlay-self-x-value": HTMLOutputElement;
   "overlay-self-y": HTMLInputElement;
   "overlay-self-y-value": HTMLOutputElement;
+  // 額外試看共用來源；獨立畫布與控制避免把裁切寫入原並排輸出。
+  "adjusted-side-canvas": HTMLCanvasElement;
+  "adjusted-side-empty": HTMLParagraphElement;
+  "adjusted-side-layout": HTMLFieldSetElement;
+  "adjusted-side-status": HTMLParagraphElement;
+  "adjusted-side-reset": HTMLButtonElement;
+  "adjusted-reference-scale": HTMLInputElement;
+  "adjusted-reference-scale-value": HTMLOutputElement;
+  "adjusted-reference-x": HTMLInputElement;
+  "adjusted-reference-x-value": HTMLOutputElement;
+  "adjusted-reference-y": HTMLInputElement;
+  "adjusted-reference-y-value": HTMLOutputElement;
+  "adjusted-self-scale": HTMLInputElement;
+  "adjusted-self-scale-value": HTMLOutputElement;
+  "adjusted-self-x": HTMLInputElement;
+  "adjusted-self-x-value": HTMLOutputElement;
+  "adjusted-self-y": HTMLInputElement;
+  "adjusted-self-y-value": HTMLOutputElement;
   "canvas": HTMLCanvasElement;
   "progress": HTMLProgressElement;
   "take-download": HTMLAnchorElement;

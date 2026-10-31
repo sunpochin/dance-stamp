@@ -138,6 +138,32 @@
     <p class="hint">使用上方「播放比較」播放兩種預覽；狀態列的「一起暫停」會同時暫停兩片。</p>
     <!-- 比較動作需要直接看到左右畫面；預設展開，仍可手動收起以騰出空間。 -->
     <details id="side-preview" open><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
+    <section class="adjusted-side-section" aria-labelledby="adjusted-side-title">
+      <h3 id="adjusted-side-title">可調並排 · 把人物放近一點</h3>
+      <p id="adjusted-side-help" class="hint">像移動兩張照片：左右各自調大小與位置，讓人物差不多大、靠近中間。超出各自半邊的畫面會被遮住；這框只供試看，匯出仍用原並排或疊影設定。</p>
+      <div class="adjusted-side-workspace">
+        <fieldset id="adjusted-side-layout" aria-describedby="adjusted-side-status adjusted-side-help" disabled><legend>分別調整兩側人物</legend>
+          <p id="adjusted-side-status" class="hint" role="status">先選好兩片並設定有效的比較區間。</p>
+          <div class="settings adjusted-side-fields">
+            <fieldset><legend>左 · 老師影片</legend>
+              <label><span>大小 <output id="adjusted-reference-scale-value" for="adjusted-reference-scale">100%</output></span><input id="adjusted-reference-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="adjusted-side-help"></label>
+              <label><span>左右位置 <output id="adjusted-reference-x-value" for="adjusted-reference-x">0%</output></span><input id="adjusted-reference-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="adjusted-side-help"></label>
+              <label><span>上下位置 <output id="adjusted-reference-y-value" for="adjusted-reference-y">0%</output></span><input id="adjusted-reference-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="adjusted-side-help"></label>
+            </fieldset>
+            <fieldset><legend>右 · 我的影片</legend>
+              <label><span>大小 <output id="adjusted-self-scale-value" for="adjusted-self-scale">100%</output></span><input id="adjusted-self-scale" type="range" min="25" max="400" step="1" value="100" aria-describedby="adjusted-side-help"></label>
+              <label><span>左右位置 <output id="adjusted-self-x-value" for="adjusted-self-x">0%</output></span><input id="adjusted-self-x" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="adjusted-side-help"></label>
+              <label><span>上下位置 <output id="adjusted-self-y-value" for="adjusted-self-y">0%</output></span><input id="adjusted-self-y" type="range" min="-200" max="200" step="0.5" value="0" aria-describedby="adjusted-side-help"></label>
+            </fieldset>
+          </div>
+          <button type="button" id="adjusted-side-reset">重設可調並排</button>
+        </fieldset>
+        <div class="adjusted-side-preview">
+          <canvas id="adjusted-side-canvas" width="1280" height="720" aria-label="可調整大小與位置的左右比較試看畫面" aria-describedby="adjusted-side-help" hidden></canvas>
+          <p id="adjusted-side-empty" class="hint">選好兩片並設定有效的比較區間後，就能在這裡試看。</p>
+        </div>
+      </div>
+    </section>
     <p class="hint">下方可選擇匯出左右並排或目前疊影。合成期間預覽暫停更新。</p>
   </section>
   <section id="save-result" aria-label="合成結果"><h2>03 · 合成與下載</h2>

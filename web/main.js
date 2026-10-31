@@ -22,6 +22,7 @@ function drawingContext(canvas) {
 const reference = $('reference'), self = $('self'), preview = $('preview'), output = $('output');
 const canvas = $('canvas'), context = drawingContext(canvas);
 const overlay = $('overlay-canvas'), overlayContext = drawingContext(overlay);
+const adjustedSide = $('adjusted-side-canvas'), adjustedSideContext = drawingContext(adjustedSide);
 const localAudio = safariAudio();
 // 只控制當前開放的介面；不改既有資料格式，也不刪除之後要恢復的功能。
 const comparisonOnly = document.body.hasAttribute('data-comparison-only');
@@ -32,6 +33,10 @@ let overlaySources = '';
 const overlayLayoutFields = /** @type {const} */ ([
   ['overlay-reference-scale', 'overlay-reference-scale-value'], ['overlay-reference-x', 'overlay-reference-x-value'], ['overlay-reference-y', 'overlay-reference-y-value'],
   ['overlay-self-scale', 'overlay-self-scale-value'], ['overlay-self-x', 'overlay-self-x-value'], ['overlay-self-y', 'overlay-self-y-value'],
+]);
+const adjustedSideFields = /** @type {const} */ ([
+  ['adjusted-reference-scale', 'adjusted-reference-scale-value'], ['adjusted-reference-x', 'adjusted-reference-x-value'], ['adjusted-reference-y', 'adjusted-reference-y-value'],
+  ['adjusted-self-scale', 'adjusted-self-scale-value'], ['adjusted-self-x', 'adjusted-self-x-value'], ['adjusted-self-y', 'adjusted-self-y-value'],
 ]);
 const sourceTimelines = [
   { video: reference, slider: $('reference-seek'), time: $('reference-seek-time'), ruler: $('reference-ruler'), chosen: $('reference-chosen-start'), buttons: $('reference-seek-buttons'), duration: () => referenceDurationMs, start: () => Number($('start').value) },
@@ -182,13 +187,16 @@ function updateOverlayControls() {
   $('overlay-layout').disabled = $('overlay-opacity').disabled;
   // 控制始終可見，停用時要交代缺片或處理中的原因，避免使用者以為滑桿消失。
   $('overlay-layout-status').textContent = !available ? '先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。' : $('overlay-layout').disabled ? '正在處理影片，完成後即可繼續調整。' : '拖動下方的大小、左右位置與上下位置，讓老師與自己的身體對齊。';
+  adjustedSide.hidden = !available; $('adjusted-side-empty').hidden = available;
+  $('adjusted-side-layout').disabled = $('overlay-layout').disabled;
+  $('adjusted-side-status').textContent = !available || $('adjusted-side-layout').disabled ? $('overlay-layout-status').textContent : '左右各自調大小與位置，試著讓兩邊的人物一樣大、靠近中間。';
   if (available) {
     // 只認已提交成功的來源 URL；壞檔與取消回復舊片時，不能順便丟掉使用者的對齊。
     const sources = `${urls.get('reference')}\n${urls.get('self')}`;
-    if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); }
+    if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); resetAdjustedSide(false); }
   }
   $('export-controls').disabled = !available || !!active || storageUnconfirmed();
-  if (available && !active) drawOverlay(recipe());
+  if (available && !active) { const value = recipe(); drawOverlay(value); drawAdjustedSide(value); }
 }
 function updateSourceTimelines() {
   for (const entry of sourceTimelines) {
@@ -328,26 +336,50 @@ function resetOverlayLayout(repaint = true) {
   }
   if (repaint && !overlay.hidden) drawOverlay(recipe());
 }
+function resetAdjustedSide(repaint = true) {
+  for (const [input, output] of adjustedSideFields) {
+    $(input).value = $(input).defaultValue; $(output).textContent = `${$(input).value}%`;
+  }
+  if (repaint && !adjustedSide.hidden) drawAdjustedSide(recipe());
+}
+/** @param {import('./types').OverlayPresentation['reference']} layer */
+function drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha = 1, anchor = 0.5) {
+  if (video.readyState < 2) return;
+  const rect = contain(video.videoWidth, video.videoHeight, width, height);
+  targetContext.save();
+  // 平移在鏡像／縮放之外，向右仍是向右；失敗也還原，避免下一幀累加變換。
+  try {
+    targetContext.globalAlpha = alpha;
+    targetContext.translate((width - rect.width) * anchor + rect.width / 2 + layer.x * width, height / 2 + layer.y * height);
+    targetContext.scale(layer.scale * (mirror ? -1 : 1), layer.scale);
+    targetContext.drawImage(video, -rect.width / 2, -rect.height / 2, rect.width, rect.height);
+  } finally { targetContext.restore(); }
+}
 function drawOverlay(value, target = overlay, targetContext = overlayContext, presentation = overlayPresentation()) {
   const width = target.width, height = target.height;
   targetContext.fillStyle = '#080c0e'; targetContext.fillRect(0, 0, width, height);
   // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
   // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
-  for (const [video, mirror, alpha, scale, x, y] of [
-    [self, value.selfMirror, 1, presentation.self.scale, presentation.self.x, presentation.self.y],
-    [reference, value.referenceMirror, presentation.opacity, presentation.reference.scale, presentation.reference.x, presentation.reference.y],
+  for (const [video, mirror, alpha, layer] of [
+    [self, value.selfMirror, 1, presentation.self],
+    [reference, value.referenceMirror, presentation.opacity, presentation.reference],
   ]) {
-    if (video.readyState < 2) continue;
-    const rect = contain(video.videoWidth, video.videoHeight, width, height);
-    targetContext.save();
-    // 解碼／繪製失敗也須還原變換，否則重試會累加縮放與透明度。
+    drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha);
+  }
+}
+function drawAdjustedSide(value) {
+  if (adjustedSide.hidden) return;
+  const target = adjustedSideContext, values = adjustedSideFields.map(([input]) => Number($(input).value) / 100);
+  target.fillStyle = '#080c0e'; target.fillRect(0, 0, 1280, 720);
+  // 共用已解碼的兩片與疊影變換；各裁在自己的半框，不能把老師拖到右邊蓋住自己。
+  for (const [video, x, mirror, label, index] of [[reference, 0, value.referenceMirror, '示範', 0], [self, 640, value.selfMirror, '我', 3]]) {
+    const [scale, dx, dy] = values.slice(index, index + 3);
+    target.save();
     try {
-      targetContext.globalAlpha = alpha;
-      // 位移先放在畫框座標，鏡像只翻人物；向右不應因勾鏡像而變成向左。
-      targetContext.translate(width / 2 + x * width, height / 2 + y * height);
-      targetContext.scale(scale * (mirror ? -1 : 1), scale);
-      targetContext.drawImage(video, rect.x - width / 2, rect.y - height / 2, rect.width, rect.height);
-    } finally { targetContext.restore(); }
+      target.beginPath(); target.rect(x, 48, 640, 672); target.clip(); target.translate(x, 48);
+      drawVideoLayer(target, video, 640, 672, mirror, { scale, x: dx, y: dy }, 1, x === 0 ? 1 : 0);
+    } finally { target.restore(); }
+    target.fillStyle = '#e8f2ed'; target.font = '24px sans-serif'; target.fillText(label, x + 22, 33);
   }
 }
 function draw(value, withOverlay = true) {
@@ -361,7 +393,8 @@ function draw(value, withOverlay = true) {
     context.drawImage(video, 0, rect.y, rect.width, rect.height); context.restore();
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
-  if (withOverlay) drawOverlay(value);
+  // 合成時只畫輸出來源，額外試看框不增加編碼期間的繪圖負擔。
+  if (withOverlay) { drawOverlay(value); drawAdjustedSide(value); }
 }
 async function align(value, elapsedMs, signal, waitForFrame = false) {
   reference.pause(); self.pause();
@@ -775,6 +808,12 @@ for (const [input, output] of overlayLayoutFields) $(input).addEventListener('in
   updateIntersection();
 });
 $('overlay-layout-reset').addEventListener('click', () => { resetOverlayLayout(); updateIntersection(); });
+for (const [input, output] of adjustedSideFields) $(input).addEventListener('input', () => {
+  $(output).textContent = `${$(input).value}%`;
+  // 試看不寫配方，也不改原並排、疊影與匯出，方便同頁比較效果。
+  if (!adjustedSide.hidden) drawAdjustedSide(recipe());
+});
+$('adjusted-side-reset').addEventListener('click', () => resetAdjustedSide());
 $('export-layout').addEventListener('change', updateIntersection);
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));
 $('play').addEventListener('click', () => operation(async signal => {
