@@ -26,6 +26,11 @@ const localAudio = safariAudio();
 let camera, cameraWatch, active, referenceDurationMs = 0, selfDurationMs = 0, takeBlob, outputBlob;
 let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
+let overlaySources = '';
+const overlayLayoutFields = /** @type {const} */ ([
+  ['overlay-reference-scale', 'overlay-reference-scale-value'], ['overlay-reference-x', 'overlay-reference-x-value'], ['overlay-reference-y', 'overlay-reference-y-value'],
+  ['overlay-self-scale', 'overlay-self-scale-value'], ['overlay-self-x', 'overlay-self-x-value'], ['overlay-self-y', 'overlay-self-y-value'],
+]);
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
 let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
@@ -157,6 +162,12 @@ function updateOverlayControls() {
   const previewing = !$('pause-comparison').hidden;
   overlay.hidden = !available; $('overlay-empty').hidden = available;
   $('overlay-opacity').disabled = !available || !!active && !previewing;
+  $('overlay-layout').disabled = $('overlay-opacity').disabled;
+  if (available) {
+    // 只認已提交成功的來源 URL；壞檔與取消回復舊片時，不能順便丟掉使用者的對齊。
+    const sources = `${urls.get('reference')}\n${urls.get('self')}`;
+    if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); }
+  }
   $('overlay-play').disabled = !available || !!active || storageUnconfirmed();
   $('overlay-pause').disabled = !previewing;
   if (available && !active) drawOverlay(recipe());
@@ -261,18 +272,32 @@ async function countIn(grid, rate, signal) {
     }
   } finally { cancel(); }
 }
+function resetOverlayLayout(repaint = true) {
+  for (const [input, output] of overlayLayoutFields) {
+    $(input).value = $(input).defaultValue; $(output).textContent = `${$(input).value}%`;
+  }
+  if (repaint && !overlay.hidden) drawOverlay(recipe());
+}
 function drawOverlay(value) {
   const width = overlay.width, height = overlay.height;
   overlayContext.fillStyle = '#080c0e'; overlayContext.fillRect(0, 0, width, height);
   // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
   // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
-  for (const [video, mirror, alpha] of [[self, value.selfMirror, 1], [reference, value.referenceMirror, Number($('overlay-opacity').value) / 100]]) {
+  for (const [video, mirror, alpha, scale, x, y] of [
+    [self, value.selfMirror, 1, Number($('overlay-self-scale').value) / 100, Number($('overlay-self-x').value) / 100, Number($('overlay-self-y').value) / 100],
+    [reference, value.referenceMirror, Number($('overlay-opacity').value) / 100, Number($('overlay-reference-scale').value) / 100, Number($('overlay-reference-x').value) / 100, Number($('overlay-reference-y').value) / 100],
+  ]) {
     if (video.readyState < 2) continue;
     const rect = contain(video.videoWidth, video.videoHeight, width, height);
     overlayContext.save();
-    overlayContext.globalAlpha = alpha;
-    overlayContext.translate(mirror ? width : 0, 0); overlayContext.scale(mirror ? -1 : 1, 1);
-    overlayContext.drawImage(video, rect.x, rect.y, rect.width, rect.height); overlayContext.restore();
+    // 解碼／繪製失敗也須還原變換，否則重試會累加縮放與透明度。
+    try {
+      overlayContext.globalAlpha = alpha;
+      // 位移先放在畫框座標，鏡像只翻人物；向右不應因勾鏡像而變成向左。
+      overlayContext.translate(width / 2 + x * width, height / 2 + y * height);
+      overlayContext.scale(scale * (mirror ? -1 : 1), scale);
+      overlayContext.drawImage(video, rect.x - width / 2, rect.y - height / 2, rect.width, rect.height);
+    } finally { overlayContext.restore(); }
   }
 }
 function draw(value, withOverlay = true) {
@@ -639,6 +664,11 @@ $('overlay-opacity').addEventListener('input', () => {
   $('overlay-opacity-value').textContent = `${$('overlay-opacity').value}%`;
   if (!overlay.hidden) drawOverlay(recipe());
 });
+for (const [input, output] of overlayLayoutFields) $(input).addEventListener('input', () => {
+  $(output).textContent = `${$(input).value}%`;
+  if (!overlay.hidden) drawOverlay(recipe());
+});
+$('overlay-layout-reset').addEventListener('click', () => resetOverlayLayout());
 $('overlay-play').addEventListener('click', () => $('play').click());
 $('overlay-pause').addEventListener('click', () => $('pause-comparison').click());
 $('scrub').addEventListener('change', () => operation(async signal => { await align(recipe(), Number($('scrub').value) * 1000, signal); status('已定位兩側畫面。'); }));

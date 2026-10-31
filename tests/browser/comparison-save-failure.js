@@ -12,7 +12,8 @@ async (page) => {
     };
     await context.addInitScript(() => {
       window.confirm = () => true;
-      navigator.mediaDevices.getUserMedia = async () => { throw new Error('恢復驗收禁止相機'); };
+      // 新分頁的 about:blank 尚無安全來源的媒體 API；仍須在真正頁面禁止硬體擷取。
+      if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { throw new Error('恢復驗收禁止相機'); };
     });
     try {
       await current.goto(origin); await idle();
@@ -52,6 +53,8 @@ async (page) => {
         if (kind === 'seek') Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', window.nativeComparisonTime);
       }, failure);
       // 不重載、不再修改設定：原先 rejected 佇列會令備份連 task 都執行不到。
+      // 備份入口已收進次要工具；先依真正 UI 展開，不能讓隱藏按鈕的逾時冒充保存失敗。
+      await current.locator('#note-tools').evaluate(details => { details.open = true; });
       await download('backup'); await idle();
       assert(Number(await current.locator('#offset').inputValue()) === 1, '備份抹掉失敗時的輸入');
       assert(JSON.stringify(await current.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).src))) === JSON.stringify(urls), '失敗恢復丟失當次 File');

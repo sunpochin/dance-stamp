@@ -13,5 +13,7 @@
 
 - TypeScript 7.0.2 與對應平台 `@typescript/typescript-*` 7.0.2：Apache-2.0。來源 https://github.com/microsoft/TypeScript 。
 - Biome 2.6.3 與對應平台 `@biomejs/cli-*` 2.6.3：MIT OR Apache-2.0。來源 https://github.com/biomejs/biome 。
+- `istanbul-lib-coverage` 3.2.2、`istanbul-lib-instrument` 6.0.3：BSD-3-Clause，來源 https://github.com/istanbuljs/istanbuljs 。僅供測試插樁與合併計數。
+- `playwright-core` 1.64.1：Apache-2.0，來源 https://github.com/microsoft/playwright 。沿用已安裝瀏覽器，不自動下載瀏覽器或進入產品資源。
 
 精確解析與完整性見 bun.lock；只安裝目前平台的工具，不進瀏覽器產物。原包保留授權，本產品的非商用條件不取代它們的條款。
