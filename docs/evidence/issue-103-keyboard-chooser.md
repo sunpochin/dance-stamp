@@ -1,5 +1,5 @@
 <!-- 檔案用途：固定 #103 Linux 鍵盤選檔逾時的證據與未解界線。所在層：工程診斷證據。主要關聯：comparison-keyboard.js、issue-103-vs-share.md。 -->
-# #103 Linux 鍵盤選檔：根因仍未確認
+# #103 Linux 鍵盤選檔：原始測試的就緒競爭
 
 ## 怎麼看這次對照
 
@@ -7,7 +7,7 @@
 
 後續 PR 的 **Keyboard Linux controls** 檢查會各執行一次預先列出的條件；展開 **Preserve only the anonymous receipt** 可看原生按鍵、攔截命令／回覆與真正選檔通知。這有助於分辨準備順序與產品按鈕故障，不能單憑一輪成功保證偶發問題不會回來。完整 App 的驗收仍看自己的原回歸，不把明示失敗對照算成產品正常通過。
 
-2026-10-31。本次交付診斷與未解原因，不宣稱修復。不用成功重跑或覆蓋率代替失敗時的原生證據。
+2026-10-31最初階段只交付診斷與未解原因；以下保留當時版本歸屬。最新Linux對照已在原始程式自然重現就緒競爭，結果見文末；仍不用成功重跑或覆蓋率代替原失敗證據。
 
 ## 來源與範圍
 
@@ -123,4 +123,67 @@ main 已含 [#129](https://github.com/sunpochin/dance-stamp/pull/129) 的訂閱�
 
 只有匿名白名單收據會列入Actions日誌；完整runner輸出、素材、profile與原始內容不公開。GitHub每組在不同VM，沿原runner自己的原子媒體鎖及nonce收尾，另從已知啟動PID確認瀏覽器退出。文件回填不觸發另一輪控制工作，只有診斷程式／工作流程變更才會執行新候選。
 
-本機正常check已完成648 tests／3179 expects／0 fail，19項既有lint info保留；腳本編譯與歷史Playwright適配器載入檢查亦通過，沒有啟動本機瀏覽器。最初受限環境的HTTP臨時埠監聽失敗，改以正常權限執行同一測試及完整check通過，未改測試或跳過hook。Linux實際數字與精確來源待完成後另記PR；在結果出現前不宣稱重現、修復或Linux通過。這份工具不修改已合併 #129 的實作、不倒退其準備順序，也不取代人工審查、Safari／真人／實體裝置或G1–G7；iPhone仍暫緩。
+本機正常check已完成648 tests／3179 expects／0 fail，19項既有lint info保留；腳本編譯與歷史Playwright適配器載入檢查亦通過，沒有啟動本機瀏覽器。最初受限環境的HTTP臨時埠監聽失敗，改以正常權限執行同一測試及完整check通過，未改測試或跳過hook。Linux實際數字與精確來源見下一節，並同步回填PR。這份工具不修改已合併 #129 的實作、不倒退其準備順序，也不取代人工審查、Safari／真人／實體裝置或G1–G7；iPhone仍暫緩。
+
+
+## Linux實際結果：兩次自然逾時與固定因果對照
+
+[Keyboard Linux controls #1](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656)，診斷提交 `9842089d890830ea9489e32880da4b5a362042fc`，由[後續PR #140](https://github.com/sunpochin/dance-stamp/pull/140)啟動。五組各一次，沒有重跑。全部都是Linux x64／Bun1.4.4／Chrome156.0.8078.47／Playwright1.64.1、歷史f1ac4ef；產品／原案例／原runner／觀察器指紋一致，歷史磁碟來源前後乾淨。
+
+| 組別（原工作） | 原案例結果 | 選檔waiter觀察值 | DOM／driver筆數 | 真正chooser |
+| --- | --- | --- | --- | --- |
+| [cold](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656/job/124472350704) | **自然失敗**，案例16,822ms、exit1 | 原15000ms逾時，觀察15,002.474ms | 20／12，未截斷 | 0 |
+| [prefix](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656/job/124472350726) | 原前37案全過，只有鍵盤自然失敗，案例16,157ms、exit1 | 原15000ms逾時，觀察15,002.915ms | 20／12，未截斷 | 0 |
+| [delayed](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656/job/124472350555) | 明示延遲下預期失敗，案例17,075ms、exit1 | 原15000ms逾時，觀察15,003.097ms | 20／12，未截斷 | 0 |
+| [ready](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656/job/124472350757) | 相同250ms延遲，原案例**通過**，3,453ms、exit0 | 原waiter內確認RPC後送Enter | 20／39，未截斷 | 1，reference-file |
+| [cancel-input](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656/job/124472350722) | 明示取消下預期失敗，案例16,698ms、exit1 | 原15000ms逾時，觀察15,001.833ms | 20／12，未截斷 | 0 |
+
+案例時間另含導覽／前置及收尾，不能把16–17秒誤寫成放寬了原15秒waiter。觀察值由同一host時鐘的waiter-requested／rejected相減；原始固定期限沒有變動。兩個自然組的工作保持 **failure／紅燈**；另外三個控制工作success只是符合事先預期，其中兩個仍保留原案例exit1。整個控制workflow因此是failure，不寫成五項產品流程全通過，也沒有改預期或重跑洗掉紅燈。
+
+### 失敗當下的原生順序
+
+cold與prefix沒有命令延遲或取消注入，`delays=[]`。兩輪都是select-video的trusted Enter與button click已到達、未取消，reference-file同步click也未取消；active仍在select-video、disabled=false、文件可見且有焦點、事件內activation=true，仍未收到原生chooser。這些是受控工具下的原生DOM資料，不代表真人／硬體操作已驗收。
+
+同一輪內的host performance時間如下；不跨VM相減：
+
+| 步驟 | cold（ms） | prefix（ms） |
+| --- | --- | --- |
+| 原訂閱RPC開始 | 50414.221554 | 374345.985646 |
+| 真正攔截命令派送 | 50415.652189 | 374346.331877 |
+| Enter keyDown派送 | 50415.899255 | 374346.475667 |
+| **Enter keyDown回覆** | **50421.801802** | **374347.440116** |
+| 攔截命令回覆 | 50421.916578 | 374347.571667 |
+| **原訂閱RPC回覆** | **50422.043848** | **374347.621390** |
+
+所以「攔截命令先排入」不等於「已準備好接通知」。兩輪按鍵已完成，完整訂閱尚未確認；沒有focus遺失或preventDefault的證據。原固定版client呼叫訂閱後立即返回，server要在原生攔截完成後才完成訂閱登記，與 #129 已追出的缺少就緒依賴一致。只憑回覆先後不能推論Chrome內部每個執行步驟；結論另由以下單一變因對照支持。
+
+### 同延遲比較與仍有效的失敗防線
+
+delayed只延後真正攔截派送250ms：Enter keyDown在52699.481237送出，真正攔截到52949.559873才送出，原RPC52950.325398才完成；未取消的原生Enter／click仍導致原15秒逾時、chooser0。
+
+ready使用同一250ms延遲，只讓按鍵先等原RPC：訂閱50780.471951確認，Enter50780.815674才派送，原生chooser50782.557552到達。原入口／焦點、一起播放／暫停、數字微調保存整數毫秒、按鈕微調、窄版停止與無橫向溢出六個原旗標全部true，沒有用隱藏輸入取代待測選檔。
+
+cancel-input也先確認訂閱（37857.654637）才送真正Enter（37857.961331），但真正reference-file click的prevented=true；仍等原15秒失敗、chooser0。因此等就緒不會讓已取消或根本未開啟的選檔假通過。
+
+**可支持的根因與修正**：原f1ac4ef測試缺少「原選檔訂閱RPC完成 → 派送Enter」依賴，Linux冷／暖皆能自然出現就緒競爭；相同延遲下，只補此依賴即可成功。該測試前置修正已由 #129 進入main，本次驗證它適用於 #203 原碼的同類故障，不需要另改產品按鈕。#203當年兩次本身沒有事件資料，仍不能逐次斷言當時兩次一定都是同一原因，也不能把這份原碼適配器結果換標成其他來源或整體P0已驗收。
+
+五組均0頁面例外、自有瀏覽器各1個且已退出、browserClosed／serverStopped=true、lockRetained=false。暖組前置的6份chooser快照沒有混入目標頁；目標為page63，另四組page1。來源檔案未變，沒有終止他人程序或動用真相機／麥克風。此次實際瀏覽器驗證只在Linux執行；本機僅做正常check、編譯與適配器載入確認。
+
+### 固定指紋與來源界線
+
+- 原f1ac4ef comparison-keyboard.js：`e19c82c8e29c585d38782053dd26083422470134a4b865d2dc39073ebcdf8bea`。
+- 原runner：`53fd39a7e8e41b713c9014306549ffc201a24a36177729161a315db59adeee67`。
+- 共用觀察器：`6d17d867e62d128a793f2bc348f8279fbdb0167c9418386a2760aff4420c5e26`。
+- 本次診斷工具：`90b7b5e38559d55cfc8f5fe10fa3551f8760df36ca30cd859913a125069881d6`；獨立workflow：`e7a2e6483a7c3490cf5b3a90bddd76686db1c81af9654f7bb067bda45f73759d`。
+
+本機另保存本次工具回傳的UTF-8工作日誌及匿名JSON副本，未公開完整profile或原始媒體。匿名JSON副本SHA-256：
+
+| 組別 | SHA-256 |
+| --- | --- |
+| cold | `a50e187d7ff7e8934832fcd32266b9aaac4aa71625c514c2dae4c79e92da8769` |
+| prefix | `50a4daa0e3c6ff4b60acce56e4210f47b8c2a498cae118f4be7278a8a30a2358` |
+| delayed | `9dd55668b145c6eb25ad5857eb8887d2672d3dac028bb4af8df2fd3aabbdbb6d` |
+| ready | `c45c5efba3d2397bd7cb251a4db042207bf9b7bea31a38db75045af7c1e3d67b` |
+| cancel-input | `853ad6c94f575b2390955a7836d34a34235df94283458e75487613804e5de9ef` |
+
+本節是在五組完成後只回填文件，受測工具／workflow／觀察器指紋保持上述值；不改稱文件提交也重跑了五組。只記錄證據、不重跑找綠燈；PR #140與 #103保持待審查／開啟，本次未合併或發布。
