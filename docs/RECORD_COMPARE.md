@@ -42,8 +42,6 @@
 
 錄影 chunks 依序落盤，計算時長不能使用「chunk 數 × timeslice」；事件間隔不保證準時。錄影中切背景、鎖屏、來電、攝影機被接管、旋轉導致尺寸變更，都要標記中斷並停止／完成可用資料，不在背景偷偷繼續。[dataavailable](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/dataavailable_event)。
 
-錄影時示範聲音隨速度自然變調，減少慢速音高處理的起播等待；完成／取消／失敗後恢復一般練習的音高保持。原 take 保留實際錄到的完整內容，仍從 A 播到 B，不用裁切或提早停錄補時長。原生 Safari 有界對照見[本票證據](evidence/issue-9-capture-recovery.md#2026-10-31-半速錄影起播延遲)。
-
 ### 3.2 比較與合成
 
 保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
@@ -137,3 +135,8 @@ Safari本機音訊續修：錄製同步接受後立即供給原音訊與正式�
 
 
 Safari WebM續修只在有界本機音訊VS不帶timeslice，一次收檔；相機與普通Chrome仍保留逐秒chunks。所有新VS在替換／保存前以未取整的原生讀回片長核對配方共同區間，差超過原100ms即拒絕並保留前次VS。這只補必要片長保護，完整首尾覆蓋與原v5各門檻仍須獨立驗證，詳見TECHNICAL第37節。
+
+
+### #119 續作：Safari 錄影的播放聲路
+
+Safari 在錄影期間保留示範元素的音高設定並暫時靜音，使用同一原片 A–B 的有界本機 AAC 聲音以 r 自然變調播放；一般練習仍保持音高與原音量。聲音準備完成、以真正影格暖機並回到 A 才進倒數，相機開錄仍早於正式示範啟播；不延後開錄、不在 B 補 seek、不修改 B、片長或 ±100ms。支援格式、取消／故障保全及排除方案見 TECHNICAL 第 51 節，原生結果見 [#9 續修證據](evidence/issue-9-capture-recovery.md#119-續作錄影聲路與一般練習音高)。此續修不代表真相機、聽感、私人模式、背景或完整 G1–G7 已驗收。
