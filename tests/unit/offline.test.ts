@@ -4,14 +4,14 @@ import { startOffline } from '../../web/offline.js'
 
 const originals = new Map(['navigator', 'document', 'window', 'location'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
 afterEach(() => { for (const [key, original] of originals) { if (original) Object.defineProperty(globalThis, key, original); else Reflect.deleteProperty(globalThis, key) } })
-class Control extends EventTarget { textContent = ''; disabled = false }
+class Control extends EventTarget { textContent = ''; disabled = false; hidden = true }
 // MessageChannel 與 Promise 由執行環境排程；等可觀察結果，避免 CI 忙碌時把固定延遲當成功保證。
 const waitFor = async (ready: () => boolean) => {
   const deadline = Date.now() + 1000
   while (!ready()) { if (Date.now() >= deadline) throw new Error('synthetic UI did not settle'); await Bun.sleep(1) }
 }
 function setup(options: { complete?: boolean; controlled?: boolean; persist?: boolean; storageError?: boolean; registerError?: boolean; statusError?: boolean; updateError?: boolean; noWorker?: boolean; noStorage?: boolean; devReload?: boolean; hostname?: string } = {}) {
-  const ui = Object.fromEntries(['offline', 'capacity', 'persistence', 'updates', 'refresh', 'persist', 'checkUpdate'].map(key => [key, new Control()])) as Record<string, Control>
+  const ui = Object.fromEntries(['offline', 'capacity', 'persistence', 'updates', 'updateNotice', 'refresh', 'persist', 'checkUpdate'].map(key => [key, new Control()])) as Record<string, Control>
   let persists = 0, updates = 0, registrations = 0
   const worker = Object.assign(new EventTarget(), { postMessage(_message: unknown, ports: MessagePort[]) {
     if (options.statusError) throw new Error('synthetic status failure')
@@ -155,6 +155,7 @@ test('自動檢查不重入，失敗解除後由下一次前景事件重試並�
   const current = setup({ updateError: true }); await current.start()
   expect(current.counts().updates).toBe(1)
   expect(current.ui.updates.textContent).toContain('現有版本與資料保留')
+  expect(current.ui.updateNotice.hidden).toBe(true)
   let attempts = 0, release: () => void = () => {}
   current.registration.update = () => { attempts++; return new Promise<void>(resolve => { release = resolve }) }
   current.window.dispatchEvent(new Event('online'))
@@ -165,4 +166,11 @@ test('自動檢查不重入，失敗解除後由下一次前景事件重試並�
   current.document.dispatchEvent(new Event('visibilitychange'))
   expect(attempts).toBe(2); release()
   expect(current.ui.updates.textContent).toContain('不會自動重載')
+  // 同一個等待狀態要在頁首可見；候選消失時也必須解除過期提醒。
+  expect(current.ui.updateNotice.hidden).toBe(false)
+  expect(current.ui.updateNotice.textContent).toBe(current.ui.updates.textContent)
+  current.registration.waiting = null
+  current.worker.dispatchEvent(new Event('statechange'))
+  await waitFor(() => current.ui.updateNotice.hidden)
+  expect(current.ui.updateNotice.textContent).toBe('')
 })

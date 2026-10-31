@@ -36,6 +36,7 @@ export interface Elements {
   "capacity-status": HTMLParagraphElement;
   "persistence-status": HTMLParagraphElement;
   "update-status": HTMLParagraphElement;
+  "update-notice": HTMLParagraphElement;
   "check-offline": HTMLButtonElement;
   "request-persist": HTMLButtonElement;
   "check-update": HTMLButtonElement;
@@ -87,6 +88,16 @@ export interface Elements {
   "stop": HTMLButtonElement;
   "existing-mode": HTMLButtonElement;
   "pause-comparison": HTMLButtonElement;
+  "reference-seek": HTMLInputElement;
+  "reference-seek-time": HTMLOutputElement;
+  "reference-ruler": HTMLDivElement;
+  "reference-chosen-start": HTMLParagraphElement;
+  "reference-seek-buttons": HTMLDivElement;
+  "self-seek": HTMLInputElement;
+  "self-seek-time": HTMLOutputElement;
+  "self-ruler": HTMLDivElement;
+  "self-chosen-start": HTMLParagraphElement;
+  "self-seek-buttons": HTMLDivElement;
   "reference-start": HTMLButtonElement;
   "reference-end": HTMLButtonElement;
   "self-start": HTMLButtonElement;
@@ -161,9 +172,11 @@ export interface Elements {
   "overlay-opacity": HTMLInputElement;
   "overlay-opacity-value": HTMLOutputElement;
   "overlay-empty": HTMLParagraphElement;
-  "overlay-play": HTMLButtonElement;
-  "overlay-pause": HTMLButtonElement;
+  "export-controls": HTMLFieldSetElement;
+  "export-layout": HTMLSelectElement;
   "overlay-layout": HTMLFieldSetElement;
+  // 缺片時仍可讀取原因，顯示狀態與滑桿可用性分開。
+  "overlay-layout-status": HTMLParagraphElement;
   "overlay-layout-reset": HTMLButtonElement;
   "overlay-reference-scale": HTMLInputElement;
   "overlay-reference-scale-value": HTMLOutputElement;
@@ -197,12 +210,13 @@ export interface ShareSelection { videoIds: string[]; markerIds: string[]; takeI
 export interface Take { id: string; referenceVideoId: string; cameraAssetId: string; referenceStartMs: number; referenceEndMs: number; rate: number; state: 'recording' | 'ready' | 'interrupted' | 'failed'; createdAt: string; captureTiming?: CaptureTiming; beatGrid?: BeatGrid }
 
 export interface Recipe { id: string; takeId: string; offsetMs: number; referenceMirror: boolean; selfMirror: boolean; layout: 'side-by-side'; audioSource: 'reference'; revision: number }
-export interface Artifact { id: string; recipeId: string; recipeRevision: number; assetId: string; mimeType: string; state: 'ready' | 'interrupted' | 'failed'; createdAt: string }
+export interface OverlayPresentation { layout: 'overlay'; opacity: number; reference: { scale: number; x: number; y: number }; self: { scale: number; x: number; y: number } }
+export interface Artifact { presentation?: OverlayPresentation; id: string; recipeId: string; recipeRevision: number; assetId: string; mimeType: string; state: 'ready' | 'interrupted' | 'failed'; createdAt: string }
 export interface Library { format: string; schemaVersion: number; kind: string; exportedAt: string; sourceLibraryId: string; videos: Video[]; assets: Asset[]; markers: Marker[]; takes: Take[]; recipes: Recipe[]; exports: Artifact[]; moves: Move[] }
 export interface LibraryState { revision: number; data: Library }
 export interface Comparison { startMs: number; endMs: number; rate: number; offsetMs: number; selfDurationMs: number; referenceMirror: boolean; selfMirror: boolean }
 // 匯入原片沒有原生錄製觀測；允許缺欄，不能用檔案建立時間偽造同步資料。
 export interface CaptureTiming { recorderRequestedMs: number; recorderStartedMs?: number; referencePlayResolvedMs?: number; referenceAtPlayMs?: number }
 export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number }
-export interface ExportInfo { maxRenderGapMs: number; elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
+export interface ExportInfo { presentation?: OverlayPresentation; maxRenderGapMs: number; elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
 export interface Diagnostics { stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; audioPath?: string; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }

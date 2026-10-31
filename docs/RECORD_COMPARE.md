@@ -44,7 +44,7 @@
 
 ### 3.2 比較與合成
 
-保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
+保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。另可選半透明疊影輸出，自己的圖層先畫、老師依可見度覆蓋，沿用目前兩側大小／位置；這種版面會保留使用者縮放造成的裁切。兩種版面共用時間、音訊與原驗收門檻，分別成檔。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。
 
 比較預覽及 VS 採隨速度自然變調；不套用瀏覽器音高保持，以避免受測慢速成檔的聲畫差。一般練習播放仍依能力保持音高，媒體操作結束後恢復同一練習設定。這不改時間映射、音訊來源或驗收門檻。
 
