@@ -869,7 +869,13 @@ window.addEventListener('pagehide', e => {
 });
 // BFCache 仍是原模組與原連線；返回上一頁不能解除未確認旗標，必須真正重新導航讀回。
 window.addEventListener('pageshow', e => { if (e.persisted) { status('已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); updateControls(); } });
-window.addEventListener('beforeunload', e => { if (storageUnconfirmed() || active || beatDirty || moveDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open) { e.preventDefault(); e.returnValue = ''; } });
+// 更新與離頁共用草稿判斷，不能讓「立即更新」繞過原本的保存保護。
+function hasUnsavedWork() {
+  const video = state?.data.videos.find(value => value.id === currentVideoId);
+  const metadataDirty = video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
+  return storageUnconfirmed() || active || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+}
+window.addEventListener('beforeunload', e => { if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; } });
 
 
 function currentVideo() { return state.data.videos.find(v => v.id === currentVideoId); }
@@ -1790,6 +1796,9 @@ ready = (async () => {
   renderLibrary(); $('storage-status').textContent = `此瀏覽器有 ${state.data.videos.length} 份影片筆記。`;
   applyPracticeSettings(); updateControls();
   // 能力檢查獨立於筆記開啟；離線服務或 persist 失敗不能讓既有資料無法使用。
-  startOffline({ offline: $('offline-status'), capacity: $('capacity-status'), persistence: $('persistence-status'), updates: $('update-status'), updateNotice: $('update-notice'), refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
+  startOffline({ offline: $('offline-status'), capacity: $('capacity-status'), persistence: $('persistence-status'), updates: $('update-status'), updateNotice: $('update-notice'), applyUpdate: $('apply-update'),
+    // 保存佇列、播放與相機也要結束；已選 File 則由提示明說重載後須重新選取。
+    canUpdate: () => !hasUnsavedWork() && !camera && reference.paused && self.paused && !looping && !practiceStarting && !practiceSeek && !document.querySelector('[aria-busy="true"]'),
+    refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
 })().catch(error => { $('storage-status').textContent = `本機儲存無法開啟：${error.message} 沒有重置或刪除舊資料。`; throw error; });
 ready.catch(() => {}); report();

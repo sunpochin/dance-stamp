@@ -37,6 +37,7 @@ export interface Elements {
   "persistence-status": HTMLParagraphElement;
   "update-status": HTMLParagraphElement;
   "update-notice": HTMLParagraphElement;
+  "apply-update": HTMLButtonElement;
   "check-offline": HTMLButtonElement;
   "request-persist": HTMLButtonElement;
   "check-update": HTMLButtonElement;

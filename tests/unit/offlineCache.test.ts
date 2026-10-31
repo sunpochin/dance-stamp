@@ -9,7 +9,8 @@ function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'
   const hash = createHash('sha256').update(content).digest('hex')
   const handlers: Record<string, (event: any) => void> = {}, entries = new Map([[path, 'corrupt']])
   const retained = new Map([['dance-stamp-web-previous', 'synthetic old bytes'], ['synthetic-unrelated-cache', 'synthetic unrelated bytes']])
-  const calls = { fetch: 0, put: 0, deleted: [] as string[] }
+  const calls = { fetch: 0, put: 0, activated: 0, deleted: [] as string[] }
+  const clients = { pages: [{ id: 'current' }], async matchAll() { return clients.pages } }
   const fail = () => { throw new DOMException('synthetic cache failure', 'QuotaExceededError') }
   const cache = {
     async match(key: string) { if (mode === 'match') fail(); return entries.has(key) ? new Response(entries.get(key)) : undefined },
@@ -19,7 +20,7 @@ function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'
     .replace('const files =', `Object.assign(manifest, ${JSON.stringify(Object.fromEntries(paths.map(key => [key, hash])))});\nconst files =`)
   runInNewContext(source, {
     ...vmCoverageContext(),
-    self: { location: { origin: 'https://synthetic.invalid' }, addEventListener(type: string, handler: (event: any) => void) { handlers[type] = handler } },
+    self: { clients, async skipWaiting() { calls.activated++ }, location: { origin: 'https://synthetic.invalid' }, addEventListener(type: string, handler: (event: any) => void) { handlers[type] = handler } },
     caches: {
       async open() { if (mode === 'open') fail(); return cache },
       async keys() { return [`dance-stamp-web-${version}`, ...retained.keys()] },
@@ -46,8 +47,27 @@ function worker(mode = '', network = 'synthetic module', paths = ['/timeline.js'
     handlers[type]({ waitUntil(value: Promise<void>) { done = value } })
     return done!
   }
-  return { read, status, entries, retained, calls, content, path, lifecycle, handlers }
+  return { read, status, entries, retained, calls, clients, content, path, lifecycle, handlers }
 }
+
+test('明確啟用只接受唯一發起分頁；其他分頁、無來源及錯誤來源不能強制換版', async () => {
+  const current = worker()
+  // 直接跑同一份 worker handler，避免測試另寫一套多分頁保護演算法。
+  for (const [pages, source, accepted] of [
+    [[{ id: 'current' }, { id: 'other' }], { id: 'current' }, false],
+    [[{ id: 'current' }], null, false],
+    [[{ id: 'current' }], { id: 'other' }, false],
+    [[{ id: 'current' }], { id: 'current' }, true],
+  ] as const) {
+    current.clients.pages = [...pages]
+    let done: Promise<void> | undefined, reply: any
+    const before = current.calls.activated
+    current.handlers.message({ data: { type: 'ACTIVATE_UPDATE' }, source, ports: [{ postMessage(value: any) { reply = value } }], waitUntil(value: Promise<void>) { done = value } })
+    await done
+    expect(current.calls.activated - before).toBe(accepted ? 1 : 0)
+    expect(!!reply?.error).toBe(!accepted)
+  }
+})
 
 test('非 GET、私人路徑、其他來源與無回覆埠的訊息不由 SW 接管', () => {
   const current = worker(); let responses = 0, waits = 0
