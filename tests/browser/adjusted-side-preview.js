@@ -20,6 +20,8 @@ async page => {
   const videoCount = await page.locator('video').count();
   assert(await page.locator('#adjusted-reference-scale').isDisabled() && await page.locator('#adjusted-side-canvas').isHidden(), '缺片仍能試看');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設完整長度；先明確選本例的短段，保留原本的比較護欄。
+  await set('end', 15, 'change');
   assert(await page.locator('#adjusted-self-x').isDisabled(), '單片就開放調整');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await set('start', 12, 'change'); await set('end', 15, 'change'); await set('offset', 4, 'change');

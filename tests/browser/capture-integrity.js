@@ -56,6 +56,8 @@ async (page, options) => {
     await page.locator('#existing-mode').click();
     // 完整量測可明確傳入既有合成素材；原獨立媒體入口仍保留原預設，不複製第二套斷言。
     await page.locator('#reference-file').setInputFiles(options.reference ?? 'output/media-feasibility/reference.mp4'); await idle();
+    // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+    await page.locator('#end').fill('15');
     await page.locator('#self-file').setInputFiles(options.self ?? 'output/media-feasibility/self-silent.mp4'); await idle();
     await page.locator('#copy-self').click(); await idle();
     await page.locator('#video-title').fill('合成完整性筆記'); await page.locator('#save-title').click(); await idle();

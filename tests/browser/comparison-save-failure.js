@@ -18,6 +18,8 @@ async (page) => {
     try {
       await current.goto(origin); await idle();
       await current.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+      // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+      await current.locator('#end').fill('15');
       await current.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
       await current.locator('#end').fill('2'); await current.locator('#end').dispatchEvent('change'); await idle();
       const before = await library(), take = before.takes.at(-1);

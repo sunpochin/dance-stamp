@@ -13,6 +13,8 @@ async (page) => {
   assert(await page.evaluate(() => navigator.mediaDevices === undefined), '沒有建立完全缺少相機 API 的情境');
   await page.getByRole('button', { name: '比較已有影片', exact: true }).click();
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   assert(await page.locator('#rate').inputValue() === '1', '新配對不是原速預設');
   for (const [id, value] of [['start', '12'], ['end', '17'], ['offset', '4']]) {

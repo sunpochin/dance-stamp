@@ -14,6 +14,8 @@ async (page) => {
   await page.goto(origin); await idle();
   await page.getByRole('button', { name: '比較已有影片', exact: true }).click();
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   const videoId = await page.locator('#library').inputValue();
   await page.locator('#rate').selectOption('0.5'); await idle();
   await page.getByLabel('選擇練習影片', { exact: true }).setInputFiles('output/media-probe/reference.mp4'); await idle();

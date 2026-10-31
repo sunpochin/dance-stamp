@@ -92,7 +92,11 @@ body[data-comparison-only] [data-deferred], body[data-comparison-only] #stop:not
 body[data-comparison-only] #storage-recovery:not([hidden]) ~ #save-result [data-deferred="original"]:not([hidden]) { display: inline-flex !important; }
 /* 先只選片；沿用已提交來源的摘要標記，兩片就緒才顯示起點、比較與輸出，不另存 UI 狀態。 */
 /* biome-ignore lint/complexity/noImportantStyles: 分階段顯示必須覆蓋 fieldset／actions 的版面規則。 */
-body[data-comparison-only]:not(:has(#self-selection[data-source])) :is(.source-timeline, .segment-settings, #compare, section[aria-labelledby="overlay-title"], .video-card > .actions, #self-start) { display: none !important; }
+body[data-comparison-only]:not(:has(#self-selection[data-source])) :is(.source-timeline, #compare, section[aria-labelledby="overlay-title"], .video-card > .actions, #self-start) { display: none !important; }
 /* 缺片時也可能保存未確認；救援下載區不可被「兩片尚未就緒」一併隱藏。 */
 /* biome-ignore lint/complexity/noImportantStyles: 只有正常選片階段收起輸出，救援時原片與已成檔連結必須可讀。 */
 body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recovery:not([hidden]))) #save-result { display: none !important; }
+
+/* 長片會先被比較護欄拒絕；左片就緒就必須能縮短，不能等右片成功才提供解法。 */
+/* biome-ignore lint/complexity/noImportantStyles: 片段入口獨立於雙片完成階段，仍須覆蓋 fieldset 的版面規則。 */
+body[data-comparison-only]:not(:has(#reference-selection[data-source])) .segment-settings { display: none !important; }

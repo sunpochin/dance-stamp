@@ -14,6 +14,8 @@ async page => {
   });
   await page.locator('#existing-mode').click();
   await page.locator('#reference-file').setInputFiles('output/media-feasibility/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/media-feasibility/self-silent.mp4'); await idle();
   await page.locator('#end').fill('3'); await page.locator('#end').dispatchEvent('change'); await idle();
   await page.locator('#export').click(); await idle();

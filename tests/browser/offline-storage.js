@@ -13,6 +13,8 @@ async (page) => {
   await page.goto(origin); await idle();
   await page.waitForFunction(() => document.getElementById('offline-status').textContent.includes('已檢查應用資源完整'));
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await page.locator('#copy-reference').click(); await idle(); await page.locator('#copy-self').click(); await idle();
   await page.locator('#mark').click(); await page.locator('#marker-title').fill('離線前合成標記'); await page.locator('#marker-form').evaluate(f => f.requestSubmit()); await idle();

@@ -7,6 +7,8 @@ async (page) => {
   const preview = async locator => { await locator.click(); await idle(); await page.locator('#delete-dialog').waitFor({ state: 'visible' }); };
   await page.addInitScript(() => { window.confirm = () => true; }); await page.goto(origin); await idle();
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   for (const [id, value] of [['end','5']]) { await page.locator('#'+id).fill(value); await page.locator('#'+id).dispatchEvent('change'); await idle(); }
   await page.locator('#copy-reference').click(); await idle(); await page.locator('#copy-self').click(); await idle();
@@ -70,6 +72,8 @@ async (page) => {
   await page.reload(); await idle(); assert((await snapshot()).data.videos.length===0, '刪除重開又恢復');
   // 正在等待缺少的自己原片時刪除該練習，下一次選片必須能建立新配對。
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle(); await page.locator('#copy-reference').click(); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   const missing=(await snapshot()).data.takes[0]; await page.reload(); await idle();
   await page.locator('#library').selectOption(missing.referenceVideoId); await page.locator('#open-library').click(); await idle();
