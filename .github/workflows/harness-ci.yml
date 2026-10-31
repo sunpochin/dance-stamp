@@ -60,6 +60,17 @@ jobs:
       # 原入口已關閉網站與瀏覽器；另開原生file播放器，不能以App內預覽替代實際下載證據。
       - name: Reopen actual storage-version downloads after app shutdown
         run: bun --no-env-file tests/app-coverage/verify-storage-version-downloads.ts
+      # 先驗真正下載，再核對完整收據；局部或失敗報表不產生 badge。
+      - name: Generate verified coverage badges and report
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bun --no-env-file scripts/coverage-badges.ts coverage/app-* coverage/badges
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: app-coverage-report
+          path: coverage/badges/
+          if-no-files-found: error
+          retention-days: 30
       - name: Show unit diagnostics on failure
         if: failure()
         run: |
@@ -101,3 +112,44 @@ jobs:
               echo "::endgroup::"
             fi
           done
+  coverage-badges:
+    # PR 保持唯讀；三項既有檢查都成功後，才更新 main 的量測數字。
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [harness, app-coverage, linux-install-restart]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: app-coverage-report
+          path: verified-coverage
+      - name: Update only the coverage badge branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          report="$GITHUB_WORKSPACE/verified-coverage"
+          mkdir "$RUNNER_TEMP/badge-repository"
+          cd "$RUNNER_TEMP/badge-repository"
+          git init -b codex/coverage-badges
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git config credential.helper '!gh auth git-credential'
+          # 不讓較舊的成功輪覆蓋已前進的 main；只保留可追溯的最後成功輪。
+          current="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$current" != "$GITHUB_SHA" ]; then exit 0; fi
+          previous="$(git ls-remote origin refs/heads/codex/coverage-badges)"
+          if [ -n "$previous" ]; then
+            git fetch --depth=1 origin refs/heads/codex/coverage-badges
+            git switch -C codex/coverage-badges FETCH_HEAD
+          fi
+          # 只複製公開的統計與原始碼報表，不上傳影片、profile 或完整測試目錄。
+          for file in lines.json functions.json branches.json summary.json report.html README.md; do
+            cp "$report/$file" "$file"
+            git add -- "$file"
+          done
+          git config user.name github-actions
+          git config user.email github-actions@localhost
+          git commit -m "chore: Update coverage for $GITHUB_SHA" -m "Generated from successful full main CI: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          git push origin HEAD:refs/heads/codex/coverage-badges

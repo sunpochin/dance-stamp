@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+首頁 badge 的真實數字、來源與更新限制見 [README coverage badge](#readme-coverage-badge)。
+
 #11 固定 `5eda868` 的既有雙片原生 Safari 續驗見[本輪聲畫與保全證據](docs/evidence/issue-11-main-safari-matrix.md)：1×／0.75× 的 15 秒成片通過本輪量尺，0.5× 的提示音事件數不符即停止；長提示音的量測可靠性與音量降低原因仍待隔離。四份下載在關站後可自然播完，不能取代聲畫品質、十輪或真機驗收。
 
 #170 讓老師與自己各有可播放、定位及下載的單側結果，見[獨立結果設計](#170-單側跟隨結果與匯出)與[短合成證據](docs/evidence/issue-170-follow-results.md)。
@@ -1171,3 +1173,15 @@ App 回歸的既有完整介面案例在產品模組執行前明確移除 DOM �
 採明確里程碑的 workflow_dispatch，分 prepare PR 與 draft Release；固定 action commit、main 與本 repo，只有該 job 提升必要寫入權限。`draft=true` 保留人工公開發布，未啟用強制 tag、資產上傳或部署。Harness CI 增加手動入口，補內建 token 建 PR 不觸發 CI 的官方限制；同一 head 仍須通過完整檢查。
 
 排除每次 Preview Deploy／push 都發布、付費服務、私人 token、自寫 commit 解析器及將完整 Git history 貼成公告。版本 PR 的檔案與 PR 筆記須一起人工整理；draft 階段只讀已合併 PR 以免覆寫筆記。設定驗證不代表遠端發布、真機驗收或 #15 完成。操作與官方依據統一放 [RELEASE.md](docs/RELEASE.md#版本與更新說明)。
+
+## README coverage badge
+
+首頁的小牌子像成績單：CI 顯示 main 最新檢查狀態，三個 coverage 牌子顯示上次完整測試實際走過多少行、函式和分支。點任一 coverage 牌子即可看來源提交、分子／分母及 CI 報告；首次合併並通過 main CI 後才有數字。新一輪失敗或尚未完成會保留上次成功數字，因此仍需一起看 CI 狀態。桌面預覽階段與非商用授權牌子分別連到現行使用說明與 LICENSE。
+
+沿用 `test:coverage:app` 的全 `web/*.js` 分母與 Istanbul 計數；`scripts/coverage-badges.ts` 拒絕失敗、局部、髒來源、錯誤提交、缺少模組或未完成清理的收據，並重算原始計數比對摘要與最終收據。沿用原百分比，不把 99.99 四捨五入成 100。單元報表仍獨立，不把其載入模組的數字冒充全 App。
+
+PR 與 main CI 在實際下載重開成功後產生 `app-coverage-report` artifact（30 天），只含三份 Shields endpoint JSON、完整摘要、來源指紋、README 及可離線開啟的原始碼 HTML 報表；不含影片、profile 或資料庫。僅 push main 且三個既有工作都成功後，獨立 `coverage-badges` 工作以內建短期 token 更新 `codex/coverage-badges` 分支，永不寫 main、不強推；動手前確認遠端 main 尚是本輪提交。所有測試工作保持 contents:read，寫入權限只給此工作，不 checkout 或執行 PR 程式。
+
+README 的 coverage 使用 [Shields endpoint](https://shields.io/badges/endpoint-badge) 讀取該分支 JSON，CI 使用 [GitHub 原生狀態 badge](https://docs.github.com/en/actions/how-tos/monitor-workflows/add-a-status-badge)。GitHub／Shields 的快取可能延遲顯示；最後成功輪的來源仍可從 badge 連結核對。未測、失敗與尚未建立的 endpoint 不會被填成假分數。
+
+排除手寫固定百分比（會過期）、只顯示單元載入模組（遺漏主畫面／儲存／SW）、將報告 commit 回 main（污染產品歷史與遞迴 CI），以及額外 coverage 帳號／秘密或部署（現有 GitHub 已足夠）。此變更不增加產品對外服務依賴，也不提高 coverage 或代替真機驗收。
