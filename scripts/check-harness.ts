@@ -4,7 +4,7 @@
 主要關聯：docs/ai/harness-import.json、package.json、tests/unit/harness.test.ts。
 */
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, readlinkSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 const root = resolve(import.meta.dir, '..')
@@ -16,12 +16,13 @@ const check = (ok: boolean, message: string) => { if (!ok) errors.push(message) 
 check(Bun.version === read('.bun-version').trim(), `請使用 Bun ${read('.bun-version').trim()}，目前 ${Bun.version}`)
 // 只接受公開清單，避免有本機舊副本的人通過、新 clone 卻缺檔。
 check(process.argv.length === 2, 'Harness 檢查不接受額外參數；只驗證本 repo 的公開清單')
-const manifest = JSON.parse(read('docs/ai/harness-import.json'))
+const methods = JSON.parse(read('docs/ai/work-methods-lock.json'))
+const manifests = [JSON.parse(read('docs/ai/harness-import.json')), methods]
 const trackedResult = Bun.spawnSync(['git', 'ls-files', '-z'], { cwd: root, stdout: 'pipe', stderr: 'pipe' })
 check(trackedResult.exitCode === 0, '無法確認 Git 追蹤內容')
 const tracked = new Set(trackedResult.stdout.toString().split('\0'))
 let checked = 0
-for (const file of manifest.files) {
+for (const file of manifests.flatMap(manifest => manifest.files)) {
   check(file.distribution === 'public' && tracked.has(file.destination), `來源內容必須隨 Git 提供：${file.destination}`)
   checked += 1
   const path = resolve(root, file.destination)
@@ -30,6 +31,21 @@ for (const file of manifest.files) {
   if (!existsSync(path)) { errors.push(`缺少匯入檔：${file.destination}`); continue }
   const digest = createHash('sha256').update(readFileSync(path)).digest('hex')
   check(digest === file.sha256, `來源副本已改變，請記錄適配與指紋：${file.destination}`)
+}
+
+// 只收完整固定副本；清單以外的追蹤檔也拒絕，避免更新時夾帶另一版內容。
+const methodFiles = [...tracked].filter(path => path.startsWith('vendor/agent-work-methods/')).sort()
+check(JSON.stringify(methodFiles) === JSON.stringify(methods.files.map((file: { destination: string }) => file.destination).sort()), '共用方法副本必須完整且沒有額外追蹤檔')
+const methodNames = Object.keys(JSON.parse(read('vendor/agent-work-methods/provenance.json')).skills)
+const methodAliases = methodNames.flatMap(skill => ['skills', '.agents/skills', '.codex/skills', '.claude/skills'].map(prefix => `${prefix}/${skill}`))
+check(JSON.stringify(Object.keys(methods.aliases).sort()) === JSON.stringify([...methodAliases].sort()), '共用 skill 必須提供全部固定入口，不能增加跨目錄入口')
+for (const alias of methodAliases) {
+  const path = resolve(root, alias)
+  const skill = alias.split('/').at(-1)!
+  const target = alias.startsWith('skills/') ? `../vendor/agent-work-methods/skills/${skill}` : `../../skills/${skill}`
+  check(methods.aliases[alias] === target, `共用 skill 清單入口漂移：${alias}`)
+  check(tracked.has(alias) && lstatSync(path).isSymbolicLink() && readlinkSync(path) === target
+    && realpathSync(path) === resolve(root, 'vendor/agent-work-methods/skills', skill), `共用 skill 入口漂移：${alias}`)
 }
 
 for (const path of ['CLAUDE.md', 'CODEX.md', 'GEMINI.md', '.cursor/rules/project.mdc', '.github/copilot-instructions.md']) {

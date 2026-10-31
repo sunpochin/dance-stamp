@@ -22,7 +22,7 @@
 
 1. **小朋友解說**：最後用簡單繁體中文說明改動對使用者有什麼幫助。
 2. **說明原因的註解**：修改程式時用繁體中文註解交代非直覺決策、陷阱與重要順序。
-3. **實作與技術文件**：功能／修正須完成實作與驗證，不只交付計畫。新功能或架構更新 `TECHNICAL.md` 與直接相關文件，記錄取捨。文件須先用小朋友也能懂的繁體中文說明「怎麼用、為什麼有效」，再補技術原理與取捨；不能只在聊天解說。
+3. **實作與技術文件**：功能／修正須完成實作與驗證，不只交付計畫。新功能或架構更新 `TECHNICAL.md` 與直接相關文件，記錄取捨。文件須同時具備 **ELI5 白話寫法與技術寫法**：先用小朋友也能懂的繁體中文說明「怎麼用、為什麼有效」，再補技術原理與取捨；兩種寫法都須寫進相關文件，不能只在聊天解說。
 4. **Commit & Push**：從同步的 `main` 建新分支；一件任務完成、檢查通過就 commit 並立即 push，開 PR 到 `main`。不得直接推 `main`。
 
 提交格式：`type: Title`，空一行後寫具體 why-explanation。
@@ -76,6 +76,7 @@ PR 合併、程式驗證、真機驗收、發布分開記錄，不能互相代�
 | 本機資料、備份、migration | [資料格式](docs/DATA_FORMAT.md) |
 | 手機、媒體與發布驗證 | [驗收計畫](docs/ACCEPTANCE.md)、[證據範本](docs/agents/acceptance-template.md) |
 | 選用或修改 skill | [Skill 使用規則](docs/agents/skills.md) |
+| 共用的開工、排查、審查、介面及 skill 檢查 | [Agent Work Methods v0.1.0](docs/agents/work-methods.md)，產品規則仍讀本檔與下列補充 |
 | 程式分工、非同步狀態與競態 | [程式慣例](docs/agents/code-conventions.md) |
 | 審查、失敗排查與交接 | [審查方法](docs/agents/review.md) |
 | 外部工具或 skill 的相依與權限 | [Skill 安全](docs/agents/skill-security.md) |

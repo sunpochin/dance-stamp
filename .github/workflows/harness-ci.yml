@@ -33,9 +33,9 @@ jobs:
   app-coverage:
     needs: harness
     runs-on: ubuntu-24.04
-    # 整合71條的原輪已跑近15分鐘，尚需恢復尾段與離站播放；保留完整收尾餘裕。
-    # 只調工作總預算；原五秒離線、十五秒影格守門等各案期限不變。
-    timeout-minutes: 20
+    # 76 案與離站重播已實測超過 20 分鐘，舊總預算會在成功收尾時取消工作。
+    # 只留足整場收尾餘裕；原五秒離線、十五秒恢復及各媒體守門期限不變。
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
