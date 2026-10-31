@@ -67,6 +67,10 @@ Safari 有界本機音訊候選的格式與資源取捨見第 33 節；這不是
 
 本機 Worker 使用固定 `@mediapipe/tasks-vision` 1.2.0／EfficientDet-Lite0 int8 revision 1，8 Hz 對解碼影格做 person 類別偵測。首次只看使用者選框，後續在前次人物框周圍擴大搜尋，再把座標映回原片；避免寬畫面的大片背景把人物縮得太小。手動選框決定初始目標，後續依框重疊、距離與身體高度比維持連續性；兩個候選太接近不強行接手，短暫漏偵測沿前次位置，超過 0.75 秒則整輪拒絕，並提示重新框選／縮短片段。這些是追蹤失敗策略，不改 RECORD_COMPARE 的同步品質門檻。人物框的中心及高度變化映射至使用者選框，三點對稱平滑後按來源秒數插值；來源秒數由原共同時間線的 positions 提供，沒有新播放器時鐘或即時推論壓力。
 
+2026-11-01 漏偵測續修：狹長選框不再直接送入方形模型。像把長照片原樣放在方形卡紙上，Worker 先用灰邊補成方形，身體不被拉寬；老師與自己都共用這一步。推論後扣掉灰邊偏移、裁回原選框並正規化，完全落在灰邊的框丟棄。補邊不進預覽或成品，不改選框、搜尋範圍、模型／分數、多人歧義與失聯護欄。原圖與推論用 ImageBitmap 都在 finally 釋放。排除擴大選人範圍（會帶入鏡中人／旁人）、降低分數與沒有偵測結果也假裝跟隨。截圖重現與合成回歸見 [#165 續修證據](docs/evidence/issue-165-person-follow.md#2026-11-01-狹長選框漏偵測續修)。
+
+上游 [ImageToTensor 的比例選項](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_calculator.proto)區分保持比例補邊與拉滿 tensor；本次以同一固定模型的本機前後對照驗證輸入處理，沒有升級依賴或只靠上游說明宣稱修好。
+
 分析使用獨立靜音 video，不改現有兩側播放器或原檔。這個播放器不掛上螢幕，只等解碼 seeked 再取 ImageBitmap；不能套用匯出用的螢幕呈現通知，否則相同位置的第二次取樣會逾時。既有預覽／匯出的呈現護欄不改。每輪一個 Worker，取消／錯誤／逾時終止，ImageBitmap 每次釋放；只有完整成功才提交新路徑。共用 sourceCrop 在左右／疊影繪圖前取來源矩形，既有 contain、鏡像、疊影大小／位移與匯出器接續處理。分析期間鎖定來源與設定；路徑 revision 加入成品新舊簽章，避免重新框選後把舊成品標為目前設定。
 
 模型與必要的非 SIMD CPU WASM 約 17 MB 隨靜態包與離線 manifest 提供，無 CDN、API key、付費 API、影片上傳或模型 runtime 網路依賴。CSP 僅增加 wasm-unsafe-eval，沒有開放 JavaScript eval 或跨來源。模型與 WASM 逐一固定 SHA256；建置和封裝拒絕未知 bytes，其餘公開文字仍做原掃描。Apache 授權見 THIRD_PARTY_NOTICES。拒絕雲端推論（隱私／成本）、只追固定像素模板（轉身變化更脆弱）、第二套匯出器（畫面易與預覽漂移）、把路徑寫入既有 recipe（增加本次不需要的格式遷移）。
