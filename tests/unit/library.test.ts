@@ -45,6 +45,21 @@ test('錄影與輸出必須指向正確種類的媒體與配方', () => {
   data.assets[0].kind = 'reference'
   expect(() => validateBackup(data)).toThrow()
 })
+test('五分鐘比較可保存與備份往返，放慢後超界拒絕且原件不變', () => {
+  for (const rate of [0.5, 0.75, 1]) {
+    const data = sample(), assetId = crypto.randomUUID(), takeId = crypto.randomUUID()
+    data.videos[0].durationMs = 400_000
+    data.assets.push({ id: assetId, kind: 'take', byteLength: 1, mimeType: 'video/mp4', durationMs: 300_000 })
+    data.takes.push({ id: takeId, referenceVideoId: data.videos[0].id, cameraAssetId: assetId, referenceStartMs: 2000, referenceEndMs: 2000 + 300_000 * rate, rate, state: 'ready', createdAt: new Date().toISOString() })
+    data.recipes.push({ id: crypto.randomUUID(), takeId, offsetMs: 0, referenceMirror: false, selfMirror: false, layout: 'side-by-side', audioSource: 'reference', revision: 1 })
+    const restored = parseBackup(JSON.stringify(data))
+    expect(restored.takes).toEqual(data.takes)
+    expect(mergeBackup(data, restored).recipes).toEqual(data.recipes)
+    const bad = structuredClone(data); bad.takes[0].referenceEndMs++
+    expect(() => validateBackup(bad)).toThrow()
+    expect(data.takes[0].referenceEndMs).toBe(2000 + 300_000 * rate)
+  }
+})
 test('既有雙片與分支配方共用原片，v1 備份保留關聯且不含媒體位置', () => {
   const data = sample(), referenceId = crypto.randomUUID(), selfId = crypto.randomUUID()
   data.assets.push({ id: referenceId, videoId: data.videos[0].id, kind: 'reference', byteLength: 100, mimeType: 'video/mp4', durationMs: 60000 })

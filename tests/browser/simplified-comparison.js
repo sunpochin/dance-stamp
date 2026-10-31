@@ -97,13 +97,12 @@ async page => {
   await page.screenshot({ path: 'output/playwright/simplified-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 }); await page.evaluate(() => scrollTo(0, 0));
   await page.screenshot({ path: 'output/playwright/simplified-mobile.png' });
-  // 全長預設可能超過比較護欄；真正預設頁必須讓使用者先縮短，再重試右片，不能只靠測試改隱藏欄位。
+  // 超過舊 60 秒的原片應可直接配對；五分鐘邊界另由純邏輯回歸驗證。
   await choose('reference-file', 'output/comparison/reference.mp4');
   assert(Number(await page.locator('#end').inputValue()) === 80, '長片被偷偷裁短，沒有保留完整範圍預設');
-  const beforeLongFailure = await read();
   await choose('self-file', 'output/comparison/self-1.mp4');
-  assert((await page.locator('#status').textContent()).includes('最多 60 秒') && await read() === beforeLongFailure, '長片護欄未拒絕或失敗改動資料');
-  assert(await page.locator('.segment-settings').isVisible() && await page.locator('#end').isVisible(), '長片右側被拒絕後沒有可見的縮短片段入口');
+  assert(await page.locator('#compare').isVisible() && !await page.locator('#play').isDisabled(), '80 秒原片仍被舊比較上限拒絕');
+  assert(await page.locator('.segment-settings').isVisible() && await page.locator('#end').isVisible(), '長片沒有可見的片段設定入口');
   await page.locator('#end').fill('15'); await page.locator('#end').dispatchEvent('change'); await idle();
   await choose('self-file', 'output/comparison/self-1.mp4');
   assert(await page.locator('#compare').isVisible() && !await page.locator('#play').isDisabled() && (await page.locator('#self-selection').getAttribute('data-source')) !== null, '縮短後無法從真正預設頁建立長片比較');

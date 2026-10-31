@@ -1,6 +1,7 @@
 /* 檔案用途：有界讀取本機 MP4 的 AAC 片段，避開 Safari 元素來源漏音。所在層：媒體。主要關聯：main.js、timeline.js、RECORD_COMPARE.md。 */
+import { MAX_COMPARISON_MS } from './timeline.js';
 // ponytail: 只支援單軌 AAC-LC 的一般 MP4；其餘格式明確拒絕，之後有實片需求才擴充 demux。
-export const audioBudget = Object.freeze({ metadata: 8 * 1024 * 1024, samples: 250_000, packet: 16 * 1024, batch: 8, seconds: 60, sampleRate: 48_000, channels: 2 });
+export const audioBudget = Object.freeze({ metadata: 8 * 1024 * 1024, samples: 250_000, packet: 16 * 1024, batch: 8, seconds: MAX_COMPARISON_MS / 1000, sampleRate: 48_000, channels: 2 });
 const unsupported = () => new Error('Safari 音訊相容合成目前支援一般 MP4 的單一 AAC-LC 音軌（最多雙聲道、48kHz）。此片格式或資源超出範圍，請改用 Chrome；原片與前次 VS 保留。');
 const require = value => { if (!value) throw unsupported(); };
 export function safariAudio(userAgent = navigator.userAgent) {
@@ -198,7 +199,8 @@ export async function decodeLocalAudio(file, context, start, duration, signal) {
       }
     }
     await audioReady(decoder.flush(), signal); signal.throwIfAborted(); if (failure) throw failure;
-    require(outputs === submitted && submitted <= 2900);
+    // AAC 每包 1024 格；兩包暖機與首尾跨界也須計入，不能殘留舊 60 秒封包上限。
+    require(outputs === submitted && submitted <= Math.ceil(audioBudget.seconds * audioBudget.sampleRate / 1024) + 3);
     return buffer;
   } catch (error) {
     buffer = null; if (signal.aborted) throw signal.reason;
