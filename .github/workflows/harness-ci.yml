@@ -2,6 +2,8 @@
 # 所在層：GitHub Actions；主要關聯：package.json、docs/ai/HARNESS.md。
 name: Harness CI
 on:
+  # 內建 token 建的版本 PR 不觸發 PR 事件；維護者可對該分支跑相同檢查。
+  workflow_dispatch:
   pull_request:
   push:
     branches: [main]
