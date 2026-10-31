@@ -1,7 +1,7 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-#176 的人物追蹤分段計時、同片重跑與基準界線見[本機耗時指南](docs/FOLLOW_PERFORMANCE.md)與[M4 Pro 合成基準](docs/evidence/issue-176-follow-performance.md)。只加數字量測，不改 8 Hz、模型、追蹤或匯出；本輪 detect 呼叫約占 85.8%，不把已快取條件的結果外推成所有私人影片。
+#176 像替每一站蓋時間章，先找練舞者等最久的一站；[本機耗時指南](docs/FOLLOW_PERFORMANCE.md)與[M4 Pro 合成基準](docs/evidence/issue-176-follow-performance.md)同時提供 ELI5 白話與技術寫法。技術上只加分段計時、P50／P95 與同輸入重跑比較，不改 8 Hz、模型、追蹤或匯出；本輪 detect 呼叫約占 85.8%，不把已快取條件的結果外推成所有私人影片。
 
 #165 的雙側人物框選、跟隨裁切與鏡像見[本次設計](#165-雙側人物跟隨裁切)及[合成驗證](docs/evidence/issue-165-person-follow.md)；手動對齊仍保留。
 
