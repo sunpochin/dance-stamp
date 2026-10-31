@@ -163,5 +163,85 @@ async (page) => {
     return left.length > 0 && left.length === right.length && left.every((byte, index) => byte === right[index]);
   }, [originalTake.cameraAssetId, valid.assetId]);
   assert(checks.recoveredBytesAfterReload, '清 chunks 後重開的恢復原片缺少或 bytes 改變');
+  // 原恢復案例全部完成後才追加：狀態更新也可能失敗，不能因第二個錯誤弄丟真正早停的原片。
+  const full = () => page.evaluate(async () => {
+    const store = await import('/storage.js'), db = await store.openStore();
+    const read = request => new Promise((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+    const tx = db.transaction(['metadata', 'media', 'chunks']);
+    const values = await Promise.all([read(tx.objectStore('metadata').get('library')), read(tx.objectStore('media').getAllKeys()), read(tx.objectStore('media').getAll()), read(tx.objectStore('chunks').getAllKeys()), read(tx.objectStore('chunks').getAll())]);
+    const rows = async (keys, blobs) => Promise.all(blobs.map(async (blob, index) => ({ id: keys[index], bytes: blob.size, type: blob.type, hash: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(v => v.toString(16).padStart(2, '0')).join('') })));
+    return { saved: values[0], media: await rows(values[1], values[2]), chunks: await rows(values[3], values[4]) };
+  });
+  const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  await page.locator('#library').selectOption(videoId); await page.locator('#open-library').click(); await idle();
+  await page.locator(`[data-focus-key="take:${originalTake.id}:open"]`).click(); await idle();
+  await page.locator('#end').fill('3'); await page.locator('#end').press('Tab'); await idle();
+  await page.locator('#export').click(); await idle(); assert(await page.locator('#output-download').isVisible(), '停止狀態失敗基準沒有真正 VS');
+  await page.locator('#end').fill('15'); await page.locator('#end').press('Tab'); await idle();
+  await page.locator('#mark').click(); await page.locator('#marker-title').fill('合成狀態失敗保留'); await page.locator('#marker-note').fill('新片狀態保存失敗不能刪掉這份筆記'); await page.locator('#marker-form button[type=submit]').click(); await idle();
+  const before = await full(), artifact = before.saved.data.exports.at(-1), expectedVs = before.media.find(row => row.id === artifact?.assetId);
+  assert(expectedVs && before.saved.data.markers.some(row => row.note === '新片狀態保存失敗不能刪掉這份筆記') && before.chunks.length > 0, '沒有非空筆記、舊 VS 與其他待恢復 chunks 可驗保全');
+  await page.locator('#camera-tools').evaluate(d => { d.open = true; }); await page.locator('#camera').click(); await idle();
+  await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
+  const started = await full(), target = started.saved.data.takes.at(-1);
+  assert(target.state === 'recording' && !before.saved.data.takes.some(t => t.id === target.id) && started.saved.revision === before.saved.revision + 1, '新錄影沒有單獨建立工作記錄');
+  for (const [table, rows] of Object.entries(before.saved.data)) if (Array.isArray(rows)) assert(started.saved.data[table].length === rows.length + (['assets', 'takes', 'recipes'].includes(table) ? 1 : 0) && equal(started.saved.data[table].filter(row => rows.some(old => old.id === row.id)), rows), '建立新錄影改動原資料表：' + table);
+  await page.waitForFunction(async id => {
+    const db = await (await import('/storage.js')).openStore();
+    return await new Promise(resolve => { const req = db.transaction('chunks').objectStore('chunks').count(IDBKeyRange.bound([id, 0], [id, Number.MAX_SAFE_INTEGER])); req.onsuccess = () => resolve(req.result > 0); });
+  }, target.cameraAssetId);
+  await page.evaluate(id => {
+    const put = IDBObjectStore.prototype.put;
+    const audit = window.stoppedStateFailure = { puts: 0, errors: [], aborts: [], recorderEvents: [], unhandled: [], restored: false };
+    window.addEventListener('unhandledrejection', event => audit.unhandled.push(String(event.reason)));
+    IDBObjectStore.prototype.put = function(value, ...args) {
+      const request = put.call(this, value, ...args);
+      if (this.name === 'metadata' && value?.data?.takes.some(t => t.id === id && t.state === 'interrupted')) {
+        // 只中止早停之後的狀態更新；原生 chunks 寫入與所有既有資料不受注入影響。
+        audit.puts++; IDBObjectStore.prototype.put = put; audit.restored = true;
+        request.addEventListener('error', event => audit.errors.push({ trusted: event.isTrusted, name: request.error.name }));
+        this.transaction.addEventListener('abort', event => audit.aborts.push({ trusted: event.isTrusted, mode: this.transaction.mode, stores: [...this.transaction.objectStoreNames] }));
+        this.transaction.abort();
+      }
+      return request;
+    };
+    // 真正停止原生編碼器造成提前結束，不派送假 error／stop，原完整性護欄仍須拒絕。
+    const recorder = window.captureRecorders.at(-1);
+    if (recorder.state !== 'recording') throw new Error('原生編碼器已提前結束，不能當成本次早停證據');
+    for (const name of ['stop', 'dataavailable']) recorder.addEventListener(name, event => audit.recorderEvents.push({ name, trusted: event.isTrusted, bytes: event.data?.size }));
+    recorder.stop();
+  }, target.id);
+  await idle();
+  const failed = await full(), audit = await page.evaluate(() => window.stoppedStateFailure);
+  assert(audit.puts === 1 && audit.restored && audit.errors.length === 1 && audit.errors[0].trusted && audit.errors[0].name === 'AbortError' && audit.aborts.length === 1 && audit.aborts[0].trusted && audit.aborts[0].mode === 'readwrite' && audit.unhandled.length === 0, '不是指定狀態寫入的原生中止或留下未處理拒絕');
+  assert(audit.recorderEvents.some(event => event.name === 'stop') && audit.recorderEvents.some(event => event.name === 'dataavailable' && event.bytes > 0) && audit.recorderEvents.every(event => event.trusted), '沒有真正原生尾塊與停止事件');
+  assert(equal(failed.saved, started.saved) && equal(failed.media, before.media) && equal(failed.chunks.filter(row => row.id[0] !== target.cameraAssetId), before.chunks), '狀態失敗改掉已確認 metadata、原媒體或其他 chunks');
+  assert((await page.locator('#status').textContent()).includes('錄影未完成') && await page.locator('#partial-download').isVisible() && await page.evaluate(() => window.captureRequests.every(c => c.audio === false) && window.captureTracks.every(t => t.readyState === 'ended') && !document.getElementById('preview').srcObject && document.getElementById('storage-recovery').hidden), '早停失敗沒有救援原片、停止相機、禁用麥克風或保留原完整性提示');
+  const stoppedBytes = await page.evaluate(async id => {
+    const blob = await (await import('/storage.js')).recoverChunks(id);
+    return { bytes: blob.size, type: blob.type, hash: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(v => v.toString(16).padStart(2, '0')).join('') };
+  }, target.cameraAssetId);
+  const downloads = [];
+  const download = async (control, label, expected) => {
+    const pending = page.waitForEvent('download'); await control.click(); const file = await pending;
+    const path = `output/export-failure/stopped-state-${label}-${file.suggestedFilename()}`; await file.saveAs(path);
+    const bytes = await (await import('node:fs/promises')).readFile(path), { createHash } = await import('node:crypto');
+    assert(bytes.length === expected.bytes && createHash('sha256').update(bytes).digest('hex') === expected.hash, '真正下載與完整原生 bytes 不符：' + label);
+    downloads.push({ path, ...expected });
+  };
+  await download(page.locator('#partial-download'), 'partial', stoppedBytes);
+  await page.reload(); await idle(); assert(equal(await full(), failed), '同 profile 重開改寫狀態或遺失原片／chunks');
+  await page.locator('#library').selectOption(videoId); await page.locator('#open-library').click(); await idle();
+  await page.locator(`[data-focus-key="take:${target.id}:open"]`).click(); await idle();
+  const recovered = await full(), recoveredMedia = recovered.media.find(row => row.id === target.cameraAssetId);
+  // recording 先明確記為 interrupted，再保存完整原片；兩個原交易各增加一次 revision，不能省略其中一個。
+  assert(recovered.saved.revision === failed.saved.revision + 2 && recovered.saved.data.takes.find(t => t.id === target.id).state === 'interrupted' && recoveredMedia && recoveredMedia.bytes === stoppedBytes.bytes && recoveredMedia.hash === stoppedBytes.hash, '公開恢復沒有保留同一份原片、原兩筆交易或誤標完整成功');
+  assert(equal(recovered.media.filter(row => row.id !== target.cameraAssetId), before.media) && equal(recovered.chunks, before.chunks), '公開恢復清掉其他媒體或其他待恢復 chunks');
+  for (const [table, rows] of Object.entries(before.saved.data)) if (Array.isArray(rows)) assert(equal(recovered.saved.data[table].filter(row => rows.some(old => old.id === row.id)), rows), '恢復改動其他資料表：' + table);
+  await download(page.locator('#take-download'), 'recovered', stoppedBytes);
+  await page.locator(`[data-focus-key="export:${artifact.id}:download"]`).click(); await idle();
+  await download(page.locator('#output-download'), 'old-vs', expectedVs);
+  await page.reload(); await idle(); assert(equal(await full(), recovered), '恢復後再次重開資料不符');
+  checks.stoppedStateWriteFailure = { audit, targetTakeId: target.id, oldMetadataAndMediaAndOtherChunksPreserved: true, failedStatusRemainsRecording: true, actualPartialDownload: true, sameProfileReopenAndPublicRecovery: true, recoveredRemainsInterrupted: true, downloads };
   return checks;
 }
