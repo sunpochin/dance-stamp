@@ -9,7 +9,7 @@
 </head>
 <body><a class="skip-link" href="#controls">跳到選片與錄影</a><main>
   <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看示範影片，對照練習影片。</h1>
-    <p>先選示範影片，再選練習影片；對齊同一個動作，一起看、存成左右比較影片。</p>
+    <p>先選示範影片，再選練習影片；對齊同一個動作，一起看、存成左右並排或疊影影片。</p>
     <nav class="actions" aria-label="練習入口"><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
     <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
     <p class="notice">桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
@@ -70,7 +70,7 @@
       <p class="hint">Safari 有聲錄影需使用支援的 MP4／AAC 示範；錄影時聲音隨速度變調，一般練習仍保留音高。影片與聲音都在此裝置處理。</p>
     </details>
   </fieldset>
-  <fieldset id="compare" disabled><legend>02 · 對齊，再合成</legend>
+  <fieldset id="compare" disabled><legend>02 · 對齊與預覽</legend>
     <label>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
     <p class="hint">正值略過我的影片開頭；負值略過老師影片開頭。只輸出兩段都有畫面的區間。</p>
     <fieldset id="offset-controls" class="actions"><legend>對齊微調</legend><button type="button" data-offset="-50">−50 毫秒</button><button type="button" data-offset="-10">−10 毫秒</button><button type="button" data-offset="10">＋10 毫秒</button><button type="button" data-offset="50">＋50 毫秒</button></fieldset>
@@ -79,7 +79,7 @@
     <p class="hint" id="comparison-pitch-status">比較預覽與 VS 的聲音會隨速度變調，以維持聲畫同步；一般練習播放仍保留音高。</p>
     <label>共同時間線（秒）<input id="scrub" aria-describedby="intersection audio-status" type="range" min="0" max="1" value="0" step="0.01"></label>
     <p id="intersection">選好右邊練習影片後，這裡會顯示可比較的長度。</p>
-    <div class="actions"><button type="button" id="play">一起預覽</button><button type="button" id="export" class="primary">輸出單一 VS 影片</button></div>
+    <div class="actions"><button type="button" id="play">播放比較（左右與疊影）</button></div>
   </fieldset>
   <section aria-labelledby="overlay-title">
     <h2 id="overlay-title">疊影比較 · 看動作差在哪裡</h2>
@@ -103,22 +103,27 @@
         </fieldset>
       </div>
       <button type="button" id="overlay-layout-reset">重設兩側大小與位置</button>
-      <p class="hint">只影響這個疊影框；換影片會重設，左右 VS 輸出保留原樣。</p>
+      <p class="hint">套用於疊影預覽與疊影匯出；換影片會重設，左右並排不套用大小與位置。</p>
     </fieldset>
     </div>
-    <div class="actions"><button type="button" id="overlay-play" disabled>播放疊影</button><button type="button" id="overlay-pause" disabled>一起暫停疊影</button></div>
+    <p class="hint">使用上方「播放比較」播放兩種預覽；狀態列的「一起暫停」會同時暫停兩片。</p>
     <p id="overlay-empty" class="hint">先載入老師與自己的影片，確認有效的共同比較區間後，就能看到疊影。</p>
-    <p class="hint">疊影供觀看比較；下方下載的 VS 仍是左右並排影片。合成 VS 時疊影暫停更新。</p>
+    <!-- 左右畫布是即時預覽與合成來源；收起供選看，保存區只呈現真正完成的影片。 -->
+    <details id="side-preview"><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
+    <p class="hint">下方可選擇匯出左右並排或目前疊影。合成期間預覽暫停更新。</p>
   </section>
-  <section id="save-result" aria-label="合成結果"><h2>03 · 保存這次練習</h2>
-    <canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas>
+  <section id="save-result" aria-label="合成結果"><h2>03 · 合成與下載</h2>
+    <fieldset id="export-controls" disabled><legend>合成一支比較影片</legend>
+      <label>輸出畫面<select id="export-layout"><option value="side-by-side">左右並排</option><option value="overlay">半透明疊影（目前可見度與位置）</option></select></label>
+      <button type="button" id="export" class="primary">輸出單一 VS 影片</button>
+    </fieldset>
     <p id="output-status" role="status"></p>
     <progress id="progress" max="1" value="0" aria-label="合成進度"></progress>
     <!-- 未完成原片另給連結，失敗時才不會撤銷舊自拍與 VS 的下載。 -->
     <div class="actions"><a id="reference-download" href="#canvas" hidden>下載老師原片</a><a id="take-download" href="#canvas" hidden>下載自拍原片</a><a id="partial-download" href="#canvas" hidden>下載未完成原片</a><a id="output-download" href="#canvas" hidden>下載 VS 影片</a><button type="button" id="share" disabled>系統分享 VS</button></div>
     <!-- biome-ignore lint/a11y/useMediaCaption: 輸出沿用本機影片，本版未生成字幕，不以空字幕冒充可用字幕。 -->
-    <video id="output" aria-label="已合成的左右比較影片播放器" controls playsinline hidden></video>
-    <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對左右、聲音與鏡像。取消不會刪除原片。</p>
+    <video id="output" aria-label="已合成的比較影片播放器" controls playsinline hidden></video>
+    <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對畫面、聲音與鏡像。取消不會刪除原片。</p>
   </section>
   <p id="beat-position">尚未設定拍點；仍可使用秒數與秒倒數。</p>
   <fieldset id="practice" disabled><legend>練習與時間筆記</legend>

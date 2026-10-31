@@ -104,3 +104,17 @@ test('完整 v2 備份保留分類及拍點，分享仍排除老師與 take 的�
   expect(shared.videos[0]).not.toHaveProperty('beatGrid'); expect(shared.takes[0]).not.toHaveProperty('beatGrid')
   expect(local.takes[0].beatGrid.bpm).toBe(124)
 })
+
+test('疊影輸出外觀保留於備份及選定分享，越界資料拒絕', () => {
+  const data = sample()
+  const presentation = { layout: 'overlay', opacity: 0.32, reference: { scale: 1.8, x: 0.125, y: -0.1 }, self: { scale: 0.8, x: -0.05, y: 0 } } as const
+  Object.assign(data.exports[0], { presentation })
+  expect(validateBackup(data).exports[0].presentation).toEqual(presentation)
+  expect(parseBackup(JSON.stringify(data)).exports[0].presentation).toEqual(presentation)
+  const selection = { videoIds: [], markerIds: [], takeIds: [], exportIds: [data.exports[0].id], fields: [] }
+  expect(createShare(data, selection).exports[0].presentation).toEqual(presentation)
+  for (const invalid of [null, { ...presentation, opacity: NaN }, { ...presentation, opacity: 1.01 }, { ...presentation, reference: { scale: 0.24, x: 0, y: 0 } }, { ...presentation, self: { scale: 1, x: 2.1, y: 0 } }]) {
+    Object.assign(data.exports[0], { presentation: invalid })
+    expect(() => validateBackup(data)).toThrow()
+  }
+})

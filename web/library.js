@@ -19,6 +19,18 @@ function rejectDangerous(value) {
     rejectDangerous(value[key]);
   }
 }
+/** @returns {import('./types').OverlayPresentation | undefined} */
+function exportPresentation(value) {
+  if (value === undefined) return undefined;
+  // 輸出外觀是資料白名單；拒絕無限值與越界位移，不將外部物件直接存入。
+  check(value && value.layout === 'overlay' && Number.isFinite(value.opacity) && value.opacity >= 0 && value.opacity <= 1);
+  const layer = input => {
+    check(input && Number.isFinite(input.scale) && input.scale >= 0.25 && input.scale <= 4);
+    check(Number.isFinite(input.x) && Math.abs(input.x) <= 2 && Number.isFinite(input.y) && Math.abs(input.y) <= 2);
+    return { scale: input.scale, x: input.x, y: input.y };
+  };
+  return { layout: 'overlay', opacity: value.opacity, reference: layer(value.reference), self: layer(value.self) };
+}
 /** @returns {import('./types').Library} */
 export function validateBackup(input) {
   check(input && typeof input === 'object');
@@ -86,7 +98,7 @@ export function validateBackup(input) {
   for (const e of input.exports) {
     check(maps.recipes.has(e.recipeId) && maps.assets.get(e.assetId)?.kind === 'vs' && integer(e.recipeRevision) && e.recipeRevision > 0);
     check(text(e.mimeType, 200) && ['ready', 'interrupted', 'failed'].includes(e.state) && text(e.createdAt) && Number.isFinite(Date.parse(e.createdAt)));
-    out.exports.push({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: e.createdAt });
+    out.exports.push({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: e.createdAt, ...(e.presentation === undefined ? {} : { presentation: exportPresentation(e.presentation) }) });
   }
   // 白名單重新建立物件，絕不把路徑、object URL 或任意外部欄位帶進資料庫。
   // 容量屬於可攜內容；讀回補上的媒體狀態不能擋住合法筆記與救援。外部原檔仍由 parseBackup 先檢查 bytes。
@@ -172,7 +184,7 @@ export function createShare(local, selection) {
   const hiddenDate = '1970-01-01T00:00:00.000Z';
   out.takes = takes.map(t => ({ id: t.id, referenceVideoId: t.referenceVideoId, cameraAssetId: t.cameraAssetId, referenceStartMs: t.referenceStartMs, referenceEndMs: t.referenceEndMs, rate: t.rate, state: t.state, createdAt: hiddenDate }));
   out.recipes = recipes.map(r => ({ id: r.id, takeId: r.takeId, offsetMs: r.offsetMs, referenceMirror: r.referenceMirror, selfMirror: r.selfMirror, layout: r.layout, audioSource: r.audioSource, revision: r.revision }));
-  out.exports = artifacts.map(e => ({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: hiddenDate }));
+  out.exports = artifacts.map(e => ({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: hiddenDate, ...(e.presentation === undefined ? {} : { presentation: exportPresentation(e.presentation) }) }));
   return validateBackup(out);
 }
 /** @param {import('./types').Library} local @param {import('./types').Library} incoming */

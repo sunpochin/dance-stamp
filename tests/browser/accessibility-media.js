@@ -33,7 +33,8 @@ async page => {
   await page.locator('#export').click();await page.waitForFunction(()=>document.getElementById('status').textContent.startsWith('合成中'));
   assert((await page.locator('#status').ariaSnapshot()).includes('合成中'),'狀態不在可及性樹內');await idle();
   assert((await page.locator('#status').textContent()).includes('已成檔'),'沒有完成可下載 VS');
-  readable=await names();assert(readable.includes('已合成的左右比較影片播放器')&&readable.includes('合成進度'),'輸出／進度缺少可讀名稱');await cdp.detach();
+  // 左右與疊影共用成品播放器，可讀名稱不再宣稱固定左右版面。
+  readable=await names();assert(readable.includes('已合成的比較影片播放器')&&readable.includes('合成進度'),'輸出／進度缺少可讀名稱');await cdp.detach();
   const statuses=await page.evaluate(()=>window.a11yStatuses);assert(statuses.length<=20,'狀態以影格頻率洗版');
   const diag=await page.locator('#diagnostics').textContent(),data=await page.evaluate(async()=>JSON.stringify((await import('/library.js')).validateBackup((await (await import('/storage.js')).readLibrary()).data)));
   assert(!diag.includes('synthetic-private')&&!data.includes('synthetic-private'),'診斷或 JSON 含原檔名／裝置識別');

@@ -79,6 +79,7 @@ const scenarios = selected.length ? selected : ['coverage-navigation', 'storage'
 // 匯出暖機中的停止須沿既有回歸執行，恢復片段或保存尾段不能代替這條生命週期。
 if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind), 'export-ready')
 // 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
+if (!selected.length) scenarios.push('overlay-export')
 if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false

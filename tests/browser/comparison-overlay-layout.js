@@ -52,9 +52,9 @@ async page => {
   assert(await stored() === beforeViewChange && await page.locator('#canvas').evaluate(c => c.toDataURL()) === sideBefore, '空間調整改動資料或左右輸出');
   await set('scrub', 1, 'change');
   assert(JSON.stringify(await values()) === JSON.stringify(adjusted), '共同定位重設空間設定');
-  await page.locator('#overlay-play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
+  await page.locator('#play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
   assert(await page.locator('#overlay-reference-scale').isEnabled(), '共同播放無法調空間');
-  await set('overlay-reference-x', 15); await page.locator('#overlay-pause').click(); await idle();
+  await set('overlay-reference-x', 15); await page.locator('#pause-comparison').click(); await idle();
   await set('overlay-reference-x', 12.5);
   await reset();
   assert(JSON.stringify(await values()) === JSON.stringify(['100', '0', '0', '100', '0', '0']) && await page.locator('#overlay-opacity').inputValue() === '35', '重設未回預設或改了透明度');
