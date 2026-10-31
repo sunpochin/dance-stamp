@@ -7,6 +7,10 @@ export function observeKeyboardProtocol(page: Page) {
   const native = (page as any)._connection.toImpl(page), client = native.delegate._mainFrameSession._client
   assert.equal(typeof client.send, 'function', '目前driver不支援原生時序診斷，不能以缺少紀錄冒充已觀測')
   const events: any[] = [], original = client.send
+  const connection = (page as any)._connection, sendRpc = connection.sendMessageToServer
+  assert.equal(typeof sendRpc, 'function', '目前driver不能確認訂閱完成，不能提前送出選檔按鍵')
+  let readyResolve!: () => void, readyReject!: (error: unknown) => void
+  const ready = new Promise<void>((resolve, reject) => { readyResolve = resolve; readyReject = reject })
   let sequence = 0, truncated = false
   const add = (event: unknown) => {
     if (events.length >= 96) { truncated = true; return }
@@ -23,7 +27,20 @@ export function observeKeyboardProtocol(page: Page) {
     return pending
   }
   client.send = wrapped
-  return { stop() {
+  // CDP回覆後，server還要登記訂閱才轉送事件；須等原client RPC完成，不另送命令或用固定睡眠猜時序。
+  const wrappedRpc = function(this: unknown, object: unknown, method: string, params: any, ...args: any[]) {
+    const observed = object === page && method === 'updateSubscription' && params?.event === 'fileChooser', id = sequence++
+    if (observed) add({ kind: 'subscription-send', id, enabled: params.enabled })
+    const pending = sendRpc.call(this, object, method, params, ...args)
+    if (observed) pending.then(() => {
+      add({ kind: 'subscription-ack', id, enabled: params.enabled }); if (params.enabled) readyResolve()
+    }, (error: unknown) => { add({ kind: 'subscription-reject', id, enabled: params.enabled }); if (params.enabled) readyReject(error) })
+    return pending
+  }
+  connection.sendMessageToServer = wrappedRpc
+  return { interceptionReady: () => ready, stop() {
+    assert.equal(connection.sendMessageToServer, wrappedRpc, 'client訂閱觀察已換持有人，不能覆蓋其他層')
+    connection.sendMessageToServer = sendRpc
     assert.equal(client.send, wrapped, '原生觀察已換持有人，不能覆蓋其他層')
     client.send = original; client.off('Page.fileChooserOpened', choosing)
     return { clock: 'host-performance-ms', events, truncated }

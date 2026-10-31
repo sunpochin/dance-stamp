@@ -220,7 +220,7 @@ try {
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
         if (name === 'comparison-keyboard') {
           const observing = observeKeyboardProtocol(page)
-          try { result = await scenario(page) }
+          try { result = await scenario(page, { interceptionReady: observing.interceptionReady }) }
           finally {
             // 成功與失敗同留原生回覆；只看DOM click無法分辨瀏覽器未開啟或driver尚未備妥。
             evidence.keyboardProtocol = observing.stop()

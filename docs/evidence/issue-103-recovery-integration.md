@@ -75,6 +75,8 @@
 
 僅把app-coverage整體job預算12→15分鐘，仍有明確上限，讓67條原案例與前置正常結束。產品九份JS、runner、案例、原五秒離線／十五秒影格守門與其他等待期限、分母及全部斷言均不變。沒有縮短素材、刪案例或放寬個別失敗條件；正常check／hook與新精確head的遠端結果另驗，不將舊取消改標成功。
 
+後續ff39b0a的CI #220已完整跑完，但66 PASS／1 FAIL，原鍵盤案例等待filechooser15000ms逾時；這不是整輪上限取消，量測亦不算通過。自然原生／DOM證據與相同命令延遲對照另見 [選檔訂閱就緒證據](issue-103-keyboard-readiness.md)，未驗證前不先宣稱根因或所有歷史逾時已修復，舊失敗與取消繼續保留。
+
 ## 重跑與界線
 
 固定Bun1.4.4，先`bun run check`，再`bun run test:coverage:app recovery-frame-guard recovery-offline-timeout recovery-inventory-read recovery-unknown-media recovery-draft-navigation`及完整`bun run test:coverage:app`。使用已安裝Chrome／FFmpeg、隔離合成素材與自有nonce的原子QA鎖；他人持鎖時核對活程序並等候，不接管。
