@@ -87,6 +87,16 @@ export interface Elements {
   "stop": HTMLButtonElement;
   "existing-mode": HTMLButtonElement;
   "pause-comparison": HTMLButtonElement;
+  "reference-seek": HTMLInputElement;
+  "reference-seek-time": HTMLOutputElement;
+  "reference-ruler": HTMLDivElement;
+  "reference-chosen-start": HTMLParagraphElement;
+  "reference-seek-buttons": HTMLDivElement;
+  "self-seek": HTMLInputElement;
+  "self-seek-time": HTMLOutputElement;
+  "self-ruler": HTMLDivElement;
+  "self-chosen-start": HTMLParagraphElement;
+  "self-seek-buttons": HTMLDivElement;
   "reference-start": HTMLButtonElement;
   "reference-end": HTMLButtonElement;
   "self-start": HTMLButtonElement;
