@@ -40,7 +40,7 @@ async (page) => {
     const playing = await page.locator('#reference').evaluate(video => ({ source: video.currentTime, rate: video.playbackRate, label: document.getElementById('beat-position').textContent }));
     const displayedMs = Number(playing.label.match(/原片 ([0-9.]+) 秒/)[1]) * 1000;
     const index = Math.floor((displayedMs - 350) / 500 + 1e-9);
-    assert(playing.rate === Number(rate) && Math.abs(displayedMs - playing.source * 1000) < 120 && playing.label.includes(`第 ${index % 8 + 1} 拍`), '播放拍號未跟來源時鐘／速度');
+    assert(playing.rate === Number(rate) && Math.abs(displayedMs - playing.source * 1000) < 120 && playing.label.includes(`第 ${index % 8 + 1} 拍`), '播放拍號未跟來源時鐘／速度：' + JSON.stringify({ ...playing, displayedMs, index, deltaMs: displayedMs - playing.source * 1000 }));
     await page.locator('#reference').evaluate(video => video.pause()); await page.waitForTimeout(100);
     const paused = await page.locator('#beat-position').textContent(); await page.waitForTimeout(150); assert(await page.locator('#beat-position').textContent() === paused, '暫停後仍累加拍號');
   }

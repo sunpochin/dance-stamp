@@ -983,7 +983,9 @@ function beatLabel(grid, sourceMs) {
 }
 function renderBeatPosition() {
   const grid = state && currentVideo()?.beatGrid;
-  $('beat-position').textContent = grid && referenceDurationMs ? `原片 ${reference.currentTime.toFixed(3)} 秒 · ${beatLabel(grid, reference.currentTime * 1000)}` : '尚未設定拍點或影片未連結；仍可使用秒數與秒倒數。';
+  // 秒數顯示已取整到毫秒，拍號也用同一快照，避免邊界時畫面時間與拍號互相矛盾。
+  const sourceMs = Math.round(reference.currentTime * 1000);
+  $('beat-position').textContent = grid && referenceDurationMs ? `原片 ${(sourceMs / 1000).toFixed(3)} 秒 · ${beatLabel(grid, sourceMs)}` : '尚未設定拍點或影片未連結；仍可使用秒數與秒倒數。';
 }
 function resetBeatEditor() {
   const video = state && currentVideo(), grid = video?.beatGrid;

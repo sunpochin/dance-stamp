@@ -7,8 +7,7 @@
 
 本專案的 GitHub 名稱是 `dance-stamp`；本機資料夾可叫 `dance-recaps`。
 先讀本檔與 `TECHNICAL.md` 索引，再只讀任務相關文件。
-`vendor/jia-jian-log-harness/source/` 是不進 Git 的本機來源參考，不是本專案的操作規則。
-不得執行其中的 hooks、部署、雲端任務或安裝腳本來代替本專案入口。
+開發工具、規則與必要文件都由本 repo 維護，新 clone 不需其他產品的 checkout 或本機參考副本。
 
 ## 1. 工具定位
 
@@ -77,5 +76,9 @@ PR 合併、程式驗證、真機驗收、發布分開記錄，不能互相代�
 | 本機資料、備份、migration | [資料格式](docs/DATA_FORMAT.md) |
 | 手機、媒體與發布驗證 | [驗收計畫](docs/ACCEPTANCE.md)、[證據範本](docs/agents/acceptance-template.md) |
 | 選用或修改 skill | [Skill 使用規則](docs/agents/skills.md) |
+| 程式分工、非同步狀態與競態 | [程式慣例](docs/agents/code-conventions.md) |
+| 審查、失敗排查與交接 | [審查方法](docs/agents/review.md) |
+| 外部工具或 skill 的相依與權限 | [Skill 安全](docs/agents/skill-security.md) |
+| 介面與使用者操作流程 | [介面檢查](docs/agents/ui-review.md) |
 
 保留憲法簡短；操作細節放文件，自動可查的事項放檢查程式。

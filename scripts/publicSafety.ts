@@ -3,7 +3,8 @@ import { containsSecret, protectedPath } from './stagedSafety'
 
 export function publicProblems(path: string, content: string): string[] {
   const problems: string[] = []
-  if (path.startsWith('vendor/jia-jian-log-harness/source/')) problems.push('local-reference')
+  // 未整理的本機副本不能因換了目錄名稱就繞過公開邊界。
+  if (/^vendor\/[^/]+\/(?:source(?:\/|$)|source-manifest\.local\.json$)/.test(path)) problems.push('local-reference')
   if (protectedPath(path)) problems.push('protected-file')
   if (containsSecret(content)) problems.push('credential-pattern')
   // 範例域名與假的 DB fixture 可留下；不把所有 tests/ 都列白名單，以免真資料混進去。

@@ -10,11 +10,13 @@ test('公開檢查拒絕本機副本、個人識別與正式專案，保留合�
   expect(publicProblems('sample.md', '/Users/' + 'private-person/file')).toContain('personal-home-path')
   expect(publicProblems('sample.md', '09' + '1'.repeat(8))).toContain('phone-pattern')
   expect(publicProblems('sample.md', 'a'.repeat(20) + '.supabase.co')).toContain('hosted-project-reference')
-  expect(publicProblems('vendor/jia-jian-log-harness/source/AGENTS.md', '')).toContain('local-reference')
+  expect(publicProblems('vendor/legacy/source/AGENTS.md', '')).toContain('local-reference')
+  expect(publicProblems('vendor/legacy/source-manifest.local.json', '')).toContain('local-reference')
+  expect(publicProblems('vendor/harness/LICENSE', 'MIT License')).toEqual([])
   expect(publicProblems('sample.md', 'owner@example.com /Users/example/project')).toEqual([])
 })
 
-test('unit 入口使用明確路徑，不把上游參考測試當成本產品測試', () => {
+test('unit 入口使用明確路徑，不把 vendor 測試當成本產品測試', () => {
   // Bun 的裸字串是名稱 filter，會連 vendor 裡相同路徑都跑；./ 才表示目錄。
   const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
   expect(pkg.scripts['test:unit']).toBe('bun --no-env-file test --isolate ./tests/unit')
