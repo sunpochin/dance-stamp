@@ -307,8 +307,10 @@ function draw(value, withOverlay = true) {
   for (const [video, x, mirror, label] of [[reference, 0, value.referenceMirror, '示範'], [self, 640, value.selfMirror, '我']]) {
     if (video.readyState < 2) continue;
     const rect = contain(video.videoWidth, video.videoHeight, 640, 672);
-    context.save(); context.translate(x + (mirror ? 640 : 0), 48); context.scale(mirror ? -1 : 1, 1);
-    context.drawImage(video, rect.x, rect.y, rect.width, rect.height); context.restore();
+    // 全身等比保留，留白移到外側；只翻影片本身，鏡像後仍須貼著共同中線。
+    const imageX = x === 0 ? 640 - rect.width : 0;
+    context.save(); context.translate(x + imageX + (mirror ? rect.width : 0), 48); context.scale(mirror ? -1 : 1, 1);
+    context.drawImage(video, 0, rect.y, rect.width, rect.height); context.restore();
     context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
   }
   if (withOverlay) drawOverlay(value);
