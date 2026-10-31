@@ -31,6 +31,10 @@ const overlayLayoutFields = /** @type {const} */ ([
   ['overlay-reference-scale', 'overlay-reference-scale-value'], ['overlay-reference-x', 'overlay-reference-x-value'], ['overlay-reference-y', 'overlay-reference-y-value'],
   ['overlay-self-scale', 'overlay-self-scale-value'], ['overlay-self-x', 'overlay-self-x-value'], ['overlay-self-y', 'overlay-self-y-value'],
 ]);
+const sourceTimelines = [
+  { video: reference, slider: $('reference-seek'), time: $('reference-seek-time'), ruler: $('reference-ruler'), chosen: $('reference-chosen-start'), buttons: $('reference-seek-buttons'), duration: () => referenceDurationMs, start: () => Number($('start').value) },
+  { video: self, slider: $('self-seek'), time: $('self-seek-time'), ruler: $('self-ruler'), chosen: $('self-chosen-start'), buttons: $('self-seek-buttons'), duration: () => selfDurationMs, start: () => Number($('offset').value) },
+];
 // File 只保留在本次頁面；不為了重開配方而暗中複製使用者的原片。
 const sessionMedia = new Map();
 let importDraft, relinkDraft, deleteDraft, inventoryToken = 0, outputAssetId;
@@ -157,7 +161,7 @@ function updateControls() {
     for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
     showStorageRecovery();
   }
-  updateOverlayControls();
+  updateOverlayControls(); updateSourceTimelines();
 }
 function updateOverlayControls() {
   let available = !!referenceDurationMs && !!selfDurationMs && !!activeTakeId && !pendingTakeId && !pendingLinkId;
@@ -173,6 +177,38 @@ function updateOverlayControls() {
   }
   $('export-controls').disabled = !available || !!active || storageUnconfirmed();
   if (available && !active) drawOverlay(recipe());
+}
+function updateSourceTimelines() {
+  for (const entry of sourceTimelines) {
+    const duration = entry.duration() / 1000;
+    const disabled = !duration || !!active || storageUnconfirmed() || $('compare').getAttribute('aria-busy') === 'true';
+    entry.slider.disabled = disabled;
+    for (const button of entry.buttons.querySelectorAll('button')) button.disabled = disabled;
+    entry.slider.max = String(duration || 1);
+    const time = Math.max(0, Math.min(duration, entry.video.currentTime || 0));
+    entry.slider.value = String(time); entry.time.value = `${time.toFixed(3)} 秒`; entry.slider.setAttribute('aria-valuetext', `${time.toFixed(3)} 秒`);
+    const start = entry.start();
+    entry.chosen.textContent = !duration ? '尚未選片' : start < 0 ? `原片從 0 秒開始；比較偏移 ${start.toFixed(3)} 秒` : `已設起點 ${start.toFixed(3)} 秒`;
+    // 刻度只隨來源長度重建；播放位置更新不能每次換掉滑桿或鍵盤焦點。
+    if (entry.ruler.dataset.duration !== String(duration)) {
+      entry.ruler.dataset.duration = String(duration); entry.ruler.replaceChildren();
+      for (let i = 0; i <= 4; i++) {
+        const tick = document.createElement('span'); tick.textContent = `${Number((duration * i / 4).toFixed(2))} 秒`; entry.ruler.append(tick);
+      }
+    }
+  }
+}
+function locateSource(entry, seconds) {
+  if (entry.slider.disabled || active) return;
+  // 共同比較的偏移只能明確設起點時改；此處只讓使用者在原片中找同一個動作。
+  stopPractice(); entry.video.pause();
+  try { entry.video.currentTime = Math.max(0, Math.min(entry.duration() / 1000, seconds)); updateSourceTimelines(); }
+  catch { status('影片尚未就緒，請重新選片後再定位；原片與起點保留。'); }
+}
+for (const entry of sourceTimelines) {
+  entry.slider.addEventListener('input', () => locateSource(entry, Number(entry.slider.value)));
+  for (const button of entry.buttons.querySelectorAll('button')) button.addEventListener('click', () => locateSource(entry, entry.video.currentTime + Number(button.dataset.seek)));
+  for (const name of ['timeupdate', 'seeked']) entry.video.addEventListener(name, updateSourceTimelines);
 }
 async function operation(task) {
   if (active) return;
@@ -697,7 +733,7 @@ function updateIntersection() {
     $('play').disabled = false; $('export').disabled = false;
     if (outputBlob) $('output-status').textContent = outputRecipe === recipeSignature(value) ? `這支${$('export-layout').value === 'overlay' ? '疊影' : '左右並排'}影片對應目前的比較設定。` : '這是先前設定的 VS，原檔仍保留；若要目前設定的畫面，請重新匯出。';
   } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); $('intersection').textContent = error.message; $('play').disabled = true; $('export').disabled = true; }
-  updateOverlayControls();
+  updateOverlayControls(); updateSourceTimelines();
 }
 for (const id of /** @type {const} */ (['start', 'end', 'rate', 'offset', 'reference-mirror', 'self-mirror', 'preview-mirror'])) $(id).addEventListener('change', () => { mirrors(); if (selfDurationMs) updateIntersection(); });
 // 空間設定只留本頁並烘焙進新疊影；變更後須提示舊輸出不會跟著改。
@@ -1704,7 +1740,7 @@ function changeComparison(change) {
   const version = ++comparisonSaveVersion;
   // blur 先於按鈕 click；保存時若停用按鈕，使用者剛按的播放／匯出就會被吃掉。
   // 以同一佇列保存，媒體操作進來時等待佇列，既不漏點擊也不讓 revision 互撞。
-  $('compare').setAttribute('aria-busy', 'true'); status('正在保存比較設定…');
+  $('compare').setAttribute('aria-busy', 'true'); updateSourceTimelines(); status('正在保存比較設定…');
   const saving = comparisonSave.then(async () => {
     await saveCurrentRecipe(value);
     if (version === comparisonSaveVersion && !active) await align(value, 0);
