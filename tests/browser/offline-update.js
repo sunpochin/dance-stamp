@@ -27,6 +27,7 @@ async (entry) => {
   await page.locator('#capture').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('錄影中'));
   await page.evaluate(async () => { await fetch('/__test__/version?mode=next'); const r=await navigator.serviceWorker.getRegistration(); await r.update(); });
   await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('新版已備妥'));
+  await page.locator('#apply-update').click();
   assert(await page.evaluate(original => window.updateSentinel===original && navigator.serviceWorker.controller===window.originalController && document.getElementById('controls').disabled, original), '錄影中新版重載／接管');
   await idle(page);
   const captured = await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
@@ -34,6 +35,7 @@ async (entry) => {
   await page.locator('#export').click(); await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('合成中'));
   await page.evaluate(async () => { await fetch('/__test__/version?mode=later'); const r=await navigator.serviceWorker.getRegistration(); await r.update(); });
   await page.waitForFunction(() => document.getElementById('update-status').textContent.includes('新版已備妥'));
+  await page.locator('#apply-update').click();
   assert(await page.evaluate(original => window.updateSentinel===original && navigator.serviceWorker.controller===window.originalController && document.getElementById('controls').disabled, original), '匯出中新版重載／接管');
   await idle(page); assert((await page.locator('#status').textContent()).includes('已成檔'), '等待新版沒有完成 VS');
   const download = page.waitForEvent('download'); await page.locator('#output-download').click(); await (await download).saveAs('output/media-probe/update-waiting-vs.mp4');

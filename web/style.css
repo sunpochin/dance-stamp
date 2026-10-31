@@ -8,6 +8,10 @@ body { margin: 0; overflow-wrap: anywhere; } main { max-width: 1040px; margin: a
 h1 { font-size: clamp(2rem, 6vw, 3.3rem); line-height: 1.22; letter-spacing: -.04em; margin: 16px 0; }
 h2 { font-size: 1rem; font-weight: 500; } p { color: #c5ced0; } .eyebrow { color: #b9f2c8; font-size: .8rem; letter-spacing: .15em; }
 .notice { border-left: 3px solid #dfbb72; padding-left: 12px; color: #ead4a8; }
+/* 捲到頁尾也要看得到更新選擇，但不搶焦點或蓋住上方停止鍵。 */
+.update-hint { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 3; width: min(28rem, calc(100vw - 32px)); max-height: 60dvh; overflow: auto; box-sizing: border-box; padding: 16px; background: #202b30; border-radius: 8px; box-shadow: 0 6px 28px #0008; }
+.update-hint:has(#update-notice[hidden]) { display: none; }
+.update-hint p { margin-top: 0; }
 fieldset, section { margin: 24px 0; border: 1px solid #455258; border-radius: 12px; padding: 20px; min-width: 0; } legend { color: #b9f2c8; padding: 0 8px; }
 label { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; } input, select, textarea, button, a[download] { font: inherit; border: 1px solid #718087; border-radius: 7px; background: #253238; color: inherit; padding: 10px 14px; min-height: 46px; }
 input[type=file] { max-width: 100%; } input[type=range] { width: 100%; padding: 0; } button, a[download], summary { cursor: pointer; } button:disabled { opacity: .45; cursor: default; }
@@ -58,10 +62,16 @@ nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
 
 /* 桌面調整時需一直看得到身體；預覽跟著控制區捲動，但不蓋住手機控制。 */
 .overlay-workspace { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr); gap: 16px; align-items: start; }
-.overlay-workspace > canvas { position: sticky; top: calc(min(30dvh, 10rem) + 88px + env(safe-area-inset-top)); }
+.overlay-preview { grid-column: 1; grid-row: 1; min-width: 0; position: sticky; top: calc(min(30dvh, 10rem) + 88px + env(safe-area-inset-top)); }
+/* 缺片也保留預覽欄與說明，右側控制不會因 canvas 隱藏而跳到另一欄。 */
+#overlay-layout { grid-column: 2; grid-row: 1; }
+#overlay-empty { margin: 0; padding: 24px; border: 1px dashed #718087; border-radius: 8px; }
 #overlay-layout, .overlay-layout > fieldset { margin: 0; }
 .overlay-layout { grid-template-columns: 1fr; }
-@media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } .overlay-workspace > canvas { position: static; } }
+/* 窄版先顯示調整滑桿，再顯示預覽，避免使用者得越過整張影片才找得到控制。 */
+@media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } #overlay-layout, .overlay-preview { grid-column: 1; grid-row: auto; } .overlay-preview { position: static; } }
+
+
 
 /* 兩片各自有秒數尺，找畫面與提交起點分開；文字放大時刻度仍維持可讀。 */
 .source-timeline { margin: 10px 0 16px; border-top: 1px solid #455258; padding-top: 8px; }

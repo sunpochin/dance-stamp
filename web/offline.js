@@ -16,10 +16,27 @@ function offlineStatus(worker) {
     catch (error) { close(); reject(error); }
   });
 }
-/** @param {{offline: HTMLElement, capacity: HTMLElement, persistence: HTMLElement, updates: HTMLElement, refresh: HTMLButtonElement, persist: HTMLButtonElement, checkUpdate: HTMLButtonElement}} ui */
+/** @param {ServiceWorker} candidate */
+function activateUpdate(candidate) {
+  return new Promise((resolve, reject) => {
+    const channel = new MessageChannel();
+    const wasControlled = !!navigator.serviceWorker.controller;
+    const close = () => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); navigator.serviceWorker.removeEventListener('controllerchange', changed); candidate.removeEventListener('statechange', changed); };
+    // 首次開站可能尚未受 SW 控制；此時候選真正 activated 即可重載，不必等不會發生的接管事件。
+    const changed = () => { if (navigator.serviceWorker.controller === candidate || (!wasControlled && candidate.state === 'activated')) { close(); resolve(undefined); } };
+    const timer = setTimeout(() => { close(); reject(new Error('更新未完成，請稍後再試；目前工作保留。')); }, 10000);
+    navigator.serviceWorker.addEventListener('controllerchange', changed);
+    candidate.addEventListener('statechange', changed);
+    channel.port1.onmessage = event => { if (event.data?.error) { close(); reject(new Error(event.data.error)); } };
+    try { candidate.postMessage({ type: 'ACTIVATE_UPDATE' }, [channel.port2]); }
+    catch (error) { close(); reject(error); }
+  });
+}
+/** @param {{offline: HTMLElement, capacity: HTMLElement, persistence: HTMLElement, updates: HTMLElement, updateNotice: HTMLElement, applyUpdate: HTMLButtonElement, canUpdate: () => boolean, refresh: HTMLButtonElement, persist: HTMLButtonElement, checkUpdate: HTMLButtonElement}} ui */
 export async function startOffline(ui) {
   let registration;
   let checkingUpdate = false;
+  let applyingUpdate = false;
   let refreshSequence = 0;
   const refreshCapacity = async () => {
     // 同步拒絕也視為能力未知，不能阻止筆記開啟或 SW 註冊。
@@ -27,7 +44,24 @@ export async function startOffline(ui) {
     ui.capacity.textContent = storageEstimateText(estimate.status === 'fulfilled' ? estimate.value : undefined);
     ui.persistence.textContent = persisted.status === 'fulfilled' && persisted.value === true ? '瀏覽器已允許持久保存；手動清除網站資料仍會刪除，請另存 JSON 及影片。' : persisted.status === 'fulfilled' && persisted.value === false ? '未獲持久保存，瀏覽器可能自動清除；請另存 JSON 及影片。' : '無法確認持久保存狀態；請另存 JSON 及影片。';
   };
-  const updateText = () => { ui.updates.textContent = registration?.waiting ? '新版已備妥，正在等待。先保存工作及原片，關閉所有本站分頁後再開啟；不會自動重載。' : '新版只在所有舊分頁關閉後啟用，不會中斷錄影或匯出。'; };
+  const updateText = () => {
+    ui.updates.textContent = registration?.waiting ? '新版已備妥。先保存工作及原片，再按「立即更新」同意重新載入；本頁未保存的原片需重新選取。不按就繼續使用目前版本，不會自動重載。' : '有新版會自動提示，按「立即更新」同意後才重新載入，不會中斷錄影或匯出。';
+    // 提示不使用阻塞錄影的原生 alert；按鈕才代表同意換版，兩處說明仍共用 waiting 訊號。
+    ui.updateNotice.hidden = !registration?.waiting;
+    ui.updateNotice.textContent = registration?.waiting ? ui.updates.textContent : '';
+    ui.applyUpdate.hidden = !registration?.waiting;
+  };
+  ui.applyUpdate.addEventListener('click', async () => {
+    if (applyingUpdate || !registration?.waiting) return;
+    if (!ui.canUpdate()) { ui.updateNotice.textContent = '請先停止播放／相機、完成錄影或匯出，並保存或取消未完成編輯，再按「立即更新」。目前工作保留。'; return; }
+    applyingUpdate = true; ui.applyUpdate.disabled = true;
+    // 查詢其他分頁與啟用之間暫停本頁互動，避免同意後又開始新錄影或輸入草稿。
+    const wasInert = document.body.inert; document.body.inert = true;
+    ui.updateNotice.textContent = '正在載入新版，請稍候…';
+    try { await activateUpdate(registration.waiting); location.reload(); }
+    catch (error) { ui.updateNotice.textContent = error instanceof Error ? error.message : '更新未完成；目前工作保留，可再試。'; }
+    finally { document.body.inert = wasInert; applyingUpdate = false; ui.applyUpdate.disabled = false; }
+  });
   const refresh = async () => {
     // 啟動、worker 事件與手動重查會重疊；過期回覆或逾時不可蓋掉最後一輪的離線結論。
     const sequence = ++refreshSequence;
