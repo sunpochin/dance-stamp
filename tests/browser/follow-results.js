@@ -1,10 +1,12 @@
 /* 檔案用途：驗雙側原生結果播放器、各自聲音的真下載與更新保全。所在層：合成短功能回歸。主要關聯：follow-ui.js、follow-export.js、make-follow-fixtures.ts。 */
-async page => {
+async (page, { boundedAudio = false } = {}) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); }, runId = Date.now().toString(36), downloads = [];
   const origin = new URL(page.url()).origin, requests = [];
   page.context().on('request', request => requests.push({ url: request.url(), method: request.method() }));
   await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('單側結果禁止相機與麥克風'); }; window.confirm = () => true; });
   await page.goto(origin);
+  // 同一份下載與保全斷言分別跑兩條真供聲路徑，避免只改名稱卻仍測到 Chrome 分支。
+  assert(await page.evaluate(async () => (await import('/local-audio.js')).safariAudio()) === boundedAudio, '沒有選到指定的單側結果音訊分支');
   assert(await page.locator('body').getAttribute('data-comparison-only') !== null, '沒有測到預設操作介面');
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
   await idle();
@@ -104,5 +106,5 @@ async page => {
   const screenshot = 'output/playwright/follow-results-' + runId + '.png'; await page.setViewportSize({ width: 1440, height: 1100 }); await page.locator('.players').screenshot({ path: screenshot });
   const mobileScreenshot = 'output/playwright/follow-results-mobile-' + runId + '.png'; await page.setViewportSize({ width: 390, height: 844 }); await page.locator('.follow-result').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: mobileScreenshot });
   assert(requests.every(r => r.method === 'GET' && (r.url.startsWith(origin + '/') || r.url.startsWith('blob:'))), '單側製作有外部請求或上傳');
-  return { downloads, screenshot, mobileScreenshot, mirrorPixels, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true };
+  return { downloads, screenshot, mobileScreenshot, mirrorPixels, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true, selectedWebKitAudioBranch: boundedAudio, safariDeviceAcceptance: false };
 }
