@@ -42,6 +42,8 @@
 
 錄影 chunks 依序落盤，計算時長不能使用「chunk 數 × timeslice」；事件間隔不保證準時。錄影中切背景、鎖屏、來電、攝影機被接管、旋轉導致尺寸變更，都要標記中斷並停止／完成可用資料，不在背景偷偷繼續。[dataavailable](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/dataavailable_event)。
 
+錄影時示範聲音隨速度自然變調，減少慢速音高處理的起播等待；完成／取消／失敗後恢復一般練習的音高保持。原 take 保留實際錄到的完整內容，仍從 A 播到 B，不用裁切或提早停錄補時長。原生 Safari 有界對照見[本票證據](evidence/issue-9-capture-recovery.md#2026-10-31-半速錄影起播延遲)。
+
 ### 3.2 比較與合成
 
 保留自拍原片，採「錄完後合成」：兩個 video 元素依共同時間線播放到 canvas 的左右矩形，使用 contain 避免裁掉腳；鏡像分別套用於各圖層。Canvas captureStream 提供輸出視訊軌，MediaRecorder 編碼；不把支援較不一致的 video.captureStream 當必要路徑。[Canvas captureStream](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/captureStream)。

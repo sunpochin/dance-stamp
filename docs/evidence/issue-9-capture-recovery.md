@@ -264,3 +264,53 @@ QA 沿用產品主機白名單及 CSP，僅在專用 loopback HTML 前載入禁�
 - 前輪未證實相機替身的首案排除；先前外部 HTML 播放前置逾時、誤讀上一個 recorder 的 QA 時序、未完成恢復檢查的 selector 失敗均不算產品通過。本輪等待 option 的引號錯誤及檔案播放器自動播放搶先起播也保留，未降低最終斷言。
 - Safari 對持久化 `Blob.slice` 的診斷曾出現 size 10／11 卻讀回 21 bytes，以及半片卻讀回母片；FileReader 與 arrayBuffer 都曾出現，沒有把這個獨立切片問題宣稱已修好。最終前置是逐塊獨立 bytes 的 Blob，貼近 MediaRecorder 的輸出形態；其清理後的新 media NotFoundError 才是本次修正目標。
 - 真實相機／LED、鎖屏／來電、Safari 私人模式、完整速度／時長與十輪 capture→export、真機 G1／錄影 G6、人工最終審查仍未驗收。iPhone 繼續暫緩；不啟動 iOS、不關閉 #9、不合併或發布。
+
+## 2026-10-31 半速錄影起播延遲
+
+### 先核對 PR #115
+
+[PR #115](https://github.com/sunpochin/dance-stamp/pull/115) head `076c3936184e0aec681fdbd95f985f3afeabc310` 的 [Harness CI](https://github.com/sunpochin/dance-stamp/actions/runs/41101534690) success；自動程式審查完成、沒有 findings／未解決審查串。security review 的 findings 欄為 null，不另宣稱安全審查無問題；沒有正式人工 review，仍待 Claude Code／使用者最終審查。PR 未合併。本輪從 main `d83755239bf145e9b79d50263208edfad83754e8` 新分支處理時序，沒有帶入 #115 的儲存修正或承接其恢復測試結果。
+
+### 原生失敗與單變因對照
+
+macOS 27.0.1、Safari／safaridriver 27.0.1（22625.1.29.11.28）、Bun 1.4.4。使用 `make-sync-fixtures.py` 的 65 秒自製圖樣／660Hz 示範 MP4，1,789,027 bytes，SHA256 `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`；相機是正常同源 script 在 main 載入前提供的已知 Canvas stream（640×360、請求 30fps），沒有呼叫或保留實體 getUserMedia。預覽必須等於該 stream，MediaRecorder 建構亦只接受它。測試主機額外回 `Permissions-Policy: camera=(), microphone=(), display-capture=(), geolocation=()`；非相機格式／時鐘／duration 模擬。
+
+固定 A=0、B=7.5、0.5×、倒數 3 秒、一般練習 2×。保留 native recorder、示範 playing／pause／play resolve 事件與每 10ms 來源時鐘讀值；觀察器不訂閱額外 rVFC、不更動來源時間。沿用原 `capture-matrix.js` 的 ±100ms，另直接檢查原始浮點時長 `abs(duration−15) <= 0.1`，沒有放寬或四捨五入規避。
+
+| 乾淨 main／靜態 `6f07212fe275ae3c` | 實際秒數 | 誤差 | 原門檻 |
+| --- | --- | --- | --- |
+| 原設定，首輪 | 15.131667 | +131.667ms | 失敗 |
+| 只在 play 前設 `preservesPitch=false`，獨立新 session | 15.051667 | +51.667ms | 通過（診斷控制） |
+| 再開獨立新 session、原設定 | 15.110000 | +110.000ms | 失敗 |
+
+對照的自然變調時鐘起播等待約 70ms，原設定約 133ms（以 `performance.now − currentTime/r×1000` 的穩定段相對 play 呼叫估計）；`play()` resolve 與 recorder start 時來源均仍為 0。這是有界原生觀測，沒有聲稱 `play()`／JS 事件等於第一格呈現或硬體取樣同步。原設定兩片及控制片都保留完整 raw、SHA256 與 FFmpeg 全片解碼成功結果。
+
+首輪想在同 session 接跑診斷控制時，等待 capture enabled 逾時；當時 QA 只等 controls，未等比較保存佇列，逾時原因尚未確認。該輪第二例沒有錄影，不能算控制通過或已確認的產品缺陷。後續兩個診斷用獨立 session，候選矩陣的 idle 同時等待 controls 與 comparison busy 結束。前輪暫存 raw 已遺失的 15.140／15.113333 秒觀察不計本輪證據。
+
+基線首輪／獨立控制／獨立再現 raw 收據 SHA256 依序為 `da866cd595839400cbf876900692bd3696efbad4d5bc0d4b9abd97105a2a6bbc`、`cbdeae56aec785cdaf9758a33f399739419bf07fbb807c401106a33ae8adef86`、`6b8e9dd7a6090507e416a8f963afc5e7c2642cf594c6b43ba0fc626995c247f6`。完整工具、原始檔案與收據只留本聊天 ignored `output/issue9-timing-20261031/`，不公開媒體。
+
+### 最小修正與候選驗證
+
+錄影設定速度後、倒數前關閉示範音高保持；完成／取消／失敗沿原 `operation` 收尾恢復一般練習音高與速度。介面明示錄影時聲音隨速度變調。沒有延後開錄、提早在 B 前停止、裁片、補影格、改 raw bytes 或改時間門檻；取捨見 TECHNICAL 第 49 節。
+
+受測來源為 `d837552` 上明示修改工作樹，靜態 **`9d1a66df3f6c05c0`**；沒有改標成提交後乾淨 head 重跑。`main.js` SHA256 `f48474b8257a16ba99189c4293a1d5b0d6bbc3d82ede379f782bc4bcd1d978c0`。同一原生 Safari session／資料庫的下列五案通過，沒有強制 pitch override：
+
+| 0.5×／倒數 3 秒 | 實際原片秒數 | 誤差 | 原片 bytes | 保留舊原片數 |
+| --- | --- | --- | --- | --- |
+| 15 秒重測 1 | 15.070000 | +70.000ms | 283583 | 0 |
+| 15 秒重測 2 | 15.081667 | +81.667ms | 280696 | 1 |
+| 15 秒矩陣案例 | 15.088333 | +88.333ms | 280670 | 2 |
+| 30 秒矩陣案例 | 30.073333 | +73.333ms | 554402 | 3 |
+| 60 秒矩陣案例 | 60.058333 | +58.333ms | 1106262 | 4 |
+
+五案均為 native ready take，示範到 B 才停、track ended、無麥克風請求、練習 2×／音高保持恢復、原片實播前進且 error=0。每案逐一讀回所有舊原片 SHA256，沒有覆寫。五份完整原 Blob 經 WebDriver 取回本機，皆 FFmpeg 全片解碼 exit 0／stderr 空；獨立第二入口重新讀五份本機檔，完整 bytes／SHA256 逐份相符。關閉產品主機後，在新原生 Safari session 用 `file:` 播放 15.088333 秒原片；trusted 點按從 0 到 ended、error=0、640×360。這是原 Blob 取回檔，**不是 OS 下載動作、真相機或 G2–G7 驗收**。
+
+原生同頁矩陣在轉到 0.75× 前，開錄前等待 capture enabled 逾時而停止。另用新 session 的 0.75×／15 秒診斷，時長 15.075 秒合格、原生 pause 位置 11.260520 秒已過 B=11.25，但收尾讀到 `currentTime=8.333333`，**原停止位置斷言失敗**；保留失敗，不改成檢查 pause 事件來取得綠燈。該檔另獨立完整解碼成功；收尾後時鐘倒退原因尚未確認。本輪不宣稱三速度九案或同頁完整矩陣通過，0.75／1× 的完整驗證仍缺。先前第一個 0.75× 診斷也在相同保全斷言失敗，僅保留 raw，未儲存完整 case，不能補成通過。
+
+五案後中斷的原生收據 SHA256 `b8899f5d21558b837715fddf76bcc26dc4917da366e93da548be72c80c7e31f5`；獨立 bytes／離站播放 `72d4dbfe671ccd259d6c50baee919525e649bf83484c0c53b415aa544fe48875`；0.75× 停止位置失敗 `9a9366f9f37c46ebe43184de206f0392da2e6da6dc6d5a4477712d1f00eb19f4`。候選 runner SHA256 `8b1c57b8ca40ee8c42336a42c433d039d94072e4a32c6332245b6fc7d77fd5b7`、合成相機／時鐘觀察器 `7639e4ad6920fc610560f3c64ee9de8e35b392ee5faf2b975269788518fcf964`。各輪 session 正常刪除、自有 driver／server 群組確認退出、按同 nonce 釋放自己的共用鎖；沒有停止他人工作。
+
+完整 `bun run check` 通過 **632 tests／3,052 expects／0 fail**，型別、lint、建置及公開掃描通過，原 19 項 lint info 保留。初跑兩失敗保留：本機服務測試需獲准綁定 loopback；新增規格連結曾指向未隨包帶出的根 TECHNICAL，已改指隨包證據，原封裝連結測試未變。改正後以原權限需求完整重跑通過。
+
+另以獨立 headless Chrome／明確 fake-camera flags 執行實際修改的兩支既有回歸：`capture-matrix.js` 半速 15 秒為 15.033 秒，錄影時自然變調、到 B 自停、完成後恢復 2×／音高均通過；完整 `practice.js` 的六速度實播、120 次循環、取消、失敗、換片及離頁回歸全過，最大呈現越界 83.333ms／150ms 原門檻、同時 callback 最大 1、重疊 seek 0，倒數取消後音高保持已恢復。Chrome 收據 SHA256 `9d4ed963f4776d27a062dfb396ec596d00ce15e12d83e77c4d0a739e32ae7a6a`；這些不是 Safari／實體背景證據。此後只更新文件，產品資源仍與上述原生候選相同；提交 hook 仍跑原入口，不略過檢查。
+
+#9 保持開啟，原驗收勾選不變；真相機／LED、音樂聽感、鎖屏／來電、Safari 私人模式、真機 G1／連續十輪 capture→export G6 與最終獨立審查仍缺。iPhone 繼續暫緩。本輪未合併、部署或發布。
