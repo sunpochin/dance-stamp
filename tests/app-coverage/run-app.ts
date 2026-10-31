@@ -81,6 +81,11 @@ if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCase
 // 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
 if (!selected.length) scenarios.push('overlay-export')
 if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
+// 錄影供聲與匯出供聲生命週期不同；追加於原媒體案例之後，不能改變原鍵盤案例的前置順序。
+if (!selected.length) scenarios.push('webkit-capture-branch')
+// 已開舊頁收到升版通知與啟動前已有新庫不同；另接在供聲案例後，保留原生關閉／重開路徑。
+if (!selected.length) scenarios.push('storage-version-change')
+
 // 秒數尺另接在既有流程之後，保留原本媒體與恢復案例的相對順序。
 if (!selected.length) scenarios.push('source-time-rulers')
 
@@ -179,7 +184,7 @@ try {
     activeScenario = name
     updateMode = 'current'
     assert(/^[a-z][a-z-]+$/.test(name), '只接受明確的瀏覽器回歸名稱')
-    const context = await browser.newContext(name === 'webkit-audio-branch' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
+    const context = await browser.newContext(name === 'webkit-audio-branch' || name === 'webkit-capture-branch' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
     try {
       await page.goto(origin)
       if (name === 'self-failure') {
@@ -232,7 +237,12 @@ try {
       } else {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
-        if (name === 'comparison-keyboard') {
+        if (name === 'webkit-capture-branch') {
+          // 完整執行原有界音訊回歸作基線，不改它的素材、失敗／重試斷言或期限。
+          const baselineSource = readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'), 'utf8').replaceAll('output/', `${media}/`)
+          const baseline = await ((0, eval)(`(${baselineSource})`))(page)
+          result = { baseline, baselineSha256: createHash('sha256').update(readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'))).digest('hex'), scenarioSha256: createHash('sha256').update(readFileSync(path)).digest('hex'), ...await scenario(page, { directory: media }) }
+        } else if (name === 'comparison-keyboard') {
           const observing = observeKeyboardProtocol(page)
           try { result = await scenario(page, { interceptionReady: observing.interceptionReady }) }
           finally {
@@ -271,7 +281,16 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : undefined)
+        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : name === 'storage-version-change' ? { directory: media } : undefined)
+      }
+      // 兩條回歸共用逐檔完整核對；產品內Blob的指紋不能代替真正下載內容。
+      if (name === 'webkit-capture-branch' || name === 'storage-version-change') {
+        if (name === 'storage-version-change') result.scenarioSha256 = createHash('sha256').update(readFileSync(path)).digest('hex')
+        for (const download of result.downloads) {
+          const bytes = readFileSync(download.path)
+          assert.equal(bytes.length, download.expected.bytes, '真正下載長度不同')
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), download.expected.sha256, '真正下載完整指紋不同')
+        }
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })

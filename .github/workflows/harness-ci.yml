@@ -31,9 +31,9 @@ jobs:
   app-coverage:
     needs: harness
     runs-on: ubuntu-24.04
-    # 完整67條加單元與素材前置已實際撞到12分鐘，保留整輪收尾餘裕。
+    # 整合71條的原輪已跑近15分鐘，尚需恢復尾段與離站播放；保留完整收尾餘裕。
     # 只調工作總預算；原五秒離線、十五秒影格守門等各案期限不變。
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -52,6 +52,9 @@ jobs:
           command -v ffmpeg
           export DANCE_STAMP_CHROMIUM="$(command -v google-chrome)"
           bun run test:coverage:app
+      # 原入口已關閉網站與瀏覽器；另開原生file播放器，不能以App內預覽替代實際下載證據。
+      - name: Reopen actual storage-version downloads after app shutdown
+        run: bun --no-env-file tests/app-coverage/verify-storage-version-downloads.ts
       - name: Show unit diagnostics on failure
         if: failure()
         run: |

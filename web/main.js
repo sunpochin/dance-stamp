@@ -676,23 +676,30 @@ $('capture').addEventListener('click', () => operation(async signal => {
           catch (error) { captureIntegrityError = error instanceof Error ? error : new Error('示範聲音無法啟動。'); throw captureIntegrityError; }
         }
         status('錄影中。示範到片段終點會停止，也可隨時按停止。');
+        const checkCaptureAudio = () => {
+          // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
+          // PCM 播完後 context 時鐘仍前進；只界定真正已播出的聲音位置，不改示範或 B 的讀值。
+          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - Math.min((audio.currentTime - captureAudioAt) * 1000, expectedDurationMs)) > 100)) {
+            captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。'); throw captureIntegrityError;
+          }
+        };
         while (reference.currentTime * 1000 < value.endMs && !reference.ended) {
           if (performance.now() - began > 62_000) throw new Error('播放／錄影逾時。');
           if (reference.paused) throw new Error('示範播放中斷。');
-          // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
-          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - (audio.currentTime - captureAudioAt) * 1000) > 100)) {
-            captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。'); throw captureIntegrityError;
-          }
+          checkCaptureAudio();
           await wait(30, signal);
           renderBeatPosition();
         }
+        // 原生播放可在主執行緒忙碌時跨過 B；收尾再查一次，避免最後一段聲音中斷被迴圈條件略過。
+        checkCaptureAudio();
       } finally {
         reference.pause();
         // 先停聲再等編碼／保存尾段；取消或失敗也不能留下播放中的本輪音訊。
         if (captureSource) { try { captureSource.stop(); } catch { /* 尚未排程也必須斷線。 */ } captureSource.disconnect(); captureSource.buffer = null; }
         captureGain?.disconnect(); captureBuffer = null;
         if (recording) {
-          info.interrupted = signal.aborted || reference.currentTime * 1000 < value.endMs - 100;
+          // 跨過 B 不代表聲音完整；診斷也須保留本輪已確定的完整性錯誤。
+          info.interrupted = signal.aborted || !!captureIntegrityError || reference.currentTime * 1000 < value.endMs - 100;
           try {
             // 必須先標記，再 stop／關相機；否則正常完成的 done 也會被誤當提早停止。
             stopRequested = true;
@@ -706,6 +713,12 @@ $('capture').addEventListener('click', () => operation(async signal => {
               if (!info.interrupted && candidate.duration <= expectedDurationMs - 500) {
                 info.interrupted = true;
                 captureIntegrityError = new Error('錄影未完成：原片長度不足。未完成原片可另存；舊自拍與 VS 保留。');
+                throw captureIntegrityError;
+              }
+              // EOF 的聲音時鐘有終點，須另守住原生未四捨五入片長，不能把晚停的長片當成功。
+              if (!info.interrupted && captureSource && reference.ended && Math.abs(self.duration * 1000 - expectedDurationMs) > 100) {
+                info.interrupted = true;
+                captureIntegrityError = new Error('錄影未完成：原片長度不符。未完成原片可另存；舊自拍與 VS 保留。');
                 throw captureIntegrityError;
               }
               return Promise.resolve();
