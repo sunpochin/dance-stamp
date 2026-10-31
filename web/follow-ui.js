@@ -57,14 +57,34 @@ export function createFollowUI(videos, options) {
   const resultStatus = side => /** @type {HTMLElement} */ (document.getElementById(`${side}-follow-result-status`));
   const refresh = side => /** @type {HTMLButtonElement} */ (document.getElementById(`${side}-follow-refresh`));
   const download = side => /** @type {HTMLAnchorElement} */ (document.getElementById(`${side}-follow-download`));
-  async function makeResult(side, track, mirror, signal, showProgress) {
+  /** @param {(controller:AbortController,audio:AudioContext|undefined)=>Promise<void>} task */
+  function withFollowAudio(task) {
+    if (options.busy()) return Promise.resolve();
+    const controller = new AbortController();
+    let audio, entered = false;
+    // Safari 不能等人物分析完才請求音訊；先在本次點按內啟動，與模型準備並行。
+    try { audio = new AudioContext(); audio.resume().catch(error => controller.abort(error)); }
+    catch (error) { controller.abort(error); }
+    const close = async () => { if (audio && audio.state !== 'closed') await audio.close().catch(() => {}); };
+    return options.operate(async parentSignal => {
+      entered = true;
+      const aborted = () => controller.abort(parentSignal.reason);
+      parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();
+      try { await task(controller, audio); }
+      finally { parentSignal.removeEventListener('abort', aborted); controller.abort(); await close(); }
+    }).finally(() => {
+      // 儲存未確認等封鎖可能讓操作完全沒開始；仍須回收手勢內先建立的環境。
+      if (!entered) return close();
+    });
+  }
+  async function makeResult(side, track, mirror, signal, showProgress, audio) {
     const file = options.file(side); if (!file) throw new Error('找不到這一側的原片，請重新選片。');
     for (const key of sides) videos[key].pause();
     let last = -1;
     return exportFollow(file, track, mirror, signal, fraction => {
       const percent = Math.floor(fraction * 100); if (percent === last) return; last = percent;
       showProgress(`正在製作${side === 'reference' ? '老師' : '自己'}的單側跟隨影片 ${percent}%；約需片段長度，可隨時取消。`);
-    });
+    }, audio);
   }
   function publishResult(side, blob, source, mirror) {
     const state = states[side], previous = state.result?.url, url = URL.createObjectURL(blob), video = resultVideo(side), link = download(side);
@@ -161,27 +181,28 @@ export function createFollowUI(videos, options) {
       }
       options.playbackChanged();
     });
-    refresh(side).addEventListener('click', () => options.operate(async signal => {
+    refresh(side).addEventListener('click', () => withFollowAudio(async (controller, audio) => {
+      const signal = controller.signal; signal.throwIfAborted();
       const state = states[side], source = options.source(side), track = state.track, mirror = options.mirror(side);
       if (!source || state.source !== source || !track) throw new Error('請先框選這一側並完成分析。');
-      const blob = await makeResult(side, track, mirror, signal, text => { resultStatus(side).textContent = text; });
+      const blob = await makeResult(side, track, mirror, signal, text => { resultStatus(side).textContent = text; }, audio);
       signal.throwIfAborted(); if (options.source(side) !== source) throw new Error('來源已變更，原結果保留。');
       publishResult(side, blob, source, mirror); options.focus(resultVideo(side));
     }));
   }
-  confirm.addEventListener('click', () => options.operate(async parentSignal => {
+  // 音訊先於共用操作建立；草稿若在等待期間關閉，不能開始過期分析。
+  confirm.addEventListener('click', () => draft && !analyzing && withFollowAudio(async (controller, audio) => {
     if (!draft || analyzing) return;
-    const current = draft, controller = new AbortController(), signal = controller.signal;
+    const current = draft, signal = controller.signal;
     const sampleHz = 8, count = Math.ceil((current.end - current.start) * sampleHz);
     const probe = current.measuring ? measurements.start({ side: current.side, source: current.source, start: current.start, end: current.end, box: current.box, sampleHz, plannedFrames: count + 1, preparation: current.preparation }) : null;
     /** @type {'complete'|'cancelled'|'failed'} */
     let outcome = 'failed';
     let trackedFrames = 0;
-    const aborted = () => controller.abort(parentSignal.reason);
-    parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();
     analyzing = true; cancelAnalysis = () => controller.abort(); controls.disabled = true; confirm.disabled = true;
     let worker;
     try {
+      signal.throwIfAborted();
       if (probe) { probe.workerCreatedNow = performance.now(); probe.workerCreatedAt = performance.timeOrigin + probe.workerCreatedNow; }
       worker = new Worker('/person-worker.js');
       if (probe) probe.workerConstructorMs = performance.now() - probe.workerCreatedNow;
@@ -235,7 +256,7 @@ export function createFollowUI(videos, options) {
       const resultBegan = probe ? performance.now() : 0;
       let blob;
       // 製片失敗或取消也保留部分耗時，但仍由原成功交換點保全上次結果。
-      try { blob = await makeResult(current.side, track, mirror, signal, text => { message.textContent = text; }); }
+      try { blob = await makeResult(current.side, track, mirror, signal, text => { message.textContent = text; }, audio); }
       finally { if (probe) probe.resultMs = performance.now() - resultBegan; }
       signal.throwIfAborted(); if (options.source(current.side) !== current.source) throw new Error('來源已變更，請重新框選。');
       // 路徑與可播放影片完整成功後一起交換；取消或製作失敗保留上次整組結果。
@@ -244,12 +265,13 @@ export function createFollowUI(videos, options) {
       closeDraft(); options.changed(); options.focus(resultVideo(current.side));
       outcome = 'complete';
     } catch (caught) {
-      if (signal.aborted) outcome = 'cancelled';
+      // 音訊啟動拒絕也是失敗，不能只因共用 signal 被中止就寫成使用者取消。
+      if (signal.aborted && signal.reason?.name === 'AbortError') outcome = 'cancelled';
       const error = caught instanceof Error ? caught : new Error(String(caught));
       message.textContent = error.name === 'AbortError' ? '已取消分析，原片與上次成功的追蹤保留；可以調整選框再試。' : `${error.message} 上次成功的追蹤保留。`;
       throw error;
     } finally {
-      worker?.terminate(); parentSignal.removeEventListener('abort', aborted); analyzing = false; cancelAnalysis = () => {}; controls.disabled = false; confirm.disabled = false;
+      worker?.terminate(); analyzing = false; cancelAnalysis = () => {}; controls.disabled = false; confirm.disabled = false;
       showMetrics(probe?.finish(outcome, trackedFrames));
     }
   }));

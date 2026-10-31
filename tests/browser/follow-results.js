@@ -3,7 +3,19 @@ async (page, { boundedAudio = false } = {}) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); }, runId = Date.now().toString(36), downloads = [];
   const origin = new URL(page.url()).origin, requests = [];
   page.context().on('request', request => requests.push({ url: request.url(), method: request.method() }));
-  await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('單側結果禁止相機與麥克風'); }; window.confirm = () => true; });
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => { throw new Error('單側結果禁止相機與麥克風'); }; window.confirm = () => true;
+    window.followAudioOrder = []; window.followAudioContexts = [];
+    const NativeAudioContext = window.AudioContext, NativeWorker = window.Worker;
+    // 只旁聽真正建構與呼叫順序；Chrome 自動允許音訊也不能掩蓋 Safari 分析後才啟動的問題。
+    window.AudioContext = class extends NativeAudioContext {
+      constructor(...args) { super(...args); const id = window.followAudioContexts.push(this) - 1; window.followAudioOrder.push({ type: 'created', id, active: navigator.userActivation.isActive }); }
+      resume(...args) { window.followAudioOrder.push({ type: 'resume', id: window.followAudioContexts.indexOf(this), active: navigator.userActivation.isActive }); return super.resume(...args); }
+      close(...args) { window.followAudioOrder.push({ type: 'close', id: window.followAudioContexts.indexOf(this) }); return super.close(...args); }
+    };
+    window.Worker = class extends NativeWorker { constructor(...args) { window.followAudioOrder.push({ type: 'worker' }); super(...args); } };
+    document.addEventListener('click', event => { if (event.target.closest('button')?.id === 'follow-confirm') window.followAudioOrder.push({ type: 'confirm', trusted: event.isTrusted }); }, true);
+  });
   await page.goto(origin);
   // 同一份下載與保全斷言分別跑兩條真供聲路徑，避免只改名稱卻仍測到 Chrome 分支。
   assert(await page.evaluate(async () => (await import('/local-audio.js')).safariAudio()) === boundedAudio, '沒有選到指定的單側結果音訊分支');
@@ -20,15 +32,22 @@ async (page, { boundedAudio = false } = {}) => {
   const originals = await page.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).getAttribute('src')));
   const originalTimes = await page.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).currentTime));
   const stored = await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
+  const audioSequences = [];
   for (const side of ['reference', 'self']) {
     assert(await page.locator('#' + side + '-follow-result').isHidden(), '未分析已顯示假結果');
     await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle();
     for (const [field, value] of [['width', side === 'reference' ? 37 : 40], ['x', side === 'reference' ? 3.5 : 55], ['y', 2.5], ['height', 95]]) { await page.locator('#follow-' + field).fill(String(value)); await page.locator('#follow-' + field).dispatchEvent('change'); }
+    const audioOrderStart = await page.evaluate(() => window.followAudioOrder.length);
     await page.locator('#follow-confirm').click();
     await page.waitForFunction(() => !document.getElementById('follow-dialog').open || !document.getElementById('controls').disabled && document.getElementById('follow-message').textContent.includes('保留'), null, { timeout: 60000 }); await idle();
     assert(!await page.locator('#follow-dialog').evaluate(d => d.open), '結果製作失敗：' + await page.locator('#follow-message').textContent());
     const video = page.locator('#' + side + '-follow-result'); await video.waitFor({ state: 'visible' });
     await page.waitForFunction(id => document.getElementById(id).readyState >= 2, side + '-follow-result');
+    const audioOrder = await page.evaluate(start => window.followAudioOrder.slice(start), audioOrderStart);
+    const createdAt = audioOrder.findIndex(row => row.type === 'created'), resumedAt = audioOrder.findIndex(row => row.type === 'resume'), workerAt = audioOrder.findIndex(row => row.type === 'worker');
+    assert(audioOrder[0]?.type === 'confirm' && audioOrder[0].trusted && createdAt > 0 && resumedAt > createdAt && resumedAt < workerAt && audioOrder[createdAt].active && audioOrder[resumedAt].active, '音訊沒有在真正確認手勢內、人物分析前啟動：' + JSON.stringify(audioOrder));
+    assert(await page.evaluate(id => window.followAudioContexts[id].state === 'closed', audioOrder[createdAt].id), '正常完成未關閉預先啟動的音訊');
+    audioSequences.push({ side, order: audioOrder });
     assert(await video.getAttribute('src') === await page.locator('#' + side + '-follow-download').getAttribute('href'), '預覽與匯出不是同一份結果');
     assert(await video.evaluate(v => v.controls && v.videoHeight > v.videoWidth && Math.abs(v.duration - 3) <= .1 && v.videoHeight <= 1280 && v.videoWidth % 2 === 0 && v.videoHeight % 2 === 0), '單側結果尺寸／原速片長不正確');
     assert(await page.evaluate(() => document.activeElement.id) === side + '-follow-result', '製作完成未將鍵盤焦點帶到結果');
@@ -58,6 +77,31 @@ async (page, { boundedAudio = false } = {}) => {
   assert(JSON.stringify(await page.evaluate(() => ['reference', 'self'].map(id => document.getElementById(id).getAttribute('src')))) === JSON.stringify(originals), '單側製作更換原片');
   assert(await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data)) === stored, '單側結果誤存為 VS 或改動筆記／配方');
   const oldSelf = await page.locator('#self-follow-download').getAttribute('href'), oldTeacher = await page.locator('#reference-follow-download').getAttribute('href');
+  // 音訊現在早於分析存在，分析取消及尚未交付製片的失敗也必須關閉它並保留舊結果。
+  await page.locator('#reference-follow').click(); await idle();
+  await page.locator('#follow-confirm').click();
+  await page.waitForFunction(() => document.getElementById('follow-controls').disabled);
+  await page.locator('#follow-cancel').click(); await idle();
+  assert(await page.evaluate(() => window.followAudioContexts.at(-1).state === 'closed'), '分析取消遺留預先啟動的音訊');
+  assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '分析取消破壞舊結果');
+  await page.locator('#follow-cancel').click();
+  await page.evaluate(() => { window.followOriginalWorker = window.Worker; window.Worker = class { constructor() { throw new Error('Synthetic follow worker startup failure'); } }; });
+  await page.locator('#reference-follow').click(); await idle(); await page.locator('#follow-confirm').click(); await idle();
+  assert((await page.locator('#follow-message').textContent()).includes('Synthetic follow worker startup failure'), '沒有命中分析啟動失敗');
+  assert(await page.evaluate(() => window.followAudioContexts.at(-1).state === 'closed'), '分析啟動失敗遺留預先啟動的音訊');
+  assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '分析失敗破壞舊結果');
+  await page.locator('#follow-cancel').click(); await page.evaluate(() => { window.Worker = window.followOriginalWorker; });
+  // 控制真正環境的 resume 拒絕，不偽造成功；報告須列失敗，不能誤列使用者取消。
+  await page.evaluate(async () => {
+    window.followOriginalAudio = window.AudioContext; window.followRejectedAudio = new window.AudioContext(); await window.followRejectedAudio.suspend();
+    window.followRejectedAudio.resume = () => Promise.reject(new Error('Synthetic follow audio activation failure'));
+    window.AudioContext = function() { return window.followRejectedAudio; };
+  });
+  await page.locator('#reference-follow').click(); await idle(); await page.locator('#follow-confirm').click(); await idle();
+  assert((await page.locator('#follow-message').textContent()).includes('Synthetic follow audio activation failure') && (await page.locator('#follow-metrics-report').textContent()).includes('失敗'), '音訊拒絕沒有回報真正失敗');
+  assert(await page.evaluate(() => window.followRejectedAudio.state === 'closed'), '音訊拒絕遺留未交付環境');
+  assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '音訊拒絕破壞舊結果');
+  await page.locator('#follow-cancel').click(); await page.evaluate(() => { window.AudioContext = window.followOriginalAudio; });
   await page.locator('#reference-follow-result').evaluate(async v => {
     await new Promise(resolve => { v.addEventListener('seeked', resolve, { once: true }); v.currentTime = 1; });
     const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; const context = c.getContext('2d'); context.drawImage(v, 0, 0); window.nativeFollowBefore = context.getImageData(0, 0, c.width, c.height).data;
@@ -107,9 +151,10 @@ async (page, { boundedAudio = false } = {}) => {
   assert(await page.locator('#self-follow-download').getAttribute('href') === oldSelf && !(await page.locator('#self-follow-result-status').textContent()).includes('先前'), '壞檔改掉結果歸屬');
   await page.locator('#self-file').setInputFiles('output/follow/self.mp4'); await idle();
   assert(await page.locator('#self-follow-download').getAttribute('href') === oldSelf && (await page.locator('#self-follow-result-status').textContent()).includes('先前'), '換片未保留並標示舊結果');
+  assert(await page.evaluate(() => window.followAudioContexts.every(context => context.state === 'closed')), '操作收尾後仍有音訊環境未關閉');
   for (const width of [320, 390, 768, 1440]) { await page.setViewportSize({ width, height: 1000 }); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '獨立結果框窄版溢出'); }
   const screenshot = 'output/playwright/follow-results-' + runId + '.png'; await page.setViewportSize({ width: 1440, height: 1100 }); await page.locator('.players').screenshot({ path: screenshot });
   const mobileScreenshot = 'output/playwright/follow-results-mobile-' + runId + '.png'; await page.setViewportSize({ width: 390, height: 844 }); await page.locator('.follow-result').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: mobileScreenshot });
   assert(requests.every(r => r.method === 'GET' && (r.url.startsWith(origin + '/') || r.url.startsWith('blob:'))), '單側製作有外部請求或上傳');
-  return { downloads, screenshot, mobileScreenshot, mirrorPixels, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true, selectedWebKitAudioBranch: boundedAudio, safariDeviceAcceptance: false };
+  return { downloads, screenshot, mobileScreenshot, mirrorPixels, audioSequences, audioBeforeAnalysis: true, analysisCancelAndStartupFailureCloseAudio: true, audioRejectionReportedAsFailure: true, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true, selectedWebKitAudioBranch: boundedAudio, safariDeviceAcceptance: false };
 }

@@ -3,13 +3,13 @@ import { load, seek, presentedFrame, record, mediaAction } from './recorder.js';
 import { safariAudio, decodeLocalAudio } from './local-audio.js';
 import { drawFollow, followSize } from './follow.js';
 
-/** @param {Blob} file @param {import('./follow').Track} track @param {boolean} mirror @param {AbortSignal} parentSignal @param {(fraction:number)=>void} progress */
-export async function exportFollow(file, track, mirror, parentSignal, progress) {
+/** @param {Blob} file @param {import('./follow').Track} track @param {boolean} mirror @param {AbortSignal} parentSignal @param {(fraction:number)=>void} progress @param {AudioContext} [preparedAudio] */
+export async function exportFollow(file, track, mirror, parentSignal, progress, preparedAudio) {
   const controller = new AbortController(), signal = controller.signal, cancel = () => controller.abort(parentSignal.reason);
   parentSignal.addEventListener('abort', cancel, { once: true }); if (parentSignal.aborted) cancel();
   const video = document.createElement('video'), canvas = document.createElement('canvas'), bounded = safariAudio();
   video.playsInline = true; video.muted = bounded;
-  let audio, source, destination, bufferSource, stream, recording, audioStart = 0;
+  let audio = preparedAudio, source, destination, bufferSource, stream, recording, audioStart = 0;
   const url = URL.createObjectURL(file), hidden = () => { if (document.hidden) controller.abort(new Error('離開前景，已停止製作跟隨結果；上次結果保留。')); };
   document.addEventListener('visibilitychange', hidden);
   try {
@@ -19,17 +19,19 @@ export async function exportFollow(file, track, mirror, parentSignal, progress) 
     await load(video, url, signal);
     Object.assign(canvas, followSize(video, track));
     const context = canvas.getContext('2d', { alpha: false }); if (!context) throw new Error('無法建立跟隨結果畫面。');
-    audio = new AudioContext();
+    // 介面交入手勢內已啟動的同一個環境；不能在長分析後另建一個又失去啟動資格。
+    audio ||= new AudioContext();
+    const sound = audio;
     // resume 可能一直等待原生允許；沿既有事件期限與取消收尾，不讓停止鍵被未完成承諾卡住。
-    if (audio.state !== 'running') await mediaAction(audio, 'statechange', () => { audio.resume().catch(error => controller.abort(error)); }, signal);
-    if (audio.state !== 'running') throw new Error('音訊尚未啟動，請再按一次重試。');
-    destination = audio.createMediaStreamDestination();
+    if (sound.state !== 'running') await mediaAction(sound, 'statechange', () => { sound.resume().catch(error => controller.abort(error)); }, signal);
+    if (sound.state !== 'running') throw new Error('音訊尚未啟動，請再按一次重試。');
+    destination = sound.createMediaStreamDestination();
     if (bounded) {
-      const buffer = await decodeLocalAudio(file, audio, track.start, durationMs / 1000, signal);
-      if (buffer) { bufferSource = audio.createBufferSource(); bufferSource.buffer = buffer; bufferSource.connect(destination); }
+      const buffer = await decodeLocalAudio(file, sound, track.start, durationMs / 1000, signal);
+      if (buffer) { bufferSource = sound.createBufferSource(); bufferSource.buffer = buffer; bufferSource.connect(destination); }
     } else {
       // 每次只把這個臨時播放器接到輸出聲路，不碰原片播放器一生只能建立一次的 AudioNode。
-      source = audio.createMediaElementSource(video); source.connect(destination);
+      source = sound.createMediaElementSource(video); source.connect(destination);
     }
     await seek(video, track.start, signal);
     await Promise.all([presentedFrame(video, signal, frame => !bounded || frame.mediaTime > track.start + 0.001), video.play()]);
@@ -41,7 +43,7 @@ export async function exportFollow(file, track, mirror, parentSignal, progress) 
     if (!bounded || bufferSource) destination.stream.getAudioTracks().forEach(t => { stream.addTrack(t.clone()); });
     recording = record(stream, undefined, undefined, { webmOnly: bounded });
     recording.done.catch(error => controller.abort(error));
-    audioStart = audio.currentTime + 0.01; bufferSource?.start(audioStart);
+    audioStart = sound.currentTime + 0.01; bufferSource?.start(audioStart);
     await mediaAction(video, 'playing', () => video.play(), signal);
     const began = performance.now();
     await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
@@ -60,7 +62,7 @@ export async function exportFollow(file, track, mirror, parentSignal, progress) 
         if (signal.aborted) return aborted();
         const elapsed = (video.currentTime - track.start) * 1000, now = performance.now();
         // 沿用既有 100ms 聲畫護欄；原生 PCM 時鐘停住或領先時不交付錯位影片。
-        if (bufferSource && (audio.state !== 'running' || Math.abs((audio.currentTime - audioStart) * 1000 - elapsed) > 100)) return finish(new Error('音訊與畫面偏移超過 100ms，未完成跟隨影片。'));
+        if (bufferSource && (sound.state !== 'running' || Math.abs((sound.currentTime - audioStart) * 1000 - elapsed) > 100)) return finish(new Error('音訊與畫面偏移超過 100ms，未完成跟隨影片。'));
         if (elapsed >= durationMs - 20 || video.ended && elapsed >= durationMs - 100) return finish();
         if (video.paused || video.ended) return finish(new Error('原片播放提前中斷，跟隨結果未完成。'));
         if (elapsed > lastTime + 1) { lastTime = elapsed; lastProgress = now; }
