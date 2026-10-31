@@ -15,6 +15,26 @@ Safari不需改Profiles或日常設定。345b2d1／fe4bf7952cad2421的一般模�
 
 最終本機包沿原58檔白名單，只收匿名指南、證據、程式與授權，指南可離線查閱；不收output、profiles、原始收據、測片或QA工具。舊16bd／84包、SHA及所有歷史成功／失敗均保留原歸屬。本機候選仍待獨立審查與發布核准；未合併main、部署、建立GitHub Release或關閉未驗收票，包內以START_HERE與release.json識別為準。
 
+## 版本與更新說明
+
+GitHub Releases 是對使用者的版本公告；根目錄 `CHANGELOG.md` 累積各版本變更；Git history 留開發細節。採 Semantic Versioning，tag 為 `vMAJOR.MINOR.PATCH`，與 `release.json` 的靜態內容雜湊用途不同。Preview Deploy 不等於版本發行；版本 PR 合併、草稿、正式發布與網站部署分開記錄。
+
+`package.json` 的 `0.0.0` 是尚未發布的開發基線，空的 `.release-please-manifest.json` 表示沒有歷史發行；首次 PR 預設提議 `0.1.0`。`bootstrap-sha` 固定為導入前 main `1fbbf5ba38633723a34e3695ebc8ee7fd5885fcb`，只自動整理其後的變更，避免把所有早期原型都當成新功能。首次公告須人工補寫該版本真正開放的功能與限制，不補造過去版本／日期，也不把範例功能寫成已完成。
+
+後續 `fix:`／`perf:` 升 PATCH、`feat:` 升 MINOR；`!` 或 `BREAKING CHANGE:` 標出不相容變更。0.x 階段不相容變更升 MINOR，1.x 起升 MAJOR；0.x 不代表穩定或所有裝置已支援。一般 `docs:`／`chore:`／`test:`／`ci:` 等不進使用者更新說明。沿用提交的 `type: Title` 與 why-explanation；squash merge 時也要保留 Conventional Commit 標題與不相容變更說明。
+
+### 里程碑操作
+
+1. 維護者決定功能里程碑已適合整理，在 Actions → **Release preparation** → Run workflow，選 `main`、`phase=prepare`。這只新增／更新版本 PR，整理版本號、manifest 與 `CHANGELOG.md`；日常 push／部署不會啟動。若沒有可發行的變更，可能不開 PR。
+2. 把版本 PR 的 `CHANGELOG.md` 及 PR 內的 release notes 改寫成簡短繁體中文：說明使用者得到什麼、修好什麼，刪除重複 commit，補已知限制與更新／備份提醒。兩處須一致；release-please 從 PR 內的筆記建立草稿。保留 PR 的機器辨識標記，不只修改檔案而留下舊 PR 筆記。再次跑 `prepare` 可能覆寫人工修訂，應先完成整理，再進人工修訂與審查。
+3. 內建 `GITHUB_TOKEN` 建立的 PR 不會自動觸發 Harness CI。到 **Harness CI** → Run workflow 選版本 PR 的實際 head 分支，核對受測 commit 與待合併 head 相同；任何後續修改都要重跑。不能把缺少檢查當成通過，也不為此加入私人 token 或略過保護。若 PR 仍是 draft，審閱完成後改為 ready。
+4. 依 `AGENTS.md` 取得合併授權並完成審查後合併版本 PR。再在 `main` 啟動 **Release preparation**，選 `phase=draft`；此輪只依已合併版本 PR 建立 GitHub Release **草稿**。設定固定 `draft=true`，不強制建立 tag、不上傳下載包、不部署網站。
+5. 在 GitHub Releases 檢查草稿的版本、來源 commit、筆記與既有發布／支援證據；明確取得使用者對該版本的發布核准後，由維護者按 Publish release。發布前仍遵守下方來源、授權、備份及驗收要求。草稿尚未發布時先完成或處理該草稿，再準備下一版，避免未建立 tag 的版本被誤認為未發行。必要下載包沿本文件另行核對與授權，不由本 workflow 夾帶。
+
+repository 須允許 **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**，否則準備版本 PR 會失敗；維護者確認政策後自行啟用。本次只提供可審查設定，不修改帳戶／repository 權限、不新增 secrets。工作只在本 repo 的 main 執行，僅該工作持有 contents／pull-requests／issues 寫入權限供官方 action 建 PR／草稿及標籤；Harness CI 維持 contents 唯讀。正式遠端工作與首次草稿尚未實跑，不以本機設定檢查當成已可公開發行。
+
+官方契約：[release-please Action](https://github.com/googleapis/release-please-action)、[manifest、草稿與版本設定](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md)、[內建 token 的事件限制](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication)。自動產生的內容只是審閱起點，不能代替使用者可讀的筆記或真人／真機驗收。
+
 ## 取得與重建
 
 下載包的使用入口為 [START_HERE.md](../START_HERE.md)。已建置包無須 Git、套件安裝或編譯，仍需 Bun 1.4.4 啟動本機 HTTP 主機；不能以雙擊 HTML 代替可信任 localhost。尚無公開發行檔／網址，新使用者取得來源仍需自行建置或由維護者交付候選包，這項安裝限制尚未經真人驗收。
@@ -40,7 +60,7 @@ bun run check:package
 
 隨包主機在每次 GET／HEAD 前也檢查包根目錄、`dist/web` 與實際白名單檔案，拒絕符號／硬連結、非一般檔案及缺檔並回 404；啟動後誤換連結同樣拒絕。這補上打包檢查之後的讀檔邊界，不會自動刪除或修復異常檔案。請保留專用且可信任的本機資料夾；預檢不保證抵禦另一個本機程式在檢查與讀取之間同時競態換檔，也不替代下載來源與校驗核對。
 
-CI 沿用完整 check，另執行相同 package／check:package。只建立及檢查產物，沒有 upload-artifact、部署 token、發布 workflow 或付費服務。CI 成功不是發布或產品驗收。
+CI 沿用完整 check，另執行相同 package／check:package。只建立及檢查產物，沒有 upload-artifact、部署 token 或付費服務。版本整理另由上節手動流程負責，只準備 PR／草稿。CI 成功不是發布或產品驗收。
 
 ## 免費主機比較
 

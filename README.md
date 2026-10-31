@@ -11,6 +11,8 @@
 
 `bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
 
+更新內容見 [版本更新紀錄](CHANGELOG.md) 與 [GitHub Releases](https://github.com/sunpochin/dance-stamp/releases)；版本號與里程碑整理方式見 [發布流程](docs/RELEASE.md#版本與更新說明)。Release 草稿仍待人工確認及發布。
+
 ## 第一版要做到什麼
 
 1. 選取自己的課程影片，標記重要動作，點一下跳到重點。

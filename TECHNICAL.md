@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+版本號、更新紀錄與里程碑草稿流程見[版本與更新說明](docs/RELEASE.md#版本與更新說明)。
+
 #165 的雙側人物框選、跟隨裁切與鏡像見[本次設計](#165-雙側人物跟隨裁切)及[合成驗證](docs/evidence/issue-165-person-follow.md)；手動對齊仍保留。
 
 #11 固定 e6f0300 的原生 Safari 一般視窗十輪錄影／VS 成檔、完整檔案與同頁重開保全見[十輪對照](docs/evidence/issue-11-safari-ten-cycle.md)。本輪只減少旁聽並保留來源可見性紀錄，產品程式與原同步門檻未改；同來源先前第五輪失敗仍保留，不能由這次成功判定唯一根因或整體 Safari 已驗收。
@@ -1117,3 +1119,11 @@ App 回歸的既有完整介面案例在產品模組執行前明確移除 DOM �
 #163 的短片重連審查另由既有 relink 回歸先重現：原 65 秒筆記保存三秒重連副本，重開卻把 B 設回 65 秒。`openVideoNotes` 改以本次成功解碼的 `referenceDurationMs` 作全長預設；缺媒體時才以原筆記片長顯示，不更動持久化 metadata。回歸保留完整筆記／媒體快照比對、超界標記、原生重連失敗與舊 VS 保全，另確認重開後 B 等於實際短片長度且真的可以開始／停止循環；沒有裁掉原標記或改寫筆記片長。毫秒回歸補上審查提到的 16001ms 精確邊界，超出 1ms 仍拒絕。
 
 #168 最後版 fd486ed 的左右／疊影播放分區保留，共用原操作鎖與暫停，來源 4bea26b 的像素容忍放寬不採用：整合版未調整側複用原畫面，預設與人物鏡像後仍要求完全相等。新增分區屬實際產品變更，故以新 head 重跑完整 74 案，不沿用前版完整輪結果。
+
+## 55. #182 版本更新紀錄與里程碑草稿
+
+2026-11-01：用官方 release-please manifest 的單一根目錄 node 策略更新 `package.json`、版本 manifest 與 `CHANGELOG.md`，不新增產品執行期依賴。空 manifest／開發版 `0.0.0` 不虛構發行；首次版本 `0.1.0`，bootstrap 固定導入前 main，之後按 Conventional Commits 推進 SemVer。使用者版本號不取代既有 SW／下載包內容雜湊或 sourceRevision。
+
+採明確里程碑的 workflow_dispatch，分 prepare PR 與 draft Release；固定 action commit、main 與本 repo，只有該 job 提升必要寫入權限。`draft=true` 保留人工公開發布，未啟用強制 tag、資產上傳或部署。Harness CI 增加手動入口，補內建 token 建 PR 不觸發 CI 的官方限制；同一 head 仍須通過完整檢查。
+
+排除每次 Preview Deploy／push 都發布、付費服務、私人 token、自寫 commit 解析器及將完整 Git history 貼成公告。版本 PR 的檔案與 PR 筆記須一起人工整理；draft 階段只讀已合併 PR 以免覆寫筆記。設定驗證不代表遠端發布、真機驗收或 #15 完成。操作與官方依據統一放 [RELEASE.md](docs/RELEASE.md#版本與更新說明)。
