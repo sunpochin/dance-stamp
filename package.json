@@ -1,11 +1,11 @@
 {
   "name": "dance-stamp",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
     "check": "bun --no-env-file scripts/check-harness.ts && bun --no-env-file scripts/check-public.ts && bun run test:unit && bun run typecheck && bun run lint && bun run build",
-    "check:source": "bun --no-env-file scripts/check-harness.ts --include-local-reference",
     "test:unit": "bun --no-env-file test --isolate ./tests/unit",
     "test:coverage": "bun --no-env-file test --isolate --coverage --coverage-reporter=text --coverage-reporter=lcov ./tests/unit",
     "test:coverage:app": "bun --no-env-file tests/app-coverage/prepare-fixtures.ts && bun --no-env-file tests/app-coverage/run-app.ts",

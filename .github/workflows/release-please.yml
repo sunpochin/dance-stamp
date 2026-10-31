@@ -1,0 +1,39 @@
+# 檔案用途：在功能里程碑準備版本 PR 或 Release 草稿。
+# 所在層：GitHub Actions；主要關聯：release-please-config.json、docs/RELEASE.md。
+name: Release preparation
+on:
+  # 預覽部署與日常提交不代表發布時機，因此只讓維護者明確啟動。
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 準備版本 PR，或為已合併的版本 PR 建立 Release 草稿
+        required: true
+        default: prepare
+        type: choice
+        options: [prepare, draft]
+permissions: {}
+concurrency:
+  group: release-please
+  # 避免兩輪同時更新版本 PR；已開始的整理不因另一輪啟動而中斷。
+  cancel-in-progress: false
+jobs:
+  release-please:
+    # 寫入只針對本專案 main；不讓其他分支設定取得此工作的寫入權限。
+    if: github.repository == 'sunpochin/dance-stamp' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      # ponytail: 沿用官方工具管理版本與筆記，不自行實作 commit 解析器。
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # 分開準備與建立草稿，讓人工修訂筆記後不被另一輪準備覆寫。
+          skip-github-release: ${{ inputs.phase != 'draft' }}
+          skip-github-pull-request: ${{ inputs.phase == 'draft' }}

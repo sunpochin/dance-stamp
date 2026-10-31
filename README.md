@@ -11,6 +11,8 @@
 
 `bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
 
+更新內容見 [版本更新紀錄](CHANGELOG.md) 與 [GitHub Releases](https://github.com/sunpochin/dance-stamp/releases)；版本號與里程碑整理方式見 [發布流程](docs/RELEASE.md#版本與更新說明)。Release 草稿仍待人工確認及發布。
+
 ## 第一版要做到什麼
 
 1. 選取自己的課程影片，標記重要動作，點一下跳到重點。
@@ -46,4 +48,4 @@
 
 `bun run test:coverage:app` 另以同一套 Istanbul 計數合併單元、VM、隔離 Chromium 的既有操作／失敗恢復測試，將全部 `web/*.js`（含主畫面、儲存、SW）列入分母；需本機已安裝 FFmpeg 與 Chrome，可用 `DANCE_STAMP_CHROMIUM` 指定執行檔，不自動下載瀏覽器。每輪產生獨立的 `coverage/app-*/report.html`、總表、逐檔缺漏與來源指紋；原單元報表維持可用。這是插樁合成測試，與原生 Safari、影音品質或真人／實體裝置驗收分開。詳見 [全 App 量測](docs/evidence/issue-103-app-coverage.md)。
 
-先從[路線圖](docs/ROADMAP.md)的可行性驗證開始。已提供 AI harness：先讀 [AGENTS.md](AGENTS.md) 與[工具說明](docs/ai/HARNESS.md)，使用 Bun 1.4.4 執行 `bun run check`，並以 `bun run hooks:install` 安裝此 clone 的 Git 防護。`bun run check` 已包含 Web 建置與邏輯測試；瀏覽器回歸和媒體驗收另記錄，不能把工具檢查寫成整體產品完成。回報問題請提供合成或自有權利的短片，勿把私人課程影片直接貼到公開 issue。
+先從[路線圖](docs/ROADMAP.md)的可行性驗證開始。開發工具、規則、skills 與必要文件都隨本 repo 提供，不需其他產品的 checkout 或本機參考副本。先讀 [AGENTS.md](AGENTS.md) 與[工具說明](docs/ai/HARNESS.md)，使用 Bun 1.4.4 執行 `bun run check`，並以 `bun run hooks:install` 安裝此 clone 的 Git 防護。`bun run check` 已包含 Web 建置與邏輯測試；瀏覽器回歸和媒體驗收另記錄，不能把工具檢查寫成整體產品完成。回報問題請提供合成或自有權利的短片，勿把私人課程影片直接貼到公開 issue。

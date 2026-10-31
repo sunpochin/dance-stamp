@@ -74,3 +74,11 @@
 同一應用來源的既有 person-follow、adjusted-side-preview、simplified-comparison 回歸通過，保留真模型、人物裁切／鏡像、可調框隔離、兩種 VS 成檔、停止與資料保全。新增 follow-performance 案例初輪錯用中央預設框，只覆蓋邊緣素材的半身，故真模型拒絕；修正為素材的完整身體選框，未改應用、模型、門檻或斷言。原失敗收據 app-GHHydi 保留，修正後獨立收據 app-rrRwOn 通過四輪真分析、計時開關、受控待回覆取消與 Worker 建構故障；兩側 3 秒各 25 格、原播放器位置與完整資料相同、Worker 每輪建立並終止。故障注入不當作自然 Safari 失敗或效能資料。
 
 這些是選定功能回歸，不能寫成完整 App 矩陣通過；完整遠端 CI 另以 PR head 記錄。基準結束後再次核對量測三個應用模組的 SHA 與收據一致，測試修正未改變已量測版本。
+
+## 文件完成核對與主線文件同步
+
+白話指南、技術流程、實測表格與憲法條文都已在 PR #181 遠端逐檔核對；不是只有聊天裡說明。憲法在原第 2.3 條明訂 ELI5／技術寫法都要進文件，維持單一規則。
+
+`34c05781937df4ffd85c460664a45b39ae309bfc` 的 [完整 CI](https://github.com/sunpochin/dance-stamp/actions/runs/41224216450) 已通過 harness、app-coverage、linux-install-restart；同 head 的 Workers Builds 亦成功。App 完整矩陣與關閉網站後的真下載重播兩個步驟均 success，與先前本機「只跑選定案例」分開記錄。
+
+等待 CI 時，main 更新至 `8e2a2f1`（開發工具自包含、版本與 release notes），`web/` 全檔未變。同步時唯一內容衝突在本索引新增的兩段說明，兩者都保留；沒有改應用邏輯、模型或取樣。量測模組仍與原基準收據 SHA 相符，效能數字保留在原靜態版本，不改寫成新包實測；同步後檢查與新 head CI 再於 PR 記錄。

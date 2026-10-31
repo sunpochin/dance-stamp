@@ -1,88 +1,58 @@
-<!-- 檔案用途：描述 AI harness 的匯入、啟用方式與限制。所在層：開發工具文件。主要關聯：AGENTS.md、harness-import.json、TECHNICAL.md。 -->
+<!-- 檔案用途：說明本 repo 自足的 AI 開發工具與整理後的方法。所在層：開發工具文件。主要關聯：AGENTS.md、harness-import.json、TECHNICAL.md。 -->
 # AI harness
 
-來源：[jia-jian-log staging 固定版本](https://github.com/sunpochin/jia-jian-log/tree/fefc821045cc92df25101ce1554fb6c80e4e0093)，匯入日期 2026-10-27。
-逐檔來源、Git blob、目的地、處理方式及 SHA-256 在 [清單](harness-import.json)。
+Dance Stamp 自行維護開發工具、規則、skills、測試與文件。新 clone 只需本 repo 與指定版本的 Bun；不需其他產品的 checkout、本機來源副本或外部規則庫。
+必要內容直接放在對應目錄，來源署名集中於 [第三方授權索引](../../THIRD_PARTY_NOTICES.md)。[來源清單](harness-import.json) 保存歷史 Git blob、適配原因與目前 SHA-256；它用於追溯，不會下載或同步其他 repository。
 
-## 已複製的範圍
+## 保留下來的方法
 
-保留 `.agents`、`.claude`、`.codex`、`.cursor`、`.serena`、`.githooks`、`skills/`、
-`docs/agents`、`docs/ai`、PR/review/worktree/safety/runtime/CRG 工具、對應測試、
-mission-control 套件與流程文件、review workflows、reviewlatch、授權及相關相對匯入依賴。
-503 份完整來源副本已複製到本機 `vendor/jia-jian-log-harness/source/`，保留原目錄結構，沒有啟用其中的設定。此目錄被 Git 忽略，**不在公開提交中**，新 clone 不會下載它。公開 manifest 只列 17 個實際採用的檔案；完整 503 檔清單位於被 Git 忽略的 `vendor/jia-jian-log-harness/source-manifest.local.json`。公開 repo 不攜帶舊文件正文或整套內部資產清單。
-真人帳號、個人本機根路徑與明確 hosted project URL 已替換為示例；清單標明改過的副本。
-兩份來源檔案清除空白行上的空格／尾端多餘空行，清單保留原 Git blob 並記錄格式正規化。
-公開啟用的來源程式保留 MIT 授權與 reviewlatch notices；其餘來源授權隨本機副本保留，不能套用本產品的非商用限制來取代其原授權。
+舊方法有可重用的價值；採用時改寫成練舞產品適用的內容，並把完整說明放進本 repo。
 
-不屬於 harness 的照護產品程式、病患資料、資料庫 migration、正式部署、備份與藥品同步不匯入。
-mission-control 的雲端 schema 只保留來源連結，沒有複製或執行 Supabase migration。
-來源參考不是獨立可部署的家健錄，也不保證所有歷史文件的產品連結在副本內存在。
+| 用途 | 本 repo 的正式入口 | 取捨 |
+| --- | --- | --- |
+| 單一規則、分支與交付 | [AGENTS.md](../../AGENTS.md)、[工作流程](../agents/workflow.md) | 規則只有一份；工具入口薄轉接 |
+| 程式分工、狀態與競態 | [程式慣例](../agents/code-conventions.md) | 保留讀寫狀態分離、資源 owner、過期結果防護；依原生 Web 調整，不要求改框架 |
+| 審查、失敗排查與證據 | [審查與交接](../agents/review.md) | 保留先重現、版本綁定與失敗停損；不移植特定 bot、合併豁免或自動結案授權 |
+| 外部 skills 與腳本 | [Skill 安全](../agents/skill-security.md)、[Skill 使用](../agents/skills.md) | 保留版本、依賴、檔案／網路行為檢查；不自動安裝或代讀憑證 |
+| 介面與使用者流程 | [介面檢查](../agents/ui-review.md)、[驗收計畫](../ACCEPTANCE.md) | 保留鍵盤、觸控、空／錯誤狀態；用選片、錄影、比較與下載驗證 |
+| 命令防護 | `scripts/destructive-guard.ts` 及必要 parser、`vendor/reviewlatch/` | 程式與依賴已在 Git，保留原授權與正常／負向測試 |
 
-## 目前啟用
+各工具共用 `skills/`，`.agents/skills/` 與 `.codex/skills/` 使用 repo 內的相對連結。設計方法按需閱讀，不把所有參考資料載入每次工作。
+舊產品的專用規則、營運事件、雲端任務、部署設定與未採用工具不屬於本 repo 的操作入口；開發與檢查也不以這些資料存在為前提。
+
+## 已啟用的檢查
 
 | 能力 | 入口 |
 | --- | --- |
-| 單一規則與工具薄轉接 | 根 `AGENTS.md`、CLAUDE／CODEX／GEMINI、Cursor／Copilot |
-| 共用工作方法 | `skills/` 與相對連結入口 |
-| 破壞性命令提示／阻擋 | 來源 destructive guard 與必要 parser；Claude／Codex hooks 設定 |
 | 可重現自查 | `bun run check`、`bun run test:unit` |
-| 遠端品質檢查 | [Harness CI](../../.github/workflows/harness-ci.yml)，執行相同的 `bun run check` |
+| 遠端品質檢查 | [Harness CI](../../.github/workflows/harness-ci.yml)，權限與實際工作以該檔為準 |
 | 提交檢查與禁止直接推 main | `.githooks/pre-commit`、`.githooks/pre-push` |
-| 公開前檢查 | `scripts/check-public.ts`，攔截本機副本、憑證與非範例個人識別 |
-| 交付與真機證據 | issue／PR 範本及 `docs/agents/` |
+| 公開前檢查 | `scripts/check-public.ts`，檢查 Git 追蹤內容、憑證與非範例個人識別 |
+| 交付與裝置證據 | issue／PR 範本及 [證據範本](../agents/acceptance-template.md) |
 
-## 使用
+## 新 clone 使用
 
-使用 `.bun-version` 固定的 Bun；目前 harness 沒有套件依賴，不需要安裝產品框架。
+使用 `.bun-version` 固定的 Bun，在 repo 根目錄執行：
 
 ```sh
+bun install --frozen-lockfile --ignore-scripts
 bun run check
 bun run hooks:install
-# 只有本機保留完整來源時使用：
-bun run check:source
 ```
 
-`hooks:install` 只設定此 clone 的 `core.hooksPath`；每個新 clone 需執行一次。
-若已有不同 hooksPath，安裝器拒絕覆寫，先檢查既有設定並整合。
-pre-commit 拒絕 main／staging、敏感檔案與部分暫存檔案，然後執行完整 harness check。
-pre-push 拒絕任何指向 main／staging 的更新（包括刪除）。Git hooks 是本機防線，伺服器 ruleset 仍由擁有者另行設定。
-使用 `bun run test:unit` 的明確 `./tests/unit` 入口；裸 `bun test` 或名稱 filter 可能掃到來源參考測試。
+檢查涵蓋來源指紋、Git 追蹤內容、規則入口、文件連結、公開掃描、單元測試、型別、lint 與 Web 建置。下載包另外執行 `bun run package:web` 及 `bun run check:package`。
+完整流程不讀被 Git 忽略的舊參考；不再提供依賴本機來源副本的檢查命令。
 
-Claude／Codex 的 hook 檔已提供，CLI 的代表性輸入有測試；是否由特定桌面／CLI 版本自動載入，仍須在該工具的 hook 診斷確認。
-不把設定檔存在當作所有 AI 工具都已攔截。平台權限與使用者安全邊界持續適用。
-來源 parser 不是完整 shell 安全隔離，無法分析藏在任意程式內的命令。
+`hooks:install` 只設定此 clone 的 `core.hooksPath`；每個新 clone 執行一次。已有不同 hooksPath 時安裝器拒絕覆寫，應先檢查既有設定。
+pre-commit 拒絕 main／staging、敏感檔案與部分暫存，並執行完整 check；pre-push 拒絕指向 main／staging 的更新，包括刪除。伺服器 ruleset 由擁有者設定。
+單元測試使用明確的 `./tests/unit` 入口，避免裸 `bun test` 的名稱篩選掃到 vendor 測試。
 
-## GitHub Actions CI
+## 工具與授權邊界
 
-[正式設定](../../.github/workflows/harness-ci.yml) 在 PR 開啟／更新，以及 main 更新時自動執行。
-它安裝固定版本的 Bun，再執行 `bun run check`；只有 `contents: read`，無 secrets、無部署。
-原文件範本已移到正式位置，檢查程式直接驗證該檔案，避免兩份設定不同步。
-每次結果在 GitHub 的 Actions 或 PR Checks 查看；成功只代表該版本的工具檢查通過。
-新 PR 的成功不代表 main 已執行，合併後需另看 main 的 push 執行紀錄。
+Claude／Codex 設定只啟用 destructive guard，代表性輸入有測試；是否被特定工具版本載入仍須實際確認，設定檔存在不等於攔截已生效。parser 無法分析任意程式內藏的 shell 命令，不能取代平台權限或人工審查。
+`mergeGuard.ts`、`codexReviewGate.ts` 與 reviewlatch 是 parser 依賴，不表示啟用其中的其他分支、bot 或豁免政策；沒有自動合併、雲端任務或排程入口。
 
-## 刻意未啟用
+修改採用內容時，先看相依與完整 diff，再更新適配原因、SHA-256 與相關測試。新增工具須把必要程式、資料、文件與授權一起納入 Git，不能只放一個指向外部 checkout 的入口。
+MIT 與其他第三方授權全文保留；產品根授權仍以 [LICENSE](../../LICENSE) 為準。
 
-來源的 PR 自動合併、Codex review status、mission-control、血壓 reviewer、
-遠端 MCP、staging／production、雲端任務與自動安裝都只保留參考。
-本 repo 尚未設定相關 bot、credentials 或部署；沒有 `pr:merge`／`mission:control` 等可用承諾。
-目前只需要標準 GitHub PR 與人工審查，不建立會永遠等不存在 bot 的 gate。
-
-來源 `mergeGuard.ts` 與 `codexReviewGate.ts` 是 destructive guard 的解析依賴，
-不代表本專案採用其中 staging、豁免或 bot 政策；沒有對應 workflow 或命令入口被啟用。
-
-## 更新來源
-
-先固定新 commit，再比較逐檔清單；來源副本不可直接編輯為本地規則，也不可取消忽略後整包公開。
-有隱私替換或適配時記錄原因、更新 SHA-256 並保留來源 Git blob。
-不要將整套來源設定直接覆蓋到根目錄。匯入 manifest／原始指紋是人工審查輔助，不能抵抗惡意 PR 同時竄改兩者。
-
-## 公開邊界
-
-使用者已確認保留 PolyForm Noncommercial，只公開原始碼。採用三層策略：
-
-1. 公開產品需要的規則、skills、Git 防護、必要測試、PR 流程與 CI 設定。
-2. 公開有明確用途的通用工具及其來源授權；目前保留命令防護與 reviewlatch 依賴，新的通用工具再按需求整理。
-3. 完整家健錄原始 harness、照護規則、內部事故紀錄與未整理流程只留本機參考。這是產品範圍選擇，不宣稱所有來源檔案都是機密；後續可經針對性清理再獨立公開。
-
-不把 503 份來源文件塞進產品 repo，也不以測試數量宣稱提高生產力或求職成效。需要衡量時記錄交付時間、回歸問題、人工介入與工具成本；沒有實測就不寫改善百分比。
-`check-public` 掃描 Git 清單並只輸出問題類別與檔名。它是可維護的基礎防線，不能保證辨識所有個資或未知秘密；每次仍要審 diff，必要時另用 Gitleaks 掃描公開快照與本次 commit 歷史。
+`check-public` 只回報問題類別與檔名；模式掃描不能辨識所有未知秘密，每次仍須人工審 diff。工具檢查、獨立審查、裝置驗收與發布各自記錄，不以測試數量宣稱產品完成或生產力提高。

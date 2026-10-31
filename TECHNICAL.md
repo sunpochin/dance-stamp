@@ -3,6 +3,8 @@
 
 #176 像替每一站蓋時間章，先找練舞者等最久的一站；[本機耗時指南](docs/FOLLOW_PERFORMANCE.md)與[M4 Pro 合成基準](docs/evidence/issue-176-follow-performance.md)同時提供 ELI5 白話與技術寫法。技術上只加分段計時、P50／P95 與同輸入重跑比較，不改 8 Hz、模型、追蹤或匯出；本輪 detect 呼叫約占 85.8%，不把已快取條件的結果外推成所有私人影片。
 
+版本號、更新紀錄與里程碑草稿流程見[版本與更新說明](docs/RELEASE.md#版本與更新說明)。
+
 #165 的雙側人物框選、跟隨裁切與鏡像見[本次設計](#165-雙側人物跟隨裁切)及[合成驗證](docs/evidence/issue-165-person-follow.md)；手動對齊仍保留。
 
 #11 固定 e6f0300 的原生 Safari 一般視窗十輪錄影／VS 成檔、完整檔案與同頁重開保全見[十輪對照](docs/evidence/issue-11-safari-ten-cycle.md)。本輪只減少旁聽並保留來源可見性紀錄，產品程式與原同步門檻未改；同來源先前第五輪失敗仍保留，不能由這次成功判定唯一根因或整體 Safari 已驗收。
@@ -302,17 +304,17 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 
 - [AI 協作憲法](AGENTS.md)：唯一規則來源；工具入口保持薄轉接。
 - [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR；AI 開票的標題標示實際開票廠商與模型 → 明確核准後發布。
-- [Harness 說明](docs/ai/HARNESS.md)：來源版本、本機完整參考副本、公開啟用及未啟用範圍。
+- [Harness 說明](docs/ai/HARNESS.md)：本 repo 自足的工具、方法、使用與相依邊界。
 - [匯入清單](docs/ai/harness-import.json)：逐檔 Git blob、處理方式與 SHA-256。
 - [證據範本](docs/agents/acceptance-template.md)：產品驗收依 commit／裝置留記錄。
 
-決策：完整上游參考只留本機且不進 Git；公開可追溯的清單、適配規則、skills、破壞性命令防護、Git hooks 與公開內容掃描。CI 位於 `.github/workflows/harness-ci.yml`，PR 與 main 更新時使用 Bun 1.4.4 執行相同的 `bun run check`。只有 `contents: read`，不使用 secrets 或部署；目前沒有第三方套件依賴，產品框架版本留給 #3/#4 的證據決定。
+2026-11-01（#177）決策：開發與維護只依本 repo 的追蹤內容。採用工具、完整必要相依、規則、skills、測試、文件與授權直接納入 Git；移除依賴本機來源副本的檢查入口。來源清單只核對公開且受 Git 追蹤的檔案、適配與指紋，歷史來源署名集中在 THIRD_PARTY_NOTICES.md；授權路徑改為中性的 `vendor/harness/`，下載包一併保留。
 
-排除直接套整個家健錄：會把照護授權、三語要求、資料庫、staging／production、付費審查與自動部署假設混進本機免費工具。也不重寫複雜 shell parser；沿用來源 destructive guard 及其必要依賴、負向回歸。來源 parser 的限制與工具端 hook 是否自動載入必須明說，Git native hooks 是另一層獨立防線。
+通用方法整理為 [程式慣例](docs/agents/code-conventions.md)、[審查與交接](docs/agents/review.md)、[Skill 安全](docs/agents/skill-security.md) 與 [介面檢查](docs/agents/ui-review.md)，由根規則及工作流程按需導覽。保留狀態分離、競態防護、先重現、版本證據與完整相依；排除其他產品專用規則、特定 bot 豁免、部署與內部事件。不整包複製未採用資產，也不因獨立化重寫既有 shell parser；其相依與正常／負向回歸保留。
 
-`bun run check` 現在驗證指紋、入口、文件、工具／產品邏輯測試及原生 Web 語法建置，已接入 TypeScript checkJs 與 Biome；它們不代替 G1–G7。來源副本不在測試掃描入口內，不會啟動來源 CI、任務控制或 secrets。
+`bun run check` 驗證指紋、Git 追蹤內容、入口、文件、公開內容、工具／產品邏輯、TypeScript checkJs、Biome 與 Web 建置；不代替 G1–G7。以只含公開 Git 內容的乾淨副本執行安裝、check 與封裝，確認沒有靠原工作目錄的隱藏文件通過。CI 以 `.github/workflows/harness-ci.yml` 的實際設定為準，不新增遠端服務或部署步驟。
 
-使用者確認公開原始碼並保留非商用授權。為避免把歷史照護文件的真人／營運脈絡帶入公開 repo，拒絕整包上游原文公開；保留本機完整副本、公開必要通用工具與 MIT notices。使用者補上 workflow 權限後，將原範本移到正式位置，避免維護兩份會漂移的設定；不另建遠端專用檢查或加入自動部署。PR 的 CI 執行成功與合併後 main 的執行結果分開記錄。
+產品根授權與第三方 MIT／NOTICE 不變。公開掃描對未整理 vendor 參考採通用路徑防護，避免更名後繞過；來源副本即使仍在某位維護者本機也不是本 repo 的必要條件。PR 的 CI、獨立審查、合併後 main 與裝置驗收分開記錄。
 
 ## 10. 桌面 Web 預覽決策（#1）
 
@@ -1119,3 +1121,11 @@ App 回歸的既有完整介面案例在產品模組執行前明確移除 DOM �
 #163 的短片重連審查另由既有 relink 回歸先重現：原 65 秒筆記保存三秒重連副本，重開卻把 B 設回 65 秒。`openVideoNotes` 改以本次成功解碼的 `referenceDurationMs` 作全長預設；缺媒體時才以原筆記片長顯示，不更動持久化 metadata。回歸保留完整筆記／媒體快照比對、超界標記、原生重連失敗與舊 VS 保全，另確認重開後 B 等於實際短片長度且真的可以開始／停止循環；沒有裁掉原標記或改寫筆記片長。毫秒回歸補上審查提到的 16001ms 精確邊界，超出 1ms 仍拒絕。
 
 #168 最後版 fd486ed 的左右／疊影播放分區保留，共用原操作鎖與暫停，來源 4bea26b 的像素容忍放寬不採用：整合版未調整側複用原畫面，預設與人物鏡像後仍要求完全相等。新增分區屬實際產品變更，故以新 head 重跑完整 74 案，不沿用前版完整輪結果。
+
+## 55. #182 版本更新紀錄與里程碑草稿
+
+2026-11-01：用官方 release-please manifest 的單一根目錄 node 策略更新 `package.json`、版本 manifest 與 `CHANGELOG.md`，不新增產品執行期依賴。空 manifest／開發版 `0.0.0` 不虛構發行；首次版本 `0.1.0`，bootstrap 固定導入前 main，之後按 Conventional Commits 推進 SemVer。使用者版本號不取代既有 SW／下載包內容雜湊或 sourceRevision。
+
+採明確里程碑的 workflow_dispatch，分 prepare PR 與 draft Release；固定 action commit、main 與本 repo，只有該 job 提升必要寫入權限。`draft=true` 保留人工公開發布，未啟用強制 tag、資產上傳或部署。Harness CI 增加手動入口，補內建 token 建 PR 不觸發 CI 的官方限制；同一 head 仍須通過完整檢查。
+
+排除每次 Preview Deploy／push 都發布、付費服務、私人 token、自寫 commit 解析器及將完整 Git history 貼成公告。版本 PR 的檔案與 PR 筆記須一起人工整理；draft 階段只讀已合併 PR 以免覆寫筆記。設定驗證不代表遠端發布、真機驗收或 #15 完成。操作與官方依據統一放 [RELEASE.md](docs/RELEASE.md#版本與更新說明)。
