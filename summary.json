@@ -1,7 +1,7 @@
 {
-  "sourceHead": "2f3a2c4c85f6500ea03d7cc2cc86ddd2c2c3667c",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41243796377",
-  "generatedAt": "2026-10-31T21:50:19.272Z",
+  "sourceHead": "19e7c12d24a91586c6ca88ade40c51fcc860a58c",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41249948251",
+  "generatedAt": "2026-10-31T23:10:22.938Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -11,7 +11,7 @@
     "web/follow.js": "2c257c6524b852ec71b0f6c7c4e97ec8c6c147f7cc8171af29b481834dbfa94f",
     "web/library.js": "f510035f9cb183b250009ade699e3fa1e893bc9ed84c3cb66457aaee9cdbb98a",
     "web/local-audio.js": "a6a0f54877fa6a84d07dbc1e50bfcdb5b9a6ed3a89913ef615a124e221702610",
-    "web/main.js": "ab2dd1dde0b85b76fa487c97836396dfdb105f5e39fb924c1d70740c610361ca",
+    "web/main.js": "27eff1f91bead3230e6f744030e3b3c016a93315c3c5f7165a9e49d2e52b143d",
     "web/offline.js": "84e0032d931798ca571966d94fa6103f2d6c67f271bfb0ae7fe19e780ab0b59a",
     "web/person-worker.js": "13d2f3fbd157e6481da7e5e3f0b475dd72814e9ef52f7c473a428ea22e11e9ba",
     "web/recorder.js": "f1e217b85e8fa8c068fc024a552da6ae939d8da5dec6b0c585b670b613c4deb7",
@@ -22,16 +22,16 @@
   "scenarios": 77,
   "total": {
     "lines": {
-      "total": 2566,
-      "covered": 2556,
+      "total": 2573,
+      "covered": 2563,
       "skipped": 0,
       "pct": 99.61
     },
     "statements": {
-      "total": 4697,
-      "covered": 4467,
+      "total": 4706,
+      "covered": 4478,
       "skipped": 0,
-      "pct": 95.1
+      "pct": 95.15
     },
     "functions": {
       "total": 836,
@@ -40,10 +40,10 @@
       "pct": 96.88
     },
     "branches": {
-      "total": 2802,
-      "covered": 2487,
+      "total": 2817,
+      "covered": 2505,
       "skipped": 0,
-      "pct": 88.75
+      "pct": 88.92
     },
     "branchesTrue": {
       "total": 0,
@@ -310,10 +310,10 @@
     },
     "web/main.js": {
       "lines": {
-        "total": 1363,
-        "covered": 1357,
+        "total": 1370,
+        "covered": 1364,
         "skipped": 0,
-        "pct": 99.55
+        "pct": 99.56
       },
       "functions": {
         "total": 418,
@@ -322,24 +322,24 @@
         "pct": 97.84
       },
       "statements": {
-        "total": 2470,
-        "covered": 2331,
+        "total": 2479,
+        "covered": 2342,
         "skipped": 0,
-        "pct": 94.37
+        "pct": 94.47
       },
       "branches": {
-        "total": 1438,
-        "covered": 1229,
+        "total": 1453,
+        "covered": 1247,
         "skipped": 0,
-        "pct": 85.46
+        "pct": 85.82
       },
       "uncoveredLines": [
-        243,
-        732,
-        776,
-        777,
-        778,
-        1904
+        248,
+        737,
+        781,
+        782,
+        783,
+        1915
       ],
       "uncoveredFunctions": [
         {
@@ -348,35 +348,35 @@
         },
         {
           "name": "(anonymous_31)",
-          "line": 281
+          "line": 286
         },
         {
           "name": "(anonymous_69)",
-          "line": 532
+          "line": 537
         },
         {
           "name": "(anonymous_92)",
-          "line": 646
+          "line": 651
         },
         {
           "name": "(anonymous_143)",
-          "line": 959
+          "line": 970
         },
         {
           "name": "(anonymous_145)",
-          "line": 963
+          "line": 974
         },
         {
           "name": "(anonymous_146)",
-          "line": 964
+          "line": 975
         },
         {
           "name": "(anonymous_394)",
-          "line": 1833
+          "line": 1844
         },
         {
           "name": "(anonymous_415)",
-          "line": 1904
+          "line": 1915
         }
       ]
     },
