@@ -1,6 +1,15 @@
 <!-- 檔案用途：產品及開發入口。所在層：根文件。主要關聯：AGENTS.md、TECHNICAL.md。 -->
 # Dance Stamp
 
+[![CI](https://github.com/sunpochin/dance-stamp/actions/workflows/harness-ci.yml/badge.svg?branch=main&event=push)](https://github.com/sunpochin/dance-stamp/actions/workflows/harness-ci.yml?query=branch%3Amain)
+[![App lines coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsunpochin%2Fdance-stamp%2Fcodex%2Fcoverage-badges%2Flines.json)](https://github.com/sunpochin/dance-stamp/tree/codex/coverage-badges#readme)
+[![App functions coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsunpochin%2Fdance-stamp%2Fcodex%2Fcoverage-badges%2Ffunctions.json)](https://github.com/sunpochin/dance-stamp/tree/codex/coverage-badges#readme)
+[![App branches coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsunpochin%2Fdance-stamp%2Fcodex%2Fcoverage-badges%2Fbranches.json)](https://github.com/sunpochin/dance-stamp/tree/codex/coverage-badges#readme)
+[![Stage: Desktop Web preview](https://img.shields.io/badge/stage-desktop_Web_preview-orange)](docs/WEB_PREVIEW.md)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm_Noncommercial_1.0.0-blue)](LICENSE)
+
+Coverage 是最近一次 **main 完整成功量測**的行數／函式／分支比例，涵蓋全部 `web/*.js`；點 badge 可查來源提交與 CI 報告。它不代表真機或影音品質已驗收；最新檢查狀態看 CI badge。
+
 把練舞影片變成可以標記、重播、錄下自己並比較的練習筆記。
 
 **產品目標：完全免費、非商用、原始碼公開。平台順序：Web 優先；核心功能無法可靠完成時，iOS 優先於 Android。**
