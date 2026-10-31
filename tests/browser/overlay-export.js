@@ -10,6 +10,8 @@ async page => {
   assert(await page.locator('#export').isDisabled(), '缺片仍可匯出');
   assert(await page.locator('#overlay-play, #overlay-pause').count() === 0 && await page.locator('#play').count() === 1, '比較播放控制重複');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await set('start', 12, 'change'); await set('end', 15, 'change'); await set('offset', 4, 'change');
   await page.locator('#reference-mirror').setChecked(true); await idle();

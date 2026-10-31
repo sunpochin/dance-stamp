@@ -19,6 +19,8 @@ async (root) => {
   const moveId = (await snapshot(page)).data.moves[0].id;
   for (const [index, teacher] of ['老師甲', '老師乙'].entries()) {
     await page.locator('#reference-file').setInputFiles(file); await idle(page);
+    // 動作歷史案例要建立短段比較，不再依賴選片預設幫忙裁成 15 秒。
+    await page.locator('#end').fill('15');
     await page.locator('#video-title').fill(`合成課程 ${index}`); await page.locator('#video-teacher').fill(teacher); await page.locator('#video-style').fill('Salsa'); await page.locator('#video-date').fill(`2026-10-${20 + index}`);
     await page.locator('#save-title').click(); await idle(page);
     await page.locator('#mark').click();

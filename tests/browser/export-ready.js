@@ -7,6 +7,8 @@ async page => {
   const data = () => page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).data);
   await page.goto(origin); await idle(); assert((await data()).videos.length === 0, '必須使用空的合成庫');
   await page.locator('#existing-mode').click(); await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   for (const [id, value] of [['start', '12'], ['end', '14'], ['offset', '4']]) { await page.locator('#' + id).fill(value); await page.locator('#' + id).dispatchEvent('change'); await idle(); }
   await page.locator('#export').click(); await idle(); assert((await page.locator('#status').textContent()).includes('已成檔'), '基準片未成檔');

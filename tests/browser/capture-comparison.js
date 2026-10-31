@@ -39,6 +39,8 @@ async (page) => {
   const firstExport = saved.exports.at(-1), captureInfo = JSON.parse(await page.locator('#diagnostics').textContent()).export;
   await page.locator('#existing-mode').click();
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await change('start', '12'); await change('end', '17'); await change('offset', '4');
   await page.locator('#export').click(); await idle();
