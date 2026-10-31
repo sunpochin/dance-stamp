@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+#9 的原生 Safari 恢復保全見[2026-10-31 證據](docs/evidence/issue-9-capture-recovery.md#2026-10-31-原生-safari-恢復原片)。恢復時先將組合 Blob 讀成獨立 bytes，再交原交易保存，避免清除 chunks 後新原片的共用底層檔案失效；讀回長度不符則拒絕並保留片段。此步增加一份完整原片的記憶體讀回，不改 schema、正常錄影或匯出；排除延後到刪除後才檢查、永久保留重複 chunks、Safari UA 特例及自動裁切原片。真機與完整 Safari 錄影矩陣仍未驗收。
+
 老師半透明與自身錄影的疊影比較，其混色原理與共同時間線見第 48 節；團體示範的放大縮小、X／Y 移動與白話教學見第 49 節。
 
 2026-10-30 的四線來源、收尾衝突保留及封裝結論見[既有整合證據](docs/evidence/p0-safari-reliability-integration.md#2026-10-30-四線整合候選)。產品採 #87 的 chunks 影格確認修正，靜態 7c728c8a5bd7fa2f；其餘三線原生結果維持舊版歸屬，不以整合或合併替代驗收。

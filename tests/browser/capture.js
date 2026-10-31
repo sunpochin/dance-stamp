@@ -125,8 +125,9 @@ async (page) => {
       saved.data.assets.push({ id: assetId, kind: 'take', byteLength: 0, mimeType: 'video/mp4' });
       saved.data.takes.push({ ...original, id: takeId, cameraAssetId: assetId, state: 'recording', captureTiming: undefined });
       saved.data.recipes.push({ id: crypto.randomUUID(), takeId, offsetMs: 0, referenceMirror: false, selfMirror: false, layout: 'side-by-side', audioSource: 'reference', revision: 1 });
-      const blob = kind === 'corrupt' ? new Blob(['synthetic undecodable'], { type: 'video/mp4' }) : originalBlob, middle = Math.floor(blob.size / 2);
-      await store.saveChunk(assetId, 0, blob.slice(0, middle, blob.type)); await store.saveChunk(assetId, kind === 'gap' ? 2 : 1, blob.slice(middle, blob.size, blob.type));
+      const blob = kind === 'corrupt' ? new Blob(['synthetic undecodable'], { type: 'video/mp4' }) : originalBlob, bytes = await blob.arrayBuffer(), middle = Math.floor(bytes.byteLength / 2);
+      // 每塊使用獨立 bytes，貼近 MediaRecorder 輸出，避免 Safari 的持久化 slice 共用母片干擾恢復驗證。
+      await store.saveChunk(assetId, 0, new Blob([bytes.slice(0, middle)], { type: blob.type })); await store.saveChunk(assetId, kind === 'gap' ? 2 : 1, new Blob([bytes.slice(middle)], { type: blob.type }));
       let duplicateRejected = false;
       try { await store.saveChunk(assetId, 0, new Blob(['overwrite'], { type: blob.type })); } catch { duplicateRejected = true; }
       if (!duplicateRejected) throw new Error('重複 index 覆寫原 chunk');
@@ -153,5 +154,14 @@ async (page) => {
   assert(recovery.counts.find(c => c.kind === 'valid').chunks === 0 && recovery.counts.filter(c => c.kind !== 'valid').every(c => c.chunks === 2) && recovery.ready.every(c => c.state !== 'ready'), `恢復刪掉壞資料或誤標成功：${JSON.stringify(recovery)}`);
   checks.chunkSequenceDuplicateDecodeAndRecovery = recovery;
   assert(await page.evaluate(() => window.captureRequests.every(c => c.audio === false) && window.captureTracks.every(t => t.readyState === 'ended')), '測試結束仍有相機或曾請求麥克風');
+  // 當頁能播放可能仍借用舊 chunks；重新載入後比完整 bytes，才證明清理沒有破壞已存原片。
+  await page.reload(); await idle();
+  checks.recoveredBytesAfterReload = await page.evaluate(async ids => {
+    const store = await import('/storage.js'), source = await store.readMedia(ids[0]), recovered = await store.readMedia(ids[1]);
+    if (!source || !recovered) return false;
+    const left = new Uint8Array(await source.arrayBuffer()), right = new Uint8Array(await recovered.arrayBuffer());
+    return left.length > 0 && left.length === right.length && left.every((byte, index) => byte === right[index]);
+  }, [originalTake.cameraAssetId, valid.assetId]);
+  assert(checks.recoveredBytesAfterReload, '清 chunks 後重開的恢復原片缺少或 bytes 改變');
   return checks;
 }
