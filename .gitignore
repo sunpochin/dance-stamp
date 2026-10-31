@@ -170,10 +170,9 @@ __pycache__/
 /output/
 /test-results/
 /playwright-report/
-# 完整舊專案副本只供本機參考，不把照護與營運脈絡重新公開。
-/vendor/jia-jian-log-harness/source/
-
-/vendor/jia-jian-log-harness/source-manifest.local.json
+# 未整理的本機參考不可整包公開；正式採用內容放進本 repo 對應目錄。
+/vendor/*/source/
+/vendor/*/source-manifest.local.json
 
 # 瀏覽器回歸只留本機，避免測片與快照進公開提交。
 /.playwright-cli/

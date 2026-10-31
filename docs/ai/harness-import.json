@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "repository": "sunpochin/jia-jian-log",
-  "ref": "staging",
+  "sourceNotice": "THIRD_PARTY_NOTICES.md",
   "commit": "fefc821045cc92df25101ce1554fb6c80e4e0093",
   "date": "2026-10-27",
+  "adaptedOn": "2026-11-01",
   "files": [
     {
       "source": "scripts/destructive-guard.ts",
@@ -48,9 +48,9 @@
     {
       "source": "tests/unit/destructiveGuard.test.ts",
       "destination": "tests/unit/destructiveGuard.test.ts",
-      "sha256": "e0b1c3192c6e3eda29e7cb3d04506255d5cb6461d75183a1bded4cbbe73c9a35",
+      "sha256": "626df50bea4896ec01f223226a0b2f587ea68995889beb6a5dc8cf618184af43",
       "treatment": "adapted-active",
-      "reason": "Assert only the destructive hook is active; Dance Stamp does not enable the upstream bot merge policy.",
+      "reason": "Assert only the destructive hook is active; use Dance Stamp fixture paths without changing guard cases or enabling bot merge policy.",
       "distribution": "public",
       "blob": "69125fa69a4a80f676881db84bfcf4743ba61b7b"
     },
@@ -141,7 +141,71 @@
       "treatment": "active-copy",
       "distribution": "public",
       "blob": "ec5383c6f4496e7fcab96f832f77f3a0f57d084d"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "vendor/harness/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "treatment": "active-copy",
+      "reason": "Retain the original MIT license under a product-neutral directory.",
+      "distribution": "public",
+      "blob": "43e4e96fa21f343cc57d5cb010c8e563a312ea9f"
+    },
+    {
+      "source": "docs/agents/code-conventions.md",
+      "destination": "docs/agents/code-conventions.md",
+      "sha256": "4f1de046d4ad79423fe19f312613c4c7bdc78b4a4a1d60f34a8708e48d9fe8bb",
+      "treatment": "adapted-active",
+      "reason": "Adapt module ownership, load/save separation and stale callback handling to native Web; omit product-specific policy and framework thresholds.",
+      "distribution": "public",
+      "blob": "e81ab3528e43432f51b827d0a65b92908c394430"
+    },
+    {
+      "source": "docs/agents/review-governance.md",
+      "destination": "docs/agents/review.md",
+      "sha256": "223c34595a06fc261dc9723074de4cfb79c2860c33fb9692fc48aa2d1c528045",
+      "treatment": "adapted-active",
+      "reason": "Adapt feedback verification, evidence handoff and root-cause reassessment; omit bot policies, automatic closure permissions and deployment rules.",
+      "distribution": "public",
+      "blob": "bd59cbada7836456f55d590f1b2e4914e6b7d140",
+      "additionalSources": [
+        {
+          "source": "docs/agents/pr-evidence.md",
+          "blob": "3834a05c08e66db2d231f67c8ce849ae0d196828"
+        },
+        {
+          "source": "docs/agents/model-escalation.md",
+          "blob": "38bd831ea5a5a052f471229ca01cc1a390276ea0"
+        },
+        {
+          "source": "docs/agents/issue-driven-workflow.md",
+          "blob": "b340d0e4a765015f1530952aab8fbd4ebe98d72c"
+        }
+      ]
+    },
+    {
+      "source": "docs/agents/skill-security.md",
+      "destination": "docs/agents/skill-security.md",
+      "sha256": "b79fe1f9860c27d0853e82e61967553a00dd7aa85bb21690a9c272b5a6587b91",
+      "treatment": "adapted-active",
+      "reason": "Keep source, dependency and execution review guidance without product-specific accounts, installations or global permission changes.",
+      "distribution": "public",
+      "blob": "6433da46532ac1c25a1dd4f103912703a6adad7a",
+      "additionalSources": [
+        {
+          "source": ".codex/skills/safe-skill-usage/SKILL.md",
+          "blob": "54a635c7d8b8b39bf7b3e73ce026f6701bac5e12"
+        }
+      ]
+    },
+    {
+      "source": "skills/frontend-review/SKILL.md",
+      "destination": "docs/agents/ui-review.md",
+      "sha256": "fef0e0b62291f8fc0e7982738fa6549b8280c29cb65a56eccf64ec488aea3ba7",
+      "treatment": "adapted-active",
+      "reason": "Adapt general UX, load/save states and component reuse for video practice; omit product-specific locales, colors and data models.",
+      "distribution": "public",
+      "blob": "8ba30f682dda847f2052ca34f43d0eaca8af9bd3"
     }
-  ],
-  "localReferenceCount": 503
+  ]
 }

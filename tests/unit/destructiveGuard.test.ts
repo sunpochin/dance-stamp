@@ -164,7 +164,7 @@ const ASK: Array<[string, string]> = [
   ['rm runs only when cd failed', 'cd /tmp/does-not-exist || rm -rf src'],
   ['the && chain broke before rm', 'cd "$TMPDIR" && mkdir x; rm -rf src'],
   ['TMPDIR reassigned to the repo', 'TMPDIR=.; rm -rf "$TMPDIR/src"'],
-  ['TMPDIR reassigned to an absolute path', 'TMPDIR=/workspace/jia-jian-log; rm -rf "$TMPDIR/src"'],
+  ['TMPDIR reassigned to an absolute path', 'TMPDIR=/workspace/dance-stamp; rm -rf "$TMPDIR/src"'],
   ['a later assignment does not justify an earlier rm', 'rm -rf "$D"; D=/tmp/x'],
   ['a prefix assignment is not used for expansion', 'D=/tmp/x rm -rf "$D"'],
   ['a conditional assignment may not have run', 'test -d x && D=/tmp/x; rm -rf "$D"'],
@@ -212,7 +212,7 @@ const ASK: Array<[string, string]> = [
   ['SQL piped into a shell is still read', `echo 'rm -rf src' | bash; N=$((N+1))`],
   // #1220 Codex review 第 3 輪：路徑中間的變數也要展開。
   ['variable naming .env in the middle of a path', 'F=.env; echo X > "./$F"'],
-  ['.. hidden in a variable under /tmp', 'D=../..; rm -rf "/tmp/work/$D/workspace/jia-jian-log/src"'],
+  ['.. hidden in a variable under /tmp', 'D=../..; rm -rf "/tmp/work/$D/workspace/dance-stamp/src"'],
   ['unresolved variable deeper under /tmp', 'rm -rf "/tmp/work/$D/src"'],
   // #1220 Codex review 第 4 輪。
   ['libpq service connection', 'psql "service=production" -c "select 1"'],

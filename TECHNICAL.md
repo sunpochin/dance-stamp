@@ -300,17 +300,17 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 
 - [AI 協作憲法](AGENTS.md)：唯一規則來源；工具入口保持薄轉接。
 - [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR；AI 開票的標題標示實際開票廠商與模型 → 明確核准後發布。
-- [Harness 說明](docs/ai/HARNESS.md)：來源版本、本機完整參考副本、公開啟用及未啟用範圍。
+- [Harness 說明](docs/ai/HARNESS.md)：本 repo 自足的工具、方法、使用與相依邊界。
 - [匯入清單](docs/ai/harness-import.json)：逐檔 Git blob、處理方式與 SHA-256。
 - [證據範本](docs/agents/acceptance-template.md)：產品驗收依 commit／裝置留記錄。
 
-決策：完整上游參考只留本機且不進 Git；公開可追溯的清單、適配規則、skills、破壞性命令防護、Git hooks 與公開內容掃描。CI 位於 `.github/workflows/harness-ci.yml`，PR 與 main 更新時使用 Bun 1.4.4 執行相同的 `bun run check`。只有 `contents: read`，不使用 secrets 或部署；目前沒有第三方套件依賴，產品框架版本留給 #3/#4 的證據決定。
+2026-11-01（#177）決策：開發與維護只依本 repo 的追蹤內容。採用工具、完整必要相依、規則、skills、測試、文件與授權直接納入 Git；移除依賴本機來源副本的檢查入口。來源清單只核對公開且受 Git 追蹤的檔案、適配與指紋，歷史來源署名集中在 THIRD_PARTY_NOTICES.md；授權路徑改為中性的 `vendor/harness/`，下載包一併保留。
 
-排除直接套整個家健錄：會把照護授權、三語要求、資料庫、staging／production、付費審查與自動部署假設混進本機免費工具。也不重寫複雜 shell parser；沿用來源 destructive guard 及其必要依賴、負向回歸。來源 parser 的限制與工具端 hook 是否自動載入必須明說，Git native hooks 是另一層獨立防線。
+通用方法整理為 [程式慣例](docs/agents/code-conventions.md)、[審查與交接](docs/agents/review.md)、[Skill 安全](docs/agents/skill-security.md) 與 [介面檢查](docs/agents/ui-review.md)，由根規則及工作流程按需導覽。保留狀態分離、競態防護、先重現、版本證據與完整相依；排除其他產品專用規則、特定 bot 豁免、部署與內部事件。不整包複製未採用資產，也不因獨立化重寫既有 shell parser；其相依與正常／負向回歸保留。
 
-`bun run check` 現在驗證指紋、入口、文件、工具／產品邏輯測試及原生 Web 語法建置，已接入 TypeScript checkJs 與 Biome；它們不代替 G1–G7。來源副本不在測試掃描入口內，不會啟動來源 CI、任務控制或 secrets。
+`bun run check` 驗證指紋、Git 追蹤內容、入口、文件、公開內容、工具／產品邏輯、TypeScript checkJs、Biome 與 Web 建置；不代替 G1–G7。以只含公開 Git 內容的乾淨副本執行安裝、check 與封裝，確認沒有靠原工作目錄的隱藏文件通過。CI 以 `.github/workflows/harness-ci.yml` 的實際設定為準，不新增遠端服務或部署步驟。
 
-使用者確認公開原始碼並保留非商用授權。為避免把歷史照護文件的真人／營運脈絡帶入公開 repo，拒絕整包上游原文公開；保留本機完整副本、公開必要通用工具與 MIT notices。使用者補上 workflow 權限後，將原範本移到正式位置，避免維護兩份會漂移的設定；不另建遠端專用檢查或加入自動部署。PR 的 CI 執行成功與合併後 main 的執行結果分開記錄。
+產品根授權與第三方 MIT／NOTICE 不變。公開掃描對未整理 vendor 參考採通用路徑防護，避免更名後繞過；來源副本即使仍在某位維護者本機也不是本 repo 的必要條件。PR 的 CI、獨立審查、合併後 main 與裝置驗收分開記錄。
 
 ## 10. 桌面 Web 預覽決策（#1）
 
