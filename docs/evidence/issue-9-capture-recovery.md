@@ -469,3 +469,76 @@ A＝5、B＝16.25、r＝0.75 的 15 秒附加案例為 15.040000 秒、停止 16
 原 `bun run check` 通過 **633 tests／3,061 expects／0 fail**、17 個 harness 指紋／本機文件連結、264 檔公開掃描、型別、lint 及 build；原 19 項 lint info 保留。正常 commit／push hooks 及 PR head CI 另綁；產品最終 bytes 與上述 source 指紋相同，未以文件提交冒充新的媒體執行。
 
 下列仍獨立保留：真相機／LED、人工聽感、私人模式、背景／鎖屏／來電、同機連續十輪 capture→export G6、完整 G1–G7 與 Claude Code／使用者最終審查；iPhone 暫緩。工程證據不關閉 #9，不授權合併或發布。
+
+
+## PR #130 c4cc5fb 收尾審查
+
+本輪核對 PR #130 的 head `c4cc5fbe23a32199a5a9ccbb8bdf76a343635102`、九檔差異及原始收據。十案受測 main.js／recorder.js 等 bytes 與該 head 相同；每案正式 referenceAtPlayMs 都等於 A，所有來源 currentTime setter 都早於 recorderRequestedMs，B 讀值在下一次播放前封存，下一次最小讀值未低於原停止點。原 B 與 ±100ms 斷言沒有弱化。暖機／取消 helper 與一般練習音高路徑保持原碼，沒有因本次審查改變。
+
+### P2：自然跨過 B 時漏查最後音訊狀態
+
+使用同一 65 秒合成示範、合成相機與原生 Safari／MediaRecorder，在 native 按鍵明確啟用的 QA 情境中，於示範 14.938339 秒讓真正 AudioContext.suspend() 完成，然後只佔用本輪主執行緒 130ms。未改媒體時間、播放速度、duration、B 或事件 metadata；影片在原生引擎中繼續到 15.067712，音訊時鐘不動，來源／音訊差約 120.379ms。
+
+原版仍產生 ready 並保存 media；原片 **15.090 秒**、原 B 停在 **15.068061 秒**、下一次 2× 播放及 pitch 恢復也過關。這不是三個判定被改寫，而是 while 已自然退出，原聲音檢查不再執行。對照、故障及同頁重試的正常資源收尾均保留；原版收據 SHA256 `808ee3be6de632ee7f20547306fb8b577fa7995b464e5395400c5e053db8fb59`。
+
+### PR #130 基線上的本機修正與回歸
+
+只將原聲音條件共用為 checkCaptureAudio，增加退出迴圈後的最後檢查；診斷中斷旗標同時納入已確定的 captureIntegrityError。錯誤仍走既有 partial download／interrupted／chunks 保全，不在 B 補 seek，不延後停止，也沒有調整 100ms。
+
+新增純控制流程回歸直接執行產品迴圈與收尾旗標的原碼，只模擬 await 期間原生位置越 B；正常、99ms、101ms 與 suspended 四個分支涵蓋原界線與中斷診斷。原 c4cc5fb 在隔離來源副本為 5 pass／1 fail；本機修正為 6 pass／48 expects／0 fail。這是控制流程回歸，不能代替下列原生收據。
+
+第一輪本機 `c586931b81cd076c` 跑七個原生案例：原速 15 秒、同一 B 前故障、同頁重試、半速／0.75× 各 15 秒、A＝5 秒與原速 60 秒。正常六案 ready、全部 B／±100ms／下一次播放通過；故障原片 15.076667 秒、B＝15.069448，三判定仍合格，但正確成為 interrupted、不寫入 ready media，舊播放器與下載 URL 保留、原 chunks 保留。
+
+最終本機 runtime `b07221bc050a2b72`、main.js SHA256 `b5460ca673510d376f8e8444aedfe046f4a17cd9fd8782713140437673f1cda9`，另驗同一故障與同頁重試，診斷也正確區分 interrupted=true／false：故障 15.071667 秒、B＝15.066521，未替換舊媒體；重試 15.041667 秒、B＝15.018106，ready。兩案原 B／±100ms／下一次播放、音高與靜音恢復、完整解碼、相機釋放及聲音停止／斷線皆過。最終收據 SHA256 `11965dd4e6c4a7ebf38856444e62da658c1c99bc06fa3618018b3fdcfccd32b5`。七案與兩案分開歸屬，不移記為新的完整九案或 G6。
+
+本輪沒有修改 #114／#117 的 head 或操作其合併／部署；首次查詢時 #114 已合併、#117 仍開啟。PR #130 既有 Cloudflare bot 收據明列推送會自動部署分支預覽，修正起初依「不發布」限制保留本機。後續使用者明確允許更新 PR 與自動分支預覽，仍不授權正式發布；此時 #130 已由其他操作合併，因此改從最新 main 建後續修正 PR。不把原 head 的 CI 當作新修正 CI，所有真相機、聽感、私人模式、背景／鎖屏／來電及完整 G1–G7／G6 未驗項維持原界線。
+
+
+本輪另核對三份原始暖機見證的檔案 SHA256、收據 SHA256 與分析器來源 SHA256，均與既有分析相符：半速／0.75×／原速第一個來源影格皆為 0，尾端覆蓋誤差分別 0／0／33.333ms，聲畫差 75／77／76ms。暖機實作與 c4cc5fb 逐 byte 相同。原始三份見證的完整重新解碼因其他活躍工作持有共享媒體鎖，在有界 180 秒等待內未啟動；沒有移除他人鎖，也不將既有分析寫成本輪新解碼。上述新錄七案與最終兩案的原片則均另經完整 FFmpeg 解碼 exit 0。
+
+該本機階段的原 `bun run check` 與正常 commit hook 通過 **634 tests／3,069 expects／0 fail**，公開掃描、harness、型別、lint 與 build 通過，原 19 項 lint info 保留。這組數字屬於 `e58792d` 的 #130 基線，不代表下節最新主線的檢查或新 PR 的 CI。只有收尾檢查、診斷與這項回歸有修改；B、原 ±100ms 與下一次播放的既有判定不變。
+
+### 後續 PR：最新主線的來源與限制
+
+使用者允許 PR 更新與自動分支預覽後，從同步 main `e6f0300` 建立後續修正分支。照常錄影即可，最後一刻聲音停止會保留舊片與未完成片段；不需要換播放模式，一般練習仍保留音高。
+
+最新 main 的完整 capture handler 與受審 c4cc5fb 逐 byte 相同；套入修正後，完整 handler 與已原生測過的 e58792d 逐 byte 相同，SHA256 `883f258734f508b321f5733e95833e0f86d15995385a91d553fe9f0594c8c3b2`。recorder.js、local-audio.js、timeline.js 也與該本機版本相同。保留主線既有的閒置音訊停止與疊影程式，只解決技術文件插入位置的衝突，沒有改寫 #114／#117 的 head；後續查詢時兩 PR 都已由其他操作合併，本聊天未操作其合併。
+
+最新主線在隔離來源副本執行此回歸仍為 **5 pass／1 fail**；修正版為 **6 pass／48 expects／0 fail**。suspended 案刻意令音訊與影片時鐘相同，確認狀態檢查本身有效，不依賴同時超過 100ms。最新主線的完整 `bun run check` 通過 **649 tests／3,187 expects／0 fail**、303 檔公開掃描、17 個 harness 指紋／文件連結、型別、lint 與 build，原 19 項 lint info 保留；靜態版本 `b4729cb7662eabb3`。首次檢查因缺主線新增的已鎖定依賴與本機 HTTP 權限而停止；補齊原依賴並允許僅本機測試後沿原入口通過，未修改鎖檔或測試門檻。
+
+首次交付另排半速／15 秒、B 前中斷、同頁重試，但其他工作區的活躍程序持有共用媒體鎖，等候 180 秒到期後未啟動 Safari、主機或媒體；沒有取得或移除他人鎖。因此首次交付時最新整合主線的新增原生重跑仍為**未驗證**，上述已完成的原生兩案與七案仍按原本 runtime 歸屬。後續取得鎖後的實測另記下節，不將這次等候寫成通過。新 PR 的遠端 CI 與分支預覽另外綁定該 PR head；不合併、不正式發布，也不關 #9。
+
+### PR #138 自動審查：自然 EOF 的全域聲音時鐘
+
+影片與聲音都播完，就不該誤報聲音壞掉；但拖太長的錄影仍不能當成功片。審查指出 B 剛好等於影片結尾時，全域 AudioContext 時鐘會繼續走，影片位置則停在結尾。先以直接執行產品原碼的模型確認，再做原生單變因對照，重現後才修正，保留完整檢查。
+
+在乾淨 `2373e05`／靜態 `b4729cb7662eabb3` 上，原生半速、B 前音訊中斷與同頁重試三案為 **15.041667／15.073333／15.035000 秒**，B＝7.508094／15.072093／15.029162，原三 gate 全過；故障仍 interrupted、不保存 ready media、舊播放器與下載保留。EOF 控制及只佔用主執行緒 120／140／180ms 的觀察另記，沒有暫停音訊或改寫媒體時間。後三案原片為 15.101667／15.120000／15.160000 秒，已不符 ±100ms，不能當成合格原片反例。七案原片完整 FFmpeg 解碼 exit 0；收據 SHA256 `9d10bf83fa940f088d7f4588be60c26f1fbce9a2be255fc71c82ca6c85c30662`。
+
+另在同一乾淨來源只改佔用時間為 115／118ms。118ms 案的實際原片 **15.098333 秒**、B＝65.000000，符合片長容差，AudioContext 仍 running，原生 BufferSource 已自然 ended，卻被標 interrupted。此時 context 相對聲音開始已走 15.104667 秒，而真正 PCM 只有 15 秒；115ms 案為 15.113333 秒，仍照實列片長不合格。兩案均完整解碼，正常刪除自有 Safari session、確認主機／driver 群組退出並釋放自有 nonce 鎖；收據 SHA256 `9d4e0844a564112a7fd2fefee86dee723debd4417223f3e34df4f52465a76ece`。
+
+EOF 控制與故障案的原 raw-play 續播 gate 都失敗：原生 video.play() 到影片末端會重頭播放，而舊 gate 要求繼續超過 B。這些失敗讀值完整保留，整份 EOF 觀察收據 passed=false，不改條件或算成 #119 三 gate 通過。後續 EOF 的明確 A–B 練習重啟另外觀察，不替換原 raw-play gate。
+
+修正只將聲音位置限制在已準備的 PCM 終點，狀態檢查與原 100ms 均保留；示範時鐘及 B 讀值不截斷。非 EOF 超過 B 映射 100ms 的晚停也不能讓兩個全域時鐘一起超前而冒充成功。另在有界供聲、自然 EOF 且尚未中斷的候選 beforeCommit，以原生 self.duration 未四捨五入值檢查原 ±100ms；超差照原路保留舊片、原片及 chunks。原 expected−500ms 下限、其他聲路與合法中斷片保全不變。
+
+直接執行產品迴圈與 beforeCommit 原碼的回歸，在 `2373e05` 隔離副本為 **5 pass／2 fail**，修正為 **7 pass／68 expects／0 fail**；覆蓋正常、99／101ms、EOF 自然播完、EOF 真暫停、非 EOF 超差，以及未四捨五入 ±100.1ms 拒絕、原邊界與中斷保全。沒有以四捨五入、延後停止或修改舊 gate 換取通過。
+
+最終本機 runtime `cc38d244fcbe8a34`、main.js SHA256 `bc773b1c86798e278c75a686cba8b65cd449992e024c2fdff1ee12dfd1567b49`，在 macOS 原生 Safari **27.0.1** 以同一合成示範／相機驗證下列八案。受測工作樹基於 `2373e05` 加本節修正，尚未提交；最終 PR head 以這五份 runtime bytes 相同另綁定，不移記版本。
+
+| 案例 | 原生原片秒數 | B 讀值 | 保存結果 | 原三 gate |
+| --- | ---: | ---: | --- | --- |
+| 半速 15 秒 | 15.013333 | 7.510979 | ready | 全過 |
+| B 前真正 suspend | 15.088333 | 15.070869 | interrupted，舊片保留 | 全過 |
+| 同頁原速重試 | 15.010000 | 15.004569 | ready | 全過 |
+| A＝5、0.75× | 15.036667 | 16.256160 | ready | 全過 |
+| EOF 正常控制 | 15.028333 | 65.000000 | ready | raw-play 失敗，照實保留 |
+| EOF 118ms 晚醒 | 15.110000 | 65.000000 | interrupted，超差拒絕 | 片長／raw-play 失敗，照實保留 |
+| EOF 180ms 晚醒 | 15.161667 | 65.000000 | interrupted，超差拒絕 | 片長／raw-play 失敗，照實保留 |
+| EOF 真正 suspend | 15.076667 | 65.000000 | interrupted，舊片保留 | raw-play 失敗，照實保留 |
+
+八份原片皆完整 FFmpeg 解碼 exit 0，相機 tracks ended、聲音 stop／disconnect、decoder close、靜音與音高恢復、舊 metadata／media／chunks 保全均檢查。四個 EOF 案在封存原 gate 後，另以 trusted 產品「開始 A–B 循環」按鍵明確 seek A＝50，再真正播放到 50.540／50.546／50.553／50.561 秒；均維持 2×／pitch=true／muted=false，再以產品按鍵停止。這沿用既有 `practice-natural-end.js` 對 EOF 明確回 A 的練習行為，不更換原 capture-matrix 的 raw-play 續播 gate。完整混合收據仍 **passed=false**，另記 non-EOF 三 gate 全過與 EOF 分類／明確重啟通過；收據 SHA256 `92b46f576adf8b6a9c712c5ecf7d0b7e1528d6c33229f16e25e8325459a5b136`。自有 session 正常刪除、主機／driver 群組退出、自有 nonce 鎖正常釋放。
+
+最終暖機／開錄前綴與 `2373e05` 逐 byte 相同，前綴 SHA256 `c59b2731abd3075aa24109076b337e3aae690e14c62c78f3713ac74c25c19d92`；recorder.js、local-audio.js 亦未變，不借 EOF 修正變更暖機、晚到影格或取消機制。這輪沒有重跑三份既有首尾見證的完整分析或全部取消矩陣，仍按前節來源歸屬。真相機、人工聽感、私人模式、背景／鎖屏／來電、完整 G1–G7／G6 與 iPhone 未驗項維持原界線。
+
+另以不可變收據逐項重算原 capture-matrix 的完整 next gate，包含 minimum≥B、minimum≥原停止點−100ms、末值>原停止點＋50ms、2× 與 pitch=true。四個非 EOF 案全部通過，最低值亦皆不低於原停止點；八案正式啟播位置均等於 A，當次所有 reference.currentTime setter 皆早於 recorderRequested，沒有在錄影或 B 後補 seek。EOF 的原 gate 仍照實為 false，不以後來的明確 A–B 重啟讀值補成通過。
+
+最終本機原 `bun run check` 通過 **650 tests／3,207 expects／0 fail**、303 檔公開掃描、17 個 harness 指紋與文件連結、型別、lint 及 build；原 19 項 lint info 保留，靜態仍 `cc38d244fcbe8a34`。正常提交／推送 hooks 與新 head CI 另綁；`2373e05` 的 harness、Linux、app-coverage 及分支預覽已過，不作為後續 EOF 修正 head 的 CI。使用者允許分支預覽，未授權且本聊天未操作合併或正式發布。

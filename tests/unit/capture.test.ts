@@ -1,8 +1,54 @@
 /* 檔案用途：驗證新錄影時長、錯誤提示與暫存片段完整性。所在層：媒體純邏輯測試。主要關聯：timeline.js、recorder.js、storage.js。 */
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { captureDuration } from '../../web/timeline.js'
 import { assembleChunks, cameraError, normalizedVideo } from '../../web/recorder.js'
 import { newLibrary, validateBackup } from '../../web/library.js'
+
+test('等待期間跨過 B 仍檢查聲音狀態與原 100ms 界線', async () => {
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const source = main.match(/status\('錄影中。[^]*?(?=\n      } finally \{)/)![0]
+  const completion = main.match(/info\.interrupted = signal\.aborted[^;]*;/)![0]
+  // 直接跑產品迴圈；只模擬 await 期間原生影像已跨 B，防止測試複製檢查而漏掉收尾位置。
+  // 暫停案刻意對齊時鐘，才能獨立驗證狀態檢查。
+  for (const [state, elapsed, rejected, at, ended] of [
+    ['running', 15.068, false, 15.068, false], ['running', 14.969, false, 15.068, false],
+    ['running', 14.967, true, 15.068, false], ['suspended', 15.068, true, 15.068, false],
+    ['running', 15.15, false, 15, true], ['suspended', 15.15, true, 15, true], ['running', 15.15, true, 15.15, false],
+  ] as const) {
+    const reference = { currentTime: 14.93, ended: false, paused: false }, audio = { state: 'running', currentTime: 14.93 }
+    const info = { interrupted: false }
+    const pending = runInNewContext(`(async () => { let captureIntegrityError; try { ${source} } finally { ${completion} } })()`, {
+      reference, audio, info, value: { startMs: 0, endMs: 15_000, rate: 1 }, expectedDurationMs: 15_000, captureSource: {}, captureAudioAt: 0,
+      began: 0, performance: { now: () => 0 }, signal: new AbortController().signal, status() {}, renderBeatPosition() {},
+      wait: async () => { reference.currentTime = at; reference.ended = ended; audio.state = state; audio.currentTime = elapsed },
+    })
+    if (rejected) await expect(pending).rejects.toThrow('示範聲音中斷或不同步')
+    else await expect(pending).resolves.toBeUndefined()
+    expect(info.interrupted).toBe(rejected)
+  }
+})
+
+test('有界供聲的 EOF 成功片仍守住未四捨五入的 ±100ms，不擋中斷保全或其他聲路', () => {
+  const main = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8')
+  const source = main.match(/info\.durationMs = candidate\.duration;[^]*?(?=\n              return Promise\.resolve\(\);)/)![0]
+  // 直接跑提交前檢查；100.1ms 即使 metadata 四捨五入為 100，也不能因聲音時鐘有終點而冒充成功。
+  for (const [duration, ended, hasSound, interrupted, rejected] of [
+    [14900, true, true, false, false], [15100, true, true, false, false],
+    [14899.9, true, true, false, true], [15100.1, true, true, false, true],
+    [15150, false, true, false, false], [15150, true, false, false, false], [15150, true, true, true, false],
+  ] as const) {
+    const info = { interrupted }
+    const run = () => runInNewContext(`(() => { let captureIntegrityError; ${source} return info; })()`, {
+      candidate: { duration: Math.round(duration) }, self: { duration: duration / 1000 }, reference: { ended },
+      captureSource: hasSound ? {} : undefined, expectedDurationMs: 15_000, info,
+    })
+    if (rejected) expect(run).toThrow('原片長度不符')
+    else expect(run()).toBe(info)
+    expect(info.interrupted).toBe(interrupted || rejected)
+  }
+})
 
 test('EBML 容器依文件類型辨識 WebM 與 Matroska，補正 MIME 不更動原片 bytes', async () => {
   // 兩種容器共用 EBML magic；只看開頭四 bytes 會把 Matroska 誤叫成 WebM。
