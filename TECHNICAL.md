@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+#103 已開舊頁遇到另一分頁升版的原生連線與備份保全見[資料庫升版回歸證據](docs/evidence/issue-103-storage-version-change.md)。回歸檢查舊頁停止保存、草稿與原片仍可另存；這是未知版本控制測試，產品 schema 不改。
+
 #103 錄影供聲的停止、原期限逾時及原生聲音中斷回歸見[錄影供聲保全證據](docs/evidence/issue-103-webkit-capture.md)。沿原 WebKit 匯出基線與合成檔案相機，確認舊片／筆記保留及同頁重試；Chromium 條件分支測試不代表原生 Safari 或真機驗收。
 
 PR #119 調查時，Safari #9 的 0.75× 收尾回跳已由無產品／錄影／儲存的原生播放頁隔離至音高恢復；停止速率只把問題延到下次播放，當時未採用產品修正。現行修正見第 51 節。固定來源、原 B／100ms 失敗、真正下載與保全證據見[本輪根因調查](docs/evidence/issue-9-capture-recovery.md#2026-10-31-safari-075-收尾位置回跳根因)。
