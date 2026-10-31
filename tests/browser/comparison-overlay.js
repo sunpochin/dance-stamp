@@ -14,6 +14,8 @@ async page => {
   await page.goto(origin); await idle();
   assert(await page.locator('#overlay-canvas').isHidden() && await page.locator('#play').isDisabled(), '缺片仍能播放疊影');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   assert(await page.locator('#overlay-canvas').isHidden(), '只有老師片仍顯示舊疊影');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   await change('start', '12'); await change('end', '15'); await change('offset', '4');

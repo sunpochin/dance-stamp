@@ -12,6 +12,8 @@ async page => {
   await page.goto(origin); await idle();
   assert(await page.locator('#reference-seek').isDisabled() && await page.locator('#self-seek').isDisabled(), '缺片仍可拖動時間尺');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   assert(await page.locator('#reference-seek').isEnabled() && await page.locator('#self-seek').isDisabled(), '兩側尺未各自按來源啟用');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
   assert((await page.locator('#reference-ruler').textContent()).includes('80 秒') && (await page.locator('#self-ruler').textContent()).includes('75 秒'), '刻度沒有顯示各自來源的秒數');

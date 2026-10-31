@@ -24,6 +24,8 @@ async controller => {
     assert(!await page.locator('#camera').isVisible() && !await page.locator('#backup').isVisible(), '相機與管理工具干擾初次選片');
     assert(await page.locator('#controls input[type=file]').count() === 2 && await page.locator('.video-card button.primary').count() === 2, '仍有多個入口指向老師影片');
     await choose('reference-file', 'output/comparison/reference.mp4');
+    // 此案例驗兩側選片，先明確選合法短段，避免長片護欄攔下右側來源。
+    await page.locator('#end').fill('15');
     assert(!await page.locator('#reference-picker').evaluate(details => details.open), '示範影片載入後未收合');
     const left = await page.locator('#reference').getAttribute('src');
     await choose('self-file', 'output/media-probe/player/portrait.mp4', true);

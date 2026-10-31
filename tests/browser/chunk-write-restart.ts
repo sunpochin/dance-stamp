@@ -56,6 +56,8 @@ export async function chunkWriteRestart({ page, origin, root, run, evidence, eve
     await player.close(); evidence[label] = { bytes: actual.length, sha256: hash(actual), probe, playback }; event('download-decoded', { label })
   }
   await page.locator('#reference-file').setInputFiles(join(root, 'output/media-feasibility/reference.mp4')); await idle(page)
+  // 中斷回歸的舊比較固定 15 秒，不能讓完整影片預設阻擋其建立。
+  await page.locator('#end').fill('15')
   await page.locator('#copy-reference').click(); await idle(page)
   const videoId = await page.locator('#library').inputValue()
   await page.locator('#self-file').setInputFiles(join(root, 'output/media-feasibility/reference.mp4')); await idle(page)

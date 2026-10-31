@@ -33,6 +33,8 @@ async controller => {
     await page.goto(origin);
     assert(await page.evaluate(() => !(document.permissionsPolicy || document.featurePolicy).allowsFeature('camera')), '原生政策沒有禁止相機');
     await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
+    // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+    await page.locator('#end').fill('15');
     await page.locator('#copy-reference').click(); await idle();
     const videoId = await page.locator('#library').inputValue();
     await page.locator('#self-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
@@ -52,6 +54,8 @@ async controller => {
     assert(await page.evaluate(() => (document.permissionsPolicy || document.featurePolicy).allowsFeature('camera')), '解除測試政策後仍禁止相機');
     assert(JSON.stringify(await snapshot()) === JSON.stringify(before), '拒絕後重開遺失資料');
     await page.locator('#library').selectOption(videoId); await page.locator('#open-library').click(); await idle();
+    // 重開筆記預設全長；權限重試仍使用原本合法的 15 秒錄影範圍。
+    await page.locator('#end').fill('15');
     await page.locator('#camera-tools').evaluate(details => { details.open = true; }); await page.locator('#camera').click(); await idle();
     const retry = await page.evaluate(() => ({ preview: document.getElementById('preview').videoWidth > 0 && !!document.getElementById('preview').srcObject, audio: document.getElementById('preview').srcObject?.getAudioTracks().length, errors: window.cameraPolicy.errors, tracks: window.cameraPolicy.tracks.length, trusted: window.cameraPolicy.clicks.every(Boolean) }));
     assert(retry.preview && retry.audio === 0 && retry.errors.length === 0 && retry.tracks > 0 && retry.trusted, '解除政策後未能重試原生合成相機');

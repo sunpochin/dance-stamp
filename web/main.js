@@ -521,7 +521,8 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
     currentVideoId = null; $('confirm-link').hidden = false;
     status('請播放並核對標記位置，再點「確認連結到這份筆記」。'); return;
   }
-  $('start').value = '0'; $('end').value = String(Math.min(15, selected.duration / 1000));
+  // 選片先給完整範圍，避免每次練整支影片都要手動解除 15 秒預設。
+  $('start').value = '0'; $('end').value = String(selected.duration / 1000);
   $('offset').value = '0'; $('rate').value = '1';
   selfDurationMs = 0; takeBlob = null; activeTakeId = null; pendingTakeId = null; $('confirm-take').hidden = true;
   if (outputBlob) $('output-status').textContent = '這是上一組比較的 VS；原檔仍保留，新片請重新對齊及匯出。';
@@ -1414,7 +1415,8 @@ async function openVideoNotes(id, signal) {
     reference.removeAttribute('src'); reference.load(); pendingLinkId = id;
     status('筆記仍在，示範尚未連結。請選片、預覽後確認；不會依同名自動配對。');
   }
-  $('start').value = '0'; $('end').value = String(Math.min(15, video.durationMs / 1000)); renderLibrary();
+  // 重開筆記與新選片使用相同預設；指定 take 仍由 openTakeUnlocked 還原原配方。
+  $('start').value = '0'; $('end').value = String(video.durationMs / 1000); renderLibrary();
   return true;
 }
 $('open-library').addEventListener('click', () => operation(signal => openVideoNotes($('library').value, signal)));

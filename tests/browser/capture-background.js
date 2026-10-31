@@ -27,6 +27,8 @@ async (page, downloadDirectory) => {
     e.visibility.push({ phase: e.phase, hidden: document.hidden, trusted: event.isTrusted, released: e.tracks.every(t => t.readyState === 'ended'), previewClosed: !document.getElementById('preview').srcObject, paused: document.getElementById('reference').paused, time: document.getElementById('reference').currentTime });
   }));
   await page.locator('#reference-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
+  // 新選片預設全長；此比較案例明確選 15 秒，保留原本的媒體護欄與測試範圍。
+  await page.locator('#end').fill('15');
   await page.locator('#copy-reference').click(); await idle();
   const videoId = await page.locator('#library').inputValue();
   await page.locator('#self-file').setInputFiles('output/media-probe/reference.mp4'); await idle();
