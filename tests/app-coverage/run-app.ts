@@ -78,6 +78,8 @@ const scenarios = selected.length ? selected : ['coverage-navigation', 'storage'
 // 恢復守門沿原函式接入，不改前51條順序，保留既有鍵盤故障的前置環境。
 // 匯出暖機中的停止須沿既有回歸執行，恢復片段或保存尾段不能代替這條生命週期。
 if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind), 'export-ready')
+// 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
+if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -178,7 +180,9 @@ try {
       const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
       const metadataKind = name.startsWith('metadata-stop-') ? name.slice('metadata-stop-'.length) : undefined
       const frameGuard = name === 'recovery-frame-guard'
-      const path = resolve(root, 'tests/browser', `${metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.${frameGuard ? 'ts' : 'js'}`)
+      // 影格守門也以recovery開頭，必須留在原TS函式入口，不能被一般恢復分流攔走。
+      const recovery = !frameGuard && name.startsWith('recovery-') ? name.slice('recovery-'.length) : undefined
+      const path = resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.${frameGuard ? 'ts' : 'js'}`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
       if (tail || metadataKind || frameGuard) {
@@ -253,7 +257,7 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page, practiceError ? { mode: practiceError } : undefined)
+        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : undefined)
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
