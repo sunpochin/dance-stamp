@@ -12,7 +12,7 @@ function worker(failure = '') {
   }
   const detector = { detect() { fail('detect'); return { detections: [{ boundingBox: { originX: 40, originY: 20, width: 80, height: 120 } }, {}] } } }
   const scope: any = {
-    ...vmCoverageContext(),
+    ...vmCoverageContext(), performance,
     importScripts(path: string) { calls.imports.push(path); fail('import') },
     Vision: { ObjectDetector: { async createFromOptions(files: unknown, options: unknown) {
       calls.options.push(structuredClone({ files, options })); fail('load'); return detector
@@ -73,7 +73,7 @@ function geometryWorker() {
   const inputs: any[] = [], draws: any[] = [], messages: any[] = [], options: any[] = []
   let detections: any[] = [], failure = false
   const scope: any = {
-    ...vmCoverageContext(),
+    ...vmCoverageContext(), performance,
     importScripts() {}, postMessage(value: any) { messages.push(JSON.parse(JSON.stringify(value))) },
     Vision: { ObjectDetector: { async createFromOptions(_paths: any, value: any) {
       options.push(value)

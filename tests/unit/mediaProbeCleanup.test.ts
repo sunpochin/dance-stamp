@@ -11,6 +11,32 @@ const quota = readFileSync(new URL('../../scripts/verify-native-quota.ts', impor
 // 兩個工具的故障收尾都必須保留，不能解衝突時只留其中一線。
 const vsTail = readFileSync(new URL('../../scripts/verify-vs-save-tail.ts', import.meta.url), 'utf8')
 const planning = readFileSync(new URL('../browser/backup-planning-stop.ts', import.meta.url), 'utf8')
+const followBenchmark = readFileSync(new URL('../../scripts/benchmark-follow.ts', import.meta.url), 'utf8')
+
+for (const mode of ['audit-error', 'close-error', 'ps-denied', 'survivor', 'server-error', 'nonce-changed', 'launch-unknown', 'no-browser', 'clean']) test(`人物基準收尾 ${mode} 仍關自有資源，未確認不釋鎖`, async () => {
+  const state = harness()
+  Object.assign(state, { attempted: mode !== 'no-browser', closed: false, browser: undefined, directory: '/synthetic/run', closeCalls: 0, stopCalls: 0, evidence: { status: 'passed', failure: 'synthetic original failure retained' } })
+  if (!['launch-unknown', 'no-browser'].includes(mode)) state.browser = {
+    newBrowserCDPSession: async () => { if (mode === 'audit-error') throw new Error('synthetic CDP unavailable'); return { send: async () => ({ processInfo: [{ id: 123 }, { id: 124 }] }) } },
+    close: async () => { state.closeCalls++; if (mode === 'close-error') throw new Error('synthetic close failure') },
+  }
+  state.server = { url: 'http://synthetic.test', stop: async () => { state.stopCalls++; if (mode === 'server-error') throw new Error('synthetic server failure') } }
+  state.fetch = async () => { throw new Error('synthetic own server unreachable') }
+  state.Bun = { sleep: async () => {}, spawnSync: (_args: string[]) => {
+    expect(_args[2]).toBe('123,124')
+    return { exitCode: mode === 'survivor' ? 0 : 1, stderr: Buffer.from(mode === 'ps-denied' ? 'ps denied' : ''), stdout: Buffer.from(mode === 'survivor' ? '124 S synthetic-child' : '') }
+  } }
+  if (mode === 'nonce-changed') state.readFileSync = () => JSON.stringify({ nonce: 'another-owner' })
+  // 直接執行原工具 finally，只替 OS／CDP 邊界注入失敗；不啟動瀏覽器或建立真鎖。
+  const tail = followBenchmark.slice(followBenchmark.indexOf('\nfinally {') + '\nfinally {'.length).replace(/}\s*$/, '')
+  await runInNewContext(transpiler.transformSync(`(async () => { ${tail} })()`), state)
+  expect(state.closeCalls).toBe(['launch-unknown', 'no-browser'].includes(mode) ? 0 : 1)
+  expect(state.stopCalls).toBe(1)
+  expect(state.evidence.failure).toBe('synthetic original failure retained')
+  const safe = ['clean', 'no-browser'].includes(mode)
+  expect(state.evidence.lockReleased === true).toBe(safe); expect(state.removed.length > 0).toBe(safe)
+  if (!safe) { expect(state.evidence.status).toBe('failed'); expect(state.evidence.cleanupFailure).toBeTruthy(); expect(state.process.exitCode).toBe(1) }
+})
 const cleanup = (source: string) => source.slice(source.lastIndexOf('} finally {') + '} finally {'.length).replace(/}\s*$/, '')
 test('自有 DevTools 端點先出現空檔時，等有效 port 才連線', async () => {
   const state = harness(), urls: string[] = [], child = Object.assign(new EventEmitter(), { pid: 123, exitCode: null, signalCode: null, stderr: new EventEmitter() })
