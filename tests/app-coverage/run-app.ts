@@ -93,6 +93,8 @@ if (!selected.length) scenarios.push('source-time-rulers')
 if (!selected.length) scenarios.push('simplified-comparison')
 // 跟隨分析使用真正的本機模型，與合成匯出共用相同資源政策。
 if (!selected.length) scenarios.push('person-follow')
+// 單側結果與原本 VS 分開驗，確保各自的原片聲音與真正下載都存在。
+if (!selected.length) scenarios.push('follow-results')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -176,7 +178,7 @@ try {
       window.addEventListener('beforeunload', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) })
       // DOMContentLoaded 後才註冊，讓產品的 pagehide 清理先執行；只用控制器通道，不送 App 網路寫入。
       document.addEventListener('DOMContentLoaded', () => window.addEventListener('pagehide', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) }))
-    }, activeScenario !== 'simplified-comparison')
+    }, !['simplified-comparison', 'follow-results'].includes(activeScenario))
     context.on('page', watchPage)
     const close = context.close.bind(context)
     context.close = async options => { try { await collectContext(context) } finally { await close(options); contexts.delete(context) } }
@@ -297,10 +299,10 @@ try {
         }
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
-      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
+      evidence.scenarios.push({ name, interface: ['simplified-comparison', 'follow-results'].includes(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
       console.log(`PASS ${name} (${Date.now() - started}ms)`)
     } catch (error) {
-      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
+      evidence.scenarios.push({ name, interface: ['simplified-comparison', 'follow-results'].includes(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
       console.error(`FAIL ${name}:`, error)
     } finally {
       await context.close(); save(); report('app')
