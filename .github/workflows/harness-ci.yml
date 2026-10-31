@@ -74,6 +74,8 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: .bun-version
+      # 靜態包現在隨附固定版本機模型 runtime，乾淨 Linux checkout 也必須先取得相同依賴。
+      - run: bun install --frozen-lockfile --ignore-scripts
       # 控制器只放此輪暫存目錄；沿用 runner 的 Chrome，不替產品加入瀏覽器套件。
       - run: npm install --prefix "$RUNNER_TEMP/dance-stamp-linux-qa" --ignore-scripts --no-audit --no-fund playwright-core@1.64.1
       - name: Force exit during a native partial install on Linux

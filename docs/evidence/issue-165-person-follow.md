@@ -24,11 +24,14 @@
 
 既有 `comparison-overlay-layout`、`source-time-rulers`、`simplified-comparison` 三項同版短功能回歸亦通過，涵蓋舊鏡像／手動對齊、秒數定位、鍵盤選片、200% 文字、取消與壞檔保全、短成檔。完整 `bun run check` 的最新結果以 PR／提交前收據為準；本文件不把工具檢查當成真人／媒體驗收。
 
+資源白名單的呼叫者另經盤點：開發更新工具的獨立來源副本也需複製固定套件／vendor 位置，保存尾段工具則以共用來源 bytes 核對產物；更新測試主機提供真正 WASM MIME。`dev-reload.ts` 在與全 App 舊案例相同的明示保留介面前提下，通過真改檔、草稿／原片保全、壞建置保留舊版與修復重載，不開相機或播放影片。
+
 ## 保留的失敗與修正
 
 1. 初版把獨立分析 video 交給呈現通知等待，同位置重複取樣逾時。改用 decoded seeked／ImageBitmap；沒有更動原匯出的呈現門檻。
 2. 全寬畫面中的合成人物漏偵測，靜態人物原圖則能辨識。改成首次在使用者選框內推論，後續擴大人物附近搜尋；原寬畫面素材不換，通過兩側移動及成檔。
 3. 新增鏡像像素測試的「另一側完全零差」首次失敗，總差 100、實際逐 channel 為一階重畫捨入；改為每個抽樣 channel 最大 1，鏡像本身仍須吻合反射畫面，不能由灰背景取得成功。這只修正新像素斷言，不放寬既有媒體 gates。
+4. `0974fd1` 的遠端一般 harness 通過，Linux 獨立安裝 job 因乾淨 checkout 沒有固定人物 runtime 而在建置報 ENOENT。該 job 原本只安裝外部測試控制器；補上與其他 jobs 相同的 frozen-lockfile／ignore-scripts 安裝，沒有放寬門檻。後續 CI 結果綁新 head，以 PR 即時狀態為準。
 
 原始收據、合成影片、真下載與截圖留在 ignored `output/follow/`、`output/playwright/`；不把本機絕對路徑或私人素材放入 Git。重跑先準備合成檔，再依原全 App runner 取得自己的共用鎖，執行：
 

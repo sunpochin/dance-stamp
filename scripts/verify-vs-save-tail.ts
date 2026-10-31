@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFile
 import { resolve, join } from 'node:path'
 import { tmpdir, release } from 'node:os'
 import { pathToFileURL } from 'node:url'
-import { webHeaders, webPaths, webFiles } from './web-assets'
+import { webHeaders, webPaths, webFiles, webAssetBytes } from './web-assets'
 import verify, { cases } from '../tests/browser/vs-save-tail.js'
 
 const [modulePath, executablePath] = process.argv.slice(2)
@@ -57,7 +57,8 @@ try {
       evidence.waitingForLockSince ??= new Date().toISOString(); save(); await Bun.sleep(1000)
     }
   }
-  for (const file of webFiles) if (file !== 'sw.js') assert.deepEqual(readFileSync(join(root, 'dist/web', file)), readFileSync(join(root, 'web', file)))
+  // 同時核對固定模型與轉換後的虛擬路徑，否則新增同源資源會在真正驗證前誤報缺檔。
+  for (const file of webFiles) if (file !== 'sw.js') assert.equal(hash(readFileSync(join(root, 'dist/web', file))), hash(webAssetBytes(root, file)), `資源 bytes 不符：${file}`)
   evidence.staticVersion = readFileSync(join(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([a-f0-9]{16})'/)?.[1]; assert(evidence.staticVersion)
   evidence.resources = Object.fromEntries([...webPaths.values()].map(file => [file, hash(readFileSync(join(root, 'dist/web', file)))]))
   evidence.analyzerSha256 = hash(readFileSync(join(root, 'scripts/analyze-export-failure.py')))
