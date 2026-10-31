@@ -89,3 +89,10 @@
 原測試在原生 chunks 已落盤後才旁聽 dataavailable，卻要求之後最後一包非空，會漏掉先前已收到的有效資料。[W3C MediaStream Recording](https://www.w3.org/TR/mediastream-recording/#dom-mediarecorder-stop) 定義停止時送目前累積的 Blob 再送 stop；週期分包之後，應核對整份資料與停止順序，而非把最後一包一定非空當引擎保證。首輪失敗沒有輸出完整事件陣列，無法倒推該次究竟缺哪個事件；此限制保留，不以推測改寫失敗紀錄。
 
 修正只把本案例的原生觀察器移到每個 MediaRecorder 建立時，以 WeakMap 分開各候選實例，不把格式 fallback 混進真正本輪；停止故障仍是原生 stop，原交易 abort 與全部筆記／媒體／chunks、真正下載及重開斷言不改。保留「完整錄影須有非空原生資料」，另外要求單一 trusted start／stop、無 error，以及停止要求之後的 dataavailable 緊接 stop；失敗會包含完整匿名事件，CI 也列出該順序與 bytes。排除延後停止、縮短／延長期限、重錄追綠或改產品編碼器。後續完整 CI 另綁新 head。
+
+
+### 等待期間接回已合併的主線 #153
+
+`e260b58` 的 [CI](https://github.com/sunpochin/dance-stamp/actions/runs/41196320388) 顯示 harness 已使用主線 `9457a2f69cf050b411ba422ec9719383a468c60f` 建立合併候選 `b76c8f5`，下載包版本已變成 `ba070f1e8109b3c8`；App 工作則仍按原設計 checkout PR head。因此接回該主線再跑完整整合，不能把不同 runtime 的兩份結果混用。這是其他作業已合併 #153 的同步，不把它算成原本 11 份的代合併。
+
+已審查 #153 的完整主線增量：控制從 HTML 起即存在、窄版先顯示滑桿、停用原因與頂部新版提醒；waiting 提醒沿既有訊號，不自動啟用或重載。保留其原 overlay／多分頁／單元斷言，71 個情境名稱與順序不變，沒有另加版本時鐘或媒體聲路。同步無程式衝突；最新 head 的檢查與審查另記於整合 PR，不以舊候選是否完成代替。

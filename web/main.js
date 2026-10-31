@@ -170,6 +170,8 @@ function updateOverlayControls() {
   overlay.hidden = !available; $('overlay-empty').hidden = available;
   $('overlay-opacity').disabled = !available || !!active && !previewing;
   $('overlay-layout').disabled = $('overlay-opacity').disabled;
+  // 控制始終可見，停用時要交代缺片或處理中的原因，避免使用者以為滑桿消失。
+  $('overlay-layout-status').textContent = !available ? '先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。' : $('overlay-layout').disabled ? '正在處理影片，完成後即可繼續調整。' : '拖動下方的大小、左右位置與上下位置，讓老師與自己的身體對齊。';
   if (available) {
     // 只認已提交成功的來源 URL；壞檔與取消回復舊片時，不能順便丟掉使用者的對齊。
     const sources = `${urls.get('reference')}\n${urls.get('self')}`;
@@ -1801,6 +1803,6 @@ ready = (async () => {
   renderLibrary(); $('storage-status').textContent = `此瀏覽器有 ${state.data.videos.length} 份影片筆記。`;
   applyPracticeSettings(); updateControls();
   // 能力檢查獨立於筆記開啟；離線服務或 persist 失敗不能讓既有資料無法使用。
-  startOffline({ offline: $('offline-status'), capacity: $('capacity-status'), persistence: $('persistence-status'), updates: $('update-status'), refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
+  startOffline({ offline: $('offline-status'), capacity: $('capacity-status'), persistence: $('persistence-status'), updates: $('update-status'), updateNotice: $('update-notice'), refresh: $('check-offline'), persist: $('request-persist'), checkUpdate: $('check-update') }).catch(() => { $('offline-status').textContent = '離線能力暫時無法確認；本機資料保留。'; });
 })().catch(error => { $('storage-status').textContent = `本機儲存無法開啟：${error.message} 沒有重置或刪除舊資料。`; throw error; });
 ready.catch(() => {}); report();

@@ -16,7 +16,7 @@ function offlineStatus(worker) {
     catch (error) { close(); reject(error); }
   });
 }
-/** @param {{offline: HTMLElement, capacity: HTMLElement, persistence: HTMLElement, updates: HTMLElement, refresh: HTMLButtonElement, persist: HTMLButtonElement, checkUpdate: HTMLButtonElement}} ui */
+/** @param {{offline: HTMLElement, capacity: HTMLElement, persistence: HTMLElement, updates: HTMLElement, updateNotice: HTMLElement, refresh: HTMLButtonElement, persist: HTMLButtonElement, checkUpdate: HTMLButtonElement}} ui */
 export async function startOffline(ui) {
   let registration;
   let checkingUpdate = false;
@@ -27,7 +27,12 @@ export async function startOffline(ui) {
     ui.capacity.textContent = storageEstimateText(estimate.status === 'fulfilled' ? estimate.value : undefined);
     ui.persistence.textContent = persisted.status === 'fulfilled' && persisted.value === true ? '瀏覽器已允許持久保存；手動清除網站資料仍會刪除，請另存 JSON 及影片。' : persisted.status === 'fulfilled' && persisted.value === false ? '未獲持久保存，瀏覽器可能自動清除；請另存 JSON 及影片。' : '無法確認持久保存狀態；請另存 JSON 及影片。';
   };
-  const updateText = () => { ui.updates.textContent = registration?.waiting ? '新版已備妥，正在等待。先保存工作及原片，關閉所有本站分頁後再開啟；不會自動重載。' : '新版只在所有舊分頁關閉後啟用，不會中斷錄影或匯出。'; };
+  const updateText = () => {
+    ui.updates.textContent = registration?.waiting ? '新版已備妥，正在等待。先保存工作及原片，關閉所有本站分頁後再開啟；不會自動重載。' : '新版只在所有舊分頁關閉後啟用，不會中斷錄影或匯出。';
+    // 頂部與離線面板共用同一個 waiting 訊號與說明，不強制啟用或重載而弄丟練習。
+    ui.updateNotice.hidden = !registration?.waiting;
+    ui.updateNotice.textContent = registration?.waiting ? ui.updates.textContent : '';
+  };
   const refresh = async () => {
     // 啟動、worker 事件與手動重查會重疊；過期回覆或逾時不可蓋掉最後一輪的離線結論。
     const sequence = ++refreshSequence;
