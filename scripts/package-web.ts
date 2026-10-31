@@ -21,6 +21,8 @@ export const packageInputs = [
   'docs/evidence/issue-13-native-quota.md',
   // 新救援操作與配額重跑各有來源界線；指南離線閱讀也必須帶上明列的匿名文件。
   'docs/evidence/issue-13-unconfirmed-storage.md', 'docs/evidence/issue-13-native-quota-repeat.md',
+  // 私人模式使用提醒須在下載包離線可讀；只加入匿名文件，不收本機原始收據或工具。
+  'docs/evidence/issue-13-safari-private-storage.md',
   // 媒體指南也連到各項匿名回歸；只明列實際依賴，不遞迴收集 output 或其他檔案。
   'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
   // 保存尾段指南新增直接證據連結，裸包離線閱讀也須能核對範圍與限制。
