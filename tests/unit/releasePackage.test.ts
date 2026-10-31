@@ -5,7 +5,12 @@ import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, wr
 import { dirname, join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { packageInputs, readAllowed, sealPackage, verifyPackage } from '../../scripts/package-web'
-import { webNotice } from '../../scripts/web-assets'
+import { webNotice, binaryAssetHashes, visionAssets } from '../../scripts/web-assets'
+
+function publicPayload() {
+  // 封裝邊界必須走真正的固定二進位，不能用任意文字假裝模型或 WASM。
+  return new Map(packageInputs.map(name => [name, binaryAssetHashes[name.slice('dist/web/'.length)] && name.startsWith('dist/web/') ? readFileSync(resolve(import.meta.dir, '../..', visionAssets[name.slice('dist/web/'.length)])) : new TextEncoder().encode('synthetic-public-text')]))
+}
 
 function fixtureGitEnv(environment = process.env) {
   // hook 匯出的 GIT_DIR／index 會蓋過 -C；只清 Git 定義的本機變數，避免測試改到外層倉庫。
@@ -16,7 +21,7 @@ function fixtureGitEnv(environment = process.env) {
 }
 
 test('封裝檢查須拒絕產物中的授權副本斷鏈，不能只核對來源 Markdown', () => {
-  const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))
+  const payload = publicPayload()
   // 這是實際建置副本的原內容；根目錄可用的連結搬到 dist/web 後五處都失去目標。
   payload.set('dist/web/THIRD_PARTY_NOTICES.md', readFileSync(new URL('../../THIRD_PARTY_NOTICES.md', import.meta.url)))
   expect(() => { sealPackage(payload, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false }) }).toThrow('文件連結')
@@ -39,7 +44,7 @@ test('真正建置的授權副本與離線 manifest 使用相同 bytes', () => {
 test('隨包指南、證據與授權副本的實際封裝內容，所有相對連結都必須有目標', async () => {
   let references = 0
   const packaged = [...packageInputs, 'release.json', 'SHA256SUMS']
-  const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))
+  const payload = publicPayload()
   const guides = packageInputs.filter(name => name.endsWith('.md'))
   for (const guide of guides) {
     const source = guide.startsWith('dist/web/') ? webNotice(posix.basename(guide), readFileSync(resolve(import.meta.dir, '../..', posix.basename(guide)), 'utf8')) : readFileSync(resolve(import.meta.dir, '../..', guide), 'utf8')
@@ -60,7 +65,7 @@ test('隨包指南、證據與授權副本的實際封裝內容，所有相對�
 })
 
 test('完整公開包可 roundtrip；夾帶、缺片、竄改和失真 metadata 均拒絕', async () => {
-  const payload = new Map(packageInputs.map(name => [name, new TextEncoder().encode('synthetic-public-text')]))
+  const payload = publicPayload()
   const files = sealPackage(payload, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })
   const reordered = sealPackage(new Map([...payload].reverse()), { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })
   expect(reordered.get('SHA256SUMS')).toEqual(files.get('SHA256SUMS'))
@@ -75,6 +80,8 @@ test('完整公開包可 roundtrip；夾帶、缺片、竄改和失真 metadata 
     if (change === 'metadata') broken.set('release.json', new TextEncoder().encode('{"formatVersion":2}'))
     expect(() => verifyPackage(broken)).toThrow()
   }
+  const badModel = publicPayload(); badModel.set('dist/web/person-model.tflite', new Uint8Array([0, 255, 1]))
+  expect(() => sealPackage(badModel, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })).toThrow('二進位來源指紋')
   payload.set('START_HERE.md', new TextEncoder().encode(['synthetic-private', 'invalid.test'].join('@')))
   expect(() => sealPackage(payload, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })).toThrow('公開內容')
 })
@@ -110,9 +117,9 @@ test('真正打包 CLI 在寫入前拒絕 archive 與 checksum 的連結／目�
   const env = fixtureGitEnv({ ...clean, GIT_DIR: gitdir, GIT_COMMON_DIR: gitdir, GIT_WORK_TREE: outer, GIT_INDEX_FILE: join(gitdir, 'index'), GIT_PREFIX: 'synthetic/' })
   const run = () => Bun.spawnSync([process.execPath, '--no-env-file', join(root, 'scripts/package-web.ts')], { cwd: root, env })
   try {
-    for (const name of packageInputs) {
+    for (const [name, bytes] of publicPayload()) {
       const path = join(root, name)
-      mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, 'synthetic public')
+      mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, bytes)
     }
     for (const file of ['package-web.ts', 'web-assets.ts', 'publicSafety.ts', 'stagedSafety.ts']) {
       writeFileSync(join(root, 'scripts', file), readFileSync(resolve(import.meta.dir, '../../scripts', file)))
