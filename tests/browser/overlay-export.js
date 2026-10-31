@@ -79,7 +79,10 @@ async page => {
   let portraitPixels;
   for (const [left, right] of [[portrait, landscape], [landscape, portrait], [portrait, portrait]]) {
     await page.locator('#reference-file').setInputFiles(left); await idle();
+    // 混合比例也可能選到 80 秒示範；先選本例原有的兩秒，避免右片被護欄拒絕後只等停用欄位。
+    await set('end', 2, 'change');
     await page.locator('#self-file').setInputFiles(right); await idle();
+    assert(!await page.locator('#compare').isDisabled(), '混合比例配對未就緒：' + await page.locator('#status').textContent());
     await set('start', 0, 'change'); await set('end', 2, 'change'); await set('offset', 0, 'change');
     for (const referenceMirror of [false, true]) for (const selfMirror of [false, true]) {
       await page.locator('#reference-mirror').setChecked(referenceMirror); await idle();
