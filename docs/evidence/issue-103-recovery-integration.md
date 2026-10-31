@@ -67,6 +67,14 @@
 
 原始收據`output/recovery-integration-playback.local.json` SHA-256 `eaadfdac9a00ed672fcdba38795bf30edd2ce4a974c91af32af21cd6c7a9d9cb`；本機轉接控制器SHA-256 `0a2eff8e2f80c79c43ed9daee6dc4231eb3bc394525c6ecf6a4e6ae1ea6b6a98`，直接沿原download-playback.js。8個已記錄自有瀏覽器程序均退出後才核對nonce釋鎖；共用鎖由另一條Safari程序持有時只查證並等候，未接管。所有合成媒體、下載及原始收據只留本機，不放入Git或公開附件。
 
+### CI #219實際取消與整輪時間預算
+
+檢查變多，整包作業包含安裝、單元基準、素材準備及收尾，需要足夠時間；不能把單項跑完當成整包通過。初版精確head `68dd595ecf0f299fb84457db574d8cec0dd6b253` 的[CI #219](https://github.com/sunpochin/dance-stamp/actions/runs/41161857709)最終為cancelled：harness與linux-install-restart成功，app-coverage job 124421158871被取消。已讀取相同head的GitHub check annotation：`The job has exceeded the maximum execution time of 12m0s`。這是整個job的時間上限，不是人工取消或個別功能逾時。
+
+該日誌雖有67 PASS／0 FAIL與最終行數100%／函式97.48%／分支88.58%，仍不算CI成功，也不與本機88.63%分支混加。原始日誌SHA-256 `286a9f417d176f76e89975776781b0396fcd520354add6732710a3a5923e58df`；同head的annotation、狀態與原生鍵盤DOM24／driver37筆皆另保留，沒有要求重跑舊job或抹掉取消紀錄。
+
+僅把app-coverage整體job預算12→15分鐘，仍有明確上限，讓67條原案例與前置正常結束。產品九份JS、runner、案例、原五秒離線／十五秒影格守門與其他等待期限、分母及全部斷言均不變。沒有縮短素材、刪案例或放寬個別失敗條件；正常check／hook與新精確head的遠端結果另驗，不將舊取消改標成功。
+
 ## 重跑與界線
 
 固定Bun1.4.4，先`bun run check`，再`bun run test:coverage:app recovery-frame-guard recovery-offline-timeout recovery-inventory-read recovery-unknown-media recovery-draft-navigation`及完整`bun run test:coverage:app`。使用已安裝Chrome／FFmpeg、隔離合成素材與自有nonce的原子QA鎖；他人持鎖時核對活程序並等候，不接管。
