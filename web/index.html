@@ -13,6 +13,8 @@
     <nav class="actions" aria-label="練習入口"><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
     <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
     <p class="notice">桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
+    <!-- 新版提醒不能只藏在頁尾，否則使用者會把舊分頁缺少控制誤認為功能條件。 -->
+    <p id="update-notice" class="notice" role="status" hidden></p>
   </header>
   <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先在左邊選老師影片，再在右邊選我的影片；還沒錄好也可以開相機。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
@@ -87,8 +89,9 @@
     <label><span>老師可見度 <output id="overlay-opacity-value" for="overlay-opacity">50%</output></span><input id="overlay-opacity" type="range" min="0" max="100" step="1" value="50" aria-describedby="overlay-help" disabled></label>
     <p class="hint">往左讓老師更透明，0% 只看自己；往右讓老師更清楚。兩片的拍攝角度與人物大小越接近，越容易比。</p>
     <div class="overlay-workspace">
-    <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
-    <fieldset id="overlay-layout" disabled><legend>對齊身體的大小與位置</legend>
+    <!-- 控制先存在於 HTML；缺片只停用，不收合或等待影片事件才插入。 -->
+    <fieldset id="overlay-layout" aria-describedby="overlay-layout-status overlay-layout-help" disabled><legend>對齊身體的大小與位置</legend>
+      <p id="overlay-layout-status" class="hint" role="status">先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。</p>
       <p id="overlay-layout-help" class="hint">先調大小，再調左右與上下。左右正值往右、上下正值往下；放大或移到邊緣會裁掉超出框外的畫面。</p>
       <div class="settings overlay-layout">
         <fieldset><legend>老師 · 示範影片</legend>
@@ -105,9 +108,12 @@
       <button type="button" id="overlay-layout-reset">重設兩側大小與位置</button>
       <p class="hint">套用於疊影預覽與疊影匯出；換影片會重設，左右並排不套用大小與位置。</p>
     </fieldset>
+    <div class="overlay-preview">
+      <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
+      <p id="overlay-empty" class="hint">載入兩片並確認有效的比較區間後，這裡會顯示疊影預覽。</p>
+    </div>
     </div>
     <p class="hint">使用上方「播放比較」播放兩種預覽；狀態列的「一起暫停」會同時暫停兩片。</p>
-    <p id="overlay-empty" class="hint">先載入老師與自己的影片，確認有效的共同比較區間後，就能看到疊影。</p>
     <!-- 左右畫布是即時預覽與合成來源；收起供選看，保存區只呈現真正完成的影片。 -->
     <details id="side-preview"><summary>查看左右並排預覽</summary><canvas id="canvas" width="1280" height="720" aria-label="左右比較合成畫面"></canvas></details>
     <p class="hint">下方可選擇匯出左右並排或目前疊影。合成期間預覽暫停更新。</p>
