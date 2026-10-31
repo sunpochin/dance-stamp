@@ -83,6 +83,8 @@ if (!selected.length) scenarios.push('overlay-export')
 if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
 // 錄影供聲與匯出供聲生命週期不同；接在原67條之後，不能改變原鍵盤案例的前置順序。
 if (!selected.length) scenarios.push('webkit-capture-branch')
+// 已開舊頁收到升版通知與啟動前已有新庫不同；另接在原68條後，保留原生關閉／重開路徑。
+if (!selected.length) scenarios.push('storage-version-change')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -226,11 +228,6 @@ try {
           const baselineSource = readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'), 'utf8').replaceAll('output/', `${media}/`)
           const baseline = await ((0, eval)(`(${baselineSource})`))(page)
           result = { baseline, baselineSha256: createHash('sha256').update(readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'))).digest('hex'), scenarioSha256: createHash('sha256').update(readFileSync(path)).digest('hex'), ...await scenario(page, { directory: media }) }
-          for (const download of result.downloads) {
-            const bytes = readFileSync(download.path)
-            assert.equal(bytes.length, download.expected.bytes, '錄影分支真正下載長度不同')
-            assert.equal(createHash('sha256').update(bytes).digest('hex'), download.expected.sha256, '錄影分支真正下載完整指紋不同')
-          }
         } else if (name === 'comparison-keyboard') {
           const observing = observeKeyboardProtocol(page)
           try { result = await scenario(page, { interceptionReady: observing.interceptionReady }) }
@@ -270,7 +267,16 @@ try {
           await run('start'); await idle(); await run('verify-retry'); await run('verify-deletion')
           await run('reset-baseline'); await run('start', 'early'); await idle(); await run('verify-fault', 'early'); await run('delete-video')
           result = { phases, actualDownloadsMatchedFullBlobHashes: true }
-        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : undefined)
+        } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : name === 'storage-version-change' ? { directory: media } : undefined)
+      }
+      // 兩條回歸共用逐檔完整核對；產品內Blob的指紋不能代替真正下載內容。
+      if (name === 'webkit-capture-branch' || name === 'storage-version-change') {
+        if (name === 'storage-version-change') result.scenarioSha256 = createHash('sha256').update(readFileSync(path)).digest('hex')
+        for (const download of result.downloads) {
+          const bytes = readFileSync(download.path)
+          assert.equal(bytes.length, download.expected.bytes, '真正下載長度不同')
+          assert.equal(createHash('sha256').update(bytes).digest('hex'), download.expected.sha256, '真正下載完整指紋不同')
+        }
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
       evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
