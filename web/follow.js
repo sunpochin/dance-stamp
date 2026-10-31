@@ -1,4 +1,5 @@
 /* 檔案用途：人物選框、身分連續性與可重播裁切路徑。所在層：純畫面邏輯。主要關聯：follow-ui.js、main.js、person-worker.js。 */
+import { contain } from './timeline.js';
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 /** @typedef {{x:number,y:number,width:number,height:number}} Box */
 /** @typedef {Box & {time:number}} Sample */
@@ -54,4 +55,21 @@ export function smoothTrack(samples) {
 export function sourceCrop(video, track) {
   const box = track ? cropAt(track, video.currentTime) : { x: 0, y: 0, width: 1, height: 1 };
   return { x: box.x * video.videoWidth, y: box.y * video.videoHeight, width: box.width * video.videoWidth, height: box.height * video.videoHeight };
+}
+/** @param {HTMLVideoElement} video @param {Track} track */
+export function followSize(video, track) {
+  const first = track.samples[0], width = first.width * video.videoWidth, height = first.height * video.videoHeight;
+  // 保留選框比例與原始細節，長邊最多 1280；偶數尺寸避免原生 H.264 編碼拒絕奇數邊長。
+  const scale = Math.min(1, 1280 / Math.max(width, height));
+  return { width: Math.max(2, Math.round(width * scale / 2) * 2), height: Math.max(2, Math.round(height * scale / 2) * 2) };
+}
+/** @param {CanvasRenderingContext2D} context @param {HTMLVideoElement} video @param {Track} track @param {boolean} mirror */
+export function drawFollow(context, video, track, mirror) {
+  const { width, height } = context.canvas, crop = sourceCrop(video, track), rect = contain(crop.width, crop.height, width, height);
+  context.fillStyle = '#080c0e'; context.fillRect(0, 0, width, height); context.save();
+  try {
+    // 鏡像在人物裁切之後，選中的人不會因左右翻轉而換成另一個位置。
+    context.translate(mirror ? width : 0, 0); context.scale(mirror ? -1 : 1, 1);
+    context.drawImage(video, crop.x, crop.y, crop.width, crop.height, rect.x, rect.y, rect.width, rect.height);
+  } finally { context.restore(); }
 }

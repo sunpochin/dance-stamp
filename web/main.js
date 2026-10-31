@@ -33,6 +33,9 @@ let audio, audioSource, monitor, audioDestination;
 const urls = new Map();
 const following = createFollowUI({ reference, self }, {
   source: side => urls.get(side), busy: () => !!active || storageUnconfirmed(), operate: operation,
+  file: side => side === 'reference' ? currentReferenceFile : takeBlob,
+  mirror: side => side === 'reference' ? $('reference-mirror').checked : $('self-mirror').checked,
+  focus: focusControl, playbackChanged: updateStopControl,
   range: side => {
     const value = recipe(), range = comparison(value), first = positions(value, 0), last = positions(value, range.durationMs);
     return side === 'reference' ? [first.referenceMs / 1000, last.referenceMs / 1000] : [first.selfMs / 1000, last.selfMs / 1000];
@@ -76,7 +79,7 @@ let looping = false, practiceStarting = false, practiceController, practiceSeek,
 
 function status(message) { $('status').textContent = message; }
 function updateStopControl() {
-  const stoppable = !!active || !!camera || looping || practiceStarting || !reference.paused || !self.paused;
+  const stoppable = !!active || !!camera || looping || practiceStarting || !reference.paused || !self.paused || following.playing();
   $('stop').toggleAttribute('data-stoppable', stoppable);
   // 閒置會收起停止鍵，先交回可見控制，避免鍵盤焦點落在已隱藏的按鈕。
   if (comparisonOnly && !stoppable && document.activeElement === $('stop')) focusControl(operationTrigger || (referenceDurationMs ? reference : $('select-video')));
@@ -139,6 +142,7 @@ function releaseCamera() {
 }
 function stop() {
   active?.abort();
+  following.pauseResults();
   closeImportDialog(); closeMediaDialog(); closeDeleteDialog(); closeShareDialog();
   reference.pause(); self.pause();
   releaseCamera();
