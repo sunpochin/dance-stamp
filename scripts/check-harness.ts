@@ -1,5 +1,5 @@
 /*
-檔案用途：檢查啟用入口、來源指紋與文件連結，不執行上游參考程式。
+檔案用途：只用本 repo 的追蹤內容檢查啟用入口、來源指紋與文件連結。
 所在層：本機與 CI 共用品質入口。
 主要關聯：docs/ai/harness-import.json、package.json、tests/unit/harness.test.ts。
 */
@@ -14,14 +14,15 @@ const check = (ok: boolean, message: string) => { if (!ok) errors.push(message) 
 
 // --isolate 的語意取決於 runtime；先擋版本差異，避免測試互相污染卻誤判產品壞掉。
 check(Bun.version === read('.bun-version').trim(), `請使用 Bun ${read('.bun-version').trim()}，目前 ${Bun.version}`)
-// 完整來源索引也只留本機；公開 manifest 只列實際採用的通用工具。
-const manifest = JSON.parse(read(process.argv.includes('--include-local-reference')
-  ? 'vendor/jia-jian-log-harness/source-manifest.local.json'
-  : 'docs/ai/harness-import.json'))
+// 只接受公開清單，避免有本機舊副本的人通過、新 clone 卻缺檔。
+check(process.argv.length === 2, 'Harness 檢查不接受額外參數；只驗證本 repo 的公開清單')
+const manifest = JSON.parse(read('docs/ai/harness-import.json'))
+const trackedResult = Bun.spawnSync(['git', 'ls-files', '-z'], { cwd: root, stdout: 'pipe', stderr: 'pipe' })
+check(trackedResult.exitCode === 0, '無法確認 Git 追蹤內容')
+const tracked = new Set(trackedResult.stdout.toString().split('\0'))
 let checked = 0
 for (const file of manifest.files) {
-  // 公開 clone 不帶舊照護文件；只有明確要求才驗證本機完整副本。
-  if (file.distribution === 'local-only' && !process.argv.includes('--include-local-reference')) continue
+  check(file.distribution === 'public' && tracked.has(file.destination), `來源內容必須隨 Git 提供：${file.destination}`)
   checked += 1
   const path = resolve(root, file.destination)
   check(path.startsWith(`${root}/`), `非法匯入路徑：${file.destination}`)
@@ -42,7 +43,7 @@ for (const skill of readdirSync(resolve(root, 'skills'))) {
   }
 }
 
-// 只驗證本產品人工維護的文件；來源副本保留歷史產品連結，不當成目前的操作承諾。
+// 只驗證本產品人工維護的文件；vendor 的原始授權與第三方說明另由封裝檢查。
 function markdownFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = resolve(dir, entry.name)
