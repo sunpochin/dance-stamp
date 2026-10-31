@@ -43,7 +43,7 @@ const server = Bun.serve({
     if (live && body && file === 'index.html') body = live.html(await Bun.file(target).text())
     if (live && body && file === 'sw.js') body = live.serviceWorker
     return new Response(body, { headers: {
-      'Content-Type': file.endsWith('.mp4') ? 'video/mp4' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
+      'Content-Type': file.endsWith('.wasm') ? 'application/wasm' : file.endsWith('.tflite') ? 'application/octet-stream' : file.endsWith('.mp4') ? 'video/mp4' : file.endsWith('.js') ? 'text/javascript; charset=utf-8' : file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8',
       ...webHeaders,
     } })
   },

@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { chromium, type BrowserContext, type Page } from 'playwright-core'
 import { appFiles, emptyCoverage, instrument, mergeReceipt, receipt, root, sourceHashes } from './instrument'
-import { notices, webFiles, webHeaders, webNotice } from '../../scripts/web-assets'
+import { notices, webFiles, webHeaders, webNotice, webAssetBytes } from '../../scripts/web-assets'
 import { fixtureFiles } from './prepare-fixtures'
 import { observeKeyboardProtocol } from './keyboard-protocol'
 
@@ -68,7 +68,7 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview'])
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -94,6 +94,8 @@ if (!selected.length) scenarios.push('source-time-rulers')
 if (!selected.length) scenarios.push('simplified-comparison')
 // 新的試看框走真正預設介面，接在原案例之後以保留既有前置順序。
 if (!selected.length) scenarios.push('adjusted-side-preview')
+// 跟隨分析使用真正的本機模型，與合成匯出共用相同資源政策。
+if (!selected.length) scenarios.push('person-follow')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -118,11 +120,11 @@ try {
     copyFileSync(resolve(root, 'output', file), target)
   }
 
-  const resources = new Map<string, string>()
+  const resources = new Map<string, string | Uint8Array>()
   for (const file of [...webFiles, ...notices]) {
     if (file === 'sw.js') continue
     const path = file === 'index.html' ? '/' : `/${file}`
-    resources.set(path, appFiles.includes(`web/${file}`) ? instrument(`web/${file}`).code : notices.includes(file) ? webNotice(file, readFileSync(resolve(root, file), 'utf8')) : readFileSync(resolve(root, 'web', file), 'utf8'))
+    resources.set(path, appFiles.includes(`web/${file}`) ? instrument(`web/${file}`).code : notices.includes(file) ? webNotice(file, readFileSync(resolve(root, file), 'utf8')) : webAssetBytes(root, file))
   }
   const manifest = Object.fromEntries([...resources].map(([path, text]) => [path, createHash('sha256').update(text).digest('hex')]))
   let worker = instrument('web/sw.js').code.replace('__BUILD__', 'coverage-synthetic')
@@ -146,7 +148,7 @@ try {
     }
     const text = url.pathname === '/sw.js' && updateMode === 'next' ? nextWorker : resources.get(url.pathname)
     if (text === undefined) return new Response('Not found', { status: 404 })
-    return new Response(request.method === 'HEAD' ? null : text, { headers: { ...webHeaders, 'content-type': url.pathname.endsWith('.js') ? 'text/javascript' : url.pathname.endsWith('.css') ? 'text/css' : url.pathname.endsWith('.md') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+    return new Response(request.method === 'HEAD' ? null : text, { headers: { ...webHeaders, 'content-type': url.pathname.endsWith('.wasm') ? 'application/wasm' : url.pathname.endsWith('.tflite') ? 'application/octet-stream' : url.pathname.endsWith('.js') ? 'text/javascript' : url.pathname.endsWith('.css') ? 'text/css' : url.pathname.endsWith('.md') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
   } })
   const origin = `http://127.0.0.1:${server.port}`
   const executable = process.env.DANCE_STAMP_CHROMIUM || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome')

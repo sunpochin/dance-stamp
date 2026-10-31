@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { webFiles, notices } from '../../scripts/web-assets'
+import { webFiles, notices, visionAssets } from '../../scripts/web-assets'
 
 const [executable, modulePath] = process.argv.slice(2)
 assert(executable && modulePath, '請提供自有 Chromium 與已安裝的 playwright-core/index.mjs；不自動安裝')
@@ -12,7 +12,8 @@ const root = resolve(import.meta.dir, '../..'), output = join(root, 'output')
 mkdirSync(output, { recursive: true })
 // 只複製明列公開檔；所有改檔都發生在本輪副本，不碰使用者正在看的 4174 或共用 checkout。
 const fixture = mkdtempSync(join(output, 'dev-reload-'))
-for (const name of [...webFiles.map(file => 'web/' + file), ...notices, 'package.json', ...['serve-web.ts', 'dev-web.ts', 'dev-reload.js', 'build-web.ts', 'web-assets.ts', 'package-web.ts', 'publicSafety.ts', 'stagedSafety.ts'].map(file => 'scripts/' + file)]) {
+// 模型由固定套件／vendor 提供；隔離副本也必須沿白名單保留來源位置，不能假設都在 web/。
+for (const name of [...webFiles.map(file => visionAssets[file] || 'web/' + file), ...notices, 'package.json', ...['serve-web.ts', 'dev-web.ts', 'dev-reload.js', 'build-web.ts', 'web-assets.ts', 'package-web.ts', 'publicSafety.ts', 'stagedSafety.ts'].map(file => 'scripts/' + file)]) {
   const target = join(fixture, name); mkdirSync(dirname(target), { recursive: true }); writeFileSync(target, readFileSync(join(root, name)))
 }
 const built = Bun.spawnSync([process.execPath, '--no-env-file', 'scripts/build-web.ts'], { cwd: fixture })
@@ -32,6 +33,11 @@ const start = async (watching: boolean) => {
 const stop = async () => { if (server) { server.kill(); await server.exited; server = undefined } }
 const browser = await chromium.launch({ executablePath: executable, headless: true, args: ['--mute-audio'] })
 const context = await browser.newContext({ acceptDownloads: true })
+// 與全 App runner 的舊功能案例一致，明示開啟暫藏的筆記介面；預設雙片流程另有自己的驗證。
+await context.addInitScript(() => {
+  const observer = new MutationObserver(() => { if (document.body) { document.body.removeAttribute('data-comparison-only'); observer.disconnect() } })
+  observer.observe(document, { childList: true, subtree: true })
+})
 try {
   await start(false)
   assert.equal((await fetch(origin + '/__dev/revision')).status, 404)
