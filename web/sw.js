@@ -11,7 +11,7 @@ async function matches(response, path) {
   return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('') === manifest[path];
 }
 worker.addEventListener('install', e => {
-  // 不呼叫 skipWaiting／claim；整批驗證後才安裝，失敗只移除這個未完成的新版 cache。
+  // 安裝不自動 skipWaiting／claim；整批驗證後才等待，失敗只移除這個未完成的新版 cache。
   e.waitUntil((async () => {
     try {
       const cache = await caches.open(cacheName);
@@ -45,6 +45,17 @@ worker.addEventListener('fetch', e => {
   })());
 });
 worker.addEventListener('message', e => {
+  if (e.data?.type === 'ACTIVATE_UPDATE' && e.ports[0]) {
+    e.waitUntil((async () => {
+      try {
+        // 同意只涵蓋發起的分頁；其他舊頁可能正在錄影或有草稿，不能一併強制接管。
+        const pages = await worker.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        if (pages.length !== 1 || !e.source || !('id' in e.source) || pages[0].id !== e.source.id) throw new Error('其他本站分頁仍開著。請先保存並關閉其他分頁，再按「立即更新」；目前工作保留。');
+        await worker.skipWaiting();
+      } catch (error) { e.ports[0].postMessage({ error: error instanceof Error ? error.message : '更新未完成，請稍後再試。' }); }
+    })());
+    return;
+  }
   if (e.data?.type !== 'CHECK_OFFLINE' || !e.ports[0]) return;
   e.waitUntil((async () => {
     try {

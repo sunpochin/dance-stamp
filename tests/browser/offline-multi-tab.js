@@ -61,6 +61,13 @@ async (entry) => {
     assert(firstInfo.mediaCalls === 0 && firstInfo.unchanged && firstInfo.controllerChanges === 0, '第一個舊頁要求擷取或被重載／接管');
     assert(bothOpen.active.version === before.active.version && bothOpen.waiting?.version === before.active.version + '-next', '兩個舊頁開著時版本不符：' + JSON.stringify({ before, bothOpen, firstInfo }));
     assert(bothOpen.unchanged && bothOpen.controllerChanges === 0, '兩個舊頁開著時被接管');
+    // 明確按更新也不能繞過本頁草稿，或把另一個分頁的工作一起強制接管。
+    await first.locator('#apply-update').click();
+    await first.getByText('請先停止播放／相機、完成錄影或匯出，並保存或取消未完成編輯，再按「立即更新」。目前工作保留。', { exact: true }).waitFor();
+    assert(await first.locator('#move-name').inputValue() === '合成尚未儲存草稿', '立即更新丟失本頁草稿');
+    await second.locator('#apply-update').click();
+    await second.getByText('其他本站分頁仍開著。請先保存並關閉其他分頁，再按「立即更新」；目前工作保留。', { exact: true }).waitFor();
+    assert((await info(second)).unchanged && (await info(first)).unchanged, '多分頁拒絕後仍被接管');
     await first.close();
     // 用真正保存與新導航跨過事件循環，不靠固定睡眠猜測 waiting 是否還在。
     await second.getByText('分類搜尋與動作庫', { exact: true }).click();
@@ -83,10 +90,22 @@ async (entry) => {
     assert(JSON.stringify(await library(reopened)) === JSON.stringify(saved), '新版本改動了已保存資料');
     assert(await reopened.evaluate(async () => (await (await caches.open('synthetic-twin-unrelated')).match('/synthetic-twin-sentinel'))?.text()) === 'kept', '更新清除了無關 cache');
     assert(after.mediaCalls === 0, '重開頁要求擷取');
+    // 保留原來「關閉全部舊頁」的全部斷言，再以另一個真正候選驗證單頁同意後立即換版。
+    await reopened.evaluate(async () => { await fetch('/__test__/version?mode=current'); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
+    await reopened.locator('#apply-update').waitFor({ state: 'visible' });
+    const beforeConsent = await info(reopened);
+    assert(beforeConsent.active.version === after.active.version && beforeConsent.waiting?.version === before.active.version, '未同意前已套用另一候選');
+    await Promise.all([reopened.waitForEvent('load'), reopened.locator('#apply-update').click()]);
+    await idle(reopened); await complete(reopened);
+    assert((await info(reopened)).active.version === before.active.version, '按立即更新後沒有載入候選');
+    assert(await reopened.locator('#apply-update').isHidden(), '換版後仍顯示立即更新');
+    assert(JSON.stringify(await library(reopened)) === JSON.stringify(saved), '立即換版改動已存筆記');
+    assert(await reopened.evaluate(async () => (await (await caches.open('synthetic-twin-unrelated')).match('/synthetic-twin-sentinel'))?.text()) === 'kept', '立即換版清除無關 cache');
     return { automaticPageshowCheckWithoutManualUpdate: true, unsavedDraftPreserved: true,
       twoOldControlledPagesBeforeUpdate: true, candidateWaitsWithBothOpen: true, firstPageClosedSecondPageStillControlled: true,
       survivorSavesSameMove: true, survivorNotReloadedOrTakenOver: true, thirdNavigationUsesOldActiveWorker: true,
       activatesAfterRemainingOldPagesClose: true, exactSavedLibraryPreserved: true, unrelatedCachePreserved: true,
+      explicitUpdateBlocksDraftAndOtherTabs: true, singleTabConsentActivatesAndReloads: true,
       cameraMicrophoneAndScreenCaptureCalls: 0, beforeVersion: before.active.version, afterVersion: after.active.version };
   } finally { await context.close(); }
 }
