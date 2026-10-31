@@ -148,6 +148,8 @@ export async function audioReady(promise, signal) {
 export async function decodeLocalAudio(file, context, start, duration, signal) {
   require(Number.isFinite(start) && start >= 0 && Number.isFinite(duration) && duration > 0 && duration <= audioBudget.seconds);
   let decoder, buffer, failure;
+  /** @type {(() => void) | undefined} */
+  let wake;
   const cancel = () => { if (decoder && decoder.state !== 'closed') decoder.close(); buffer = null; };
   signal.throwIfAborted(); signal.addEventListener('abort', cancel, { once: true });
   try {
@@ -156,7 +158,7 @@ export async function decodeLocalAudio(file, context, start, duration, signal) {
     const support = await audioReady(AudioDecoder.isConfigSupported(track.config), signal); require(support.supported); signal.throwIfAborted();
     const rate = track.config.sampleRate, channels = track.config.numberOfChannels, frames = Math.ceil(duration * rate);
     buffer = context.createBuffer(channels, frames, rate);
-    let outputs = 0;
+    let outputs = 0, submitted = 0;
     decoder = new AudioDecoder({
       output(data) {
         try {
@@ -170,20 +172,30 @@ export async function decodeLocalAudio(file, context, start, duration, signal) {
           }
           outputs++;
         } catch (error) { failure = error; }
-        finally { data.close(); }
+        finally { data.close(); wake?.(); }
       },
-      error(error) { failure = error; },
+      error(error) { failure = error; wake?.(); },
     });
     decoder.configure(track.config);
     const { times, sizes, offsets } = track;
     let first = 0; while (first < sizes.length && times[first + 1] <= start) first++;
     // AAC 需要前置封包恢復重疊窗；取來源時間戳裁入固定片段，不能用固定裝置延遲冒充校正。
-    first = Math.max(0, first - 2); let pending = 0, submitted = 0;
+    first = Math.max(0, first - 2);
     for (let i = first; i < sizes.length && times[i] < start + duration; i++) {
       signal.throwIfAborted(); if (failure) throw failure;
       const packet = await read(file, offsets[i], sizes[i], signal);
       decoder.decode(new EncodedAudioChunk({ type: 'key', timestamp: Math.round(times[i] * 1e6), data: packet })); submitted++;
-      if (++pending === audioBudget.batch) { await audioReady(decoder.flush(), signal); pending = 0; if (failure) throw failure; }
+      // 中途 flush 會破壞 Safari 的 AAC 重疊窗；等真正 PCM 交付才補包，仍最多八包未交付。
+      // decodeQueueSize 只計控制佇列，不能代替尚在 codec 內的輸出；訂閱後再查一次避免漏掉交付。
+      if (submitted - outputs >= audioBudget.batch) {
+        try {
+          await audioReady(new Promise((resolve, reject) => {
+            wake = () => { if (failure) reject(failure); else if (submitted - outputs < audioBudget.batch) resolve(undefined); };
+            wake();
+          }), signal);
+        } finally { wake = undefined; }
+        if (failure) throw failure;
+      }
     }
     await audioReady(decoder.flush(), signal); signal.throwIfAborted(); if (failure) throw failure;
     require(outputs === submitted && submitted <= 2900);

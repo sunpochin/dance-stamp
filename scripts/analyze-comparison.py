@@ -20,11 +20,12 @@ def analyze(path):
     times = [float(f['best_effort_timestamp_time']) for f in ffprobe(path, '-select_streams', 'v', '-show_frames', '-show_entries', 'frame=best_effort_timestamp_time')['frames']]
     assert len(times) > 1 and all(a < b for a, b in zip(times, times[1:])), '成檔時間沒有嚴格前進'
     video = next(s for s in info['streams'] if s['codec_type'] == 'video')
+    audio_tracks = [s for s in info['streams'] if s['codec_type'] == 'audio']
     assert (video['width'], video['height']) == (1280, 720), '輸出尺寸錯誤'
     # 兩片均為 16:9，contain 後 y=204；取真正成檔像素，不讀瀏覽器診斷的漂移數字。
     # 保留 VFR 原始影格與高精度時間，避免分析工具自行補／丟幀或四捨五入出重複時間。
     proc = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', str(path), '-vf', 'crop=1280:360:0:204,scale=640:180', '-enc_time_base', '1:90000', '-fps_mode', 'passthrough', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], stdout=subprocess.PIPE)
-    frame_size, values = 640 * 180 * 3, []
+    frame_size, values, frame_codes = 640 * 180 * 3, [], []
     last, code_since, max_frozen, first_codes = [None, None], [0, 0], [0, 0], None
     for pts in times:
         frame = proc.stdout.read(frame_size)
@@ -48,9 +49,17 @@ def analyze(path):
                 code_since[side] = pts
             last[side] = codes[side]
         values.append((pts, (codes[1] - codes[0]) / 30 / rate * 1000))
+        frame_codes.append((pts, *codes))
     assert not proc.stdout.read(1) and proc.wait() == 0, '解碼影格數不一致'
-    duration = float(info['format']['duration'])
-    assert abs(duration - requested) <= 0.3, '成檔長度與選定區間不同'
+    # Safari WebM 可缺容器片長；保留音軌 PTS，從完整解碼的尾端量長度，不拿要求秒數代填。
+    pcm = array.array('h', subprocess.check_output(['ffmpeg', '-v', 'error', '-copyts', '-i', str(path), '-vn', '-ac', '1', '-af', 'aresample=8000:async=1:first_pts=0', '-f', 's16le', '-'])) if audio_tracks else array.array('h')
+    video_end = times[-1] + statistics.median(b - a for a, b in zip(times, times[1:]))
+    duration = float(info['format']['duration']) if info['format'].get('duration') else max(video_end, len(pcm) / 8000)
+    # 沿 v5 核對完整來源覆蓋；兩側一起截短或重播時，互相比較仍可能看似同步。
+    coverage = [(frame_codes[0][side] / 30 - 12) / rate * 1000 for side in [1, 2]] + [((frame_codes[-1][side] + 1) / 30 - (12 + rate * requested)) / rate * 1000 for side in [1, 2]]
+    content_clock = max(abs((code / 30 - 12) / rate - (stamp - times[0])) * 1000 for stamp, *codes in frame_codes for code in codes)
+    assert abs(duration - requested) <= 0.1 and max(map(abs, coverage)) <= 100, 'v5完整片長或來源起末覆蓋不符'
+    assert content_clock <= 250, 'v5兩側來源時間碼對輸出時鐘不符'
     for side in range(2):
         max_frozen[side] = max(max_frozen[side], (float(video.get('duration', duration)) - code_since[side]) * 1000)
     windows = [statistics.median([d for t, d in values if max(0, target - 0.5) <= t <= target + 0.5]) for target in [0.5, requested / 2, requested - 0.5]]
@@ -65,17 +74,17 @@ def analyze(path):
     assert len(times) / duration >= 24, '平均 fps 不足'
     freeze_ms = max(max_frozen)
     assert freeze_ms <= 250, f'成檔影格凍結 {freeze_ms}ms'
-    # 老師 660Hz、自己的片 880Hz。輸出只應含老師聲音；無音軌來源則須無聲。
-    audio_tracks = [s for s in info['streams'] if s['codec_type'] == 'audio']
+    # 沿現行 comparison-pitch 的自然變調：慢速須是 660×rate，不能接受舊的固定 660Hz。
     assert len(audio_tracks) <= 1 and (silent or len(audio_tracks) == 1), '輸出音軌數不正確'
-    pcm = array.array('h', subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(path), '-vn', '-ac', '1', '-ar', '8000', '-f', 's16le', '-'])) if audio_tracks else array.array('h')
     rms = math.sqrt(sum((s / 32768) ** 2 for s in pcm) / len(pcm)) if pcm else 0
-    amplitudes = [abs(sum((sample / 32768) * complex(math.cos(2 * math.pi * frequency * i / 8000), math.sin(2 * math.pi * frequency * i / 8000)) for i, sample in enumerate(pcm))) / max(1, len(pcm)) for frequency in [660, 880]]
+    expected_hz = 660 * rate
+    amplitudes = {frequency: abs(sum((sample / 32768) * complex(math.cos(2 * math.pi * frequency * i / 8000), math.sin(2 * math.pi * frequency * i / 8000)) for i, sample in enumerate(pcm))) / max(1, len(pcm)) for frequency in {expected_hz, 660, 880}}
     if silent:
         assert rms < 0.001, f'無聲來源被混入聲音：{rms}'
     else:
-        assert rms > 0.01 and amplitudes[0] > amplitudes[1] * 10, f'音訊不正確：{rms}, {amplitudes}'
-    return {'file': path.name, 'frames': len(times), 'duration': duration, 'fps': round(len(times) / duration, 2), 'startMiddleEndMs': windows, 'addedDriftMs': windows[2] - windows[0], 'firstAndLastFramePoints': points, 'firstToLastDriftMs': edge_drift, 'maxFrozenMs': round(freeze_ms, 2), 'audioRms': round(rms, 5), 'source660Hz': amplitudes[0], 'self880Hz': amplitudes[1], 'mirror': mirror, 'silent': silent}
+        # 本工具的單邊頻譜幅度是 comparison-pitch 峰值的一半；同一 0.025 峰值下限不變。
+        assert rms > 0.01 and amplitudes[expected_hz] > 0.0125 and all(amplitudes[expected_hz] > value * 10 for hz, value in amplitudes.items() if hz != expected_hz), f'音訊不正確：{rms}, {amplitudes}'
+    return {'file': path.name, 'frames': len(times), 'duration': duration, 'durationBasis': 'format' if info['format'].get('duration') else 'decoded-pts-pcm', 'sourceCoverageErrorMs': coverage, 'maximumContentClockMs': content_clock, 'fullFramePairErrorMs': max(abs(error) for _, error in values), 'fps': round(len(times) / duration, 2), 'startMiddleEndMs': windows, 'addedDriftMs': windows[2] - windows[0], 'firstAndLastFramePoints': points, 'firstToLastDriftMs': edge_drift, 'maxFrozenMs': round(freeze_ms, 2), 'audioRms': round(rms, 5), 'expectedSourceHz': expected_hz, 'sourceAmplitude': amplitudes[expected_hz], 'source660Hz': amplitudes[660], 'self880Hz': amplitudes[880], 'mirror': mirror, 'silent': silent}
 
 
 if __name__ == '__main__':

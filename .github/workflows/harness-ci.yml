@@ -48,6 +48,9 @@ jobs:
       # Ubuntu runner 未預裝 FFmpeg；只為生成合成素材安裝，產品包不加入編碼器。
       - name: Install synthetic fixture encoder
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # 量尺先接受正例並拒絕已知壞檔，避免產品檢查沿用錯誤的片長或舊音高假設。
+      - name: Check comparison analyzer controls
+        run: python3 scripts/check-comparison-analyzer.py
       # 沿用 runner 已安裝的瀏覽器；計數／失敗情境不能當作裝置驗收。
       - name: Measure every App module with unit and isolated browser checks
         run: |
