@@ -1474,7 +1474,8 @@ async function openVideoNotes(id, signal) {
     status('筆記仍在，示範尚未連結。請選片、預覽後確認；不會依同名自動配對。');
   }
   // 重開筆記與新選片使用相同預設；指定 take 仍由 openTakeUnlocked 還原原配方。
-  $('start').value = '0'; $('end').value = String(video.durationMs / 1000); renderLibrary();
+  // 重連短片必須能練完整的實際媒體；舊筆記片長／超界標記仍保留，缺片時才顯示原筆記範圍。
+  $('start').value = '0'; $('end').value = String((referenceDurationMs || video.durationMs) / 1000); renderLibrary();
   return true;
 }
 $('open-library').addEventListener('click', () => operation(signal => openVideoNotes($('library').value, signal)));
