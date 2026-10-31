@@ -7,14 +7,15 @@
   <link rel="icon" href="data:,"><link rel="stylesheet" href="/style.css">
   <script type="module" src="/main.js"></script>
 </head>
-<body><a class="skip-link" href="#controls">跳到選片與錄影</a><main>
+<!-- 目前只開放已錄雙片比較；移除此單一標記即可恢復暫藏工具，不刪資料或程式。 -->
+<body data-comparison-only><a class="skip-link" href="#controls">跳到選片與比較</a><main>
   <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看示範影片，對照練習影片。</h1>
     <p>先選示範影片，再選練習影片；對齊同一個動作，一起看、存成左右並排或疊影影片。</p>
-    <nav class="actions" aria-label="練習入口"><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
+    <nav class="actions" aria-label="練習入口" data-deferred><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
     <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
-    <p class="notice">桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
+    <p class="notice" data-deferred>桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
   </header>
-  <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先在左邊選老師影片，再在右邊選我的影片；還沒錄好也可以開相機。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
+  <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選左邊示範影片，再選右邊練習影片。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
     <h2 id="storage-recovery-title">保存狀態未確認</h2>
     <p role="alert">瀏覽器沒有確認這次保存是否完成或回復。本頁暫停儲存，保留目前原片與可下載的 VS，請先使用下方影片下載連結另存。</p>
@@ -23,7 +24,7 @@
   </section>
   <!-- 選片入口與播放器放在同一張卡片；不再用兩個入口指向同一個老師欄位。 -->
   <fieldset id="controls" tabindex="-1"><legend>01 · 示範影片與練習影片</legend>
-    <p class="section-intro">左邊放示範影片，右邊放練習影片。只跟著示範影片練習也可以。</p>
+    <p class="section-intro">左邊放示範影片，右邊放練習影片。兩支影片都選好後，設定同一個動作的起點。</p>
     <section class="players" aria-label="示範影片與練習影片">
       <div class="video-card">
         <h2>左 · 示範影片</h2>
@@ -60,7 +61,7 @@
       <div class="mirrors"><label><input id="reference-mirror" type="checkbox">示範影片鏡像</label><label><input id="self-mirror" type="checkbox">練習影片鏡像</label></div>
     </fieldset>
     <!-- 已有影片不需先讀相機設定；原生 details 讓錄影仍能用鍵盤展開。 -->
-    <details id="camera-tools"><summary>還沒練習影片？邊看示範邊錄影</summary>
+    <details id="camera-tools" data-deferred><summary>還沒練習影片？邊看示範邊錄影</summary>
       <p>先選上方老師影片與片段，再開啟相機。錄好的影片會放在右邊「練習影片」。</p>
       <div class="settings"><label>相機方向<select id="camera-facing"><option value="user">前鏡頭／桌面相機</option><option value="environment">後鏡頭（裝置需支援）</option></select></label><label>秒倒數（未選拍數時）<select id="countdown"><option>3</option><option>5</option><option>10</option></select></label></div>
       <div class="mirrors"><label><input id="preview-mirror" type="checkbox" checked>取景像鏡子</label></div>
@@ -74,9 +75,9 @@
     <label>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
     <p class="hint">正值略過我的影片開頭；負值略過老師影片開頭。只輸出兩段都有畫面的區間。</p>
     <fieldset id="offset-controls" class="actions"><legend>對齊微調</legend><button type="button" data-offset="-50">−50 毫秒</button><button type="button" data-offset="-10">−10 毫秒</button><button type="button" data-offset="10">＋10 毫秒</button><button type="button" data-offset="50">＋50 毫秒</button></fieldset>
-    <p class="hint">比較原速預設 1×；上方速度代表你跟跳時的示範速度。改起訖或速度會另存比較，保留原配方與舊輸出。每段比較最多 60 秒。</p>
+    <p class="hint">比較原速預設 1×；上方速度控制示範影片的播放速度。改起訖或速度會另存比較，保留原配方與舊輸出。每段比較最多 60 秒。</p>
     <p id="audio-status" class="hint">只播放老師影片的聲音，我的影片靜音。</p>
-    <p class="hint" id="comparison-pitch-status">比較預覽與 VS 的聲音會隨速度變調，以維持聲畫同步；一般練習播放仍保留音高。</p>
+    <p class="hint" id="comparison-pitch-status">比較預覽與 VS 的聲音會隨速度變調，以維持聲畫同步。</p>
     <label>共同時間線（秒）<input id="scrub" aria-describedby="intersection audio-status" type="range" min="0" max="1" value="0" step="0.01"></label>
     <p id="intersection">選好右邊練習影片後，這裡會顯示可比較的長度。</p>
     <div class="actions"><button type="button" id="play">播放比較（左右與疊影）</button></div>
@@ -88,7 +89,7 @@
     <p class="hint">往左讓老師更透明，0% 只看自己；往右讓老師更清楚。兩片的拍攝角度與人物大小越接近，越容易比。</p>
     <div class="overlay-workspace">
     <canvas id="overlay-canvas" width="960" height="540" aria-label="老師半透明與我的錄影疊加比較畫面" aria-describedby="overlay-help" hidden></canvas>
-    <fieldset id="overlay-layout" disabled><legend>對齊身體的大小與位置</legend>
+    <fieldset id="overlay-layout" data-deferred disabled><legend>對齊身體的大小與位置</legend>
       <p id="overlay-layout-help" class="hint">先調大小，再調左右與上下。左右正值往右、上下正值往下；放大或移到邊緣會裁掉超出框外的畫面。</p>
       <div class="settings overlay-layout">
         <fieldset><legend>老師 · 示範影片</legend>
@@ -120,13 +121,13 @@
     <p id="output-status" role="status"></p>
     <progress id="progress" max="1" value="0" aria-label="合成進度"></progress>
     <!-- 未完成原片另給連結，失敗時才不會撤銷舊自拍與 VS 的下載。 -->
-    <div class="actions"><a id="reference-download" href="#canvas" hidden>下載老師原片</a><a id="take-download" href="#canvas" hidden>下載自拍原片</a><a id="partial-download" href="#canvas" hidden>下載未完成原片</a><a id="output-download" href="#canvas" hidden>下載 VS 影片</a><button type="button" id="share" disabled>系統分享 VS</button></div>
+    <div class="actions"><a id="reference-download" data-deferred="original" href="#canvas" hidden>下載老師原片</a><a id="take-download" data-deferred="original" href="#canvas" hidden>下載自拍原片</a><a id="partial-download" href="#canvas" hidden>下載未完成原片</a><a id="output-download" href="#canvas" hidden>下載 VS 影片</a><button type="button" id="share" data-deferred disabled>系統分享 VS</button></div>
     <!-- biome-ignore lint/a11y/useMediaCaption: 輸出沿用本機影片，本版未生成字幕，不以空字幕冒充可用字幕。 -->
     <video id="output" aria-label="已合成的比較影片播放器" controls playsinline hidden></video>
     <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對畫面、聲音與鏡像。取消不會刪除原片。</p>
   </section>
-  <p id="beat-position">尚未設定拍點；仍可使用秒數與秒倒數。</p>
-  <fieldset id="practice" disabled><legend>練習與時間筆記</legend>
+  <p id="beat-position" data-deferred>尚未設定拍點；仍可使用秒數與秒倒數。</p>
+  <fieldset id="practice" data-deferred disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
     <div class="settings"><label>課程老師<input id="video-teacher" maxlength="200"></label><label>課程舞風<input id="video-style" maxlength="200"></label><label>課程日期<input id="video-date" type="date"></label></div><p class="hint">「儲存標題」也會保存老師、舞風與日期；日期由你填寫，不以檔案時間猜測。</p>
     <div class="settings"><label>練習速度<select id="practice-rate"><option>0.5</option><option>0.75</option><option selected>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label><input id="practice-mirror" type="checkbox">鏡像練習畫面</label></div>
@@ -148,7 +149,7 @@
     <button type="button" id="copy-self" disabled>保存我的影片副本到此瀏覽器</button>
     <h2>練習影片與比較配方</h2><ul id="takes"></ul>
   </fieldset>
-  <section id="library-panel"><h2>示範影片筆記與資料管理</h2><p>影片用來播放；筆記記錄你練習的位置與心得。</p><p id="storage-status" role="status">正在開啟本機筆記…</p>
+  <section id="library-panel" data-deferred><h2>示範影片筆記與資料管理</h2><p>影片用來播放；筆記記錄你練習的位置與心得。</p><p id="storage-status" role="status">正在開啟本機筆記…</p>
     <h3>繼續之前的練習</h3>
     <label>已保存的筆記<select id="library"><option value="">選擇影片筆記</option></select></label>
     <button type="button" id="open-library">開啟筆記</button>
@@ -169,12 +170,12 @@
     </details>
     <details id="media-inventory"><summary>影片副本與重新連結</summary><p>查看哪些影片已存副本、哪些需要從硬碟重新選取，也能另外下載影片檔。</p><p id="media-summary" role="status"></p><fieldset id="inventory-controls"><legend>示範／自己／VS 另存</legend><button id="refresh-media" type="button">重新檢查清單</button><ul id="media-items"></ul></fieldset></details>
   </section>
-  <details id="offline-panel"><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
-  <details><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
+  <details id="offline-panel" data-deferred><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
+  <details data-deferred><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
   <dialog id="share-dialog" aria-labelledby="share-title" aria-describedby="share-warning"><h2 id="share-title">選片段分享筆記</h2><p>這是筆記檔，不含影片。標題與時間一定包含；請先核對標題是否含私人內容。預設不選任何片段、練習或額外欄位。</p><p id="share-warning">另傳影片的畫面、聲音、檔名與內嵌資訊不受筆記篩選保護。已下載副本不能撤回。Dance Stamp 不登入、上傳或同步；雲端連結不能直接播放。</p><fieldset id="share-controls"><legend>選取內容</legend><div id="share-items"></div><h3>額外允許的欄位（預設不包含）</h3><div id="share-fields"><label class="check-label"><input type="checkbox" value="note">筆記正文</label><label class="check-label"><input type="checkbox" value="teacher">老師</label><label class="check-label"><input type="checkbox" value="danceStyle">舞風</label><label class="check-label"><input type="checkbox" value="originalName">原檔名</label><label class="check-label"><input type="checkbox" value="recordedDate">拍攝日期</label></div><button id="share-preview" type="button">預覽分享檔內容</button><p id="share-summary" role="status"></p><h3>分享內容預覽</h3><div id="share-readable"></div><details><summary>檢視檔案完整內容（JSON）</summary><pre id="share-content"></pre></details><div class="actions"><button id="share-download" type="button" disabled>下載筆記分享檔</button><button id="share-system" type="button" hidden>交給系統分享筆記檔</button></div></fieldset><p class="hint">示範原片、自己的原片與已合成 VS 是不同檔案；VS 不能代替原片重連。舞伴已有相同原片時只需筆記。可下載後自行用一般檔案、Google Drive、Dropbox、iCloud Drive 或 AirDrop 傳送；無帳號或系統分享不可用時仍可下載。下載或交給系統不代表對方收到。</p><button id="share-cancel" type="button">關閉，保留原資料</button></dialog>
   <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-summary import-media"><h2 id="import-title">還原筆記預覽</h2><p>JSON 只有筆記、配方與媒體描述，不含任何影片。原有資料保留，確認後才寫入。</p><fieldset id="import-controls"><legend>本次匯入</legend><p id="import-summary" role="status"></p><p id="import-media"></p><details><summary>檢視將匯入的完整內容</summary><pre id="import-content"></pre></details><button id="import-confirm" type="button" class="primary">確認匯入</button></fieldset><button id="import-cancel" type="button">不匯入，保留本機</button></dialog>
   <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label><video id="relink-preview" aria-label="待重連影片預覽，尚未確認" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
 
   <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-summary"><h2 id="delete-title">移除本機資料</h2><p id="delete-summary"></p><p>這會移除下列本站資料，無法復原；需要的筆記與影片請先另存。原相簿、原始檔與其他筆記不會刪除。</p><fieldset id="delete-controls"><legend>確認移除</legend><button id="delete-confirm" type="button">確認移除</button></fieldset><button id="delete-cancel" type="button">取消，保留資料</button></dialog>
-  <footer>免費 · 非商用 · 影片留在裝置</footer>
+  <footer data-deferred>免費 · 非商用 · 影片留在裝置</footer>
 </main></body></html>

@@ -81,6 +81,8 @@ if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCase
 // 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
 if (!selected.length) scenarios.push('overlay-export')
 if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
+// 簡化介面獨立追加，原有比較／疊影及恢復順序不變。
+if (!selected.length) scenarios.push('simplified-comparison')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -150,13 +152,21 @@ try {
       const coverage = JSON.parse(payload); mergeReceipt(map, receipt(coverage)); evidence.navigationSnapshots++
       writeFileSync(resolve(directory, `navigation-${evidence.navigationSnapshots}.json`), JSON.stringify(receipt(coverage)))
     })
-    await context.addInitScript(() => {
+    await context.addInitScript(retainedInterface => {
+      // 原功能只是暫藏：舊案例在產品模組載入前明示恢復 DOM，保留全部原斷言與順序。
+      // 來源 HTML／CSS／SW 完全相同，不能改伺服器 bytes 破壞離線雜湊驗證；新案例不移除標記。
+      if (retainedInterface) {
+        const restoring = new MutationObserver(() => {
+          if (document.body) { document.body.removeAttribute('data-comparison-only'); restoring.disconnect() }
+        })
+        restoring.observe(document, { childList: true, subtree: true })
+      }
       (globalThis as any).__danceSyntheticCameraOnly = true
       // 頁內 location.reload 也會先經 beforeunload；不能只依賴控制器的方法或較晚的 pagehide。
       window.addEventListener('beforeunload', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) })
       // DOMContentLoaded 後才註冊，讓產品的 pagehide 清理先執行；只用控制器通道，不送 App 網路寫入。
       document.addEventListener('DOMContentLoaded', () => window.addEventListener('pagehide', () => { (globalThis as any).__danceCoverageSnapshot103(JSON.stringify((globalThis as any).__coverage__ || {})) }))
-    })
+    }, activeScenario !== 'simplified-comparison')
     context.on('page', watchPage)
     const close = context.close.bind(context)
     context.close = async options => { try { await collectContext(context) } finally { await close(options); contexts.delete(context) } }
@@ -261,10 +271,10 @@ try {
         } else result = await scenario(page, recovery ? { mode: recovery } : practiceError ? { mode: practiceError } : undefined)
       }
       if (result?.navigationCoverage) assert(map.fileCoverageFor(result.navigationCoverage.path).getLineCoverage()[result.navigationCoverage.line] > 0, `頁內重新載入遺失了舊頁面的計數：${JSON.stringify(result.navigationCoverage)}`)
-      evidence.scenarios.push({ name, status: 'passed', durationMs: Date.now() - started, result })
+      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
       console.log(`PASS ${name} (${Date.now() - started}ms)`)
     } catch (error) {
-      evidence.scenarios.push({ name, status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
+      evidence.scenarios.push({ name, interface: name === 'simplified-comparison' ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
       console.error(`FAIL ${name}:`, error)
     } finally {
       await context.close(); save(); report('app')

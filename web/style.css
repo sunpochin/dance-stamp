@@ -62,3 +62,18 @@ nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
 #overlay-layout, .overlay-layout > fieldset { margin: 0; }
 .overlay-layout { grid-template-columns: 1fr; }
 @media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } .overlay-workspace > canvas { position: static; } }
+
+/* ponytail: 單一頁面標記暫藏次要工具；保留 DOM 與資料，之後恢復不用重接媒體流程。 */
+/* biome-ignore lint/complexity/noImportantStyles: 暫藏入口也必須離開鍵盤與讀屏順序，不能被 actions 等 display 覆蓋。 */
+body[data-comparison-only] [data-deferred], body[data-comparison-only] #stop:not([data-stoppable]) { display: none !important; }
+/* 保存未確認時原片下載是救援入口，不能跟一般介面簡化一起藏掉。 */
+/* biome-ignore lint/complexity/noImportantStyles: 救援原片必須覆蓋一般暫藏規則；原本 hidden 的缺片仍維持隱藏。 */
+body[data-comparison-only] #storage-recovery:not([hidden]) ~ #save-result [data-deferred="original"]:not([hidden]) { display: inline-flex !important; }
+/* 進階位置欄暫藏後，疊影使用完整寬度，避免留下空白欄位。 */
+body[data-comparison-only] .overlay-workspace { grid-template-columns: minmax(0, 1fr); }
+/* 先只選片；沿用已提交來源的摘要標記，兩片就緒才顯示起點、比較與輸出，不另存 UI 狀態。 */
+/* biome-ignore lint/complexity/noImportantStyles: 分階段顯示必須覆蓋 fieldset／actions 的版面規則。 */
+body[data-comparison-only]:not(:has(#self-selection[data-source])) :is(.segment-settings, #compare, section[aria-labelledby="overlay-title"], .video-card > .actions, #self-start) { display: none !important; }
+/* 缺片時也可能保存未確認；救援下載區不可被「兩片尚未就緒」一併隱藏。 */
+/* biome-ignore lint/complexity/noImportantStyles: 只有正常選片階段收起輸出，救援時原片與已成檔連結必須可讀。 */
+body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recovery:not([hidden]))) #save-result { display: none !important; }
