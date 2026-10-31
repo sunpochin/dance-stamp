@@ -6,11 +6,13 @@ async page => {
   await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('框選只允許本機合成影片'); }; window.confirm = () => true; });
   await page.goto(origin);
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled && document.getElementById('compare').getAttribute('aria-busy') !== 'true');
+  // 後段仍需用此入口驗證擴大分析區間；保留共用函式，並以真正失焦提交。
+  const set = async (id, value) => { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).press('Tab'); await idle(); };
   await idle();
   assert(await page.locator('body').getAttribute('data-comparison-only') !== null, '人物跟隨沒有走真正預設介面');
   for (const side of ['reference', 'self']) { await page.locator('#' + side + '-file').setInputFiles('output/follow/' + side + '.mp4'); await idle(); }
   // 與真正預設頁一樣先提交片段，再用定位尺設起點；不操作已收起的舊輸入。
-  await page.locator('#end').fill('3'); await page.locator('#end').press('Tab'); await idle();
+  await set('end', 3);
   await page.locator('#self-seek').fill('0'); await page.locator('#self-seek').dispatchEvent('input');
   await page.waitForFunction(() => { const video = document.getElementById('self'); return !video.seeking && video.currentTime < .02; });
   await page.locator('#self-start').click(); await idle();
