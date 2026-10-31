@@ -41,6 +41,9 @@
         <p id="reference-file-hint" class="hint">支援 MOV／MP4 等；選片不會自動上傳。</p></details>
         <!-- biome-ignore lint/a11y/useMediaCaption: 來源是使用者本機影片，不能憑空附上假字幕；本版不處理字幕生成。 -->
         <video id="reference" aria-label="示範影片播放器" aria-describedby="audio-status" controls playsinline preload="metadata"></video>
+        <div class="follow-tools"><button type="button" id="reference-follow" disabled>框選老師並自動跟隨</button>
+          <label class="check-label"><input type="checkbox" id="reference-follow-enabled" disabled>啟用老師跟隨裁切</label><button type="button" id="reference-follow-clear" disabled>清除老師選框</button>
+          <p id="reference-follow-status" class="hint" role="status">尚未框選，使用完整畫面。</p></div>
         <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
         <div class="source-timeline">
           <label for="reference-seek">老師的影片定位 <output id="reference-seek-time" for="reference-seek" aria-live="off">0.000 秒</output></label>
@@ -60,6 +63,9 @@
         <button type="button" id="select-self-video" class="primary" aria-describedby="self-file-hint" disabled>選擇練習影片</button><input id="self-file" type="file" aria-label="選擇練習影片" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*" hidden>
         <p id="self-file-hint" class="hint">先選左邊示範影片，再選練習影片。</p></details>
         <video id="self" aria-label="練習影片播放器" controls playsinline muted preload="metadata"></video>
+        <div class="follow-tools"><button type="button" id="self-follow" disabled>框選自己並自動跟隨</button>
+          <label class="check-label"><input type="checkbox" id="self-follow-enabled" disabled>啟用自己跟隨裁切</label><button type="button" id="self-follow-clear" disabled>清除自己選框</button>
+          <p id="self-follow-status" class="hint" role="status">尚未框選，使用完整畫面。</p></div>
         <!-- 定位只看畫面，按設起點才改配方；連續秒數不播報，避免讀屏蓋過操作。 -->
         <div class="source-timeline">
           <label for="self-seek">我的影片定位 <output id="self-seek-time" for="self-seek" aria-live="off">0.000 秒</output></label>
@@ -204,5 +210,19 @@
   <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label><video id="relink-preview" aria-label="待重連影片預覽，尚未確認" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
 
   <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-summary"><h2 id="delete-title">移除本機資料</h2><p id="delete-summary"></p><p>這會移除下列本站資料，無法復原；需要的筆記與影片請先另存。原相簿、原始檔與其他筆記不會刪除。</p><fieldset id="delete-controls"><legend>確認移除</legend><button id="delete-confirm" type="button">確認移除</button></fieldset><button id="delete-cancel" type="button">取消，保留資料</button></dialog>
+  <dialog id="follow-dialog" aria-labelledby="follow-title" aria-describedby="follow-help follow-message">
+    <h2 id="follow-title">框選人物並自動跟隨</h2>
+    <p id="follow-help" class="hint">在原片方向的畫面拖曳，框住一個人的完整身體並留一點活動空間；也可用下方百分比調框。方向鍵移動、Shift＋方向鍵改大小。左右鏡像會套用在比較預覽與下載成品。</p>
+    <canvas id="follow-canvas" width="640" height="360" tabindex="0" aria-label="人物選框畫面，方向鍵移動選框，Shift 加方向鍵調整大小"></canvas>
+    <fieldset id="follow-controls"><legend>選框範圍（百分比）</legend><div class="settings">
+      <label>左邊位置 %<input id="follow-x" name="x" type="number" min="0" max="98" step="0.1" value="20"></label>
+      <label>上邊位置 %<input id="follow-y" name="y" type="number" min="0" max="98" step="0.1" value="5"></label>
+      <label>寬度 %<input id="follow-width" name="width" type="number" min="2" max="100" step="0.1" value="60"></label>
+      <label>高度 %<input id="follow-height" name="height" type="number" min="2" max="100" step="0.1" value="90"></label>
+    </div></fieldset>
+    <p id="follow-message" role="status"></p>
+    <div class="actions follow-dialog-actions"><button id="follow-confirm" type="button" class="primary">確認選框並分析跟隨</button><button id="follow-cancel" type="button">取消，保留原設定</button></div>
+    <p class="hint">只在本機分析目前比較片段。分析後請播放檢查；遮擋、轉身或多人交錯仍可能跟錯，需重新框選或縮短片段。設定只留本頁，下載成品會保留裁切，原片不變。</p>
+  </dialog>
   <footer data-deferred>免費 · 非商用 · 影片留在裝置</footer>
 </main></body></html>

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, posix, resolve } from 'node:path'
 import { publicProblems } from './publicSafety'
-import { webFiles, notices } from './web-assets'
+import { webFiles, notices, binaryAssetHashes } from './web-assets'
 
 export const packageInputs = [
   ...[...webFiles, ...notices, '_headers'].map(file => `dist/web/${file}`),
@@ -37,7 +37,7 @@ export const packageInputs = [
   'docs/evidence/issue-3-current-protection-audit.md', 'docs/evidence/issue-12-native-capacity-ui.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
-  'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'docs/ai/harness-import.json',
+  'vendor/jia-jian-log-harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'vendor/mediapipe/LICENSE', 'docs/ai/harness-import.json',
 ].sort()
 const packagePaths = [...packageInputs, 'release.json', 'SHA256SUMS'].sort()
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -65,7 +65,12 @@ export function readAllowed(root: string, allowed: string[], complete = true): M
 
 export function sealPackage(payload: Map<string, Uint8Array>, metadata: { version: string; sourceRevision: string; trackedChanges: boolean }) {
   if (!samePaths(payload.keys(), packageInputs) || !/^[a-f0-9]{16}$/.test(metadata.version) || !/^[a-f0-9]{40}$/.test(metadata.sourceRevision)) throw new Error('下載包來源或白名單不完整')
-  for (const [name, bytes] of payload) if (publicProblems(name, new TextDecoder('utf-8', { fatal: true }).decode(bytes)).length) throw new Error('下載包未通過公開內容掃描')
+  for (const [name, bytes] of payload) {
+    const binary = name.startsWith('dist/web/') ? binaryAssetHashes[name.slice('dist/web/'.length)] : undefined
+    // 只允許官方固定 bytes；未知檔案依舊逐字掃描，不能用副檔名繞過公開檢查。
+    if (binary) { if (hash(bytes) !== binary) throw new Error('下載包二進位來源指紋不符') }
+    else if (publicProblems(name, new TextDecoder('utf-8', { fatal: true }).decode(bytes)).length) throw new Error('下載包未通過公開內容掃描')
+  }
   // 直接核對將封裝／校驗的 Markdown bytes；不能以來源檔通過代替 dist/web 副本在新位置仍有目標。
   for (const [name, bytes] of payload) if (name.endsWith('.md')) for (const match of new TextDecoder().decode(bytes).matchAll(/\]\(([^\s)]+)\)/g)) {
     const link = match[1].split('#')[0]
