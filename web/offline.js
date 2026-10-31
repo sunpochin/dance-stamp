@@ -20,10 +20,13 @@ function offlineStatus(worker) {
 function activateUpdate(candidate) {
   return new Promise((resolve, reject) => {
     const channel = new MessageChannel();
-    const close = () => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); navigator.serviceWorker.removeEventListener('controllerchange', changed); };
-    const changed = () => { if (navigator.serviceWorker.controller === candidate) { close(); resolve(undefined); } };
+    const wasControlled = !!navigator.serviceWorker.controller;
+    const close = () => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); navigator.serviceWorker.removeEventListener('controllerchange', changed); candidate.removeEventListener('statechange', changed); };
+    // 首次開站可能尚未受 SW 控制；此時候選真正 activated 即可重載，不必等不會發生的接管事件。
+    const changed = () => { if (navigator.serviceWorker.controller === candidate || (!wasControlled && candidate.state === 'activated')) { close(); resolve(undefined); } };
     const timer = setTimeout(() => { close(); reject(new Error('更新未完成，請稍後再試；目前工作保留。')); }, 10000);
     navigator.serviceWorker.addEventListener('controllerchange', changed);
+    candidate.addEventListener('statechange', changed);
     channel.port1.onmessage = event => { if (event.data?.error) { close(); reject(new Error(event.data.error)); } };
     try { candidate.postMessage({ type: 'ACTIVATE_UPDATE' }, [channel.port2]); }
     catch (error) { close(); reject(error); }

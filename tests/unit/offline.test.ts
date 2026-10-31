@@ -201,3 +201,17 @@ test('同意前不啟用；工作未完成或他頁拒絕時保留頁面，成�
   await waitFor(() => current.counts().reloads === 1)
   expect(requests).toBe(2); expect(current.document.body.inert).toBe(false)
 })
+
+test('首次尚未受控制的頁面，同意後等候選真正啟用才重載', async () => {
+  const current = setup({ controlled: false }); await current.start()
+  const candidate = Object.assign(new EventTarget(), { state: 'installed', postMessage() {} })
+  current.registration.waiting = candidate
+  current.ui.checkUpdate.dispatchEvent(new Event('click')); await waitFor(() => !current.ui.applyUpdate.hidden)
+  current.ui.applyUpdate.dispatchEvent(new Event('click'))
+  expect(current.counts().reloads).toBe(0)
+  candidate.state = 'activating'; candidate.dispatchEvent(new Event('statechange'))
+  expect(current.counts().reloads).toBe(0)
+  candidate.state = 'activated'; candidate.dispatchEvent(new Event('statechange'))
+  await waitFor(() => current.counts().reloads === 1)
+  expect(current.serviceWorker.controller).toBeNull()
+})
