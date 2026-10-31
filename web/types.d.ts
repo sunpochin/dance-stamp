@@ -167,6 +167,7 @@ export interface Elements {
   "scrub": HTMLInputElement;
   "intersection": HTMLParagraphElement;
   "play": HTMLButtonElement;
+  "overlay-play": HTMLButtonElement;
   "export": HTMLButtonElement;
   // 疊影共用來源與控制流程，獨立畫布避免把透明度寫進 VS 輸出。
   "overlay-canvas": HTMLCanvasElement;
