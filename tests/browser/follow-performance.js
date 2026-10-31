@@ -52,10 +52,12 @@ async (page, options = {}) => {
         }); window.perfFlowStartedAt = began; observer.observe(document, { attributes: true, subtree: true });
       }, { once: true, capture: true });
     });
+    // 沿用原確認操作的180秒總預算；先等完整流程，不能先被讀取就緒用的15秒idle截斷。
+    const operationDeadline = Date.now() + 180000, remaining = () => Math.max(1, operationDeadline - Date.now());
     await page.locator('#follow-confirm').click();
-    if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'));
+    if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'), null, { timeout: remaining() });
     if (expected === 'cancelled') await page.locator('#follow-cancel').click();
-    await idle(); await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: 180000 });
+    await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: remaining() }); await idle();
     const actual = await page.evaluate(old => ({ wallMs: window.perfWall, frames: window.perfFrames - old.frames, workers: window.perfWorkers - old.workers, terminated: window.perfTerminated - old.terminated }), counters);
     assert(actual.workers === (expected === 'failed' ? 0 : 1) && actual.terminated === actual.workers, 'Worker 建立／釋放次數改變');
     if (await page.locator('#follow-dialog').evaluate(d => d.open)) await page.locator('#follow-cancel').click();
