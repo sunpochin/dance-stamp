@@ -36,6 +36,7 @@ export interface Elements {
   "capacity-status": HTMLParagraphElement;
   "persistence-status": HTMLParagraphElement;
   "update-status": HTMLParagraphElement;
+  "update-notice": HTMLParagraphElement;
   "check-offline": HTMLButtonElement;
   "request-persist": HTMLButtonElement;
   "check-update": HTMLButtonElement;
@@ -174,6 +175,8 @@ export interface Elements {
   "export-controls": HTMLFieldSetElement;
   "export-layout": HTMLSelectElement;
   "overlay-layout": HTMLFieldSetElement;
+  // 缺片時仍可讀取原因，顯示狀態與滑桿可用性分開。
+  "overlay-layout-status": HTMLParagraphElement;
   "overlay-layout-reset": HTMLButtonElement;
   "overlay-reference-scale": HTMLInputElement;
   "overlay-reference-scale-value": HTMLOutputElement;

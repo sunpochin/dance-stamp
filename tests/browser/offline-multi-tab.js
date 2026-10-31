@@ -46,12 +46,16 @@ async (entry) => {
       navigator.serviceWorker.addEventListener('controllerchange', () => window.__twoTabControllerChanges++);
     });
     const before = await info(second); assert(before.active.complete && !before.waiting, '基線版本不完整或已有候選');
+    assert(await second.locator('#update-notice').isHidden(), '沒有候選卻出現頂部新版提醒');
     await first.bringToFront();
     await first.locator('#move-name').fill('合成尚未儲存草稿');
     // 只切主機並發出頁面還原事件；不得手動呼叫 update，否則測不到產品自動檢查。
     await first.evaluate(async () => { await fetch('/__test__/version?mode=next'); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
     // 等產品收到真正 waiting 訊號，再讀原生 registration；送出 update 不代表安裝已完成。
     await second.waitForFunction(() => document.getElementById('update-status').textContent.includes('新版已備妥'), null, { timeout: 15000 });
+    // 等候更新的說明不能只藏在已收合的離線面板；仍保留原草稿與舊分頁控制。
+    assert(await second.locator('#update-notice').isVisible(), '候選就緒卻沒有頂部新版提醒');
+    assert(await second.locator('#update-notice').textContent() === await second.locator('#update-status').textContent(), '兩處更新說明不同步');
     const bothOpen = await info(second), firstInfo = await info(first);
     assert(await first.locator('#move-name').inputValue() === '合成尚未儲存草稿', '自動檢查新版遺失尚未儲存草稿');
     assert(firstInfo.mediaCalls === 0 && firstInfo.unchanged && firstInfo.controllerChanges === 0, '第一個舊頁要求擷取或被重載／接管');
@@ -74,6 +78,7 @@ async (entry) => {
     const reopened = await context.newPage(); await reopened.goto(origin); await idle(reopened);
     await reopened.waitForFunction(() => document.getElementById('offline-status').textContent.includes('-next'), null, { timeout: 15000 });
     const after = await info(reopened);
+    assert(await reopened.locator('#update-notice').isHidden(), '已更新卻仍顯示等待提醒');
     assert(after.active.version === before.active.version + '-next' && !after.waiting, '全部舊頁關閉後候選未啟用');
     assert(JSON.stringify(await library(reopened)) === JSON.stringify(saved), '新版本改動了已保存資料');
     assert(await reopened.evaluate(async () => (await (await caches.open('synthetic-twin-unrelated')).match('/synthetic-twin-sentinel'))?.text()) === 'kept', '更新清除了無關 cache');

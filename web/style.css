@@ -58,10 +58,16 @@ nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
 
 /* 桌面調整時需一直看得到身體；預覽跟著控制區捲動，但不蓋住手機控制。 */
 .overlay-workspace { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr); gap: 16px; align-items: start; }
-.overlay-workspace > canvas { position: sticky; top: calc(min(30dvh, 10rem) + 88px + env(safe-area-inset-top)); }
+.overlay-preview { grid-column: 1; grid-row: 1; min-width: 0; position: sticky; top: calc(min(30dvh, 10rem) + 88px + env(safe-area-inset-top)); }
+/* 缺片也保留預覽欄與說明，右側控制不會因 canvas 隱藏而跳到另一欄。 */
+#overlay-layout { grid-column: 2; grid-row: 1; }
+#overlay-empty { margin: 0; padding: 24px; border: 1px dashed #718087; border-radius: 8px; }
 #overlay-layout, .overlay-layout > fieldset { margin: 0; }
 .overlay-layout { grid-template-columns: 1fr; }
-@media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } .overlay-workspace > canvas { position: static; } }
+/* 窄版先顯示調整滑桿，再顯示預覽，避免使用者得越過整張影片才找得到控制。 */
+@media (max-width: 800px) { .overlay-workspace { grid-template-columns: 1fr; } #overlay-layout, .overlay-preview { grid-column: 1; grid-row: auto; } .overlay-preview { position: static; } }
+
+
 
 /* 兩片各自有秒數尺，找畫面與提交起點分開；文字放大時刻度仍維持可讀。 */
 .source-timeline { margin: 10px 0 16px; border-top: 1px solid #455258; padding-top: 8px; }

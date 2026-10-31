@@ -13,9 +13,22 @@ async page => {
   const reset = () => page.locator('#overlay-layout-reset').click();
   await page.addInitScript(() => { navigator.mediaDevices.getUserMedia = async () => { throw new Error('位置測試禁止相機／麥克風'); }; window.confirm = () => true; });
   await page.goto(origin); await idle();
-  assert(await page.locator('#overlay-reference-scale').isDisabled(), '缺片仍能調整');
+  // 初始與只選老師時，六個滑桿都須已存在且可見；缺片停用要有可讀原因。
+  const visibleControls = async () => { for (const id of fields) assert(await page.locator('#' + id).isVisible(), id + ' 在缺片時消失'); };
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 }); await visibleControls();
+    assert(await page.locator('#overlay-reference-scale').isDisabled(), '缺片仍能調整');
+    assert((await page.locator('#overlay-layout-status').textContent()).includes('先選好'), '缺片未說明為何停用');
+    const layout = await page.locator('#overlay-layout').boundingBox(), preview = await page.locator('.overlay-preview').boundingBox();
+    assert(width > 800 || layout.y < preview.y, '窄版初始滑桿排在預覽後面');
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '初始控制超出畫面');
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  await visibleControls(); assert(await page.locator('#overlay-reference-scale').isDisabled(), '只有老師就開放調整');
   await page.locator('#self-file').setInputFiles('output/comparison/self-1.mp4'); await idle();
+  await visibleControls(); assert(await page.locator('#overlay-reference-scale').isEnabled(), '兩片就緒卻無法調整');
+  assert((await page.locator('#overlay-layout-status').textContent()).includes('拖動下方'), '就緒後仍顯示缺片說明');
   await set('start', 12, 'change'); await set('end', 15, 'change'); await set('offset', 4, 'change');
   assert(JSON.stringify(await values()) === JSON.stringify(['100', '0', '0', '100', '0', '0']), '初值不是原尺寸置中');
   const stored = () => page.evaluate(async () => JSON.stringify(await (await import('/storage.js')).readLibrary()));
