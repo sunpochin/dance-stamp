@@ -28,6 +28,7 @@ export function createFollowUI(videos, options) {
       `單側製片 ${ms(report.resultMs)}；確認後總等待 ${ms(report.totalFlowMs)}（含製片與收尾）`,
       `框選前載入 ${ms(report.preparation.loadMs)}；第一次定位 ${ms(report.preparation.firstSeekMs)}（不含手動框選時間）`,
       `Worker 建構 ${ms(report.worker.constructionMs)}／啟動 ${ms(report.worker.startupMs)}；程式載入 ${ms(report.worker.scriptImportMs)}／模型初始化 ${ms(report.worker.modelInitMs)}`,
+      `推論模式：${report.worker.runtime === 'simd' ? 'WASM SIMD' : report.worker.runtime === 'nosimd' ? '相容 WASM' : '未取得'}；Worker ${report.worker.attempts} 次，初始化回退 ${report.worker.fallbacks} 次（啟動／初始化含重試合計）`,
       row('逐次定位', report.stages.seek), row('擷取影格', report.stages.bitmap), row('模型推論', report.stages.detect), row('Worker 等待（含初始化與推論）', report.stages.roundTrip),
       report.comparison ? `同來源／片段／選框第 ${report.sameInputRun} 次，比上次 ${ms(report.comparison.differenceMs)}。` : '尚無相同來源、片段及選框的完成輪可比較。',
       '各段可能包含或重疊，不能全部相加；再次分析仍建立新 Worker／模型。',
@@ -180,11 +181,15 @@ export function createFollowUI(videos, options) {
     const aborted = () => controller.abort(parentSignal.reason);
     parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();
     analyzing = true; cancelAnalysis = () => controller.abort(); controls.disabled = true; confirm.disabled = true;
-    let worker;
-    try {
-      if (probe) { probe.workerCreatedNow = performance.now(); probe.workerCreatedAt = performance.timeOrigin + probe.workerCreatedNow; }
+    let worker, compatibility = false;
+    const createWorker = () => {
+      const began = probe ? performance.now() : 0;
+      if (probe) { probe.workerCreatedNow = began; probe.workerCreatedAt = performance.timeOrigin + began; }
       worker = new Worker('/person-worker.js');
-      if (probe) probe.workerConstructorMs = performance.now() - probe.workerCreatedNow;
+      if (probe) { probe.workerConstructorMs = (probe.workerConstructorMs ?? 0) + performance.now() - began; probe.workerAttempts++; }
+    };
+    try {
+      createWorker();
       const detect = async search => {
         signal.throwIfAborted();
         // 只看選框／目標附近，避免團體寬畫面把人物縮得太小而漏偵測；座標再映回完整原片。
@@ -196,16 +201,26 @@ export function createFollowUI(videos, options) {
         return /** @type {Promise<import('./follow').Box[]>} */ (new Promise((resolve, reject) => {
           const requested = probe ? performance.now() : 0;
           let settled = false;
-          const finish = (error, boxes) => { if (settled) return; settled = true; probe?.samples.roundTrip.push(performance.now() - requested); clearTimeout(timer); signal.removeEventListener('abort', abort); worker.onmessage = null; worker.onerror = null; error ? reject(error) : resolve(boxes); };
+          const finish = (error, boxes) => { if (settled) return; settled = true; probe?.samples.roundTrip.push(performance.now() - requested); clearTimeout(timer); signal.removeEventListener('abort', abort); if (worker) { worker.onmessage = null; worker.onerror = null; } error ? reject(error) : resolve(boxes); };
           const abort = () => finish(signal.reason, null);
           const timer = setTimeout(() => finish(new Error('人物分析逾時，請縮短片段後重試。'), null), 30_000);
           signal.addEventListener('abort', abort, { once: true });
-          worker.onmessage = ({ data }) => {
+          const reply = ({ data }) => {
+            if (data.retryCompatibility) {
+              if (settled || signal.aborted || compatibility || !data.bitmap) { data.bitmap?.close(); finish(signal.aborted ? signal.reason : new Error('人物相容初始化失敗，原結果保留。'), null); return; }
+              probe?.recordWorker(data.timing); if (probe) { probe.compatibilityFallbacks++; probe.runtime = null; }
+              // 停掉半初始化 runtime 後才建新 Worker；沿用原偵測期限與同一張影格，不重取樣。
+              worker.onmessage = null; worker.onerror = null; worker.terminate(); worker = undefined; compatibility = true;
+              try { createWorker(); worker.onmessage = reply; worker.onerror = failed; worker.postMessage({ bitmap: data.bitmap, measure: !!probe, compatibility }, [data.bitmap]); }
+              catch (error) { data.bitmap.close(); finish(error, null); }
+              return;
+            }
             probe?.recordWorker(data.timing); if (probe && !data.error) probe.processedFrames++;
             finish(data.error ? new Error(data.error) : null, data.boxes?.map(box => ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height })));
           };
-          worker.onerror = () => finish(new Error('無法啟動本機人物分析，請確認應用資源完整。'), null);
-          try { worker.postMessage({ bitmap, measure: !!probe }, [bitmap]); }
+          const failed = () => finish(new Error('無法啟動本機人物分析，請確認應用資源完整。'), null);
+          worker.onmessage = reply; worker.onerror = failed;
+          try { worker.postMessage({ bitmap, measure: !!probe, compatibility }, [bitmap]); }
           catch (error) { bitmap.close(); finish(error, null); }
         }));
       };

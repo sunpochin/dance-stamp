@@ -7,7 +7,7 @@
 
 現在是每秒影片挑八張照片，一張張找出你框的人。含頭尾，10／30／60 秒會看 81／241／481 張；老師與自己的影片各分析一次，就各做一份工作。每輪都重新叫助手、打開模型，再開始看照片；同一段重跑，不代表模型一直留著。
 
-像替每一站蓋時間章：載入影片、移到畫面、擷取圖片、啟動模型、辨識人物各記自己的耗時。這輪只加時間章，沒有換模型、重用 Worker、降低 8 Hz、放寬跟隨門檻或改匯出。
+像替每一站蓋時間章：載入影片、移到畫面、擷取圖片、啟動模型、辨識人物各記自己的耗時。#176 原輪只加時間章；後續 #192 用同模型 SIMD 做對照，仍不重用 Worker、降低 8 Hz、放寬跟隨門檻或改匯出。
 
 主線現在找完人還會製作可下載的單側影片。這就像先決定相框怎麼移動，再把移動結果錄成一支影片；兩段都要等，所以碼表分開顯示「分析」「單側製片」和整體等待，製片失敗或取消也保留上次結果。
 
@@ -25,7 +25,7 @@
 
 `follow-ui.js` 建立獨立靜音影片元素，先 load／定位至比較片段起點。確認後，每 0.125 秒來源時間依序 await seek → createImageBitmap → 將原影格轉移至本機 Worker → 等待偵測框；沿既有身分匹配、短暫失聯與平滑計算裁切路徑。後續預覽與 VS 使用同一路徑和原鏡像／時間／音訊規則，沒有新的播放時鐘。8 Hz 是影片時間的取樣密度，實際每秒能處理幾張另由碼表計算，不是強迫分析用原速播放。
 
-`person-worker.js` 沿用固定 EfficientDet-Lite0 int8、IMAGE 模式、CPU delegate 與非 SIMD WASM。首次訊息執行 importScripts／createFromOptions，後續每張仍呼叫完整 detector.detect；保留主線狹框的等比補邊與座標還原，補邊準備屬 Worker 等待內其餘工作，沒有混進 detect 呼叫。分析結束即終止模型 Worker，再沿主線製作單側結果；取消仍保留既有成品。模型／runtime 約 17MB，快取命中可省網路傳輸，不能直接視為模型物件已初始化。Cloudflare 若作為靜態資源供應端，不參與這條本機影片解碼與推論路徑；原版 benchmark 實際使用自有 loopback 主機。
+`person-worker.js` 沿用固定 EfficientDet-Lite0 int8、IMAGE 模式及 CPU delegate。#176 原版使用非 SIMD，#192 候選依能力選擇 SIMD／相容 WASM，詳見[本輪設計與證據](evidence/issue-192-follow-simd.md)。首次訊息執行 importScripts／createFromOptions，後續每張仍呼叫完整 detector.detect；保留主線狹框的等比補邊與座標還原，補邊準備屬 Worker 等待內其餘工作，沒有混進 detect 呼叫。分析結束即終止模型 Worker，再沿主線製作單側結果；取消仍保留既有成品。快取命中可省網路傳輸，不能直接視為模型物件已初始化。Cloudflare 若作為靜態資源供應端，不參與這條本機影片解碼與推論路徑；基準使用自有 loopback 主機。
 
 以下依原 API 邊界加時鐘，數字隨既有 Worker 回覆返回，沒有新增握手、併發推論、影片上傳或演算法調整。原追蹤與匯出契約仍引用 [RECORD_COMPARE](RECORD_COMPARE.md) 與 [人物跟隨設計](../TECHNICAL.md#165-雙側人物跟隨裁切)。
 
@@ -68,7 +68,19 @@ bun --no-env-file scripts/benchmark-follow.ts
 
 ## 依結果才選下一步
 
-2026-11-01 的 M4 Pro／固定長 GOP 合成片結果與優先順序見 [#176 基準證據](evidence/issue-176-follow-performance.md)。目前只量測，尚未實作任何最佳化。
+2026-11-01 的原版 M4 Pro／固定長 GOP 合成片結果與當時優先順序見 [#176 基準證據](evidence/issue-176-follow-performance.md)。後續整合版基準及 SIMD 對照另記 [#192](evidence/issue-192-follow-simd.md)，不覆寫或移記原數字。
+
+## #192：一張照片的計算分批一起做
+
+白話：每秒仍看八張照片，SIMD 讓電腦一次處理一排數字。像同樣洗八個盤子，工具做得快，沒有少洗盤子。不支援就用原本工具；若新工具開不起來，先完整關掉，再由新的助手用原工具試一次。兩次都失敗或你按取消，都保留上次影片。
+
+技術：固定套件的 `FilesetResolver.isSimdSupported()` 選擇同源 `vision-simd.js/.wasm` 或 `vision-wasm.js/.wasm`，CPU、模型、補邊、門檻與取樣維持。SIMD 初始化失敗才把原 ImageBitmap 交還主執行緒，終止舊 Worker，再建相容 Worker；同一影格不重新擷取，沿用原三十秒偵測期限，不因回退重新計時。相容版只試一次，推論本身失敗維持原失敗保全。
+
+碼表另外顯示實際 runtime、Worker 次數與回退次數。建構、啟動、程式載入與初始化累加已收到的重試成本；取消中未回覆的工作仍是部分數字。SIMD 能力探測留在 Worker 等待內，不混進模型初始化 API。成功重跑比較也要求 runtime 相同，不把相容輪與加速輪混成「暖機」。報告仍不含私人來源、影格、座標或裝置名稱。
+
+兩套固定 runtime 都隨離線包與 SHA manifest 提供，代價是增加一份約14MB SIMD資源；保留完整離線回退，不改SW完整性驗證以省下載。基準先完成快取，不代表首次網路載入更快。官方能力 API 見 [FilesetResolver](https://developers.google.com/edge/api/mediapipe/js/tasks-vision.filesetresolver)，實作以鎖定的1.2.0套件為準。
+
+本機對照可用 `bun --no-env-file scripts/benchmark-follow.ts <原基準的合成影片路徑> compare`，同一檔案 bytes、兩側10／30／60秒各兩輪，交錯 SIMD／相容順序。僅此合成診斷旁聽選框與偵測幾何，以原追蹤函式重播並核對真正製片的裁切；不擷取像素、不加入產品報告。再以 `bun --no-env-file scripts/compare-follow-benchmarks.ts <整合版run.json> <交錯對照run.json>` 比對同環境、格數、失聯、偵測框與裁切路徑。這些本機幾何收據留ignored output，不上傳。
 
 先以互斥的定位總時間、影格擷取總時間、Worker 等待及其餘主執行緒時間排序；再拆 Worker 等待內的程式載入、模型初始化與推論。Worker 啟動可與其他步驟重疊，不另加一次。
 

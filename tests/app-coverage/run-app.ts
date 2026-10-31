@@ -69,7 +69,7 @@ function watchPage(page: Page) {
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
 // 獨立跟隨結果也走真正預設頁；整合時不能退回暫藏工具全開的介面。
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance'])
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance', 'follow-runtime'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -101,6 +101,8 @@ if (!selected.length) scenarios.push('person-follow')
 if (!selected.length) scenarios.push('follow-results')
 // 計時只驗數字與保全；CI 機器速度不當成效能門檻或最佳化證據。
 if (!selected.length) scenarios.push('follow-performance')
+// 相容回退用真模型與明示資源故障；阻擋 SW 僅為讓受控網路故障確實到達模型載入。
+if (!selected.length) scenarios.push('follow-runtime')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -194,7 +196,7 @@ try {
     activeScenario = name
     updateMode = 'current'
     assert(/^[a-z][a-z-]+$/.test(name), '只接受明確的瀏覽器回歸名稱')
-    const context = await browser.newContext(name === 'webkit-audio-branch' || name === 'webkit-capture-branch' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
+    const context = await browser.newContext(name === 'follow-runtime' ? { serviceWorkers: 'block' } : name === 'webkit-audio-branch' || name === 'webkit-capture-branch' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
     try {
       await page.goto(origin)
       if (name === 'self-failure') {
