@@ -63,4 +63,4 @@
 
 交錯收據 `output/follow-benchmark-1793484311763/run.json`，SHA256 `d660200d1aff811e6d54a24acd2c14d1b43bea9ab2874ad221ecdaeb895ea99b`；嚴格比較的 `comparison.json` 留同目錄。零頁面錯誤、自有主機停止、已知程序全退出、自己的nonce鎖正常釋放。原片／原收據與兩個模式的合成幾何均留本機，不上傳原始影格或私人影片。
 
-後續整合 main 的新增回歸須保留相同產品指紋，最終完整CI以PR所附同head的run為準。原生Safari、實體手機、私人舞蹈／遮擋／快轉、冷網路及完整G1–G7仍未驗證；本輪結果限於上述合成片與M4 Pro／Chrome，初次下載會增加SIMD資源成本。
+本輪整合 main `2f3a2c4c85f6500ea03d7cc2cc86ddd2c2c3667c` 的音訊回歸及Safari證據；原77案順序保留，`follow-runtime` 追加為第78案，WebKit供聲分支與SW故障隔離配置均保留。受測產品JS與靜態資源指紋不變，最終完整CI以PR所附同head的run為準。原生Safari、實體手機、私人舞蹈／遮擋／快轉、冷網路及完整G1–G7仍未驗證；本輪結果限於上述合成片與M4 Pro／Chrome，初次下載會增加SIMD資源成本。
