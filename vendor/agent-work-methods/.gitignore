@@ -1,0 +1,8 @@
+# 檔案用途：忽略可重建檔與私人設定。所在層：Git 邊界。主要關聯：scripts/check.py。
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+node_modules/
+dist/

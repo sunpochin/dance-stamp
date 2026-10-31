@@ -1,0 +1,263 @@
+{
+  "schemaVersion": 1,
+  "repository": "sunpochin/agent-work-methods",
+  "version": "0.1.0",
+  "ref": "v0.1.0",
+  "commit": "938619f5472ff4475f702d51e2a466ab0cc63f60",
+  "archiveSha256": "4725f110dd00895efec1d2b3a7dacebb6a8dbe55651f8ceb304945c5167c354f",
+  "files": [
+    {
+      "source": ".github/workflows/check.yml",
+      "destination": "vendor/agent-work-methods/.github/workflows/check.yml",
+      "sha256": "f10b3f0d8d007f67f0c1385cce2a7a01b16b72c36b2b0a28ab6fa6bcf88fa72f",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": ".gitignore",
+      "destination": "vendor/agent-work-methods/.gitignore",
+      "sha256": "0ee9f00a0fd5ae7fab132019465c1b615305d27a2b14d7b55e1552b8c7c672e2",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "AGENTS.md",
+      "destination": "vendor/agent-work-methods/AGENTS.md",
+      "sha256": "81d5f16d5f5d345f8037697ed4bf90d605e64876de87eb77bfd92ac1bcfcb5ee",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "vendor/agent-work-methods/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "NOTICE.md",
+      "destination": "vendor/agent-work-methods/NOTICE.md",
+      "sha256": "2f396bd6a845d2c3804c2a190112ca3eebd6b6a20351e16230042ec96efb42f0",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "README.md",
+      "destination": "vendor/agent-work-methods/README.md",
+      "sha256": "d9a05b299b245f935ccf21340ef912cd93ad247a08c2e36e18b3aa6499080421",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "TECHNICAL.md",
+      "destination": "vendor/agent-work-methods/TECHNICAL.md",
+      "sha256": "53e83c35d666c8ee7e30bc9e45a53a24f4f2909ceb4436d0fcbc5d0e3e5e6e6a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "docs/ADOPTION.md",
+      "destination": "vendor/agent-work-methods/docs/ADOPTION.md",
+      "sha256": "8adad59b449507fdeaf79c9ab501f0b53a4160ff0b378728e5d1c4f561f35cdb",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "docs/VALIDATION.md",
+      "destination": "vendor/agent-work-methods/docs/VALIDATION.md",
+      "sha256": "6a8a6fa08b99a5737a9e09923d74c3cdeaa32947ca73e111efc2a4982cb49f60",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "package.json",
+      "destination": "vendor/agent-work-methods/package.json",
+      "sha256": "ff14553b84ba068caef08640502da48acb1e165501ccc7bdeda900d8c7496af3",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "provenance.json",
+      "destination": "vendor/agent-work-methods/provenance.json",
+      "sha256": "fc58b3977716323c4c2ad67ac703deb46295aea89772f65b7fc33725329f2b67",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "scripts/check.py",
+      "destination": "vendor/agent-work-methods/scripts/check.py",
+      "sha256": "ab0ddaec9c4b8781c0dd82d2261651439666da3f1700191ebb6a2f100eb6a556",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-debugging/LICENSE",
+      "destination": "vendor/agent-work-methods/skills/awm-debugging/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-debugging/NOTICE.md",
+      "destination": "vendor/agent-work-methods/skills/awm-debugging/NOTICE.md",
+      "sha256": "0f16bdd6bd6b04d12a8975d914ed53c66a97a4dd77d49912760103c08fb80d54",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-debugging/SKILL.md",
+      "destination": "vendor/agent-work-methods/skills/awm-debugging/SKILL.md",
+      "sha256": "57e020d5dbc2c90caa7d980c9b6939286549488105de133eb9d4f3eeeb3ed392",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-debugging/references/guide.md",
+      "destination": "vendor/agent-work-methods/skills/awm-debugging/references/guide.md",
+      "sha256": "cb14331ad2863ab1d233411e5a1294f0b36838b4870b6734760a06e237670124",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-frontend-review/LICENSE",
+      "destination": "vendor/agent-work-methods/skills/awm-frontend-review/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-frontend-review/NOTICE.md",
+      "destination": "vendor/agent-work-methods/skills/awm-frontend-review/NOTICE.md",
+      "sha256": "0f16bdd6bd6b04d12a8975d914ed53c66a97a4dd77d49912760103c08fb80d54",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-frontend-review/SKILL.md",
+      "destination": "vendor/agent-work-methods/skills/awm-frontend-review/SKILL.md",
+      "sha256": "c65a6c6e9150c00b4b8f155c126f48d19f265481f584519ebe51f71cd24f813f",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-frontend-review/references/guide.md",
+      "destination": "vendor/agent-work-methods/skills/awm-frontend-review/references/guide.md",
+      "sha256": "ca09400cdca60871aee8e67ec0825fcff88557064715f6c9a3590477e02d0e3a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-onboarding/LICENSE",
+      "destination": "vendor/agent-work-methods/skills/awm-onboarding/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-onboarding/NOTICE.md",
+      "destination": "vendor/agent-work-methods/skills/awm-onboarding/NOTICE.md",
+      "sha256": "0f16bdd6bd6b04d12a8975d914ed53c66a97a4dd77d49912760103c08fb80d54",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-onboarding/SKILL.md",
+      "destination": "vendor/agent-work-methods/skills/awm-onboarding/SKILL.md",
+      "sha256": "f4b942dc118d072627fbf5c84e76437752500a10d9bb80cea95abcbee84e647f",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-onboarding/references/guide.md",
+      "destination": "vendor/agent-work-methods/skills/awm-onboarding/references/guide.md",
+      "sha256": "443b8eac29cc1e4afeb5926093551cc588db5a6f3d815a88d087a93d3867b5c2",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-review-evidence/LICENSE",
+      "destination": "vendor/agent-work-methods/skills/awm-review-evidence/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-review-evidence/NOTICE.md",
+      "destination": "vendor/agent-work-methods/skills/awm-review-evidence/NOTICE.md",
+      "sha256": "0f16bdd6bd6b04d12a8975d914ed53c66a97a4dd77d49912760103c08fb80d54",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-review-evidence/SKILL.md",
+      "destination": "vendor/agent-work-methods/skills/awm-review-evidence/SKILL.md",
+      "sha256": "40f98b009dbef163c97f3f9fd694b53a673c5eb8c520ed9c86fb7a6d69fe765a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-review-evidence/references/guide.md",
+      "destination": "vendor/agent-work-methods/skills/awm-review-evidence/references/guide.md",
+      "sha256": "f6db00bba303d2d1cf193e8a564b48f6afc0af3644e8e4ca2cd145ec8e57a7f1",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-skill-safety/LICENSE",
+      "destination": "vendor/agent-work-methods/skills/awm-skill-safety/LICENSE",
+      "sha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-skill-safety/NOTICE.md",
+      "destination": "vendor/agent-work-methods/skills/awm-skill-safety/NOTICE.md",
+      "sha256": "0f16bdd6bd6b04d12a8975d914ed53c66a97a4dd77d49912760103c08fb80d54",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-skill-safety/SKILL.md",
+      "destination": "vendor/agent-work-methods/skills/awm-skill-safety/SKILL.md",
+      "sha256": "2ce3a19d1fb4243ea0f1ed170e25dfa362eff8eb6923197fec8ea9d993099343",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "skills/awm-skill-safety/references/guide.md",
+      "destination": "vendor/agent-work-methods/skills/awm-skill-safety/references/guide.md",
+      "sha256": "c73d7a879bb630e1ab73cad686c021f7b1e53aae9d1360f3fd1d866eebb09705",
+      "distribution": "public",
+      "treatment": "active-copy"
+    },
+    {
+      "source": "tests/test_bundle.py",
+      "destination": "vendor/agent-work-methods/tests/test_bundle.py",
+      "sha256": "52f8fae739624f422f784c1ab5314861cb20eb00371f0ce82687baa5b5e7890b",
+      "distribution": "public",
+      "treatment": "active-copy"
+    }
+  ],
+  "aliases": {
+    "skills/awm-debugging": "../vendor/agent-work-methods/skills/awm-debugging",
+    ".agents/skills/awm-debugging": "../../skills/awm-debugging",
+    ".codex/skills/awm-debugging": "../../skills/awm-debugging",
+    ".claude/skills/awm-debugging": "../../skills/awm-debugging",
+    "skills/awm-frontend-review": "../vendor/agent-work-methods/skills/awm-frontend-review",
+    ".agents/skills/awm-frontend-review": "../../skills/awm-frontend-review",
+    ".codex/skills/awm-frontend-review": "../../skills/awm-frontend-review",
+    ".claude/skills/awm-frontend-review": "../../skills/awm-frontend-review",
+    "skills/awm-onboarding": "../vendor/agent-work-methods/skills/awm-onboarding",
+    ".agents/skills/awm-onboarding": "../../skills/awm-onboarding",
+    ".codex/skills/awm-onboarding": "../../skills/awm-onboarding",
+    ".claude/skills/awm-onboarding": "../../skills/awm-onboarding",
+    "skills/awm-review-evidence": "../vendor/agent-work-methods/skills/awm-review-evidence",
+    ".agents/skills/awm-review-evidence": "../../skills/awm-review-evidence",
+    ".codex/skills/awm-review-evidence": "../../skills/awm-review-evidence",
+    ".claude/skills/awm-review-evidence": "../../skills/awm-review-evidence",
+    "skills/awm-skill-safety": "../vendor/agent-work-methods/skills/awm-skill-safety",
+    ".agents/skills/awm-skill-safety": "../../skills/awm-skill-safety",
+    ".codex/skills/awm-skill-safety": "../../skills/awm-skill-safety",
+    ".claude/skills/awm-skill-safety": "../../skills/awm-skill-safety"
+  }
+}
