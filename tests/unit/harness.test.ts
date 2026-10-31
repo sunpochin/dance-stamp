@@ -2,7 +2,16 @@
 import { describe, expect, test } from 'bun:test'
 import { containsSecret, protectedPath } from '../../scripts/stagedSafety'
 import { readFileSync } from 'node:fs'
-import { publicProblems } from '../../scripts/publicSafety'
+import { pinnedSkillAlias, publicProblems } from '../../scripts/publicSafety'
+
+test('固定共用 skill 入口只接受對應的 repo 內實體目標', () => {
+  for (const prefix of ['skills', '.agents/skills', '.codex/skills', '.claude/skills']) {
+    expect(pinnedSkillAlias(`${prefix}/awm-onboarding`, 'vendor/agent-work-methods/skills/awm-onboarding')).toBe(true)
+    expect(pinnedSkillAlias(`${prefix}/awm-onboarding`, 'vendor/agent-work-methods/skills/awm-debugging')).toBe(false)
+    expect(pinnedSkillAlias(`${prefix}/awm-onboarding`, '../private/awm-onboarding')).toBe(false)
+  }
+  expect(pinnedSkillAlias('arbitrary/awm-onboarding', 'vendor/agent-work-methods/skills/awm-onboarding')).toBe(false)
+})
 
 test('公開檢查拒絕本機副本、個人識別與正式專案，保留合成範例', () => {
   // 以組合文字測試敏感格式，避免把真聯絡方式或實際專案寫進 fixture。

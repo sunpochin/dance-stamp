@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "sourceRepository": "https://github.com/sunpochin/jia-jian-log",
+  "sourceCommit": "fefc821045cc92df25101ce1554fb6c80e4e0093",
+  "sourceLicense": "MIT",
+  "sourceLicenseBlob": "43e4e96fa21f343cc57d5cb010c8e563a312ea9f",
+  "sourceLicenseSha256": "c9fbb67b1786fe95dad71460d775a7cb33821e7fb4d6e593dbd0f3e7ba03e31a",
+  "treatment": "Generalized and rewritten from MIT source methods; source-product policies, personal preferences, scripts and later product-specific derivatives are excluded.",
+  "skills": {
+    "awm-onboarding": [
+      "skills/repo-onboarding/SKILL.md",
+      "docs/agents/issue-driven-workflow.md"
+    ],
+    "awm-debugging": [
+      "docs/agents/model-escalation.md",
+      "docs/agents/code-conventions.md"
+    ],
+    "awm-review-evidence": [
+      "docs/agents/review-governance.md",
+      "docs/agents/pr-evidence.md"
+    ],
+    "awm-frontend-review": [
+      "skills/frontend-review/SKILL.md",
+      "docs/agents/code-conventions.md"
+    ],
+    "awm-skill-safety": [
+      "docs/agents/skill-security.md",
+      ".codex/skills/safe-skill-usage/SKILL.md"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 /* 檔案用途：檢查即將公開的已追蹤檔案，不讀本機參考與私人媒體。所在層：品質入口。主要關聯：publicSafety.ts、AGENTS.md。 */
-import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { publicProblems } from './publicSafety'
+import { lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
+import { pinnedSkillAlias, publicProblems } from './publicSafety'
 
 const root = resolve(import.meta.dir, '..')
 const result = Bun.spawnSync(['git', 'ls-files', '-z'], { cwd: root, stdout: 'pipe', stderr: 'pipe' })
@@ -11,9 +11,12 @@ const problems: string[] = []
 for (const path of paths) {
   const absolute = resolve(root, path)
   if (lstatSync(absolute).isSymbolicLink()) {
-    // 公開 skill 只可連到同一 repo 的 canonical skills，不可偷連到使用者家目錄。
+    // 既有本地 skills 與固定共用入口都核對實體目標，不能藉第二層連結逃出 repo。
     const target = resolve(dirname(absolute), readlinkSync(absolute))
-    if (!target.startsWith(`${root}/skills/`)) problems.push(`${path}: unsafe-symlink`)
+    let actual = ''
+    try { actual = realpathSync(absolute) } catch { problems.push(`${path}: broken-symlink`); continue }
+    if (!(target.startsWith(`${root}/skills/`) && actual.startsWith(`${root}/skills/`))
+      && !pinnedSkillAlias(path, relative(root, actual))) problems.push(`${path}: unsafe-symlink`)
     continue
   }
   for (const problem of publicProblems(path, readFileSync(absolute, 'utf8'))) problems.push(`${path}: ${problem}`)
