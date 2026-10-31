@@ -5,7 +5,7 @@
 
 把選檔想成按門鈴：瀏覽器真的響了，測試工具也要準備好接通知。這次用同一份舊程式，固定比較「直接按」、「先跑原本的前置」、「通知準備變慢」與「確認能接通知後才按」。最後故意取消一次真正點按，確認有問題時仍會在原本15秒失敗，不會只留下成功畫面。
 
-後續 PR 的 **Keyboard Linux controls** 檢查會各執行一次預先列出的條件；展開 **Preserve only the anonymous receipt** 可看原生按鍵、攔截命令／回覆與真正選檔通知。這有助於分辨準備順序與產品按鈕故障，不能單憑一輪成功保證偶發問題不會回來。完整 App 的驗收仍看自己的原回歸，不把明示失敗對照算成產品正常通過。
+後續 PR 的 **Keyboard Linux controls** 檢查預先固定各條件一輪；首次入口的意外重觸及後續更正另見文末。展開 **Preserve only the anonymous receipt** 可看原生按鍵、攔截命令／回覆與真正選檔通知。這有助於分辨準備順序與產品按鈕故障，不能單憑一輪成功保證偶發問題不會回來。完整 App 的驗收仍看自己的原回歸，不把明示失敗對照算成產品正常通過。
 
 2026-10-31最初階段只交付診斷與未解原因；以下保留當時版本歸屬。最新Linux對照已在原始程式自然重現就緒競爭，結果見文末；仍不用成功重跑或覆蓋率代替原失敗證據。
 
@@ -121,14 +121,14 @@ main 已含 [#129](https://github.com/sunpochin/dance-stamp/pull/129) 的訂閱�
 
 收據包含原生trusted／prevented／activation、同程序原命令send／ack、原訂閱RPC send／ack、native-filechooser及命令延遲的開始／結束，driver時間同用host performance時鐘；頁內事件時間另列，不跨時鐘相減。只取最後一個確由existing-mode Enter進入的目標頁，不混用前置案例的chooser成功。觀察器仍可能改變競爭時序，且使用固定版私有driver入口；方法缺失、截斷或無原生資料都視為診斷失敗，不能當成功。
 
-只有匿名白名單收據會列入Actions日誌；完整runner輸出、素材、profile與原始內容不公開。GitHub每組在不同VM，沿原runner自己的原子媒體鎖及nonce收尾，另從已知啟動PID確認瀏覽器退出。文件回填不觸發另一輪控制工作，只有診斷程式／工作流程變更才會執行新候選。
+只有匿名白名單收據會列入Actions日誌；完整runner輸出、素材、profile與原始內容不公開。GitHub每組在不同VM，沿原runner自己的原子媒體鎖及nonce收尾，另從已知啟動PID確認瀏覽器退出。最新入口僅接受建立PR的opened事件；推送與文件回填都不自動啟動對照。首次paths條件的意外重觸與取消另見文末，新實驗須另列條件與審查入口。
 
 本機正常check已完成648 tests／3179 expects／0 fail，19項既有lint info保留；腳本編譯與歷史Playwright適配器載入檢查亦通過，沒有啟動本機瀏覽器。最初受限環境的HTTP臨時埠監聽失敗，改以正常權限執行同一測試及完整check通過，未改測試或跳過hook。Linux實際數字與精確來源見下一節，並同步回填PR。這份工具不修改已合併 #129 的實作、不倒退其準備順序，也不取代人工審查、Safari／真人／實體裝置或G1–G7；iPhone仍暫緩。
 
 
 ## Linux實際結果：兩次自然逾時與固定因果對照
 
-[Keyboard Linux controls #1](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656)，診斷提交 `9842089d890830ea9489e32880da4b5a362042fc`，由[後續PR #140](https://github.com/sunpochin/dance-stamp/pull/140)啟動。五組各一次，沒有重跑。全部都是Linux x64／Bun1.4.4／Chrome156.0.8078.47／Playwright1.64.1、歷史f1ac4ef；產品／原案例／原runner／觀察器指紋一致，歷史磁碟來源前後乾淨。
+[Keyboard Linux controls #1](https://github.com/sunpochin/dance-stamp/actions/runs/41179000656)，診斷提交 `9842089d890830ea9489e32880da4b5a362042fc`，由[後續PR #140](https://github.com/sunpochin/dance-stamp/pull/140)啟動。本節只記錄預先固定的#1，每組一次；文件更新意外觸發的#2另列，不混入本節。全部都是Linux x64／Bun1.4.4／Chrome156.0.8078.47／Playwright1.64.1、歷史f1ac4ef；產品／原案例／原runner／觀察器指紋一致，歷史磁碟來源前後乾淨。
 
 | 組別（原工作） | 原案例結果 | 選檔waiter觀察值 | DOM／driver筆數 | 真正chooser |
 | --- | --- | --- | --- | --- |
@@ -186,4 +186,15 @@ cancel-input也先確認訂閱（37857.654637）才送真正Enter（37857.961331
 | ready | `c45c5efba3d2397bd7cb251a4db042207bf9b7bea31a38db75045af7c1e3d67b` |
 | cancel-input | `853ad6c94f575b2390955a7836d34a34235df94283458e75487613804e5de9ef` |
 
-本節是在五組完成後只回填文件，受測工具／workflow／觀察器指紋保持上述值；不改稱文件提交也重跑了五組。只記錄證據、不重跑找綠燈；PR #140與 #103保持待審查／開啟，本次未合併或發布。
+本節指紋綁定受測9842089。之後回填文件並縮限workflow觸發入口，工具／觀察器程式未變；不把新head當成重跑了原五組。#1的兩個自然失敗與三個因果／負對照全部保留，意外#2另記如下。PR #140與 #103保持待審查／開啟，本次未合併或發布。
+
+
+## 文件更新意外重觸：獨立保存並停止
+
+首次workflow誤以為paths能排除文件推送；但pull_request使用整張PR的三點差異，仍含新增診斷程式，因此文件提交 `acf867ad1761411297ce3472d2da891dd7395957` 自動觸發[額外#2](https://github.com/sunpochin/dance-stamp/actions/runs/41180014194)。這是觸發規則錯誤，不是為求綠燈而要求重跑；發現後已取消該輪，原#1及紅燈未重跑、未撤銷。額外輪不能冒充預先固定的五組或新的完整驗收。
+
+取消前四個短組已完成：原cold案例3,803ms／exit0；ready3,149ms／exit0；delayed16,358ms／原exit1；cancel-input16,666ms／原exit1。prefix在執行途中取消，無完整目標與收尾收據，**收尾未驗證**；整個#2狀態cancelled。其全部工作日誌與原來源另存，未混入#1的表格、指紋或時間比較。
+
+額外cold仍是同一份舊程式與Chrome，keyDown51420.613485派送，原訂閱51420.964427確認，keyDown回覆51421.730683，原生chooser51422.209488到達。它與#1失敗不同，是訂閱確認先於keyDown回覆。這也顯示舊流程可以因排程而成功，不能拿額外成功宣稱已修復，或用派送先後單獨推論Chrome內部狀態；#1自然失敗與同延遲因果對照仍各自保留。
+
+入口已改成 `pull_request.types: [opened]`，不接受synchronize文件／程式推送；若需新實驗，先明列新計畫與入口。GitHub的[PR差異規則](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#git-diff-comparisons)與[事件類型規則](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request)支持此限制。這只縮限一次性診斷，不弱化既有Harness CI或修改任何已保存的對照結果；推送後另核對沒有第三輪對照。

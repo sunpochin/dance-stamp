@@ -2,7 +2,8 @@
 name: Keyboard Linux controls
 on:
   pull_request:
-    # 文件回填不再啟動另一輪；程式改動才會產生新的、有版本歸屬的對照。
+    # PR paths使用整張三點差異；僅限建立事件，避免文件synchronize又重跑同一實驗。
+    types: [opened]
     paths:
       - .github/workflows/keyboard-linux-controls.yml
       - tests/browser/keyboard-linux-controls.ts
