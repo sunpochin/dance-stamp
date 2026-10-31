@@ -20,6 +20,8 @@ async page => {
   const videoCount = await page.locator('video').count();
   assert(await page.locator('#adjusted-reference-scale').isDisabled() && await page.locator('#adjusted-side-canvas').isHidden(), '缺片仍能試看');
   await page.locator('#reference-file').setInputFiles('output/comparison/reference.mp4'); await idle();
+  // 新選片預設完整長度；先明確選本例的短段，保留原本的比較護欄。
+  await set('end', 15, 'change');
   assert(await page.locator('#adjusted-self-x').isDisabled(), '單片就開放調整');
   // 全長預設保留 80 秒原片；先選本例原有短段，再載入右片，不繞過 60 秒護欄。
   await set('end', 15, 'change');
@@ -31,7 +33,7 @@ async page => {
     await reset();
     await page.locator('#reference-mirror').setChecked(false); await idle();
     await page.locator('#self-mirror').setChecked(false); await idle();
-    const before = await stored(), sideBefore = await signature('canvas'), overlayBefore = await signature('overlay-canvas'), otherBefore = await half(1 - index), x = index * 640;
+    const before = await stored(), sideBefore = await signature('canvas'), overlayBefore = await signature('overlay-canvas'), x = index * 640;
     await set('adjusted-' + side + '-scale', 50);
     assert(red(await pixel(x + 180, 450)) && dark(await pixel(x + 50, 450)), side + ' 縮小沒有保持圖片中心');
     await set('adjusted-' + side + '-x', 25);
@@ -43,6 +45,8 @@ async page => {
     assert(blue(await pixel(x + 350, 620)) && dark(await pixel(x + 350, 450)), side + ' 向下移動不符');
     await set('adjusted-' + side + '-y', -25);
     assert(blue(await pixel(x + 350, 290)), side + ' 向上移動不符');
+    // 隔離極端裁切本身；基準取在鏡像重畫之後，不混入原生影片的色彩捨入。
+    const otherBefore = await half(1 - index);
     await set('adjusted-' + side + '-scale', 400); await set('adjusted-' + side + '-x', index === 0 ? 200 : -200);
     assert(await half(1 - index) === otherBefore, '畫面跨過中線污染另一側');
     await set('adjusted-' + side + '-scale', 25); await reset();

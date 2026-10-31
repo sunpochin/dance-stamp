@@ -383,16 +383,18 @@ function drawOverlay(value, target = overlay, targetContext = overlayContext, pr
 function drawAdjustedSide(value) {
   if (adjustedSide.hidden) return;
   const target = adjustedSideContext, values = adjustedSideFields.map(([input]) => Number($(input).value) / 100);
-  target.fillStyle = '#080c0e'; target.fillRect(0, 0, 1280, 720);
+  // 未調整側沿用原並排像素，避免直式／鏡像另畫的原生色彩捨入，也省去重複影片繪圖。
+  target.drawImage(canvas, 0, 0);
   // 共用已解碼的兩片與疊影變換；各裁在自己的半框，不能把老師拖到右邊蓋住自己。
-  for (const [video, x, mirror, label, index] of [[reference, 0, value.referenceMirror, '示範', 0], [self, 640, value.selfMirror, '我', 3]]) {
+  for (const [video, x, mirror, index] of [[reference, 0, value.referenceMirror, 0], [self, 640, value.selfMirror, 3]]) {
     const [scale, dx, dy] = values.slice(index, index + 3);
+    if (scale === 1 && dx === 0 && dy === 0) continue;
     target.save();
     try {
       target.beginPath(); target.rect(x, 48, 640, 672); target.clip(); target.translate(x, 48);
+      target.fillStyle = '#080c0e'; target.fillRect(0, 0, 640, 672);
       drawVideoLayer(target, video, 640, 672, mirror, { scale, x: dx, y: dy }, 1, x === 0 ? 1 : 0);
     } finally { target.restore(); }
-    target.fillStyle = '#e8f2ed'; target.font = '24px sans-serif'; target.fillText(label, x + 22, 33);
   }
 }
 function draw(value, withOverlay = true) {
