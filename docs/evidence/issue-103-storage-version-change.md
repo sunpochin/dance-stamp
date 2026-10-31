@@ -30,6 +30,12 @@ bun run test:coverage:app
 
 固定前置 #137 的 CI #233 已在精確 head 7a503e3 三項成功，Linux 完整 68/68、九模組行數99.95%／函式97.78%／分支88.58%；與這份尚未執行的 69 項分開，不能把前置結果移記給新案例。產品九份 JS 逐 byte 相同，原 68 條定義與順序保留；只共用原本就有的下載指紋核對，不降低條件。
 
+### 首次雲端原生執行：未通過
+
+固定初版 head `10f228e2246c41d7b2d7ef80bf12214047f9e53a` 的 CI #237：harness／linux-install-restart 成功，app 為 **68 passed／1 failed**。原68條全部通過，新案例在備份比對失敗，尚未走到同profile重開；沒有用覆蓋率替失敗背書。該輪原始解碼日誌 SHA-256 `73830a4dff3cd1e8c64d17487f14e448a10a32d5905ce04f5245a623fbf2a605`，收據保留。
+
+原因是測試把 `readLibrary()` 補上的資產 state／storageKind 與可攜 JSON 比較；[既有資料格式](../DATA_FORMAT.md) 明訂這兩欄留在本機，`validateBackup` 也刻意不匯出。修正基準改用升版前的**原生 metadata 快照**，按既有可攜格式正規化，再獨立逐表核對 videos／markers／takes／recipes／exports／moves 的完整內容與關聯；資產仍須保留全部可攜欄位、mediaIncluded=false 且無本機狀態。僅忽略匯出時間與物件 key 順序，不刪除資產斷言或改產品。修正版原生情境仍待執行，維持草稿。
+
 ## 驗收界線
 
 Chromium 原生 IndexedDB 與合成媒體證據不能替代原生 Safari／私人模式、實體／跨裝置、未來任意 migration、完整 G1–G7 或人工最終審查；iPhone 延後。#103 保持開啟，沒有合併或正式發布。

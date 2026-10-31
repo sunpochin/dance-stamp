@@ -22,7 +22,7 @@ async (page, options) => {
   await page.locator('#export').click(); await idle(); assert((await page.locator('#status').textContent()).includes('已成檔'), '升版前未真正VS成檔');
   await page.evaluate(async () => {
     const store = await import('/storage.js'), state = await store.readLibrary(), db = await store.openStore(); window.versionDb = db;
-    const a = window.versionAudit = { events: [], closes: 0, blobs: new Map(), revoked: [], data: state.data };
+    const a = window.versionAudit = { events: [], closes: 0, blobs: new Map(), revoked: [] };
     a.sha = async blob => ({ bytes: blob.size, mime: blob.type, sha256: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(n => n.toString(16).padStart(2, '0')).join('') });
     a.ui = () => ['reference', 'self', 'take-download', 'output-download'].map(id => document.getElementById(id)[id.endsWith('download') ? 'href' : 'src']); a.beforeUi = a.ui();
     for (const [id, asset] of [['take-download', state.data.takes.at(-1).cameraAssetId], ['output-download', state.data.exports.at(-1).assetId]]) a.blobs.set(document.getElementById(id).href, await store.readMedia(asset));
@@ -40,7 +40,10 @@ async (page, options) => {
     for (const row of rows) row.values = await Promise.all(row.values.map(async value => value instanceof Blob ? { mime: value.type, bytes: value.size, sha256: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await value.arrayBuffer()))].map(n => n.toString(16).padStart(2, '0')).join('') } : value));
     return { version: db.version, rows };
   });
-  const before = await snapshot(page), other = await page.context().newPage();
+  const before = await snapshot(page);
+  const metadata = before.rows.find(row => row.name === 'metadata');
+  await page.evaluate(data => { window.versionAudit.savedData = data; }, metadata.values[metadata.keys.indexOf('library')].data);
+  const other = await page.context().newPage();
   try {
     // 同origin的無產品控制頁代表未知新版；不改產品schema，也不讓舊App先在此頁開庫。
     await other.goto(origin + '/__version-controller');
@@ -77,8 +80,15 @@ async (page, options) => {
     const pending = page.waitForEvent('download'); await page.locator('#backup').click(); await idle(); const file = await pending;
     const backup = await page.evaluate(async () => {
       const a = window.versionAudit, blob = [...a.blobs.values()].filter(blob => blob.type === 'application/json').at(-1), data = JSON.parse(await blob.text());
-      data.exportedAt = a.data.exportedAt;
-      if (JSON.stringify(data) !== JSON.stringify(a.data)) throw new Error('備份混入未保存草稿或丟失原筆記／配方');
+      // 可攜JSON刻意不含資產state／storageKind；基準來自升版前的原生快照，不比較讀回補上的顯示欄位。
+      const expected = (await import('/library.js')).validateBackup(a.savedData);
+      const stable = value => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])])) : value;
+      const same = (left, right) => JSON.stringify(stable(left)) === JSON.stringify(stable(right));
+      data.exportedAt = expected.exportedAt;
+      if (!same(data, expected)) throw new Error('備份與原生已存資料的可攜格式不同：' + Object.keys(expected).filter(key => !same(data[key], expected[key])).join(','));
+      // 逐表獨立核對使用者內容／關聯，不能只與同一正規化函式比較而漏掉筆記損壞。
+      for (const key of ['videos', 'markers', 'takes', 'recipes', 'exports', 'moves']) if (!same(data[key], a.savedData[key])) throw new Error('備份改變原生已存資料：' + key);
+      if (data.assets.some(asset => asset.mediaIncluded !== false || 'state' in asset || 'storageKind' in asset)) throw new Error('可攜備份混入本機資產狀態');
       return { expected: await a.sha(blob), data };
     });
     const path = `${options.directory}/storage-version-notes.json`; await file.saveAs(path); downloads.push({ label: 'backup', path, expected: backup.expected });
