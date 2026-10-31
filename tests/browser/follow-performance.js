@@ -57,6 +57,8 @@ async (page, options = {}) => {
     await page.locator('#follow-confirm').click();
     if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'), null, { timeout: remaining() });
     if (expected === 'cancelled') await page.locator('#follow-cancel').click();
+    // 取消／錯誤仍須在原15秒內恢復，不能借用正常長分析的完整預算。
+    if (expected !== 'complete') await idle();
     await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: remaining() }); await idle();
     const actual = await page.evaluate(old => ({ wallMs: window.perfWall, frames: window.perfFrames - old.frames, workers: window.perfWorkers - old.workers, terminated: window.perfTerminated - old.terminated }), counters);
     assert(actual.workers === (expected === 'failed' ? 0 : 1) && actual.terminated === actual.workers, 'Worker 建立／釋放次數改變');
