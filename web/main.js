@@ -1692,7 +1692,8 @@ async function playLoopFromA(controller) {
 }
 function practiceRange() {
   const a = Number($('start').value), b = Number($('end').value);
-  if (!$('start').value || !$('end').value || !referenceDurationMs || !Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b <= a || b * 1000 > referenceDurationMs) throw new Error('請填合法的 A–B 起訖；不會自動交換。');
+  // 與配方同以整數毫秒比較；65001ms 的秒數往返誤差不能誤拒完整片段。
+  if (!$('start').value || !$('end').value || !referenceDurationMs || !Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b <= a || Math.round(b * 1000) > referenceDurationMs) throw new Error('請填合法的 A–B 起訖；不會自動交換。');
   return { a, b };
 }
 function watchPractice() {
