@@ -168,5 +168,62 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
     await page.evaluate(() => { (window as any).guardAudit.active = false })
   }
   await sibling.close()
+  // 完整原片已落盤後，清 chunks 失敗也不能撤銷原片；沿原合成來源再補一段真正交易 abort。
+  const cleanupOriginal = await snapshot('cleanup-original')
+  const cleanupTarget = await page.evaluate(async oldTakeId => {
+    const storage = await import('/storage.js'), saved = await storage.readLibrary(), old = saved.data.takes.find(row => row.id === oldTakeId), original = await storage.readMedia(old.cameraAssetId)
+    const take = { ...old, id: crypto.randomUUID(), cameraAssetId: crypto.randomUUID(), state: 'interrupted' }
+    saved.data.takes.push(take); saved.data.assets.push({ id: take.cameraAssetId, kind: 'take', byteLength: 0, mimeType: original.type, state: 'interrupted', storageKind: 'external', mediaIncluded: false })
+    saved.data.recipes.push({ ...saved.data.recipes.find(row => row.takeId === oldTakeId), id: crypto.randomUUID(), takeId: take.id })
+    const middle = Math.floor(original.size / 2)
+    await storage.saveChunk(take.cameraAssetId, 0, original.slice(0, middle, original.type)); await storage.saveChunk(take.cameraAssetId, 1, original.slice(middle, original.size, original.type))
+    await storage.writeLibrary(saved.data, saved.revision)
+    return { takeId: take.id, assetId: take.cameraAssetId }
+  }, targets.oldTakeId)
+  await page.reload(); await ready(page)
+  await page.locator('#library').selectOption(videoId); await page.locator('#open-library').click(); await idle()
+  const cleanupBefore = await snapshot('cleanup-before')
+  await page.evaluate(assetId => {
+    const w = window as any, original = IDBObjectStore.prototype.delete
+    w.cleanupFault = { calls: 0, errors: [], aborts: [] }; w.guardAudit.reset('cleanup')
+    const wrapped = function(this: IDBObjectStore, key) {
+      const request = original.call(this, key), tx = this.transaction, fault = w.cleanupFault
+      if (this.name === 'chunks' && tx.objectStoreNames.length === 1 && tx.mode === 'readwrite' && key instanceof IDBKeyRange && key.lower[0] === assetId && !fault.calls) {
+        // 中止真正的指定清理交易，保留引擎 AbortError／abort 收據；不偽造 Promise 拒絕或改完成期限。
+        fault.calls++; request.addEventListener('error', event => fault.errors.push({ trusted: event.isTrusted, name: request.error?.name }))
+        tx.addEventListener('abort', event => fault.aborts.push({ trusted: event.isTrusted, mode: tx.mode, stores: [...tx.objectStoreNames] })); tx.abort()
+      }
+      return request
+    }
+    IDBObjectStore.prototype.delete = wrapped
+    w.restoreCleanupFault = () => { if (IDBObjectStore.prototype.delete !== wrapped) throw new Error('清理注入已換持有人'); IDBObjectStore.prototype.delete = original }
+  }, cleanupTarget.assetId)
+  try { await open(cleanupTarget.takeId) }
+  finally { await page.evaluate(() => (window as any).restoreCleanupFault()) }
+  const cleanupNative = await page.evaluate(() => (window as any).cleanupFault), cleanupAfter = await snapshot('cleanup-after'), cleanupAudit = await audit()
+  assert.equal(cleanupNative.calls, 1); assert.deepEqual(cleanupNative.errors, [{ trusted: true, name: 'AbortError' }]); assert.deepEqual(cleanupNative.aborts, [{ trusted: true, mode: 'readwrite', stores: ['chunks'] }])
+  assert.equal(JSON.parse(await page.locator('#diagnostics').textContent()).chunkCleanup, 'pending')
+  assert(await page.locator('#storage-recovery').isHidden()); assert.equal(cleanupAfter.native.revision, cleanupBefore.native.revision + 1)
+  assert.deepEqual(cleanupAfter.chunks, cleanupBefore.chunks, '清理 abort 沒有原子保留完整 chunks')
+  for (const key of ['videos', 'markers', 'recipes', 'exports', 'takes']) assert.deepEqual(cleanupAfter.native.data[key], cleanupBefore.native.data[key])
+  assert.deepEqual(cleanupAfter.native.data.assets.filter(row => row.id !== cleanupTarget.assetId), cleanupBefore.native.data.assets.filter(row => row.id !== cleanupTarget.assetId))
+  for (const old of cleanupBefore.media) assert.deepEqual(cleanupAfter.media.find(row => row.key === old.key), old)
+  const recovered = cleanupAfter.media.find(row => row.key === cleanupTarget.assetId)
+  assert(recovered && recovered.sha256 === hash(fixtureBytes)); assert.equal(cleanupAfter.media.length, cleanupBefore.media.length + 1)
+  assert(cleanupAudit.frames.some(row => row.native && row.delivered) && !cleanupAudit.timers && !cleanupAudit.remainingListeners)
+  assert(await page.locator('#self').evaluate((video: HTMLVideoElement) => video.readyState >= 2 && !video.error))
+  const recovering = page.waitForEvent('download'); await page.locator('#take-download').click(); const recoveredFile = await recovering
+  const recoveredPath = join(run, `cleanup-recovered.${recoveredFile.suggestedFilename().split('.').pop()}`); await recoveredFile.saveAs(recoveredPath)
+  assert.deepEqual(readFileSync(recoveredPath), fixtureBytes, '清理失敗後真正原片下載不等於原合成 bytes')
+  await page.evaluate(() => { (window as any).guardAudit.active = false })
+  await page.reload(); await ready(page); await page.locator('#library').selectOption(videoId); await page.locator('#open-library').click(); await idle(); await open(cleanupTarget.takeId)
+  assert.deepEqual(await snapshot('cleanup-reopened'), cleanupAfter, '已有完整原片重開仍重複保存或改動 chunks')
+  // 用公開刪除入口清理這一段，證明後續操作仍可完成；不能直接呼叫 clearChunks 來代替使用者流程。
+  await page.locator(`[data-focus-key="take:${cleanupTarget.takeId}:delete"]`).click(); await page.locator('#delete-dialog').waitFor({ state: 'visible' }); await page.locator('#delete-confirm').click(); await idle()
+  const cleanupDeleted = await snapshot('cleanup-deleted')
+  assert.deepEqual(cleanupDeleted.native.data, cleanupOriginal.native.data); assert.deepEqual(cleanupDeleted.media, cleanupOriginal.media); assert.deepEqual(cleanupDeleted.chunks, cleanupOriginal.chunks)
+  assert.equal(cleanupDeleted.native.revision, cleanupOriginal.native.revision + 3)
+  evidence.chunkCleanup = { target: cleanupTarget, native: cleanupNative, audit: cleanupAudit, pendingReported: true, originalMediaAndAllOtherMetadataPreserved: true, chunksRetainedAfterAbort: true, sameProfileReopenDoesNotRewrite: true, publicDeleteOnlyTarget: true, recoveredDownload: { file: recoveredPath, bytes: fixtureBytes.length, sha256: hash(fixtureBytes) } }
+  event('recovery-chunk-cleanup-verified')
   event('recovery-frame-guards-verified')
 }
