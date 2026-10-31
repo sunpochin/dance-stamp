@@ -1,29 +1,28 @@
-# Changelog
-
-## 0.1.0 (2026-10-31)
-
-
-### 新增功能
-
-* Add milestone release notes and draft automation ([8e2a2f1](https://github.com/sunpochin/dance-stamp/commit/8e2a2f1ee4a385d770b80fff8771baa9a66615d7))
-* Add milestone release notes and draft automation ([4de2a60](https://github.com/sunpochin/dance-stamp/commit/4de2a606796ad09a83a85191e70f21f44c116423))
-* Measure local person-follow analysis stages ([a9dd829](https://github.com/sunpochin/dance-stamp/commit/a9dd829c0cb87541cfe55999a4eab09a09dd101b))
-* Show verified repository coverage badges ([f68912d](https://github.com/sunpochin/dance-stamp/commit/f68912da331b70a0ffdf477ea622b18d30bcefbb))
-* 首頁加入真實全 App coverage 與 repo 狀態 badge ([83caa37](https://github.com/sunpochin/dance-stamp/commit/83caa373ee2238db5d8d4a9857ba93318671471b))
-
-
-### 問題修正
-
-* Integrate follow diagnostics with safe benchmark cleanup ([8c22b06](https://github.com/sunpochin/dance-stamp/commit/8c22b06ee3366438ce899ea2f87a8f72b1d095ed))
-* Integrate follow results and media regressions ([#178](https://github.com/sunpochin/dance-stamp/issues/178)) ([a3a9859](https://github.com/sunpochin/dance-stamp/commit/a3a98590347c8c8f56eb1e2c3e8d6801eeb88a72))
-* Integrate local follow diagnostics and work methods ([#188](https://github.com/sunpochin/dance-stamp/issues/188)) ([5142075](https://github.com/sunpochin/dance-stamp/commit/51420754a3b60ec37237cd85540d44993488502f))
-* Keep follow timings separate from result generation ([e33d32b](https://github.com/sunpochin/dance-stamp/commit/e33d32b3a7da89890830d06da8c7f2bad6c08eae))
-* Preserve separate analysis and result timing stages ([28098c3](https://github.com/sunpochin/dance-stamp/commit/28098c3d0ccbb3b7a20f2b114370a770d48e1589))
-* Render beat labels from one millisecond snapshot ([21080e1](https://github.com/sunpochin/dance-stamp/commit/21080e1e800a266a45565f128c29ca1e164d942d))
-
 <!-- 檔案用途：累積使用者可讀的版本變更。所在層：根文件。主要關聯：release-please-config.json、docs/RELEASE.md。 -->
-## 版本更新紀錄
+# 版本更新紀錄
 
 版本項目由 release-please 準備，再由維護者整理成繁體中文；GitHub Releases 記錄實際公開發行狀態。版本 PR 合併與 Release 草稿都不代表已發布。
 
-本檔可包含待發布版本；實際發行日期、下載內容與公開狀態以 GitHub Releases 為準。
+## [0.1.0]
+
+待發布的首個桌面 Web 預覽版本。先選老師與自己的影片、找到同一個動作，再下載比較成品；兩支原片都留在裝置，不需開相機或註冊帳號。
+
+### 新增功能
+
+- 選兩支已錄好的影片，各自設定起點、鏡像與比較片段；可用左右並排或半透明疊影預覽，匯出帶示範音訊的單一 VS 影片。比較片段最長 60 秒，放慢後的長度也計入。
+- 分別框選老師與自己，讓裁切畫面跟著人物移動；分析完成後可各自播放、檢查及下載單側跟隨影片，再決定是否製作 VS。分析在裝置內進行，原片不被修改。
+- 可展開本機人物分析耗時，分別查看分析與製片的等待時間，另存最近十輪的數字報告；報告不含影片或原檔名，也不會自動上傳。
+
+### 問題修正
+
+- 改善人物跟隨與音訊準備期間的取消、失敗及重試流程，保留先前成功的下載結果。
+- 分開記錄人物分析與單側製片耗時，避免把製片等待算成分析時間，或把重跑當成模型已加速。
+
+### 已知限制與保存提醒
+
+- 目前以桌面 Chrome 預覽為主；Safari 的完整聲畫品質、真人舞蹈跟隨及實體手機仍未完成驗收，iPhone 暫緩。人物可能因遮擋、快速移動、多人交錯或鏡面而跟錯，請先檢查整段結果。
+- 即時錄影、筆記與其他管理入口暫時隱藏，原有資料保留。
+- 跟隨結果只留在本次頁面；關閉、重開或更換設定前，請先下載想保留的成品。更新前保存工作與必要備份，勿以清除瀏覽器資料處理問題。
+- 免費、非商用，程式採 PolyForm Noncommercial 1.0.0；影片與音樂的權利仍由各自權利人持有。
+
+本項目仍是版本候選；實際發行日期、下載附件與公開狀態以 GitHub Releases 為準。
