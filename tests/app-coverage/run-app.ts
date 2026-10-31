@@ -67,11 +67,14 @@ function watchPage(page: Page) {
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
+// 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
+const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
 const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
+if (!selected.length) scenarios.push(...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind))
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -170,17 +173,21 @@ try {
       // 操作外錯誤須由公開播放／循環入口驗證，不能直接呼叫內部 handler 湊行數。
       const practiceError = name.startsWith('practice-native-') ? name.slice('practice-native-'.length) : undefined
       const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
-      const path = resolve(root, 'tests/browser', `${practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
+      const metadataKind = name.startsWith('metadata-stop-') ? name.slice('metadata-stop-'.length) : undefined
+      const path = resolve(root, 'tests/browser', `${metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
-      if (tail) {
+      if (tail || metadataKind) {
         const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
         let captureCalls = 0
         await context.exposeBinding('blockedMedia', () => { captureCalls++ })
         await context.addInitScript(() => {
-          for (const key of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[key] = () => { (window as any).blockedMedia(); throw new Error('保存尾段只允許合成檔案，不可擷取硬體') }
+          for (const key of ['getUserMedia', 'getDisplayMedia']) if (navigator.mediaDevices) navigator.mediaDevices[key] = () => { (window as any).blockedMedia(); throw new Error('保存回歸只允許合成檔案，不可擷取硬體') }
         })
-        result = await scenario(page, { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }, folder, tail, async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2)))
+        const fixtures = { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }
+        const reportCase = async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2))
+        // 兩種原生保存停止共用硬體禁用及原始收據邊界，案例本身仍由原函式執行。
+        result = metadataKind ? await scenario(page, fixtures, folder, reportCase, { kind: metadataKind }) : await scenario(page, fixtures, folder, tail, reportCase)
         assert.equal(captureCalls, 0); result.cameraMicrophoneAndScreenCaptureCalls = captureCalls
       } else if (name.startsWith('storage-recovery-')) {
         const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
