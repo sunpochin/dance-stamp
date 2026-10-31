@@ -44,9 +44,12 @@ async (page, options = {}) => {
       }, { once: true, capture: true });
     });
     await page.locator('#follow-confirm').click();
-    if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'));
+    if (cancelAtResult) await page.waitForFunction(() => document.getElementById('follow-message').textContent.includes('正在製作'), null, { timeout: 180000 });
     if (expected === 'cancelled') await page.locator('#follow-cancel').click();
-    await idle(); await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: 180000 });
+    // 取消／錯誤後仍沿用短恢復期限；長預算只適用原本就較久的分析與製片。
+    if (expected !== 'complete') await idle();
+    // 先沿用長分析原有的 180 秒期限，再查短操作 idle；製片不能先被 15 秒短等待誤判。
+    await page.waitForFunction(() => Number.isFinite(window.perfWall), null, { timeout: 180000 }); await idle();
     const actual = await page.evaluate(old => ({ wallMs: window.perfWall, frames: window.perfFrames - old.frames, workers: window.perfWorkers - old.workers, terminated: window.perfTerminated - old.terminated }), counters);
     assert(actual.workers === (expected === 'failed' ? 0 : 1) && actual.terminated === actual.workers, 'Worker 建立／釋放次數改變');
     if (await page.locator('#follow-dialog').evaluate(d => d.open)) await page.locator('#follow-cancel').click();
