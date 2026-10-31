@@ -75,7 +75,8 @@ const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/br
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
 const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
-if (!selected.length) scenarios.push(...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind))
+// 恢復守門沿原函式接入，不改前51條順序，保留既有鍵盤故障的前置環境。
+if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind))
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -175,11 +176,12 @@ try {
       const practiceError = name.startsWith('practice-native-') ? name.slice('practice-native-'.length) : undefined
       const tail = name.startsWith('vs-save-tail-') ? name.slice('vs-save-tail-'.length) : undefined
       const metadataKind = name.startsWith('metadata-stop-') ? name.slice('metadata-stop-'.length) : undefined
-      const path = resolve(root, 'tests/browser', `${metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.js`)
+      const frameGuard = name === 'recovery-frame-guard'
+      const path = resolve(root, 'tests/browser', `${metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name}.${frameGuard ? 'ts' : 'js'}`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
-      if (tail || metadataKind) {
-        const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
+      if (tail || metadataKind || frameGuard) {
+        const module = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)
         let captureCalls = 0
         await context.exposeBinding('blockedMedia', () => { captureCalls++ })
         await context.addInitScript(() => {
@@ -187,8 +189,23 @@ try {
         })
         const fixtures = { origin, reference: resolve(media, 'export-failure/reference.mp4'), self: resolve(media, 'export-failure/self.mp4') }
         const reportCase = async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2))
-        // 兩種原生保存停止共用硬體禁用及原始收據邊界，案例本身仍由原函式執行。
-        result = metadataKind ? await scenario(page, fixtures, folder, reportCase, { kind: metadataKind }) : await scenario(page, fixtures, folder, tail, reportCase)
+        // 保存與恢復共用硬體禁用邊界，案例本身仍由原函式執行。
+        if (frameGuard) {
+          const frameEvidence: any = { events: [], scope: 'Original native recovery frame guard; controlled chunks and failures, not process termination or camera.' }
+          const saveFrame = () => writeFileSync(resolve(folder, 'evidence.local.json'), JSON.stringify(frameEvidence, null, 2))
+          const event = (type: string, detail: any = {}) => { frameEvidence.events.push({ type, ...detail }); saveFrame() }
+          const ready = async (page: Page) => {
+            await page.waitForFunction(() => !(document.getElementById('controls') as HTMLFieldSetElement)?.disabled && document.getElementById('offline-status')?.textContent?.includes('已檢查應用資源完整'))
+            await page.waitForFunction(() => !!navigator.serviceWorker.controller)
+          }
+          assert.equal(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).revision), 0, '恢復回歸只允許全新合成資料，不清空舊庫')
+          try { await module.recoveryFrameGuard({ page, origin, root, run: folder, evidence: frameEvidence, event, ready, fixtureSource: resolve(media, 'media-feasibility/reference.mp4') }); result = { ...frameEvidence, passed: true } }
+          catch (error) { frameEvidence.failure = String(error); throw error }
+          finally { saveFrame() }
+        } else {
+          const scenario = module.default
+          result = metadataKind ? await scenario(page, fixtures, folder, reportCase, { kind: metadataKind }) : await scenario(page, fixtures, folder, tail, reportCase)
+        }
         assert.equal(captureCalls, 0); result.cameraMicrophoneAndScreenCaptureCalls = captureCalls
       } else if (name.startsWith('storage-recovery-')) {
         const { default: scenario } = await import(pathToFileURL(path).href), folder = resolve(directory, name); mkdirSync(folder)

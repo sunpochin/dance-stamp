@@ -7,11 +7,13 @@ import { root } from './instrument'
 export const fixtureFiles = [
   'media-probe/reference.mp4', 'media-probe/short/reference.mp4', 'media-probe/empty/reference.mp4',
   ...['portrait.mp4', 'orientation.mp4', 'sample.mov', 'vfr.mp4', 'renamed.data', 'corrupt.mp4'].map(name => `media-probe/player/${name}`),
-  'export-failure/reference.mp4', 'export-failure/self.mp4',
+  'export-failure/reference.mp4', 'export-failure/self.mp4', 'media-feasibility/reference.mp4',
   ...['reference.mp4', 'self-1.mp4', 'self-0.75.mp4', 'self-0.5.mp4', 'silent.mp4'].map(name => `comparison/${name}`),
   'beats/reference.mp4', 'share18/cut/reference.mp4', 'share18/different/reference.mp4',
 ]
 if (import.meta.main) {
+  // 恢復守門沿原65秒來源及原4秒切片；完整量測不需要另產一份相機Y4M。
+  if (!existsSync(resolve(root, 'output/media-feasibility/reference.mp4'))) assert.equal(Bun.spawnSync(['python3', 'scripts/make-sync-fixtures.py', '--reference-only'], { cwd: root, stdout: 'inherit', stderr: 'inherit' }).exitCode, 0)
   for (const [script, sentinel] of [['media', 'media-probe/camera.y4m'], ['player', 'media-probe/player/corrupt.mp4'], ['export', 'export-failure/self.mp4'], ['comparison', 'comparison/silent.mp4'], ['beat', 'beats/reference.mp4']]) {
     if (existsSync(resolve(root, 'output', sentinel))) continue
     assert.equal(Bun.spawnSync([process.execPath, '--no-env-file', `scripts/make-${script}-fixtures.ts`], { cwd: root, stdout: 'inherit', stderr: 'inherit' }).exitCode, 0)
