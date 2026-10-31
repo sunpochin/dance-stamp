@@ -1,6 +1,12 @@
 <!-- 檔案用途：固定 #103 Linux 鍵盤選檔逾時的證據與未解界線。所在層：工程診斷證據。主要關聯：comparison-keyboard.js、issue-103-vs-share.md。 -->
 # #103 Linux 鍵盤選檔：根因仍未確認
 
+## 怎麼看這次對照
+
+把選檔想成按門鈴：瀏覽器真的響了，測試工具也要準備好接通知。這次用同一份舊程式，固定比較「直接按」、「先跑原本的前置」、「通知準備變慢」與「確認能接通知後才按」。最後故意取消一次真正點按，確認有問題時仍會在原本15秒失敗，不會只留下成功畫面。
+
+後續 PR 的 **Keyboard Linux controls** 檢查會各執行一次預先列出的條件；展開 **Preserve only the anonymous receipt** 可看原生按鍵、攔截命令／回覆與真正選檔通知。這有助於分辨準備順序與產品按鈕故障，不能單憑一輪成功保證偶發問題不會回來。完整 App 的驗收仍看自己的原回歸，不把明示失敗對照算成產品正常通過。
+
 2026-10-31。本次交付診斷與未解原因，不宣稱修復。不用成功重跑或覆蓋率代替失敗時的原生證據。
 
 ## 來源與範圍
@@ -92,3 +98,29 @@
 | 固定playwright-core1.64.1 coreBundle.js | `829521b67ed7be90c7d6d6098ff39f2241562d47e4ad7ccab13710924a56001d` |
 
 #103保持開啟，本分支仍待使用者／Claude Code最終審查。
+
+## 2026-10-31 後續：固定 #203 原碼的 Linux 因果對照
+
+唯讀現況：#118 已於 `2026-10-31T04:31:42Z` 合併（台北12:31），早於本次續查；本次不執行合併。後續分支從同步 main `e6f0300aa9ce1c882ec1887f5f792ee8fe6b63de` 建立，結果回填 #118，程式以獨立後續 PR 交付。
+
+main 已含 [#129](https://github.com/sunpochin/dance-stamp/pull/129) 的訂閱就緒修正；其[原始證據](issue-103-keyboard-readiness.md)捕獲 CI #220 的自然 Linux 逾時，另有本機相同250ms延遲下的舊流程失敗／就緒流程成功。這支持該次競爭，沒有證明缺少事件的 #203 必然同因。本次重用其 `observeKeyboardProtocol`，不另造一套協定解析器或改動共用 runner。
+
+每組由 GitHub 的 Ubuntu24.04 全新工作執行，固定歷史 checkout `f1ac4efa3d0277a9c5b605a2acbe639ef22a7aec`、Bun1.4.4、Playwright1.64.1、原產品、原鍵盤案例、原 runner 與合成素材。原38個前置／目標案例的來源順序直接讀取該提交並驗證；不把當前main產品帶入舊來源。各組另記實際Chrome版本，舊 #203 當時的完整OS／Chrome映像仍不可還原，不能說是完全相同的機器。
+
+| 固定組別 | 前置 | 真正攔截命令延遲 | Enter前等原訂閱RPC | 預先預期 |
+| --- | --- | --- | --- | --- |
+| cold | 直接原鍵盤案例 | 無 | 否 | 原斷言通過；若自然失敗則保留紅燈與收據。 |
+| prefix | 原前37案，再同一鍵盤案例 | 無 | 否 | 同上，用於檢查暖前置的影響。 |
+| delayed | 直接原鍵盤案例 | 250ms | 否 | 真正Enter早於攔截派送、原15000ms逾時，仍保留原案例exit1。 |
+| ready | 同delayed | 同250ms | 是 | 原生reference-file chooser與全部原斷言通過。 |
+| cancel-input | 同ready，但明示取消reference-file click預設動作 | 同250ms | 是 | 原15000ms逾時、原案例exit1，證明失敗防線仍有效。 |
+
+冷／暖是未注入的觀察；delayed／ready是相同受控延遲的因果對照，cancel-input是明示負對照，均不得改稱 #203 的自然重現。若與預期不符，控制工作直接失敗並保留原值，不自動重試、改預期或追綠。預期逾時的控制器成功只表示捕獲了指定的原案例失敗，不能算成正常App矩陣通過。
+
+適配器以Bun preload在記憶體旁聽原本的方法，歷史磁碟來源保持乾淨。只有明示ready組會在原選檔等待開始後，讓真正Enter共用該waiter的原15秒期限等待原client RPC；沒有另開較長期限。延遲組只延後真正 `Page.setInterceptFileChooserDialog(enabled:true)` 派送，下層觀察器的send仍記交給driver的實際時點，回覆由引擎完成；不造回覆或事件。送Enter以前不額外evaluate；成功或原期限失敗後才讀DOM收據。
+
+收據包含原生trusted／prevented／activation、同程序原命令send／ack、原訂閱RPC send／ack、native-filechooser及命令延遲的開始／結束，driver時間同用host performance時鐘；頁內事件時間另列，不跨時鐘相減。只取最後一個確由existing-mode Enter進入的目標頁，不混用前置案例的chooser成功。觀察器仍可能改變競爭時序，且使用固定版私有driver入口；方法缺失、截斷或無原生資料都視為診斷失敗，不能當成功。
+
+只有匿名白名單收據會列入Actions日誌；完整runner輸出、素材、profile與原始內容不公開。GitHub每組在不同VM，沿原runner自己的原子媒體鎖及nonce收尾，另從已知啟動PID確認瀏覽器退出。文件回填不觸發另一輪控制工作，只有診斷程式／工作流程變更才會執行新候選。
+
+本機正常check已完成648 tests／3179 expects／0 fail，19項既有lint info保留；腳本編譯與歷史Playwright適配器載入檢查亦通過，沒有啟動本機瀏覽器。最初受限環境的HTTP臨時埠監聽失敗，改以正常權限執行同一測試及完整check通過，未改測試或跳過hook。Linux實際數字與精確來源待完成後另記PR；在結果出現前不宣稱重現、修復或Linux通過。這份工具不修改已合併 #129 的實作、不倒退其準備順序，也不取代人工審查、Safari／真人／實體裝置或G1–G7；iPhone仍暫緩。
