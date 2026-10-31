@@ -39,8 +39,12 @@
 
 完整UI輪後產品／案例／runner指紋不變，只補文件與交付證據。最終正常hook及新精確head CI另驗，未完成不先當作通過。全部原始收據、完整coverage／baseline、原生二進位快照、六份真正下載、來源與全軌解碼另存本聊天附件`chunk-cleanup-recovery-103`，逐檔manifest核對；不公開profile或真人影片。這次未發現產品缺陷，不為覆蓋率修改產品保護或期限。
 
+## main同期更新的交付核對
+
+交付時讀回GitHub，main已到`65eb135490ad1418df0ddd4f95dfb9256e425834`並合入原#118；#134因舊鍵盤診斷的重複來源發生衝突，CI尚未啟動。把該main接到本工作分支、保留來源提交，鍵盤檔維持本分支已含原#118與訂閱RPC就緒修正的完整版本。更正文案前，解決後的整份暫存樹與原ddf11ba樹完全相同，皆為`8bee018da55b2220e70389e5f00fb162a1c4b1be`，不只比九份產品JS；之後只更正本文外部狀態並記此核對。原本機UI收據仍歸53a8f09工作樹，新head正常hook／精確CI另驗，不改稱重跑本機UI。
+
 ## 重跑與界線
 
 固定Bun1.4.4、Playwright1.64.1與原Chrome／FFmpeg，先`bun run check`，再`bun run test:coverage:app recovery-frame-guard`與完整`bun run test:coverage:app`；獨立`--recovery-frame`也沿同一函式。共用QA鎖忙碌時查證活程序並等候，不接管、終止或釋放他人的鎖。
 
-#103保持開啟，函式／分支未達100%照實保留；合成中斷fixture、4秒原片或解碼不代替自然程序中斷、Safari／私人模式、真人聽音、實體／跨裝置及G1–G7。iPhone延後；人工最終審查與合併／發布各自保留，#114維持c351637開啟待審。
+#103保持開啟，函式／分支未達100%照實保留；合成中斷fixture、4秒原片或解碼不代替自然程序中斷、Safari／私人模式、真人聽音、實體／跨裝置及G1–G7。iPhone延後；人工最終審查與本PR合併／發布各自保留。交付時GitHub顯示#114原head c351637已合併，本聊天沒有執行其合併；以實際外部狀態為準。
