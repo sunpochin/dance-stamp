@@ -64,14 +64,23 @@ CI 沿用完整 check，另執行相同 package／check:package。只建立及�
 
 ## 免費主機比較
 
-以下是當日官方資料的摘述，不承諾免費方案永久不變；實際發布前需再查同頁與帳戶資格。
+2026-11-02（Asia/Taipei）重新核對下列官方資料。像把應用的說明書放上書架：使用者的練舞影片仍留在自己的裝置；免費分發程式檔、替程式建置，以及代存影片是不同的事情。免費方案有適用條件，正式發布時仍須核對當日規則與實際帳戶。
 
-| 候選 | 當日官方限制／來源 | 本專案決策 |
+目前 repo 的 `wrangler.jsonc` 只指定 `dist/web` 靜態資產，已有 Git 自動預覽；[PR #204 的版本證據](https://github.com/sunpochin/dance-stamp/pull/204)另記實際來源與操作範圍。這不等於正式 beta 發行或已核實帳戶方案。下方2026-10-28的來源盤點維持歷史歸屬，Pages保留為備選，沒有由本次查核決定搬站。
+
+| 入口／候選 | 當日官方限制／來源 | 本專案決策 |
 | --- | --- | --- |
-| 專用 localhost | 不需託管帳號；仍需裝置、Bun 與儲存空間 | 本輪可驗證入口。固定 `127.0.0.1:4182`，只供這個應用；不同 host／port 是不同資料來源 |
+| 專用 localhost | 不需託管帳號；仍需裝置、Bun 與儲存空間 | 原始碼與下載包現行預設均為 `http://127.0.0.1:4174/`，與開始指南及主機程式相同；不同host／port的資料不會自動搬移 |
+| Cloudflare Workers Static Assets | 直接回應靜態資產的請求免費且不限次數，資產儲存無額外費用；Free每版本20,000檔、單檔25 MiB。[資產計費](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)／[平台限制](https://developers.cloudflare.com/workers/platform/limits/#static-assets) | 已有預覽的服務類型。只有程式、模型與授權等公開靜態檔；帳戶方案、共用用量、管理者及部署權限尚未完整盤點，不能宣稱本帳戶零帳單 |
 | Cloudflare Pages Free | 每月 500 次 Git 建置、單檔 25 MiB、20,000 檔；Dashboard 拖放另限 1,000 檔。[平台限制](https://developers.cloudflare.com/pages/platform/limits/)／[Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/) | 公開託管候選為新建且專用的 `<project>.pages.dev` 根目錄，名稱及帳戶尚未配置；不購買網域、不啟用 Functions／R2／分析。未授權前不建立或上傳 |
 | GitHub Pages | 公開 repo 可用 Free；站點最多 1 GB、流量軟限制 100 GB／月、通常每小時 10 builds，自訂 Actions 建置不適用後者。[官方限制](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits) | 不採目前帳號的共用 `github.io` origin；路徑不是資料隔離，本程式資源也使用根路徑，不能直接塞進 `/dance-stamp/` |
-| Netlify Free 新信用額度方案 | 每月 300 credits；production deploy 每次 15、流量與請求另計，舊帳戶方案可能不同。[官方計費](https://docs.netlify.com/manage/accounts-and-billing/billing/billing-for-credit-based-plans/how-credits-work/) | 可評估專用站點，但非本次首選；不假設流量無上限或帳戶自動符合方案，不開啟加值或付費選項 |
+| Netlify Free 信用額度方案 | 每月300 credits硬上限；production deploy每次15，預覽／分支部署本身0；流量20 credits／GB、請求2／10,000次另計。額度用盡會暫停所有專案，舊帳戶方案可能不同。[官方計費](https://docs.netlify.com/manage/accounts-and-billing/billing/billing-for-credit-based-plans/how-credits-work/) | 備選專用站點；免費預覽部署仍有流量／請求消耗，不能當成不限量，也未查證本帳戶資格 |
+
+技術上，Workers的靜態請求與Worker程式呼叫分開計費；若日後加入SSR、API或`run_worker_first`，須重新檢查執行額度，不能沿用本表的免費靜態結論。現行repo沒有Worker程式入口、此選項或雲端儲存binding；這只是指定來源設定的觀察，不排除帳戶上的其他服務或控制台設定。
+
+固定main `7dede9f` 的本輪建置有25檔（含`_headers`），最大為14,466,654bytes的WASM；檔數與每檔大小均低於上述Free靜態限制。這只核對此版公開程式資產，不能證明帳戶的共用額度或帳單。
+
+Workers Builds另按建置時間計算：Free每月3,000分鐘、帳戶同時1個建置、單次20分鐘上限，見[官方建置限制](https://developers.cloudflare.com/workers/ci-cd/builds/limits-and-pricing/)。這和Pages每月500次建置、GitHub Actions測試工作時間、訪客的靜態請求都不同；剩餘分鐘與其他專案共用情況未查證。新增支出、必要外部服務、正式發行與來源切換仍依原核准規則處理。
 
 託管只放靜態應用，不放使用者的課程片、相機錄影或備份。主機仍會收到載入／更新請求與一般連線中繼資料，不能把「影片不自動上傳」解釋為完全沒有網路或主機紀錄。
 
@@ -81,7 +90,7 @@ CI 沿用完整 check，另執行相同 package／check:package。只建立及�
 
 預設 user site 與 project sites 的 URL 共用帳號 host，見 [GitHub 官方網址規則](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)。上述旗標不證明每一條目前的實際 URL、自訂網域或內容可信；直接讀根站未取得可判讀結果，私有 repo 發布的 Pages 也未由公開 API 排除。因此沒有「同 origin 全部安全」的結論，**不選 `https://sunpochin.github.io` 放本產品**。換 DB 名稱、repo 路徑或 SW scope 都不能取代 origin 隔離。
 
-本輪選擇專用 localhost。未來若核准公開網站，選新專用 Pages project origin，發布紀錄須填實際 scheme／host／port、管理者、可寫入的 repo／部署者、是否有其他路徑內容與代理；不共用使用者內容上傳、其他專案或任意預覽。只信任自己核對過的來源程式及主機，專用 port 不是對本機其他程式的防護沙盒。
+2026-10-28候選當時選擇專用localhost與備選Pages；目前已有Workers預覽，現況與限制見上節。正式發行來源仍須另作決策，發布紀錄須填實際scheme／host／port、管理者、可寫入的repo／部署者、是否有其他路徑內容與代理；不共用使用者內容上傳、其他專案或任意預覽。只信任自己核對過的來源程式及主機，專用port不是對本機其他程式的防護沙盒。
 
 ## 靜態託管與回復
 
