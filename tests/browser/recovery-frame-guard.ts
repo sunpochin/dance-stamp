@@ -78,7 +78,17 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
     }
     window.confirm = () => true
   })
-  await page.reload(); await ready(page)
+  // activated 只保證後續導覽可用；首次未受控文件的 reload 仍可能沒有 controller，先真正離站再進站。
+  await page.waitForFunction(async () => (await navigator.serviceWorker.getRegistration())?.active?.state === 'activated')
+  const control = () => page.evaluate(async () => ({ active: (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? null, controller: navigator.serviceWorker.controller?.scriptURL ?? null }))
+  const before = await control()
+  evidence.bootstrapControl = { before }; event('native-worker-active')
+  console.log('recovery bootstrap before:', JSON.stringify({ active: !!before.active, controlled: !!before.controller }))
+  await page.goto('about:blank'); await page.goto(origin); await ready(page)
+  const after = await control()
+  evidence.bootstrapControl.after = after
+  assert(before.active && after.controller === before.active && after.active === before.active, '恢復案例須先取得同一已啟用 SW 的真正控制')
+  event('native-controlled-navigation'); console.log('recovery bootstrap after:', JSON.stringify({ controlled: !!after.controller, sameWorker: after.controller === before.active && after.active === before.active }))
   await page.locator('#reference-file').setInputFiles(fixture); await idle()
   await page.locator('#copy-reference').click(); await idle()
   const videoId = await page.locator('#library').inputValue()
