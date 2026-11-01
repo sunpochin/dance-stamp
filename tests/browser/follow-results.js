@@ -85,6 +85,15 @@ async (page, { boundedAudio = false } = {}) => {
   assert(await page.evaluate(() => window.followAudioContexts.at(-1).state === 'closed'), '分析取消遺留預先啟動的音訊');
   assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '分析取消破壞舊結果');
   await page.locator('#follow-cancel').click();
+  // 建構就失敗時還沒有可關閉的環境；必須在建立 Worker 前停止，避免整合時漏掉早停保護。
+  const beforeAudioFailure = await page.evaluate(() => ({ contexts: window.followAudioContexts.length, workers: window.followAudioOrder.filter(row => row.type === 'worker').length }));
+  await page.evaluate(() => { window.followConstructorAudio = window.AudioContext; window.AudioContext = class { constructor() { throw new Error('Synthetic follow audio construction failure'); } }; });
+  await page.locator('#reference-follow').click(); await idle(); await page.locator('#follow-confirm').click(); await idle();
+  assert((await page.locator('#follow-message').textContent()).includes('Synthetic follow audio construction failure') && (await page.locator('#follow-metrics-report').textContent()).includes('失敗'), '音訊建構失敗沒有回報真正失敗');
+  assert(await page.evaluate(before => window.followAudioContexts.length === before.contexts && window.followAudioOrder.filter(row => row.type === 'worker').length === before.workers, beforeAudioFailure), '建立音訊失敗仍啟動人物分析或遺留額外環境');
+  assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '音訊建構失敗破壞舊結果');
+  assert(await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data)) === stored && await page.evaluate(times => ['reference', 'self'].every((id, index) => document.getElementById(id).paused && Math.abs(document.getElementById(id).currentTime - times[index]) < .001), originalTimes), '音訊建構失敗改動資料或原片位置');
+  await page.locator('#follow-cancel').click(); await page.evaluate(() => { window.AudioContext = window.followConstructorAudio; });
   await page.evaluate(() => { window.followOriginalWorker = window.Worker; window.Worker = class { constructor() { throw new Error('Synthetic follow worker startup failure'); } }; });
   await page.locator('#reference-follow').click(); await idle(); await page.locator('#follow-confirm').click(); await idle();
   assert((await page.locator('#follow-message').textContent()).includes('Synthetic follow worker startup failure'), '沒有命中分析啟動失敗');
@@ -156,5 +165,5 @@ async (page, { boundedAudio = false } = {}) => {
   const screenshot = 'output/playwright/follow-results-' + runId + '.png'; await page.setViewportSize({ width: 1440, height: 1100 }); await page.locator('.players').screenshot({ path: screenshot });
   const mobileScreenshot = 'output/playwright/follow-results-mobile-' + runId + '.png'; await page.setViewportSize({ width: 390, height: 844 }); await page.locator('.follow-result').first().scrollIntoViewIfNeeded(); await page.screenshot({ path: mobileScreenshot });
   assert(requests.every(r => r.method === 'GET' && (r.url.startsWith(origin + '/') || r.url.startsWith('blob:'))), '單側製作有外部請求或上傳');
-  return { downloads, screenshot, mobileScreenshot, mirrorPixels, audioSequences, audioBeforeAnalysis: true, analysisCancelAndStartupFailureCloseAudio: true, audioRejectionReportedAsFailure: true, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true, selectedWebKitAudioBranch: boundedAudio, safariDeviceAcceptance: false };
+  return { downloads, screenshot, mobileScreenshot, mirrorPixels, audioSequences, audioBeforeAnalysis: true, audioConstructorFailurePreserved: true, analysisCancelAndStartupFailureCloseAudio: true, audioRejectionReportedAsFailure: true, nativeIndependentPlayers: true, sourceAndMetadataPreserved: true, stopWorks: true, cancelAndEncoderFailurePreserved: true, suspendedAudioCancelPreserved: true, mirrorRefreshPerSide: true, replacedSourceMarked: true, selectedWebKitAudioBranch: boundedAudio, safariDeviceAcceptance: false };
 }
