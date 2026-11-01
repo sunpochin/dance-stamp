@@ -78,7 +78,19 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
     }
     window.confirm = () => true
   })
-  await page.reload(); await ready(page)
+  // 固定版輪詢先把 Promise 判為真，false 結果不會再輪詢；先收原生 ready，再同步檢查真正的 state。
+  await page.evaluate(() => { (window as any).__recoveryRegistration = null; navigator.serviceWorker.ready.then(registration => { (window as any).__recoveryRegistration = registration }) })
+  await page.waitForFunction(() => (window as any).__recoveryRegistration?.active?.state === 'activated')
+  const control = () => page.evaluate(async () => ({ active: (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? null, controller: navigator.serviceWorker.controller?.scriptURL ?? null }))
+  const before = await control()
+  evidence.bootstrapControl = { before }; event('native-worker-active')
+  console.log('recovery bootstrap before:', JSON.stringify({ active: !!before.active, controlled: !!before.controller }))
+  // 啟用不會接管首次已開文件；新導覽須由同一個真正啟用的 worker 控制後才開始恢復案例。
+  await page.goto('about:blank'); await page.goto(origin); await ready(page)
+  const after = await control()
+  evidence.bootstrapControl.after = after
+  assert(before.active && after.controller === before.active && after.active === before.active, '恢復案例須先取得同一已啟用 SW 的真正控制')
+  event('native-controlled-navigation'); console.log('recovery bootstrap after:', JSON.stringify({ controlled: !!after.controller, sameWorker: after.controller === before.active && after.active === before.active }))
   await page.locator('#reference-file').setInputFiles(fixture); await idle()
   await page.locator('#copy-reference').click(); await idle()
   const videoId = await page.locator('#library').inputValue()

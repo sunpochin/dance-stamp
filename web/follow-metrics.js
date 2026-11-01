@@ -20,8 +20,11 @@ export function followMeasurements(clock = performance) {
       /** @type {Record<'seek'|'bitmap'|'roundTrip'|'detect',number[]>} */
       const samples = { seek: [], bitmap: [], roundTrip: [], detect: [] };
       let finished = false;
+      const entries = new Set();
       const probe = {
         samples, processedFrames: 0, workerCreatedNow: 0, workerCreatedAt: 0,
+        workerAttempts: 0, compatibilityFallbacks: 0,
+        /** @type {'simd'|'nosimd'|null} */ runtime: null,
         /** @type {number|null} */ analysisCompletedMs: null,
         /** @type {number|null} */ resultMs: null,
         /** @type {number|null} */ workerConstructorMs: null,
@@ -34,11 +37,14 @@ export function followMeasurements(clock = performance) {
         },
         recordWorker(timing) {
           if (!timing) return;
-          for (const key of ['scriptImportMs', 'modelInitMs']) if (Number.isFinite(timing[key]) && timing[key] >= 0) probe[key] = rounded(timing[key]);
+          // 回退包含兩次冷啟動；只累加回覆真正帶來的初始化數字，不把失敗成本抹掉。
+          for (const key of ['scriptImportMs', 'modelInitMs']) if (Number.isFinite(timing[key]) && timing[key] >= 0) probe[key] = rounded((probe[key] ?? 0) + timing[key]);
+          if (timing.runtime === 'simd' || timing.runtime === 'nosimd') probe.runtime = timing.runtime;
           if (Number.isFinite(timing.detectMs) && timing.detectMs >= 0) samples.detect.push(timing.detectMs);
           const startup = timing.enteredAt - probe.workerCreatedAt;
+          const entry = `${probe.workerAttempts}:${timing.enteredAt}`;
           // Window／Worker 的 timeOrigin 要轉到同一時基；睡眠或精度差造成不一致時留空，不捏造零成本。
-          if (probe.workerStartupMs === null && Number.isFinite(startup) && startup >= 0 && startup <= clock.now() - probe.workerCreatedNow + 1) probe.workerStartupMs = rounded(startup);
+          if (!entries.has(entry) && Number.isFinite(startup) && startup >= 0 && startup <= clock.now() - probe.workerCreatedNow + 1) { entries.add(entry); probe.workerStartupMs = rounded((probe.workerStartupMs ?? 0) + startup); }
         },
         /** @param {'complete'|'cancelled'|'failed'} outcome @param {number} trackedFrames */
         finish(outcome, trackedFrames) {
@@ -46,7 +52,7 @@ export function followMeasurements(clock = performance) {
           const totalFlowMs = Math.max(0, clock.now() - started), totalMs = probe.analysisCompletedMs ?? totalFlowMs, clipDurationMs = (config.end - config.start) * 1000;
           const stages = Object.fromEntries(Object.entries(samples).map(([key, values]) => [key, distribution(values)]));
           // 比對鍵只活在有界記憶體，不進報告；不能為了辨識同一片而雜湊整支私人影片。
-          const key = JSON.stringify([config.side, config.source, config.start, config.end, config.box, config.sampleHz]);
+          const key = JSON.stringify([config.side, config.source, config.start, config.end, config.box, config.sampleHz, probe.runtime]);
           const last = outcome === 'complete' ? previous.findLast(item => item.key === key) : undefined;
           const report = {
             schemaVersion: 2, sequence: ++sequence, side: config.side, outcome, sampleHz: config.sampleHz,
@@ -56,7 +62,7 @@ export function followMeasurements(clock = performance) {
             framesPerSecond: totalMs ? rounded(probe.processedFrames / totalMs * 1000) : null,
             realtimeFactor: totalMs ? rounded(clipDurationMs / totalMs) : null,
             preparation: { loadMs: rounded(config.preparation.loadMs), firstSeekMs: rounded(config.preparation.firstSeekMs) },
-            worker: { constructionMs: probe.workerConstructorMs === null ? null : rounded(probe.workerConstructorMs), startupMs: probe.workerStartupMs, scriptImportMs: probe.scriptImportMs, modelInitMs: probe.modelInitMs, firstRoundTripMs: samples.roundTrip.length ? rounded(samples.roundTrip[0]) : null },
+            worker: { constructionMs: probe.workerConstructorMs === null ? null : rounded(probe.workerConstructorMs), startupMs: probe.workerStartupMs, scriptImportMs: probe.scriptImportMs, modelInitMs: probe.modelInitMs, firstRoundTripMs: samples.roundTrip.length ? rounded(samples.roundTrip[0]) : null, runtime: probe.runtime, attempts: probe.workerAttempts, fallbacks: probe.compatibilityFallbacks },
             stages,
             sameInputRun: outcome === 'complete' ? (last?.report.sameInputRun || 0) + 1 : null,
             comparison: last ? { previousSequence: last.report.sequence, differenceMs: rounded(totalMs - last.report.totalAnalysisMs), previousTotalMs: last.report.totalAnalysisMs } : null,

@@ -19,6 +19,8 @@
 
 #176 像替每一站蓋時間章，先找練舞者等最久的一站；[本機耗時指南](docs/FOLLOW_PERFORMANCE.md)與[M4 Pro 合成基準](docs/evidence/issue-176-follow-performance.md)同時提供 ELI5 白話與技術寫法。技術上只加分段計時、P50／P95 與同輸入重跑比較，沿用主線 8 Hz、模型、追蹤與匯出；schema 2 分開分析、單側製片與總等待。85.8% 是 `5eda868` 原版基準的 detect 占比，不是後續狹框補邊及單側製片整合版的比例，也不外推成所有私人影片。
 
+#192 像換成一次處理一排數字的工具，每秒仍看八張照片；[SIMD 對照與回退](docs/evidence/issue-192-follow-simd.md)先固定整合版基準，再交錯比較兩種同模型 CPU runtime。能力不支援選相容版，初始化失敗以同一影格、原期限及乾淨 Worker 僅回退一次；原片／舊成品保全與追蹤規則不改。採用前須有同片同裝置的改善及逐格幾何、取消與匯出證據，原版數字不移記。
+
 #11 固定 `5eda868` 的既有雙片原生 Safari 續驗見[本輪聲畫與保全證據](docs/evidence/issue-11-main-safari-matrix.md)：1×／0.75× 的 15 秒成片通過本輪量尺，0.5× 的提示音事件數不符即停止；長提示音的量測可靠性與音量降低原因仍待隔離。四份下載在關站後可自然播完，不能取代聲畫品質、十輪或真機驗收。
 
 #170 讓老師與自己各有可播放、定位及下載的單側結果，見[獨立結果設計](#170-單側跟隨結果與匯出)與[短合成證據](docs/evidence/issue-170-follow-results.md)。
@@ -103,9 +105,9 @@ Safari 有界本機音訊候選的格式與資源取捨見第 33 節；這不是
 
 上游 [ImageToTensor 的比例選項](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/calculators/tensor/image_to_tensor_calculator.proto)區分保持比例補邊與拉滿 tensor；本次以同一固定模型的本機前後對照驗證輸入處理，沒有升級依賴或只靠上游說明宣稱修好。
 
-分析使用獨立靜音 video，不改現有兩側播放器或原檔。這個播放器不掛上螢幕，只等解碼 seeked 再取 ImageBitmap；不能套用匯出用的螢幕呈現通知，否則相同位置的第二次取樣會逾時。既有預覽／匯出的呈現護欄不改。每輪一個 Worker，取消／錯誤／逾時終止，ImageBitmap 每次釋放；只有完整成功才提交新路徑。共用 sourceCrop 在左右／疊影繪圖前取來源矩形，既有 contain、鏡像、疊影大小／位移與匯出器接續處理。分析期間鎖定來源與設定；路徑 revision 加入成品新舊簽章，避免重新框選後把舊成品標為目前設定。
+分析使用獨立靜音 video，不改現有兩側播放器或原檔。這個播放器不掛上螢幕，只等解碼 seeked 再取 ImageBitmap；不能套用匯出用的螢幕呈現通知，否則相同位置的第二次取樣會逾時。既有預覽／匯出的呈現護欄不改。通常每輪一個 Worker，SIMD 初始化失敗僅由乾淨相容 Worker 以同一影格重試一次，沿用原期限；取消／錯誤／逾時終止，ImageBitmap 每次釋放，只有完整成功才提交新路徑。共用 sourceCrop 在左右／疊影繪圖前取來源矩形，既有 contain、鏡像、疊影大小／位移與匯出器接續處理。分析期間鎖定來源與設定；路徑 revision 加入成品新舊簽章，避免重新框選後把舊成品標為目前設定。
 
-模型與必要的非 SIMD CPU WASM 約 17 MB 隨靜態包與離線 manifest 提供，無 CDN、API key、付費 API、影片上傳或模型 runtime 網路依賴。CSP 僅增加 wasm-unsafe-eval，沒有開放 JavaScript eval 或跨來源。模型與 WASM 逐一固定 SHA256；建置和封裝拒絕未知 bytes，其餘公開文字仍做原掃描。Apache 授權見 THIRD_PARTY_NOTICES。拒絕雲端推論（隱私／成本）、只追固定像素模板（轉身變化更脆弱）、第二套匯出器（畫面易與預覽漂移）、把路徑寫入既有 recipe（增加本次不需要的格式遷移）。
+原模型與相容 CPU WASM 約 17 MB；#192 另帶約14MB SIMD runtime，依官方能力檢查自動選擇，兩套均隨靜態包與離線 manifest 提供，換取離線相容回退。無 CDN、API key、付費 API、影片上傳或外部模型服務依賴。CSP 沿用 wasm-unsafe-eval，沒有開放 JavaScript eval 或跨來源。模型與兩套 WASM 逐一固定 SHA256；建置和封裝拒絕未知 bytes，其餘公開文字仍做原掃描。Apache 授權見 THIRD_PARTY_NOTICES。拒絕雲端推論（隱私／成本）、只追固定像素模板（轉身變化更脆弱）、第二套匯出器（畫面易與預覽漂移）、把路徑寫入既有 recipe（增加本次不需要的格式遷移）。
 
 這是區域偵測加連續性判斷，沒有生物辨識或姿態評分。遮擋、快速走位、相似衣著、多人交錯及鏡面仍可能跟錯，使用者必須預覽檢查；不宣稱與參考 App 品質相同。真人舞蹈、Safari、實體手機及完整 G1–G7 需另驗，不從合成素材推論已通過。
 
