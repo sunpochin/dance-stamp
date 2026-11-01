@@ -16,6 +16,8 @@ async page => {
   await page.locator('#self-seek').fill('0'); await page.locator('#self-seek').dispatchEvent('input');
   await page.waitForFunction(() => { const video = document.getElementById('self'); return !video.seeking && video.currentTime < .02; });
   await page.locator('#self-start').click(); await idle();
+  // 保留真正未裁切的畫面；不能拿另一份裁切計算替產品自己證明切換成功。
+  await page.locator('#canvas').evaluate(canvas => { window.followFullFrame = canvas.getContext('2d').getImageData(0, 0, 1280, 720).data; });
   const open = async side => { await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle(); };
   const analyze = async () => { await page.locator('#follow-confirm').click(); await page.waitForFunction(() => !document.getElementById('follow-dialog').open || !document.getElementById('controls').disabled && document.getElementById('follow-message').textContent.includes('保留'), null, { timeout: 60000 }); await idle(); assert(!await page.locator('#follow-dialog').evaluate(d => d.open), '分析失敗：' + await page.locator('#follow-message').textContent()); };
   await open('reference');
@@ -30,6 +32,35 @@ async page => {
   for (const [id, value] of [['follow-width', 40], ['follow-x', 55], ['follow-y', 2.5], ['follow-height', 95]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).dispatchEvent('change'); }
   await analyze();
   for (const side of ['reference', 'self']) assert(await page.locator('#' + side + '-follow-enabled').isChecked(), side + ' 未開啟獨立跟隨');
+  await page.locator('#canvas').evaluate(canvas => { window.followTracked = canvas.getContext('2d').getImageData(0, 0, 1280, 720).data; });
+  const difference = async baseline => page.locator('#canvas').evaluate((canvas, baseline) => {
+    const before = window[baseline], after = canvas.getContext('2d').getImageData(0, 0, 1280, 720).data;
+    return [0, 1].map(half => {
+      let max = 0, changed = 0;
+      for (let y = 90; y < 660; y += 3) for (let x = half * 640 + 3; x < (half + 1) * 640 - 3; x += 3) {
+        const p = (y * 1280 + x) * 4;
+        for (let c = 0; c < 3; c++) { const error = Math.abs(after[p + c] - before[p + c]); max = Math.max(max, error); changed += error > 1 ? 1 : 0; }
+      }
+      return { max, changed };
+    });
+  }, baseline);
+  const resultLinks = await page.evaluate(() => ['reference', 'self'].map(side => document.getElementById(side + '-follow-download').href));
+  const toggleFrames = [];
+  for (const [side, half] of [['reference', 0], ['self', 1]]) {
+    await page.locator('#' + side + '-follow-enabled').setChecked(false); await idle();
+    const full = await difference('followFullFrame'), tracked = await difference('followTracked');
+    assert(full[half].max <= 1 && tracked[half].changed > 100 && tracked[1 - half].max <= 1, side + ' 暫停跟隨未還原完整畫面或改動另一側：' + JSON.stringify({ full, tracked }));
+    assert((await page.locator('#' + side + '-follow-status').textContent()).includes('跟隨已暫停') && await page.locator('#' + side + '-follow-clear').isEnabled(), '暫停誤清除選框');
+    await page.locator('#' + side + '-follow-enabled').setChecked(true); await idle();
+    const restored = await difference('followTracked');
+    assert(restored.every(part => part.max <= 1), side + ' 恢復跟隨需重新分析或污染另一側：' + JSON.stringify(restored));
+    toggleFrames.push({ side, full, tracked, restored });
+  }
+  assert(JSON.stringify(await page.evaluate(() => ['reference', 'self'].map(side => document.getElementById(side + '-follow-download').href))) === JSON.stringify(resultLinks), '暫停／恢復更換了單側成品');
+  // Escape 必須走瀏覽器原生 dialog cancel，且把焦點還給原入口。
+  await open('reference'); await page.keyboard.press('Escape'); await idle();
+  assert(!await page.locator('#follow-dialog').evaluate(dialog => dialog.open) && await page.locator('#reference-follow').evaluate(button => button === document.activeElement), 'Escape 未關閉選框或失去鍵盤焦點');
+  assert((await difference('followTracked')).every(part => part.max <= 1), 'Escape 清掉舊追蹤');
   // 兩功能共存時，試看也必須取同一人物來源；用實際上衣位置／面積核對，而非只看滑桿值。
   const matching = await page.evaluate(() => {
     const measure = id => {
@@ -128,10 +159,31 @@ async page => {
   await page.locator('#self-file').setInputFiles('output/follow/self.mp4'); await idle();
   assert(await page.locator('#self-follow-enabled').isDisabled() && await page.locator('#reference-follow-enabled').isChecked(), '換自己影片影響另一側或沿用舊路徑');
   assert(await page.locator('#output-download').getAttribute('href') === oldOutput, '換片刪掉先前成品');
+  await page.locator('#reference-mirror').setChecked(false); await idle();
+  const selfResultStatus = await page.locator('#self-follow-result-status').textContent();
+  await page.locator('#canvas').evaluate(canvas => { window.followBeforeClear = canvas.getContext('2d').getImageData(0, 0, 1280, 720).data; });
+  // connect-src 刻意不開放 blob fetch；從真正下載入口取前後檔案，不放寬產品 CSP。
+  const pendingPrevious = page.waitForEvent('download'); await page.locator('#reference-follow-download').click(); const previousDownload = await pendingPrevious;
+  const previousPath = 'output/playwright/follow-before-clear-' + runId + '.' + previousDownload.suggestedFilename().split('.').pop(); await previousDownload.saveAs(previousPath);
+  const { readFileSync } = await import('node:fs'), { createHash } = await import('node:crypto'), previousBytes = readFileSync(previousPath);
+  const previousResult = { bytes: previousBytes.length, sha256: createHash('sha256').update(previousBytes).digest('hex') };
+  downloads.push({ path: previousPath, previousResult });
+  await page.locator('#reference-follow-clear').click(); await idle();
+  const cleared = await difference('followFullFrame'), clearChange = await difference('followBeforeClear');
+  assert(cleared[0].max <= 1 && clearChange[0].changed > 100 && clearChange[1].max <= 1, '清除選框未還原完整畫面或改動另一側：' + JSON.stringify({ cleared, clearChange }));
+  assert(await page.locator('#reference-follow-enabled').isDisabled() && !await page.locator('#reference-follow-enabled').isChecked() && await page.locator('#reference-follow-clear').isDisabled() && await page.locator('#reference-follow-refresh').isDisabled(), '清除後仍沿用舊追蹤');
+  assert((await page.locator('#reference-follow-download').textContent()).includes('上次') && (await page.locator('#reference-follow-result-status').textContent()).includes('先前') && await page.locator('#self-follow-result-status').textContent() === selfResultStatus, '清除沒有逐側標示舊結果');
+  assert(JSON.stringify(await page.evaluate(() => ['reference', 'self'].map(side => document.getElementById(side + '-follow-download').href))) === JSON.stringify(resultLinks) && await page.locator('#output-download').getAttribute('href') === oldOutput, '清除選框刪掉舊單側或 VS 成品');
+  // 留著連結不代表成品仍可另存；真正下載後逐 byte 指紋必須仍是清除前的成品。
+  const pendingOldResult = page.waitForEvent('download'); await page.locator('#reference-follow-download').click(); const oldResultDownload = await pendingOldResult;
+  const oldResultPath = 'output/playwright/follow-cleared-' + runId + '.' + oldResultDownload.suggestedFilename().split('.').pop(); await oldResultDownload.saveAs(oldResultPath);
+  const oldResultBytes = readFileSync(oldResultPath);
+  assert(oldResultBytes.length === previousResult.bytes && createHash('sha256').update(oldResultBytes).digest('hex') === previousResult.sha256, '清除後實際下載內容已改變');
+  downloads.push({ path: oldResultPath, previousResult });
   for (const width of [320, 390, 768, 1440]) { await page.setViewportSize({ width, height: 1000 }); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), '框選介面窄版溢出'); }
   const selectionScreenshot = 'output/playwright/follow-selection-' + runId + '.png';
   await open('self'); await page.locator('#follow-dialog').screenshot({ path: selectionScreenshot }); await page.locator('#follow-cancel').click();
   assert(requests.every(request => request.method === 'GET' && (request.url.startsWith(origin + '/') || request.url.startsWith('blob:'))), '人物分析有外部請求或寫入');
   assert(requests.some(request => request.url.endsWith('/person-model.tflite')), '未真正執行本機人物模型');
-  return { downloads, selectionScreenshot, bothSidesTracked: true, adjustablePreviewSharesCropWithoutChangingOutput: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
+  return { downloads, selectionScreenshot, bothSidesTracked: true, toggleFrames, cleared, clearChange, clearPreservesDownloadBytes: true, escapeRestoresFocus: true, adjustablePreviewSharesCropWithoutChangingOutput: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
 }

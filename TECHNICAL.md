@@ -35,6 +35,8 @@
 
 #103 的[單側結果供聲補測](docs/evidence/issue-103-follow-webkit-audio.md)讓老師與自己共用原檢查表分別驗 Chrome 及 Safari 供聲路徑，確認真正下載帶各自聲音且取消保留舊成品。只新增第77個條件分支情境，原76個順序、所有數值門檻及十四份產品JS不改；Chromium指定Safari UA不代表原生Safari或真機驗收。
 
+#103 的[人物跟隨開關與清除補測](docs/evidence/issue-103-follow-controls.md)直接比對公開開關前後的真預覽像素，確認逐側暫停／恢復、Escape 焦點及清除選框後舊成品仍能真正下載。沿既有人物回歸，產品、CSP、原門檻與完整情境順序不改；合成回歸不代替原生瀏覽器、真人或真機驗收。
+
 #103 的[背景程式載入失敗補測](docs/evidence/issue-103-worker-load.md)中斷一次真正人物 Worker 請求，核對原生錯誤、及時恢復、舊下載內容與同頁完整重試。沿原 runtime 回歸追加邊界，產品、原門檻及完整情境順序不改；受控載入中斷不稱自然故障或原生 Safari 驗收。
 
 版本號、更新紀錄與里程碑草稿流程見[版本與更新說明](docs/RELEASE.md#版本與更新說明)。
