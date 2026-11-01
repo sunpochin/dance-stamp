@@ -146,10 +146,24 @@ test('預先取消、解碼取消、原生錯誤與輸出規格不符都 close�
     expect(audit.framesClosed).toBe(mode === 'abort' ? 0 : audit.submitted)
   }
 })
-test('合法無音軌不配置 PCM；超過60秒在解析前拒絕；等待 recorder 可取消且移除監聽', async () => {
+test('完整五分鐘 PCM 不受舊封包上限截斷，仍逐批解碼並關閉資源', async () => {
+  const { context, audit } = environment({ oneAtATime: true })
+  // 真正跑完 14,000 多包與 PCM 尾端，避免只放寬秒數卻在最後仍被舊 2900 包護欄拒絕。
+  const buffer = await decodeLocalAudio(fixture({ samples: Math.ceil(300 * 48000 / 1024) + 1 }), context, 0, 300, signal())
+  expect(audit.allocations).toEqual([115_200_000])
+  for (const channel of [0, 1]) {
+    const pcm = buffer!.getChannelData(channel)
+    expect(pcm.length).toBe(14_400_000)
+    for (const index of [0, 7_200_000, pcm.length - 1]) expect(pcm[index]).toBe(0.25)
+  }
+  expect(audit.submitted).toBeGreaterThan(2900)
+  expect(audit.max).toBe(8); expect(audit.flushes).toBe(1)
+  expect(audit.framesClosed).toBe(audit.submitted); expect(audit.closed).toBe(1); expect(audit.live).toBe(0)
+})
+test('合法無音軌不配置 PCM；超過五分鐘在解析前拒絕；等待 recorder 可取消且移除監聽', async () => {
   const { context, audit } = environment()
   expect(await decodeLocalAudio(fixture({ silent: true }), context, 0, 1, signal())).toBeNull()
-  await expect(decodeLocalAudio(fixture(), context, 0, 60.001, signal())).rejects.toThrow('Safari'); expect(audit.allocations).toEqual([])
+  await expect(decodeLocalAudio(fixture(), context, 0, 300.001, signal())).rejects.toThrow('Safari'); expect(audit.allocations).toEqual([])
   const controller = new AbortController(), pending = audioReady(new Promise(() => {}), controller.signal)
   controller.abort(); await expect(pending).rejects.toThrow()
 })

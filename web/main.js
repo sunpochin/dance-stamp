@@ -1,5 +1,5 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
-import { comparison, positions, contain, validateMarkerRange, captureDuration } from './timeline.js';
+import { comparison, positions, contain, validateMarkerRange, captureDuration, MAX_COMPARISON_MS } from './timeline.js';
 import { event, normalizedVideo, mediaAction, presentedFrame, seek, load, record, extension, cameraError } from './recorder.js';
 import { validateBackup, parseBackup, planBackupImport, createShare, mediaInventory, videoLabels, planDeletion, moveStatuses, searchLibrary, practiceHistory } from './library.js';
 import { startOffline } from './offline.js';
@@ -311,7 +311,8 @@ function recipe(overrides = {}) {
   const value = { startMs: Math.round(Number($('start').value) * 1000), endMs: Math.round(Number($('end').value) * 1000), rate: Number($('rate').value), offsetMs: Math.round(Number($('offset').value) * 1000), selfDurationMs,
     referenceMirror: $('reference-mirror').checked, selfMirror: $('self-mirror').checked, ...overrides };
   if (!referenceDurationMs || value.endMs > referenceDurationMs) throw new Error('片段終點超過示範影片長度。');
-  comparison({ ...value, selfDurationMs: selfDurationMs || 60_000 });
+  // 右片未載入時只驗設定；真正共同區間等實片載入後才計算。
+  comparison({ ...value, selfDurationMs: selfDurationMs || MAX_COMPARISON_MS });
   return value;
 }
 function mirrors() {

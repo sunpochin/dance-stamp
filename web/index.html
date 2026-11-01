@@ -109,7 +109,7 @@
         <label>結束（秒）<input id="end" type="number" min="0" step="0.001"></label>
         <label>速度<select id="rate"><option value="1">1×</option><option value="0.75">0.75×</option><option value="0.5">0.5×</option></select></label>
       </div>
-      <p class="hint">比較每次最多 60 秒，放慢後的時間也要計入。長片先在這裡選短段，再載入右片；原片不會被裁切。</p>
+      <p class="hint">比較每次最多 5 分鐘，放慢後的時間也要計入。更長的影片先在這裡選片段，再載入右片；原片不會被裁切。輸出約需同等時間，請保持頁面在前景。</p>
     </fieldset>
     <!-- 已有影片不需先讀相機設定；原生 details 讓錄影仍能用鍵盤展開。 -->
     <details id="camera-tools" data-deferred><summary>還沒練習影片？邊看示範邊錄影</summary>
@@ -127,7 +127,7 @@
     <label data-deferred>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
     <p class="hint">起點用上方兩側影片的「設為起點」設定；下方按鈕只做細微對齊。只輸出兩段都有畫面的區間。</p>
     <fieldset id="offset-controls" class="actions"><legend>對齊微調</legend><button type="button" data-offset="-50">−50 毫秒</button><button type="button" data-offset="-10">−10 毫秒</button><button type="button" data-offset="10">＋10 毫秒</button><button type="button" data-offset="50">＋50 毫秒</button></fieldset>
-    <p class="hint">比較原速預設 1×；上方速度控制示範影片的播放速度。改起訖或速度會另存比較，保留原配方與舊輸出。每段比較最多 60 秒。</p>
+    <p class="hint">比較原速預設 1×；上方速度控制示範影片的播放速度。改起訖或速度會另存比較，保留原配方與舊輸出。每段比較最多 5 分鐘。</p>
     <p id="audio-status" class="hint">只播放老師影片的聲音，我的影片靜音。</p>
     <p class="hint" id="comparison-pitch-status">比較預覽與 VS 的聲音會隨速度變調，以維持聲畫同步。</p>
     <label>共同時間線（秒）<input id="scrub" aria-describedby="intersection audio-status" type="range" min="0" max="1" value="0" step="0.01"></label>

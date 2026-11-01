@@ -29,8 +29,19 @@ describe('M0 共同比較區間', () => {
     expect(comparison({ ...value, selfDurationMs: 9000 }).durationMs).toBe(5000)
   })
   test('拒絕空值、非整數、超長與不允許速度', () => {
-    for (const patch of [{ startMs: -1 }, { endMs: 0 }, { rate: 0 }, { rate: 2 }, { offsetMs: NaN }, { offsetMs: 0.5 }, { selfDurationMs: Infinity }, { endMs: 41_000 }]) {
+    for (const patch of [{ startMs: -1 }, { endMs: 0 }, { rate: 0 }, { rate: 2 }, { offsetMs: NaN }, { offsetMs: 0.5 }, { selfDurationMs: Infinity }, { endMs: 160_001 }]) {
       expect(() => comparison({ ...slow, ...patch })).toThrow()
+    }
+  })
+  test('五分鐘以放慢後時長計算，三速度首中尾映射與超界拒絕共用原規則', () => {
+    for (const rate of [0.5, 0.75, 1]) {
+      const value = { startMs: 12_000, endMs: 12_000 + 300_000 * rate, rate, offsetMs: 0, selfDurationMs: 300_000 }
+      expect(comparison(value).durationMs).toBe(300_000)
+      for (const elapsed of [0, 150_000, 300_000]) expect(positions(value, elapsed)).toEqual({ referenceMs: 12_000 + rate * elapsed, selfMs: elapsed })
+      expect(() => comparison({ ...value, endMs: value.endMs + 1 })).toThrow('最多 5 分鐘')
+      // 短右片可縮短合法交集，卻不能拿來繞過左片規劃上限。
+      expect(comparison({ ...value, selfDurationMs: 80_000 }).durationMs).toBe(80_000)
+      expect(() => comparison({ ...value, endMs: value.endMs + 1, selfDurationMs: 80_000 })).toThrow('最多 5 分鐘')
     }
   })
 })
