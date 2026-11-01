@@ -123,8 +123,9 @@
     </details>
   </fieldset>
   <fieldset id="compare" disabled><legend>02 · 對齊與預覽</legend>
-    <label>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
-    <p class="hint">正值略過我的影片開頭；負值略過老師影片開頭。只輸出兩段都有畫面的區間。</p>
+    <!-- 起點只在兩側定位尺設定；保留原欄位供同一配方與暫藏工具使用，避免兩份輸入互相矛盾。 -->
+    <label data-deferred>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
+    <p class="hint">起點用上方兩側影片的「設為起點」設定；下方按鈕只做細微對齊。只輸出兩段都有畫面的區間。</p>
     <fieldset id="offset-controls" class="actions"><legend>對齊微調</legend><button type="button" data-offset="-50">−50 毫秒</button><button type="button" data-offset="-10">−10 毫秒</button><button type="button" data-offset="10">＋10 毫秒</button><button type="button" data-offset="50">＋50 毫秒</button></fieldset>
     <p class="hint">比較原速預設 1×；上方速度控制示範影片的播放速度。改起訖或速度會另存比較，保留原配方與舊輸出。每段比較最多 5 分鐘。</p>
     <p id="audio-status" class="hint">只播放老師影片的聲音，我的影片靜音。</p>
@@ -165,7 +166,7 @@
         </div>
       </div>
     </section>
-    <p class="hint">狀態列的「一起暫停」可暫停比較，再拖上方共同時間線看同一拍。</p>
+    <p class="hint">播放後按同一按鈕即可暫停，再按「繼續」從原位置播放；也可拖上方共同時間線看同一拍。</p>
   </section>
   <section aria-labelledby="overlay-title">
     <h2 id="overlay-title">疊影比較 · 看動作差在哪裡</h2>
@@ -198,7 +199,7 @@
       <p id="overlay-empty" class="hint">載入兩片並確認有效的比較區間後，這裡會顯示疊影預覽。</p>
     </div>
     </div>
-    <p class="hint">狀態列的「一起暫停」可暫停比較。下方合成區可選左右並排或目前疊影，合成期間預覽暫停更新。</p>
+    <p class="hint">播放後按同一按鈕即可暫停與繼續。下方合成區可選左右並排或目前疊影，合成期間預覽暫停更新。</p>
   </section>
   <section id="save-result" aria-label="合成結果"><h2>03 · 合成與下載</h2>
     <fieldset id="export-controls" disabled><legend>合成一支比較影片</legend>

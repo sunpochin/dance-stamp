@@ -36,13 +36,22 @@ async page => {
   for (const selector of ['#reference-seek', '#self-seek', '.segment-settings', '#compare', '#save-result', '#play', '#overlay-play', '#overlay-opacity']) assert(await page.locator(selector).isVisible(), '雙片就緒後沒有開放比較');
   // 簡化選片不能蓋掉較新主線明確開放的身體對齊控制。
   assert(await page.locator('#overlay-layout').isVisible() && await page.locator('#overlay-reference-scale').isEnabled(), '整合後疊影大小位置控制消失');
-  for (const [id, value] of [['start', '0.2'], ['end', '2.2'], ['offset', '0.1']]) {
-    await page.locator('#' + id).fill(value); await page.locator('#' + id).dispatchEvent('change'); await idle();
+  for (const [id, value] of [['start', '0.2'], ['end', '6.2']]) {
+    // 真正失焦才提交欄位；手送 change 再失焦會多存一次，把隨後的定位蓋回起點。
+    await page.locator('#' + id).fill(value); await page.locator('#' + id).press('Tab'); await idle();
   }
+  assert(!await page.locator('#offset').isVisible(), '預設頁仍重複顯示練習影片起點欄位');
+  // 從使用者保留的定位尺設定起點，不能靠修改已隱藏的欄位讓測試通過。
+  await page.locator('#self-seek').fill('0.1'); await page.locator('#self-seek').dispatchEvent('input');
+  await page.waitForFunction(() => !document.getElementById('self').seeking && Math.abs(document.getElementById('self').currentTime - 0.1) < 0.02).catch(async error => {
+    throw new Error(`定位尺沒有到達起點：${JSON.stringify(await page.evaluate(() => ({ time: document.getElementById('self').currentTime, seeking: document.getElementById('self').seeking, slider: document.getElementById('self-seek').value, disabled: document.getElementById('self-seek').disabled, status: document.getElementById('status').textContent, busy: document.getElementById('compare').getAttribute('aria-busy') })))}；${error}`);
+  });
+  await page.locator('#self-start').click(); await idle();
+  assert((await page.locator('#self-chosen-start').textContent()).includes('0.100'), '定位尺未保留起點設定');
   const read = () => page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
   const beforePreview = await read();
   await page.locator('#play').click(); await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
-  assert((await page.locator('#status').textContent()).includes('左右比較') && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '左右播放未標示或可同時啟動另一輪');
+  assert((await page.locator('#status').textContent()).includes('左右比較') && await page.locator('#play').isEnabled() && await page.locator('#play').textContent() === '暫停左右比較' && await page.locator('#overlay-play').isDisabled(), '左右預覽不能原地暫停或仍能啟動另一輪');
   assert(await page.locator('#stop').isVisible(), '預覽時無法停止');
   await page.locator('#stop').focus(); await page.keyboard.press('Enter'); await idle();
   assert(!await page.locator('#stop').isVisible() && await page.evaluate(() => document.activeElement.id === 'play'), '停止後未收起或鍵盤焦點遺失');
@@ -51,13 +60,41 @@ async page => {
   // 新入口也要真正走到播放與共用暫停，不能只驗 HTML 有第二顆按鈕。
   await page.locator('#overlay-play').focus(); await page.keyboard.press('Enter');
   await page.waitForFunction(() => !document.getElementById('pause-comparison').hidden);
-  assert((await page.locator('#status').textContent()).includes('疊影比較') && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '疊影播放未標示或可重複啟動');
+  assert((await page.locator('#status').textContent()).includes('疊影比較') && await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isEnabled() && await page.locator('#overlay-play').textContent() === '暫停疊影比較', '疊影預覽不能原地暫停或仍能啟動另一輪');
   await page.locator('#pause-comparison').click(); await idle();
   assert(await page.evaluate(() => document.activeElement.id === 'overlay-play') && await page.locator('#play').isEnabled() && await page.locator('#overlay-play').isEnabled(), '暫停後未還原兩區入口或鍵盤焦點');
   assert(await read() === beforePreview, '切換比較入口改動資料');
+  // 同一顆按鈕連續暫停／續播，要驗兩側真正的媒體時間，不能只看標籤恢復可點。
+  const resumed = [];
+  for (const id of ['play', 'overlay-play']) {
+    await page.locator('#scrub').fill('1'); await page.locator('#scrub').dispatchEvent('change'); await idle();
+    for (let cycle = 0; cycle < 3; cycle++) {
+      const before = await page.locator('#scrub').inputValue();
+      const started = page.waitForFunction(() => !document.getElementById('reference').paused && !document.getElementById('self').paused);
+      await page.locator('#' + id).focus(); await page.keyboard.press('Enter'); await started;
+      const times = await page.evaluate(() => [document.getElementById('reference').currentTime, document.getElementById('self').currentTime]);
+      assert(Math.abs(times[0] - (0.2 + Number(before))) < 0.3 && Math.abs(times[1] - (0.1 + Number(before))) < 0.3, '續播回到起點或兩側映射錯誤');
+      await page.waitForFunction(before => Number(document.getElementById('scrub').value) > Number(before) + 0.2, before);
+      await page.locator('#' + id).click(); await idle();
+      const paused = await page.locator('#scrub').inputValue();
+      assert(await page.evaluate(() => document.getElementById('reference').paused && document.getElementById('self').paused), '原地暫停未停止兩片');
+      assert((await page.locator('#' + id).textContent()).startsWith('繼續') && await page.locator('#' + id).isEnabled(), '暫停後沒有恢復續播入口');
+      await page.waitForTimeout(150);
+      assert(await page.locator('#scrub').inputValue() === paused, '暫停後時間線仍前進');
+      resumed.push({ id, cycle, before: Number(before), paused: Number(paused), times });
+    }
+  }
+  await page.locator('#scrub').fill('5.5'); await page.locator('#scrub').dispatchEvent('change'); await idle();
+  await page.locator('#play').click(); await idle();
+  assert(await page.locator('#play').isEnabled() && await page.locator('#play').textContent() === '播放左右比較', '播完後無法重播');
+  await page.locator('#play').click();
+  await page.waitForFunction(() => !document.getElementById('reference').paused && document.getElementById('reference').currentTime < 0.8);
+  await page.locator('#play').click(); await idle();
+  assert(await read() === beforePreview, '反覆續播改動原配方或資料');
   await page.locator('#export').click();
   await page.waitForFunction(() => document.getElementById('controls').disabled);
   assert(await page.locator('#stop').isVisible(), '合成時無法取消');
+  assert(await page.locator('#play').isDisabled() && await page.locator('#overlay-play').isDisabled(), '合成期間仍能啟動比較');
   await idle();
   assert((await page.locator('#status').textContent()).includes('已成檔'), '簡化介面沒有真正成檔');
   const downloadInfo = await page.evaluate(async () => {
@@ -107,5 +144,5 @@ async page => {
   await choose('self-file', 'output/comparison/self-1.mp4');
   assert(await page.locator('#compare').isVisible() && !await page.locator('#play').isDisabled() && (await page.locator('#self-selection').getAttribute('data-source')) !== null, '縮短後無法從真正預設頁建立長片比較');
   assert(await page.evaluate(() => window.simplifiedCaptureCalls) === 0, '雙片比較嘗試擷取相機／麥克風／畫面');
-  return { interface: 'comparison-only-default', keyboardChooser: true, deferredToolsHidden: true, stopOnlyWhileWorking: true, stopRestoresVisibleFocus: true, cancelledAndCorruptKeepDataAndOutput: true, actualDownload: { filename, ...downloadInfo }, rescueVisibilityOnly: true, longVideoCanShortenAndRetry: true, captureCalls: 0, sizes };
+  return { interface: 'comparison-only-default', keyboardChooser: true, deferredToolsHidden: true, stopOnlyWhileWorking: true, stopRestoresVisibleFocus: true, singleStartControl: true, pauseResume: resumed, naturalEndReplays: true, cancelledAndCorruptKeepDataAndOutput: true, actualDownload: { filename, ...downloadInfo }, rescueVisibilityOnly: true, longVideoCanShortenAndRetry: true, captureCalls: 0, sizes };
 }
