@@ -145,7 +145,7 @@ try {
   // 插樁會在賦值中加入計數器；改已知字串值，不依賴未插樁的宣告語法。
   const nextWorker = worker.replace("'coverage-synthetic'", "'coverage-synthetic-next'")
   assert.notEqual(nextWorker, worker, 'SW 版號注入位置改變，拒絕無變更的更新演練')
-  let updateMode = 'current'
+  let updateMode = 'current', recoveryWorkerDelayed = false
   server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
     const url = new URL(request.url)
     if (!['GET', 'HEAD'].includes(request.method)) return new Response('Not found', { status: 404 })
@@ -157,7 +157,10 @@ try {
     }
     const text = url.pathname === '/sw.js' && updateMode === 'next' ? nextWorker : resources.get(url.pathname)
     if (text === undefined) return new Response('Not found', { status: 404 })
-    return new Response(request.method === 'HEAD' ? null : text, { headers: { ...webHeaders, 'content-type': url.pathname.endsWith('.wasm') ? 'application/wasm' : url.pathname.endsWith('.tflite') ? 'application/octet-stream' : url.pathname.endsWith('.js') ? 'text/javascript' : url.pathname.endsWith('.css') ? 'text/css' : url.pathname.endsWith('.md') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+    const response = new Response(request.method === 'HEAD' ? null : text, { headers: { ...webHeaders, 'content-type': url.pathname.endsWith('.wasm') ? 'application/wasm' : url.pathname.endsWith('.tflite') ? 'application/octet-stream' : url.pathname.endsWith('.js') ? 'text/javascript' : url.pathname.endsWith('.css') ? 'text/css' : url.pathname.endsWith('.md') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+    // 只延遲本案首次真正 SW 回應，讓「安裝尚未完成」穩定出現；原 bytes、安裝與15秒期限不變。
+    if (activeScenario === 'recovery-frame-guard' && request.method === 'GET' && url.pathname === '/sw.js' && !recoveryWorkerDelayed) { recoveryWorkerDelayed = true; return Bun.sleep(1000).then(() => response) }
+    return response
   } })
   const origin = `http://127.0.0.1:${server.port}`
   const executable = process.env.DANCE_STAMP_CHROMIUM || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/google-chrome')
@@ -231,7 +234,7 @@ try {
         const reportCase = async (label: string, value: unknown) => writeFileSync(resolve(folder, `${label}.json`), JSON.stringify(value, null, 2))
         // 保存與恢復共用硬體禁用邊界，案例本身仍由原函式執行。
         if (frameGuard) {
-          const frameEvidence: any = { events: [], scope: 'Original native recovery frame guard; controlled chunks and failures, not process termination or camera.' }
+          const frameEvidence: any = { events: [], bootstrapWorkerDelayMs: 1000, scope: 'Original native recovery frame guard; controlled initial SW response delay, chunks and failures, not process termination or camera.' }
           const saveFrame = () => writeFileSync(resolve(folder, 'evidence.local.json'), JSON.stringify(frameEvidence, null, 2))
           const event = (type: string, detail: any = {}) => { frameEvidence.events.push({ type, ...detail }); saveFrame() }
           const ready = async (page: Page) => {
@@ -239,7 +242,7 @@ try {
             await page.waitForFunction(() => !!navigator.serviceWorker.controller)
           }
           assert.equal(await page.evaluate(async () => (await (await import('/storage.js')).readLibrary()).revision), 0, '恢復回歸只允許全新合成資料，不清空舊庫')
-          try { await module.recoveryFrameGuard({ page, origin, root, run: folder, evidence: frameEvidence, event, ready, fixtureSource: resolve(media, 'media-feasibility/reference.mp4') }); result = { ...frameEvidence, passed: true } }
+          try { await module.recoveryFrameGuard({ page, origin, root, run: folder, evidence: frameEvidence, event, ready, fixtureSource: resolve(media, 'media-feasibility/reference.mp4') }); assert(recoveryWorkerDelayed, '必須真的經過首次 SW 延遲，不可只改案例名稱'); result = { ...frameEvidence, passed: true } }
           catch (error) { frameEvidence.failure = String(error); throw error }
           finally { saveFrame() }
         } else {

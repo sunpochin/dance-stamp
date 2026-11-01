@@ -78,3 +78,7 @@
 初次受控導覽改放在共用 `recoveryFrameGuard` 入口：原15秒內等待 activated，離開至about:blank後再導覽回原origin，沿原ready檢查完整快取與真正controller，並核對導覽前active、導覽後active／controller的scriptURL相同。原Stop／能力缺失／play拒絕、晚到影格、bytes與重試斷言，以及後續帶chunks的真正reload均保留。沒有clients.claim、延長期限、失敗後自動重試或修改產品；本輪待測收據與最終CI由PR附上，原長片效能資料不改記。
 
 本機首次局部執行因共用影音鎖忙而在開瀏覽器前退出，屬未執行，不記為產品失敗或通過；保留該輪收據。修正已通過701單元、型別、lint、公開掃描與建置，靜態版本仍為 `ce84d1589f3e15cc`。受控導覽前後的原生狀態會記入局部／完整收據，CI日誌僅列布林值，不公開來源網址。
+
+局部收據 `coverage/app-OmR5hL/run.json` 隨後實測失敗，新增狀態抓到等待已返回但 `before.active` 為null（布林日誌active:false）。檢查鎖定的 `playwright-core` 1.64.1 `waitForFunctionExpression`：輪詢以 `const success = predicate()` 先判真，async函式的Promise被視為真；其後只取得該Promise結果，false不會重新輪詢。因此不是單純把等待搬家即可修好，`d3bfd5d` 的原失敗保留。
+
+最終改先讓原生 `serviceWorker.ready` 將registration寫入該合成頁的暫存欄位，再由**同步**條件輪詢真實 `active.state === 'activated'`，沿原15秒期限。ready與controller的區別依[Service Workers規範](https://w3c.github.io/ServiceWorker/#navigator-service-worker-ready)；取得啟用狀態後仍明確離站再進站，核對原生controller。主機只將本案首次真SW回應延遲一秒，使安裝尚未完成的條件出現；原manifest／bytes、後續reload與恢復保全斷言不改。此受控延遲不屬人物效能基準，也沒有擴大任何產品期限。

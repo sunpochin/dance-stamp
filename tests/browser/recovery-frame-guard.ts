@@ -78,12 +78,14 @@ export async function recoveryFrameGuard({ page, origin, root, run, evidence, ev
     }
     window.confirm = () => true
   })
-  // activated 只保證後續導覽可用；首次未受控文件的 reload 仍可能沒有 controller，先真正離站再進站。
-  await page.waitForFunction(async () => (await navigator.serviceWorker.getRegistration())?.active?.state === 'activated')
+  // 固定版輪詢先把 Promise 判為真，false 結果不會再輪詢；先收原生 ready，再同步檢查真正的 state。
+  await page.evaluate(() => { (window as any).__recoveryRegistration = null; navigator.serviceWorker.ready.then(registration => { (window as any).__recoveryRegistration = registration }) })
+  await page.waitForFunction(() => (window as any).__recoveryRegistration?.active?.state === 'activated')
   const control = () => page.evaluate(async () => ({ active: (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? null, controller: navigator.serviceWorker.controller?.scriptURL ?? null }))
   const before = await control()
   evidence.bootstrapControl = { before }; event('native-worker-active')
   console.log('recovery bootstrap before:', JSON.stringify({ active: !!before.active, controlled: !!before.controller }))
+  // 啟用不會接管首次已開文件；新導覽須由同一個真正啟用的 worker 控制後才開始恢復案例。
   await page.goto('about:blank'); await page.goto(origin); await ready(page)
   const after = await control()
   evidence.bootstrapControl.after = after
