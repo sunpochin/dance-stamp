@@ -7,7 +7,7 @@ import { followMeasurements } from './follow-metrics.js';
 /** @typedef {'reference'|'self'} Side */
 /** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number,result?:{url:string,source:string,mirror:boolean,revision:number}}} FollowState */
 /** @param {{reference:HTMLVideoElement,self:HTMLVideoElement}} videos
- * @param {{source:(side:Side)=>string|undefined,file:(side:Side)=>Blob|undefined,mirror:(side:Side)=>boolean,focus:(element:HTMLElement)=>void,playbackChanged:()=>void, range:(side:Side)=>number[], busy:()=>boolean, operate:(task:(signal:AbortSignal)=>Promise<void>)=>Promise<void>, changed:()=>void}} options */
+ * @param {{source:(side:Side)=>string|undefined,file:(side:Side)=>Blob|undefined,mirror:(side:Side)=>boolean,status:(message:string)=>void,focus:(element:HTMLElement)=>void,playbackChanged:()=>void, range:(side:Side)=>number[], busy:()=>boolean, operate:(task:(signal:AbortSignal)=>Promise<void>)=>Promise<void>, changed:()=>void}} options */
 export function createFollowUI(videos, options) {
   const dialog = /** @type {HTMLDialogElement} */ (document.getElementById('follow-dialog'));
   const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('follow-canvas'));
@@ -74,6 +74,8 @@ export function createFollowUI(videos, options) {
     link.href = url; link.download = `dance-${side}-follow.${extension(blob.type)}`; link.hidden = false;
     // 新檔已獨立驗證才能換掉前次結果；失敗／取消不會執行到這裡。
     if (previous) URL.revokeObjectURL(previous);
+    // 兩個入口都在成功交換後通知全頁，避免殘留舊錯誤，也不搶先覆蓋失敗／取消原因。
+    options.status(`${side === 'reference' ? '老師' : '自己'}跟隨影片已完成，可播放或匯出；原片與筆記仍保留。`);
   }
   function paint() {
     if (!draft || !context) return;
