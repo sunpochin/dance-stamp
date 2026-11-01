@@ -37,6 +37,8 @@ export const packageInputs = [
   'docs/evidence/issue-3-current-protection-audit.md', 'docs/evidence/issue-12-native-capacity-ui.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
+  // 發行指南連到本輪匿名託管證據，離線包也須能開啟；原始回應仍留本機。
+  'docs/evidence/issue-15-hosted-preview.md',
   // 授權隨獨立下載包提供，不依賴開發者的其他 checkout。
   'vendor/agent-work-methods/LICENSE', 'vendor/agent-work-methods/NOTICE.md', 'docs/ai/work-methods-lock.json',
   'vendor/harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'vendor/mediapipe/LICENSE', 'docs/ai/harness-import.json',

@@ -1,6 +1,8 @@
 <!-- 檔案用途：記錄下載包、免費主機、來源邊界及發布前缺口。所在層：#15 發布準備。主要關聯：START_HERE.md、LICENSING_AND_COST.md、ACCEPTANCE.md。 -->
 # Web 下載包與發布準備
 
+2026-11-02：[既有 HTTPS 預覽核對](evidence/issue-15-hosted-preview.md)已完成指定 PR 來源的 24 檔／48 次 GET／HEAD、完整內容、回應政策與 SW 清單比對；其十四份產品 JS 與 main `7dede9f` 相同。這份證據補上實際託管的靜態檢查，正式發行來源、完整 P0／真人／真機與發布核准仍待驗；下方歷史候選各保留原版本歸屬。
+
 2026-10-30 PR #80 續作（靜態 `4651fae419d8d9c8`）：已納入 #82 的建置授權副本連結修正，以及按原受測版本保存的 [媒體保全／Safari 操作界線](evidence/issue-3-current-protection-audit.md)、[#79 近上限原生容量 UI](evidence/issue-12-native-capacity-ui.md)與 [#81 新版正常／注入救援](evidence/issue-12-backup-recovery.md)。下載包只明列增加前兩份匿名 Markdown；產品 HTTP 路由／Web 資源白名單與授權條款維持原樣。舊 396037f 的包／UI 證據保留，新包另記來源、manifest、校驗與必要 smoke，不宣稱重跑各來源媒體矩陣。
 
 2026-10-30：整合候選固定 #74 `57e3fa1`（含 #73）、#78 `c46f0b5`（含 #75 `87e04e8`）與 #76 `f95a256`，靜態 `0e9c7c7af09286e2`。原 check、裸包 HTTP、五組恰好 10 MiB 的產品正常下載／還原及原始檔超限拒絕已實際重跑，來源與注入救援界線見[整合證據](evidence/p0-safari-reliability-integration.md)。這不是合併 main 或發布；下方舊版 Chrome／Safari／低空間結果保持原來源，不移記為本候選重跑。
