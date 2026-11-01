@@ -42,6 +42,18 @@ test('睡眠／時鐘差或缺少回覆時留空，不把估計成本寫成實�
   expect(report.worker).toMatchObject({ startupMs: null, modelInitMs: null, firstRoundTripMs: null })
   expect(report.stages.detect.count).toBe(0)
 })
+test('回退成本累加、啟動不重計，同輸入不同 runtime 不混成重跑', () => {
+  let now = 0; const history = followMeasurements({ now: () => now, timeOrigin: 1000 }), run = history.start(config)
+  run.workerCreatedNow = 0; run.workerCreatedAt = 1000; run.workerAttempts = 1; now = 20
+  run.recordWorker({ enteredAt: 1003, runtime: 'simd', scriptImportMs: 2, modelInitMs: 9 })
+  run.workerCreatedNow = 20; run.workerCreatedAt = 1020; run.workerAttempts++; run.compatibilityFallbacks++; now = 40
+  run.recordWorker({ enteredAt: 1022, runtime: 'nosimd', scriptImportMs: 3, modelInitMs: 8, detectMs: 4 })
+  run.recordWorker({ enteredAt: 1022, runtime: 'nosimd', detectMs: 4 })
+  const report = run.finish('complete', 2)!
+  expect(report.worker).toMatchObject({ runtime: 'nosimd', attempts: 2, fallbacks: 1, startupMs: 5, scriptImportMs: 5, modelInitMs: 17 })
+  const different = history.start(config); now = 60; different.recordWorker({ runtime: 'simd' })
+  expect(different.finish('complete', 2)!.sameInputRun).toBe(1)
+})
 test('製片時間與分析速度分開，製片取消不加入成功重跑比較', () => {
   let now = 0; const history = followMeasurements({ now: () => now, timeOrigin: 0 }), run = history.start(config)
   run.processedFrames = 2; now = 40; run.endAnalysis(); now = 140; run.resultMs = 100

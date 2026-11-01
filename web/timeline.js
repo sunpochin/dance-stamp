@@ -1,4 +1,6 @@
 /* 檔案用途：驗證 M0 比較配方與共同時間。所在層：純媒體邏輯。主要關聯：RECORD_COMPARE.md、main.js。 */
+// 比較、備份與 Safari 音訊共用同一上限，避免長片在選取後才被其他流程拒絕。
+export const MAX_COMPARISON_MS = 300_000;
 /** @param {number} startMs @param {number | undefined} endMs @param {number} durationMs */
 export function validateMarkerRange(startMs, endMs, durationMs) {
   // 表單與備份共用毫秒邊界，避免重連或匯入後出現另一套合法區間。
@@ -16,7 +18,7 @@ export function comparison(recipe) {
     throw new Error('片段、速度或自拍長度無效。');
   }
   const practiceMs = (endMs - startMs) / rate;
-  if (practiceMs > 60_000) throw new Error('請縮短片段：慢速後每次最多 60 秒。');
+  if (practiceMs > MAX_COMPARISON_MS) throw new Error('請縮短片段：放慢後每次比較最多 5 分鐘。');
   // 正偏移是略過自拍開頭；負偏移必須連來源音訊一起裁切，否則會有聲畫錯位。
   const lowerMs = Math.max(0, -offsetMs);
   const upperMs = Math.min(practiceMs, selfDurationMs - offsetMs);
@@ -25,9 +27,9 @@ export function comparison(recipe) {
 }
 
 export function captureDuration({ startMs, endMs, rate }) {
-  const { durationMs } = comparison({ startMs, endMs, rate, offsetMs: 0, selfDurationMs: 60_000 });
-  // 下限只約束新錄影；既有短片與中斷原片仍可保留、播放及比較。
-  if (durationMs < 15_000) throw new Error('請調整片段或速度，讓實際錄影時間介於 15 到 60 秒。');
+  const { durationMs } = comparison({ startMs, endMs, rate, offsetMs: 0, selfDurationMs: MAX_COMPARISON_MS });
+  // 相機仍維持原驗收範圍；不能把長比較截成 60 秒後誤當成合法的新錄影。
+  if (durationMs < 15_000 || durationMs > 60_000) throw new Error('請調整片段或速度，讓實際錄影時間介於 15 到 60 秒。');
   return durationMs;
 }
 

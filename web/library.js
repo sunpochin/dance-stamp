@@ -1,5 +1,5 @@
 /* 檔案用途：本機筆記與可攜格式的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
-import { validateMarkerRange } from './timeline.js';
+import { validateMarkerRange, MAX_COMPARISON_MS } from './timeline.js';
 import { validateBeatGrid } from './beats.js';
 export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
 /** @returns {import('./types').Library} */
@@ -77,7 +77,8 @@ export function validateBackup(input) {
   for (const t of input.takes) {
     check(maps.videos.has(t.referenceVideoId) && maps.assets.get(t.cameraAssetId)?.kind === 'take');
     check(integer(t.referenceStartMs) && integer(t.referenceEndMs) && t.referenceEndMs > t.referenceStartMs && t.referenceEndMs <= maps.videos.get(t.referenceVideoId).durationMs);
-    check([0.5, 0.75, 1].includes(t.rate) && (t.referenceEndMs - t.referenceStartMs) / t.rate <= 60_000);
+    // take 也代表既有雙片配對，備份必須容納合法長比較；新相機另由 captureDuration 限制。
+    check([0.5, 0.75, 1].includes(t.rate) && (t.referenceEndMs - t.referenceStartMs) / t.rate <= MAX_COMPARISON_MS);
     check(['ready', 'interrupted', 'failed', 'recording'].includes(t.state) && text(t.createdAt) && Number.isFinite(Date.parse(t.createdAt)));
     let captureTiming;
     if (t.captureTiming !== undefined) {

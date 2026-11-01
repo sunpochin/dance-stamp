@@ -85,3 +85,14 @@ CI341仍未命中`follow-ui.js`第67行的AudioContext建構失敗。兩條原�
 負控制僅在本機供應副本拿掉確認前的`signal.throwIfAborted()`，SW仍校驗該副本實際bytes。新斷言確實拒絕「建立音訊失敗仍啟動人物分析」，頁面例外0、既有真正音訊環境全部closed、自有瀏覽器／主機及nonce收尾；負控制不產生產品覆蓋率。第一次因另一輪線上操作驗收持鎖而在開瀏覽器前退出，原收據保留，並非產品失敗。
 
 原程式的person-follow／follow-results／webkit-follow-results／follow-performance四案全過、0頁面例外並正常收尾，兩條供聲案例都交付新失敗保全斷言。這輪六份新下載在產品停止後另開離線file播放器，全部自然ended／error0／dropped0／有音訊，影音全軌解碼6／6、檔案hash不變，已知自有PID退出並釋鎖。與原相同四案、相同順序及十四份來源hash的前輪比較：follow-ui行217／222→218／222（97.74%→98.19%），分支191／231→192／231（82.68%→83.11%），函式不變；不是全App或100%聲明。這輪來源為23dff7f加測試／文件，提交bbbf6e6後已核對測試及產品hash；新增提交的完整CI346及其原生Safari驗證見上方，不能移記CI341。
+
+## 2026-11-01 整合已合併的五分鐘與人物加速主線
+
+聲音的門要先開，找人的助手也要能換相容模式：整合主線148f5845d52a9433dcd97274feb45edb35e40c79（已合併#197／#199）時，保留兩方文件，以及SIMD能力判斷、全新Worker回退與既有取消檢查；本票的音訊失敗早停仍在第一次createWorker之前。只在本功能分支整合，不合併PR或發布。
+
+- 正常check通過：704單元／0失敗／3804斷言、型別／lint／建置，原19項info保留；整合靜態版本bb68b11b9447eab3。
+- person-follow、follow-results、webkit-follow-results、follow-performance、follow-runtime五案全過，0頁面例外。兩條供聲案仍驗真正手勢內先建立音訊、建構失敗不啟Worker、分析取消／Worker失敗／resume拒絕清理、兩份舊結果及完整資料保全，原像素、音軌、鏡像、片長和期限斷言均保留。
+- runtime案沿真模型驗SIMD／不支援／探測錯誤，loader及WASM故障改用新Worker；雙故障及第二個Worker建構失敗保留舊結果，初始化SIMD／相容模式時均能取消。九種模式的Worker建立／終止數相等，沒有用假模型或放寬期限。
+- 兩條供聲分支各三份真下載，加SIMD／不支援／WASM回退各一份，共九份；產品主機與瀏覽器停止後另開離線Chrome原生file，全部自然ended／error0／dropped0／有音訊，全軌解碼9／9、hash不變，沒有HTTP請求；已知自有程序全部退出並正常釋鎖。
+
+本機局部輪的來源是4ab51de加尚未提交的本次整合，十四份產品及runner hash均綁收據；提交後另核對一致，不能寫成乾淨提交重跑、完整78案或原生Safari驗收。上述bbbf6e6的三份原生成品仍只歸屬原來源，整合版原生兩側／更新取消及完整CI另驗，不能移用CI346。

@@ -60,6 +60,9 @@ jobs:
       # 原入口已關閉網站與瀏覽器；另開原生file播放器，不能以App內預覽替代實際下載證據。
       - name: Reopen actual storage-version downloads after app shutdown
         run: bun --no-env-file tests/app-coverage/verify-storage-version-downloads.ts
+      # 兩種 runtime 與真正回退的成品都要離站解碼／播放，不能用模型成功替成檔背書。
+      - name: Reopen SIMD and compatibility follow downloads after app shutdown
+        run: bun --no-env-file tests/app-coverage/verify-follow-runtime-downloads.ts
       # 先驗真正下載，再核對完整收據；局部或失敗報表不產生 badge。
       - name: Generate verified coverage badges and report
         env:

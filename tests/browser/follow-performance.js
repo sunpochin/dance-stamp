@@ -7,10 +7,22 @@ async (page, options = {}) => {
   await page.addInitScript(() => {
     window.confirm = () => true; navigator.mediaDevices.getUserMedia = async () => { throw new Error('耗時量測不開硬體'); };
     const NativeWorker = window.Worker; window.perfWorkers = 0; window.perfTerminated = 0; window.perfFrames = 0;
+    const nativeBitmap = window.createImageBitmap.bind(window), nativeDraw = CanvasRenderingContext2D.prototype.drawImage;
+    // 僅合成 benchmark 開啟幾何旁聽；不保留像素，也不混進使用者下載的彙總報告。
+    window.createImageBitmap = (...args) => {
+      const video = args[0];
+      if (window.perfCollectGeometry && video instanceof HTMLVideoElement && args[5]?.resizeWidth) window.perfCapture = { sourceTime: video.currentTime, width: video.videoWidth, height: video.videoHeight, search: { x: args[1] / video.videoWidth, y: args[2] / video.videoHeight, width: args[3] / video.videoWidth, height: args[4] / video.videoHeight } };
+      return nativeBitmap(...args);
+    };
+    CanvasRenderingContext2D.prototype.drawImage = function (...args) {
+      const video = args[0];
+      if (window.perfCollectGeometry && window.perfReportAtEncoding && video instanceof HTMLVideoElement && !video.id && args.length === 9) window.perfDraws.push({ time: video.currentTime, box: { x: args[1] / video.videoWidth, y: args[2] / video.videoHeight, width: args[3] / video.videoWidth, height: args[4] / video.videoHeight } });
+      return nativeDraw.apply(this, args);
+    };
     window.Worker = class extends NativeWorker {
-      constructor(...args) { super(...args); if (String(args[0]).includes('person-worker')) { window.perfWorkers++; this.addEventListener('message', ({ data }) => { if (data.boxes) window.perfFrames++; }); } }
+      constructor(...args) { super(...args); if (String(args[0]).includes('person-worker')) { window.perfWorkers++; this.addEventListener('message', ({ data }) => { if (data.boxes) { window.perfFrames++; if (window.perfCollectGeometry) window.perfTrace.push({ ...window.perfCapture, boxes: data.boxes }); } }); } }
       // 只供負向取消案例：保留待回覆狀態且釋放未轉移影格，不偽造模型輸出或效能數據。
-      postMessage(message, transfer) { if (window.perfHold) { message.bitmap.close(); return; } super.postMessage(message, transfer); }
+      postMessage(message, transfer) { if (window.perfHold) { message.bitmap.close(); return; } if (window.perfForceCompatibility) message.compatibility = true; super.postMessage(message, transfer); }
       terminate() { window.perfTerminated++; super.terminate(); }
     };
     const NativeRecorder = window.MediaRecorder;
@@ -34,7 +46,7 @@ async (page, options = {}) => {
     const path = 'output/playwright/follow-metrics-' + runId + '-' + trials.length + '.json'; await download.saveAs(path);
     const { readFile } = await import('node:fs/promises'); return { path, data: JSON.parse(await readFile(path, 'utf8')) };
   };
-  const analyze = async (side, duration, enabled = true, expected = 'complete', cancelAtResult = false) => {
+  const analyze = async (side, duration, enabled = true, expected = 'complete', cancelAtResult = false, runtime) => {
     // 準備步驟走真正預設頁；定位與設起點都在計時開始前，不把操作耗時混入分析。
     for (const [id, value] of [['start', 0], ['end', duration]]) { await page.locator('#' + id).fill(String(value)); await page.locator('#' + id).press('Tab'); await idle(); }
     await page.locator('#self-seek').fill('0'); await page.locator('#self-seek').dispatchEvent('input');
@@ -46,6 +58,10 @@ async (page, options = {}) => {
     if (!source) for (const [name, value] of [['width', side === 'reference' ? 37 : 40], ['x', side === 'reference' ? 3.5 : 55], ['y', 2.5], ['height', 95]]) { await page.locator('#follow-' + name).fill(String(value)); await page.locator('#follow-' + name).dispatchEvent('change'); }
     const before = await page.evaluate(async () => ({ data: JSON.stringify((await (await import('/storage.js')).readLibrary()).data), times: ['reference', 'self'].map(id => document.getElementById(id).currentTime) }));
     const counters = await page.evaluate(() => ({ workers: window.perfWorkers, terminated: window.perfTerminated, frames: window.perfFrames }));
+    await page.evaluate(({ geometry, runtime }) => {
+      window.perfCollectGeometry = !!geometry; window.perfForceCompatibility = runtime === 'nosimd'; window.perfTrace = []; window.perfDraws = [];
+      window.perfSelection = Object.fromEntries(['x', 'y', 'width', 'height'].map(name => [name, Number(document.getElementById('follow-' + name).value) / 100]));
+    }, { geometry: options.geometry, runtime });
     await page.evaluate(measuring => { window.perfExpectedMetrics = measuring; window.perfReportAtEncoding = null; }, enabled && expected === 'complete');
     const previousResult = await page.locator('#' + side + '-follow-download').getAttribute('href');
     // 外層只量可見的確認→解除忙碌，不把下載、人工框選或 Playwright 往返時間算進去。
@@ -72,6 +88,7 @@ async (page, options = {}) => {
       const saved = await downloadReport(); path = saved.path; report = saved.data.reports.at(-1);
       assert(saved.data.schemaVersion === 2 && report.schemaVersion === 2, '報告格式未交付三段耗時版本');
       assert(saved.data.reports.length <= 10 && report.outcome === expected && report.sampleHz === 8, '報告狀態／取樣率不實');
+      if (runtime) assert(report.worker.runtime === runtime && report.worker.fallbacks === 0, '沒有使用指定對照 runtime');
       const text = JSON.stringify(saved.data); assert(!text.includes('blob:') && !text.includes('source') && !text.includes('box') && !text.includes('.mp4'), '數字報告含私人來源或選框');
       if (expected === 'complete') {
         const count = Math.ceil(duration * 8) + 1;
@@ -88,10 +105,36 @@ async (page, options = {}) => {
     assert(JSON.stringify(before) === JSON.stringify(after), '計時改了筆記或原播放器位置');
     if (expected !== 'complete') assert(await page.locator('#' + side + '-follow-download').getAttribute('href') === previousResult, '取消／失敗換掉上次跟隨影片');
     if (await page.locator('#follow-dialog').evaluate(d => d.open)) await page.locator('#follow-cancel').click();
-    const trial = { side, duration, enabled, ...actual, report, path }; trials.push(trial); options.progress?.(trial); return trial;
+    let geometry;
+    if (options.geometry) geometry = await page.evaluate(async duration => {
+      const { validBox, matchPerson, followBox, smoothTrack, cropAt } = await import('/follow.js');
+      const selection = window.perfSelection, frames = window.perfTrace, samples = []; let first, previous, held = 0, searchError = 0, renderError = 0;
+      const difference = (a, b) => Math.max(...['x', 'y', 'width', 'height'].map(key => Math.abs(a[key] - b[key])));
+      for (const [index, frame] of frames.entries()) {
+        const search = previous ? validBox({ x: previous.x - previous.width * .75, y: previous.y - previous.height * .2, width: previous.width * 2.5, height: previous.height * 1.4 }) : selection;
+        searchError = Math.max(searchError, difference(search, frame.search));
+        const boxes = frame.boxes.map(box => ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height }));
+        const person = matchPerson(boxes, previous || selection); if (person) { first ||= person; previous = person; } else held++;
+        samples.push({ time: Math.min(duration, index / 8), ...followBox(selection, first, previous) });
+      }
+      const track = { start: 0, end: duration, samples: smoothTrack(samples), held };
+      // 原生媒體時鐘在兩次讀取間仍會前進；用來源像素核對，不另凍結或替換產品時鐘。
+      for (const draw of window.perfDraws) {
+        const expected = cropAt(track, draw.time);
+        for (const key of ['x', 'y', 'width', 'height']) renderError = Math.max(renderError, Math.abs(expected[key] - draw.box[key]) * (key === 'x' || key === 'width' ? frames[0].width : frames[0].height));
+      }
+      window.perfCollectGeometry = false;
+      return { frames, track, searchError, renderError, rendered: window.perfDraws.length };
+    }, duration);
+    if (geometry) assert(geometry.frames.length === report.plannedFrames && geometry.searchError < 1e-8 && geometry.rendered > 0 && geometry.renderError <= 1, '幾何旁聽未對上產品搜尋與真正製片裁切');
+    const trial = { side, duration, enabled, runtime, ...actual, report, path, geometry }; trials.push(trial); options.progress?.(trial); return trial;
   };
   for (const side of sides) for (const duration of durations) for (let repeat = 0; repeat < (options.repeats || 2); repeat++) {
-    const trial = await analyze(side, duration); assert(trial.report.sameInputRun === repeat + 1, '相同來源／片段／選框沒有逐次比較');
+    // 交錯順序減少溫度／排程偏差；相同片段兩種 runtime 各自計算重跑次數。
+    const modes = options.runtimes || [undefined];
+    for (const runtime of repeat % 2 ? [...modes].reverse() : modes) {
+      const trial = await analyze(side, duration, true, 'complete', false, runtime); assert(trial.report.sameInputRun === repeat + 1, '相同來源／片段／選框沒有逐次比較');
+    }
   }
   if (options.controls) for (let repeat = 0; repeat < 2; repeat++) await analyze('reference', durations[0], false);
   if (!options.benchmark) {
