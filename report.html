@@ -1,4 +1,4 @@
-<!doctype html><meta charset="utf-8"><title>Dance Stamp App coverage</title><style>body{font:16px system-ui;max-width:1100px;margin:32px auto;padding:16px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}details{margin:20px 0}pre{overflow:auto;font-size:12px;line-height:1.6}pre span{display:block}pre b{color:#666}.covered{background:#edf9ed}.missing{background:#ffe4e4}</style><h1>Dance Stamp App 覆蓋率</h1><p>狀態：passed。14 個產品 JS 模組全部列入分母；綠色已執行、紅色尚未執行。插樁合成測試不代表真機驗收。</p><table><tr><th>檔案</th><th>行數</th><th>函式</th><th>分支</th></tr><tr><th>整個 App（加總）</th><td>99.61%</td><td>96.89%</td><td>88.87%</td></tr><tr><th><a href="#web/beats.js">web/beats.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr><tr><th><a href="#web/follow-export.js">web/follow-export.js</a></th><td>100%</td><td>71.42%</td><td>73.75%</td></tr><tr><th><a href="#web/follow-metrics.js">web/follow-metrics.js</a></th><td>100%</td><td>100%</td><td>98.3%</td></tr><tr><th><a href="#web/follow-ui.js">web/follow-ui.js</a></th><td>98.19%</td><td>88.88%</td><td>83.75%</td></tr><tr><th><a href="#web/follow.js">web/follow.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr><tr><th><a href="#web/library.js">web/library.js</a></th><td>100%</td><td>100%</td><td>95.81%</td></tr><tr><th><a href="#web/local-audio.js">web/local-audio.js</a></th><td>100%</td><td>100%</td><td>92.14%</td></tr><tr><th><a href="#web/main.js">web/main.js</a></th><td>99.56%</td><td>97.84%</td><td>85.61%</td></tr><tr><th><a href="#web/offline.js">web/offline.js</a></th><td>100%</td><td>90.32%</td><td>97.01%</td></tr><tr><th><a href="#web/person-worker.js">web/person-worker.js</a></th><td>100%</td><td>100%</td><td>95.65%</td></tr><tr><th><a href="#web/recorder.js">web/recorder.js</a></th><td>100%</td><td>100%</td><td>95.65%</td></tr><tr><th><a href="#web/storage.js">web/storage.js</a></th><td>100%</td><td>97.61%</td><td>91.86%</td></tr><tr><th><a href="#web/sw.js">web/sw.js</a></th><td>100%</td><td>100%</td><td>97.29%</td></tr><tr><th><a href="#web/timeline.js">web/timeline.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr></table><details id="web/beats.js"><summary>web/beats.js — 100% lines</summary><pre><span class=""><b>   1</b> /* 檔案用途：手動來源拍點、八拍位置及可取消提示音。所在層：Web 拍點邏輯。主要關聯：main.js、library.js、RECORD_COMPARE.md。 */</span>
+<!doctype html><meta charset="utf-8"><title>Dance Stamp App coverage</title><style>body{font:16px system-ui;max-width:1100px;margin:32px auto;padding:16px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}details{margin:20px 0}pre{overflow:auto;font-size:12px;line-height:1.6}pre span{display:block}pre b{color:#666}.covered{background:#edf9ed}.missing{background:#ffe4e4}</style><h1>Dance Stamp App 覆蓋率</h1><p>狀態：passed。14 個產品 JS 模組全部列入分母；綠色已執行、紅色尚未執行。插樁合成測試不代表真機驗收。</p><table><tr><th>檔案</th><th>行數</th><th>函式</th><th>分支</th></tr><tr><th>整個 App（加總）</th><td>99.61%</td><td>97.01%</td><td>88.88%</td></tr><tr><th><a href="#web/beats.js">web/beats.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr><tr><th><a href="#web/follow-export.js">web/follow-export.js</a></th><td>100%</td><td>71.42%</td><td>73.75%</td></tr><tr><th><a href="#web/follow-metrics.js">web/follow-metrics.js</a></th><td>100%</td><td>100%</td><td>98.3%</td></tr><tr><th><a href="#web/follow-ui.js">web/follow-ui.js</a></th><td>98.19%</td><td>90.47%</td><td>83.88%</td></tr><tr><th><a href="#web/follow.js">web/follow.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr><tr><th><a href="#web/library.js">web/library.js</a></th><td>100%</td><td>100%</td><td>95.81%</td></tr><tr><th><a href="#web/local-audio.js">web/local-audio.js</a></th><td>100%</td><td>100%</td><td>92.14%</td></tr><tr><th><a href="#web/main.js">web/main.js</a></th><td>99.56%</td><td>97.84%</td><td>85.61%</td></tr><tr><th><a href="#web/offline.js">web/offline.js</a></th><td>100%</td><td>90.32%</td><td>97.01%</td></tr><tr><th><a href="#web/person-worker.js">web/person-worker.js</a></th><td>100%</td><td>100%</td><td>95.65%</td></tr><tr><th><a href="#web/recorder.js">web/recorder.js</a></th><td>100%</td><td>100%</td><td>95.65%</td></tr><tr><th><a href="#web/storage.js">web/storage.js</a></th><td>100%</td><td>97.61%</td><td>91.86%</td></tr><tr><th><a href="#web/sw.js">web/sw.js</a></th><td>100%</td><td>100%</td><td>97.29%</td></tr><tr><th><a href="#web/timeline.js">web/timeline.js</a></th><td>100%</td><td>100%</td><td>100%</td></tr></table><details id="web/beats.js"><summary>web/beats.js — 100% lines</summary><pre><span class=""><b>   1</b> /* 檔案用途：手動來源拍點、八拍位置及可取消提示音。所在層：Web 拍點邏輯。主要關聯：main.js、library.js、RECORD_COMPARE.md。 */</span>
 <span class=""><b>   2</b> /** @param {unknown} input @param {number} durationMs @returns {import('./types').BeatGrid} */</span>
 <span class=""><b>   3</b> export function validateBeatGrid(input, durationMs) {</span>
 <span class="covered"><b>   4</b>   const grid = /** @type {import('./types').BeatGrid} */ (input);</span>
@@ -210,7 +210,7 @@
 <span class=""><b>   7</b> /** @typedef {'reference'|'self'} Side */</span>
 <span class=""><b>   8</b> /** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number,result?:{url:string,source:string,mirror:boolean,revision:number}}} FollowState */</span>
 <span class=""><b>   9</b> /** @param {{reference:HTMLVideoElement,self:HTMLVideoElement}} videos</span>
-<span class=""><b>  10</b>  * @param {{source:(side:Side)=&gt;string|undefined,file:(side:Side)=&gt;Blob|undefined,mirror:(side:Side)=&gt;boolean,focus:(element:HTMLElement)=&gt;void,playbackChanged:()=&gt;void, range:(side:Side)=&gt;number[], busy:()=&gt;boolean, operate:(task:(signal:AbortSignal)=&gt;Promise&lt;void&gt;)=&gt;Promise&lt;void&gt;, changed:()=&gt;void}} options */</span>
+<span class=""><b>  10</b>  * @param {{source:(side:Side)=&gt;string|undefined,file:(side:Side)=&gt;Blob|undefined,mirror:(side:Side)=&gt;boolean,status:(message:string)=&gt;void,focus:(element:HTMLElement)=&gt;void,playbackChanged:()=&gt;void, range:(side:Side)=&gt;number[], busy:()=&gt;boolean, operate:(task:(signal:AbortSignal)=&gt;Promise&lt;void&gt;)=&gt;Promise&lt;void&gt;, changed:()=&gt;void}} options */</span>
 <span class=""><b>  11</b> export function createFollowUI(videos, options) {</span>
 <span class="covered"><b>  12</b>   const dialog = /** @type {HTMLDialogElement} */ (document.getElementById('follow-dialog'));</span>
 <span class="covered"><b>  13</b>   const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('follow-canvas'));</span>
@@ -277,232 +277,234 @@
 <span class="covered"><b>  74</b>     link.href = url; link.download = `dance-${side}-follow.${extension(blob.type)}`; link.hidden = false;</span>
 <span class=""><b>  75</b>     // 新檔已獨立驗證才能換掉前次結果；失敗／取消不會執行到這裡。</span>
 <span class="covered"><b>  76</b>     if (previous) URL.revokeObjectURL(previous);</span>
-<span class=""><b>  77</b>   }</span>
-<span class=""><b>  78</b>   function paint() {</span>
-<span class="covered"><b>  79</b>     if (!draft || !context) return;</span>
-<span class="covered"><b>  80</b>     const { video, box } = draft;</span>
-<span class="covered"><b>  81</b>     context.drawImage(video, 0, 0, canvas.width, canvas.height);</span>
-<span class="covered"><b>  82</b>     const x = box.x * canvas.width, y = box.y * canvas.height, width = box.width * canvas.width, height = box.height * canvas.height;</span>
-<span class="covered"><b>  83</b>     context.fillStyle = '#0008'; context.fillRect(0, 0, canvas.width, y); context.fillRect(0, y + height, canvas.width, canvas.height - y - height);</span>
-<span class="covered"><b>  84</b>     context.fillRect(0, y, x, height); context.fillRect(x + width, y, canvas.width - x - width, height);</span>
-<span class="covered"><b>  85</b>     context.strokeStyle = '#65e8c2'; context.lineWidth = 3; context.strokeRect(x, y, width, height);</span>
-<span class=""><b>  86</b>   }</span>
-<span class=""><b>  87</b>   function setBox(box) {</span>
-<span class="covered"><b>  88</b>     if (!draft) return;</span>
-<span class="covered"><b>  89</b>     draft.box = validBox(box);</span>
-<span class="covered"><b>  90</b>     for (const input of inputs) input.value = String(Math.round(draft.box[input.name] * 1000) / 10);</span>
-<span class="covered"><b>  91</b>     paint();</span>
-<span class=""><b>  92</b>   }</span>
-<span class=""><b>  93</b>   function closeDraft() {</span>
-<span class="covered"><b>  94</b>     const trigger = draft?.trigger;</span>
-<span class="covered"><b>  95</b>     if (pointer &amp;&amp; canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);</span>
-<span class="covered"><b>  96</b>     pointer = null;</span>
-<span class="covered"><b>  97</b>     if (draft) { draft.video.pause(); draft.video.removeAttribute('src'); draft.video.load(); }</span>
-<span class="covered"><b>  98</b>     draft = null; if (dialog.open) dialog.close(); if (trigger) options.focus(trigger);</span>
-<span class=""><b>  99</b>   }</span>
-<span class="covered"><b> 100</b>   const cancel = () =&gt; { if (analyzing) cancelAnalysis(); else closeDraft(); };</span>
-<span class="covered"><b> 101</b>   document.getElementById('follow-cancel')?.addEventListener('click', cancel);</span>
-<span class="covered"><b> 102</b>   dialog.addEventListener('cancel', event =&gt; { event.preventDefault(); cancel(); });</span>
-<span class="covered"><b> 103</b>   window.addEventListener('pagehide', event =&gt; {</span>
-<span class="covered"><b> 104</b>     cancelAnalysis(); closeDraft();</span>
-<span class=""><b> 105</b>     // 返回同頁的 BFCache 仍需原下載 URL；真正離頁才釋放這份本頁結果。</span>
-<span class="covered"><b> 106</b>     for (const side of sides) { resultVideo(side).pause(); if (!event.persisted &amp;&amp; states[side].result) URL.revokeObjectURL(states[side].result.url); }</span>
-<span class=""><b> 107</b>   });</span>
-<span class="covered"><b> 108</b>   window.addEventListener('pagehide', event =&gt; { if (!event.persisted &amp;&amp; metricsUrl) URL.revokeObjectURL(metricsUrl); });</span>
-<span class="covered"><b> 109</b>   for (const input of inputs) input.addEventListener('change', () =&gt; {</span>
-<span class="covered"><b> 110</b>     if (!draft || analyzing) return;</span>
-<span class="covered"><b> 111</b>     try { setBox(Object.fromEntries(inputs.map(item =&gt; [item.name, Number(item.value) / 100]))); message.textContent = '框好完整身體，留一點手腳活動空間，再開始分析。'; }</span>
-<span class="missing"><b> 112</b>     catch (error) { message.textContent = error instanceof Error ? error.message : '選框範圍不正確。'; setBox(draft.box); }</span>
-<span class=""><b> 113</b>   });</span>
-<span class="covered"><b> 114</b>   const point = event =&gt; {</span>
-<span class="covered"><b> 115</b>     const rect = canvas.getBoundingClientRect();</span>
-<span class="covered"><b> 116</b>     return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };</span>
-<span class=""><b> 117</b>   };</span>
-<span class="covered"><b> 118</b>   canvas.addEventListener('pointerdown', event =&gt; {</span>
-<span class="covered"><b> 119</b>     if (!draft || analyzing || event.button !== 0) return;</span>
-<span class="covered"><b> 120</b>     pointer = { ...point(event), id: event.pointerId }; canvas.setPointerCapture(event.pointerId); event.preventDefault();</span>
-<span class=""><b> 121</b>   });</span>
-<span class="covered"><b> 122</b>   const move = event =&gt; {</span>
-<span class="covered"><b> 123</b>     if (!pointer || pointer.id !== event.pointerId || !draft || analyzing) return;</span>
-<span class="covered"><b> 124</b>     const next = point(event), width = Math.abs(next.x - pointer.x), height = Math.abs(next.y - pointer.y);</span>
-<span class="covered"><b> 125</b>     if (width &gt;= 0.02 &amp;&amp; height &gt;= 0.02) setBox({ x: Math.min(pointer.x, next.x), y: Math.min(pointer.y, next.y), width, height });</span>
-<span class=""><b> 126</b>   };</span>
-<span class="covered"><b> 127</b>   canvas.addEventListener('pointermove', move);</span>
-<span class="covered"><b> 128</b>   canvas.addEventListener('pointerup', event =&gt; { move(event); if (pointer?.id === event.pointerId) { canvas.releasePointerCapture(event.pointerId); pointer = null; } });</span>
-<span class="covered"><b> 129</b>   canvas.addEventListener('pointercancel', () =&gt; { pointer = null; });</span>
-<span class="covered"><b> 130</b>   canvas.addEventListener('keydown', event =&gt; {</span>
-<span class="covered"><b> 131</b>     if (!draft || analyzing || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;</span>
-<span class="covered"><b> 132</b>     event.preventDefault(); const box = { ...draft.box }, horizontal = ['ArrowLeft', 'ArrowRight'].includes(event.key), positive = ['ArrowRight', 'ArrowDown'].includes(event.key);</span>
-<span class="covered"><b> 133</b>     const key = event.shiftKey ? horizontal ? 'width' : 'height' : horizontal ? 'x' : 'y';</span>
-<span class="covered"><b> 134</b>     box[key] = Math.max(event.shiftKey ? 0.02 : 0, box[key] + (positive ? 0.01 : -0.01)); setBox(box);</span>
-<span class=""><b> 135</b>   });</span>
-<span class="covered"><b> 136</b>   for (const side of sides) {</span>
-<span class="covered"><b> 137</b>     button(side).addEventListener('click', () =&gt; options.operate(async signal =&gt; {</span>
-<span class="covered"><b> 138</b>       closeDraft(); const source = options.source(side), [start, end] = options.range(side);</span>
-<span class="covered"><b> 139</b>       if (!source) throw new Error('請先選好兩側影片。');</span>
-<span class="covered"><b> 140</b>       const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.preload = 'auto';</span>
-<span class="covered"><b> 141</b>       const trigger = button(side);</span>
-<span class="covered"><b> 142</b>       const measuring = metricsEnabled.checked;</span>
-<span class="covered"><b> 143</b>       try {</span>
-<span class=""><b> 144</b>         // 分析播放器不掛在畫面上；等解碼 seeked 即可，不能等待不存在的螢幕呈現通知。</span>
-<span class="covered"><b> 145</b>         let began = measuring ? performance.now() : 0;</span>
-<span class="covered"><b> 146</b>         await load(video, source, signal); const loadMs = measuring ? performance.now() - began : 0;</span>
-<span class="covered"><b> 147</b>         began = measuring ? performance.now() : 0;</span>
-<span class="covered"><b> 148</b>         await seek(video, start, signal); const firstSeekMs = measuring ? performance.now() - began : 0;</span>
-<span class="covered"><b> 149</b>         draft = { side, video, source, start, end, box: { x: 0.2, y: 0.05, width: 0.6, height: 0.9 }, trigger, measuring, preparation: { loadMs, firstSeekMs } };</span>
-<span class="covered"><b> 150</b>         canvas.width = 640; canvas.height = Math.round(640 * video.videoHeight / video.videoWidth);</span>
-<span class="covered"><b> 151</b>         dialog.querySelector('h2')?.replaceChildren(`框選${side === 'reference' ? '老師' : '自己'} · ${label(side)}`);</span>
-<span class="covered"><b> 152</b>         controls.disabled = false; confirm.disabled = false; message.textContent = `從比較起點 ${start.toFixed(2)} 秒開始，框住完整身體後分析到 ${end.toFixed(2)} 秒，接著自動製作可播放、下載的單側結果。`;</span>
-<span class="covered"><b> 153</b>         setBox(draft.box); dialog.showModal(); canvas.focus();</span>
-<span class="missing"><b> 154</b>       } catch (error) { video.removeAttribute('src'); video.load(); throw error; }</span>
-<span class=""><b> 155</b>     }));</span>
-<span class="covered"><b> 156</b>     toggle(side).addEventListener('change', () =&gt; { states[side].enabled = toggle(side).checked; options.changed(); update(true); });</span>
-<span class="covered"><b> 157</b>     clear(side).addEventListener('click', () =&gt; { states[side].track = null; states[side].enabled = false; states[side].revision++; options.changed(); update(true); });</span>
-<span class="covered"><b> 158</b>     for (const type of ['play', 'pause', 'ended']) resultVideo(side).addEventListener(type, () =&gt; {</span>
-<span class="covered"><b> 159</b>       if (!resultVideo(side).paused) {</span>
-<span class="covered"><b> 160</b>         if (options.busy()) resultVideo(side).pause();</span>
-<span class="covered"><b> 161</b>         else { for (const other of sides) { videos[other].pause(); if (other !== side) resultVideo(other).pause(); } }</span>
-<span class=""><b> 162</b>       }</span>
-<span class="covered"><b> 163</b>       options.playbackChanged();</span>
-<span class=""><b> 164</b>     });</span>
-<span class="covered"><b> 165</b>     refresh(side).addEventListener('click', () =&gt; options.operate(async signal =&gt; {</span>
-<span class="covered"><b> 166</b>       const state = states[side], source = options.source(side), track = state.track, mirror = options.mirror(side);</span>
-<span class="covered"><b> 167</b>       if (!source || state.source !== source || !track) throw new Error('請先框選這一側並完成分析。');</span>
-<span class="covered"><b> 168</b>       const blob = await makeResult(side, track, mirror, signal, text =&gt; { resultStatus(side).textContent = text; });</span>
-<span class="covered"><b> 169</b>       signal.throwIfAborted(); if (options.source(side) !== source) throw new Error('來源已變更，原結果保留。');</span>
-<span class="covered"><b> 170</b>       publishResult(side, blob, source, mirror); options.focus(resultVideo(side));</span>
-<span class=""><b> 171</b>     }));</span>
-<span class=""><b> 172</b>   }</span>
-<span class="covered"><b> 173</b>   confirm.addEventListener('click', () =&gt; options.operate(async parentSignal =&gt; {</span>
-<span class="covered"><b> 174</b>     if (!draft || analyzing) return;</span>
-<span class="covered"><b> 175</b>     const current = draft, controller = new AbortController(), signal = controller.signal;</span>
-<span class="covered"><b> 176</b>     const sampleHz = 8, count = Math.ceil((current.end - current.start) * sampleHz);</span>
-<span class="covered"><b> 177</b>     const probe = current.measuring ? measurements.start({ side: current.side, source: current.source, start: current.start, end: current.end, box: current.box, sampleHz, plannedFrames: count + 1, preparation: current.preparation }) : null;</span>
-<span class=""><b> 178</b>     /** @type {'complete'|'cancelled'|'failed'} */</span>
-<span class="covered"><b> 179</b>     let outcome = 'failed';</span>
-<span class="covered"><b> 180</b>     let trackedFrames = 0;</span>
-<span class="covered"><b> 181</b>     const aborted = () =&gt; controller.abort(parentSignal.reason);</span>
-<span class="covered"><b> 182</b>     parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();</span>
-<span class="covered"><b> 183</b>     analyzing = true; cancelAnalysis = () =&gt; controller.abort(); controls.disabled = true; confirm.disabled = true;</span>
-<span class="covered"><b> 184</b>     let worker, compatibility = false;</span>
-<span class="covered"><b> 185</b>     const createWorker = () =&gt; {</span>
-<span class="covered"><b> 186</b>       const began = probe ? performance.now() : 0;</span>
-<span class="covered"><b> 187</b>       if (probe) { probe.workerCreatedNow = began; probe.workerCreatedAt = performance.timeOrigin + began; }</span>
-<span class="covered"><b> 188</b>       worker = new Worker('/person-worker.js');</span>
-<span class="covered"><b> 189</b>       if (probe) { probe.workerConstructorMs = (probe.workerConstructorMs ?? 0) + performance.now() - began; probe.workerAttempts++; }</span>
-<span class=""><b> 190</b>     };</span>
-<span class="covered"><b> 191</b>     try {</span>
-<span class="covered"><b> 192</b>       createWorker();</span>
-<span class="covered"><b> 193</b>       const detect = async search =&gt; {</span>
-<span class="covered"><b> 194</b>         signal.throwIfAborted();</span>
-<span class=""><b> 195</b>         // 只看選框／目標附近，避免團體寬畫面把人物縮得太小而漏偵測；座標再映回完整原片。</span>
-<span class="covered"><b> 196</b>         const width = search.width * current.video.videoWidth, height = search.height * current.video.videoHeight;</span>
-<span class="covered"><b> 197</b>         const began = probe ? performance.now() : 0;</span>
-<span class="covered"><b> 198</b>         const bitmap = await createImageBitmap(current.video, search.x * current.video.videoWidth, search.y * current.video.videoHeight, width, height, { resizeWidth: Math.round(640 * width / Math.max(width, height)), resizeHeight: Math.round(640 * height / Math.max(width, height)) });</span>
-<span class="covered"><b> 199</b>         probe?.samples.bitmap.push(performance.now() - began);</span>
-<span class="covered"><b> 200</b>         if (signal.aborted) { bitmap.close(); signal.throwIfAborted(); }</span>
-<span class="covered"><b> 201</b>         return /** @type {Promise&lt;import('./follow').Box[]&gt;} */ (new Promise((resolve, reject) =&gt; {</span>
-<span class="covered"><b> 202</b>           const requested = probe ? performance.now() : 0;</span>
-<span class="covered"><b> 203</b>           let settled = false;</span>
-<span class="covered"><b> 204</b>           const finish = (error, boxes) =&gt; { if (settled) return; settled = true; probe?.samples.roundTrip.push(performance.now() - requested); clearTimeout(timer); signal.removeEventListener('abort', abort); if (worker) { worker.onmessage = null; worker.onerror = null; } error ? reject(error) : resolve(boxes); };</span>
-<span class="covered"><b> 205</b>           const abort = () =&gt; finish(signal.reason, null);</span>
-<span class="covered"><b> 206</b>           const timer = setTimeout(() =&gt; finish(new Error('人物分析逾時，請縮短片段後重試。'), null), 30_000);</span>
-<span class="covered"><b> 207</b>           signal.addEventListener('abort', abort, { once: true });</span>
-<span class="covered"><b> 208</b>           const reply = ({ data }) =&gt; {</span>
-<span class="covered"><b> 209</b>             if (data.retryCompatibility) {</span>
-<span class="covered"><b> 210</b>               if (settled || signal.aborted || compatibility || !data.bitmap) { data.bitmap?.close(); finish(signal.aborted ? signal.reason : new Error('人物相容初始化失敗，原結果保留。'), null); return; }</span>
-<span class="covered"><b> 211</b>               probe?.recordWorker(data.timing); if (probe) { probe.compatibilityFallbacks++; probe.runtime = null; }</span>
-<span class=""><b> 212</b>               // 停掉半初始化 runtime 後才建新 Worker；沿用原偵測期限與同一張影格，不重取樣。</span>
-<span class="covered"><b> 213</b>               worker.onmessage = null; worker.onerror = null; worker.terminate(); worker = undefined; compatibility = true;</span>
-<span class="covered"><b> 214</b>               try { createWorker(); worker.onmessage = reply; worker.onerror = failed; worker.postMessage({ bitmap: data.bitmap, measure: !!probe, compatibility }, [data.bitmap]); }</span>
-<span class="covered"><b> 215</b>               catch (error) { data.bitmap.close(); finish(error, null); }</span>
-<span class="covered"><b> 216</b>               return;</span>
-<span class=""><b> 217</b>             }</span>
-<span class="covered"><b> 218</b>             probe?.recordWorker(data.timing); if (probe &amp;&amp; !data.error) probe.processedFrames++;</span>
-<span class="covered"><b> 219</b>             finish(data.error ? new Error(data.error) : null, data.boxes?.map(box =&gt; ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height })));</span>
-<span class=""><b> 220</b>           };</span>
-<span class="covered"><b> 221</b>           const failed = () =&gt; finish(new Error('無法啟動本機人物分析，請確認應用資源完整。'), null);</span>
-<span class="covered"><b> 222</b>           worker.onmessage = reply; worker.onerror = failed;</span>
-<span class="covered"><b> 223</b>           try { worker.postMessage({ bitmap, measure: !!probe, compatibility }, [bitmap]); }</span>
-<span class="missing"><b> 224</b>           catch (error) { bitmap.close(); finish(error, null); }</span>
-<span class=""><b> 225</b>         }));</span>
-<span class=""><b> 226</b>       };</span>
-<span class="covered"><b> 227</b>       let first, previous, lastSeen = current.start, held = 0;</span>
-<span class=""><b> 228</b>       /** @type {import('./follow').Sample[]} */</span>
-<span class="covered"><b> 229</b>       const samples = [];</span>
-<span class="covered"><b> 230</b>       for (let index = 0; index &lt;= count; index++) {</span>
-<span class="covered"><b> 231</b>         const time = Math.min(current.end, current.start + index / sampleHz);</span>
-<span class="covered"><b> 232</b>         const began = probe ? performance.now() : 0;</span>
-<span class="covered"><b> 233</b>         await seek(current.video, Math.min(time, current.video.duration - 0.02), signal);</span>
-<span class="covered"><b> 234</b>         probe?.samples.seek.push(performance.now() - began);</span>
-<span class="covered"><b> 235</b>         const search = previous ? validBox({ x: previous.x - previous.width * 0.75, y: previous.y - previous.height * 0.2, width: previous.width * 2.5, height: previous.height * 1.4 }) : current.box;</span>
-<span class="covered"><b> 236</b>         const person = matchPerson(await detect(search), previous || current.box);</span>
-<span class="covered"><b> 237</b>         if (!person &amp;&amp; !first) throw new Error('選框中未找到明確人物，請只框住一個人的完整身體後重試。');</span>
-<span class="covered"><b> 238</b>         if (person) { first ||= person; previous = person; lastSeen = time; }</span>
-<span class="missing"><b> 239</b>         else { held++; if (time - lastSeen &gt; 0.75) throw new Error(`在 ${time.toFixed(2)} 秒無法確定同一個人，請縮短片段或重新框選。`); }</span>
-<span class="covered"><b> 240</b>         samples.push({ time, ...followBox(current.box, first, previous) });</span>
-<span class="covered"><b> 241</b>         trackedFrames++;</span>
-<span class="covered"><b> 242</b>         message.textContent = `只在本機分析 ${Math.round(index / count * 100)}%（${time.toFixed(2)} 秒）；可隨時取消。`;</span>
-<span class=""><b> 243</b>       }</span>
-<span class="covered"><b> 244</b>       signal.throwIfAborted();</span>
-<span class="covered"><b> 245</b>       if (options.source(current.side) !== current.source) throw new Error('來源已更換，請重新框選。');</span>
-<span class="covered"><b> 246</b>       const track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }, mirror = options.mirror(current.side);</span>
-<span class=""><b> 247</b>       // 推論已結束就釋放模型，製作影片不需同時占用另一份 WASM 記憶體。</span>
-<span class="covered"><b> 248</b>       worker.terminate(); worker = undefined;</span>
-<span class="covered"><b> 249</b>       probe?.endAnalysis();</span>
-<span class="covered"><b> 250</b>       const resultBegan = probe ? performance.now() : 0;</span>
-<span class=""><b> 251</b>       let blob;</span>
-<span class=""><b> 252</b>       // 製片失敗或取消也保留部分耗時，但仍由原成功交換點保全上次結果。</span>
-<span class="covered"><b> 253</b>       try { blob = await makeResult(current.side, track, mirror, signal, text =&gt; { message.textContent = text; }); }</span>
-<span class="covered"><b> 254</b>       finally { if (probe) probe.resultMs = performance.now() - resultBegan; }</span>
-<span class="covered"><b> 255</b>       signal.throwIfAborted(); if (options.source(current.side) !== current.source) throw new Error('來源已變更，請重新框選。');</span>
-<span class=""><b> 256</b>       // 路徑與可播放影片完整成功後一起交換；取消或製作失敗保留上次整組結果。</span>
-<span class="covered"><b> 257</b>       const state = states[current.side]; state.source = current.source; state.track = track; state.enabled = true; state.revision++;</span>
-<span class="covered"><b> 258</b>       publishResult(current.side, blob, current.source, mirror);</span>
-<span class="covered"><b> 259</b>       closeDraft(); options.changed(); options.focus(resultVideo(current.side));</span>
-<span class="covered"><b> 260</b>       outcome = 'complete';</span>
-<span class=""><b> 261</b>     } catch (caught) {</span>
-<span class="covered"><b> 262</b>       if (signal.aborted) outcome = 'cancelled';</span>
-<span class="covered"><b> 263</b>       const error = caught instanceof Error ? caught : new Error(String(caught));</span>
-<span class="covered"><b> 264</b>       message.textContent = error.name === 'AbortError' ? '已取消分析，原片與上次成功的追蹤保留；可以調整選框再試。' : `${error.message} 上次成功的追蹤保留。`;</span>
-<span class="covered"><b> 265</b>       throw error;</span>
-<span class=""><b> 266</b>     } finally {</span>
-<span class="covered"><b> 267</b>       worker?.terminate(); parentSignal.removeEventListener('abort', aborted); analyzing = false; cancelAnalysis = () =&gt; {}; controls.disabled = false; confirm.disabled = false;</span>
-<span class="covered"><b> 268</b>       showMetrics(probe?.finish(outcome, trackedFrames));</span>
-<span class=""><b> 269</b>     }</span>
-<span class=""><b> 270</b>   }));</span>
-<span class=""><b> 271</b>   function update(available) {</span>
-<span class="covered"><b> 272</b>     for (const side of sides) {</span>
-<span class="covered"><b> 273</b>       const state = states[side], source = options.source(side);</span>
-<span class="covered"><b> 274</b>       if (state.source !== source) { state.source = source; state.track = null; state.enabled = false; state.revision++; }</span>
-<span class="covered"><b> 275</b>       const track = state.track;</span>
-<span class="covered"><b> 276</b>       const result = state.result, current = result &amp;&amp; track &amp;&amp; result.source === source &amp;&amp; result.revision === state.revision &amp;&amp; result.mirror === options.mirror(side);</span>
-<span class="covered"><b> 277</b>       const busy = options.busy(); refresh(side).disabled = !track || state.source !== source || busy;</span>
-<span class="covered"><b> 278</b>       refresh(side).classList.toggle('primary', !!track &amp;&amp; !!result &amp;&amp; !current);</span>
-<span class="covered"><b> 279</b>       download(side).textContent = `匯出${result &amp;&amp; !current ? '上次' : ''}${side === 'reference' ? '老師' : '自己'}跟隨影片`;</span>
-<span class="covered"><b> 280</b>       if (busy) resultVideo(side).pause(); resultVideo(side).controls = !busy;</span>
-<span class="covered"><b> 281</b>       resultStatus(side).textContent = !result ? '框選完成後，這裡會顯示可獨立播放與匯出的跟隨影片。' : current ? '這是目前選框與鏡像的單側結果，以原速播放並保留該側原片聲音。請匯出另存；結果只留本頁。' : '這是先前影片或設定的結果，原檔保留。請重新框選，或按「更新跟隨結果」套用目前鏡像，再匯出。';</span>
-<span class="covered"><b> 282</b>       button(side).disabled = !available || options.busy(); toggle(side).disabled = !track || options.busy(); clear(side).disabled = !track || options.busy(); toggle(side).checked = state.enabled;</span>
-<span class="covered"><b> 283</b>       note(side).textContent = track ? `${state.enabled ? '已開啟跟隨' : '跟隨已暫停'} · ${track.start.toFixed(2)}–${track.end.toFixed(2)} 秒${track.held ? `；${track.held} 個分析點暫用前次位置，請預覽檢查。` : '；請預覽確認全段都跟對人。'} 設定只留本頁，匯出影片會保留裁切。` : '尚未框選，使用完整畫面。';</span>
-<span class=""><b> 284</b>     }</span>
-<span class=""><b> 285</b>   }</span>
-<span class="covered"><b> 286</b>   return {</span>
-<span class=""><b> 287</b>     update,</span>
-<span class="covered"><b> 288</b>     playing() { return sides.some(side =&gt; !resultVideo(side).paused); },</span>
-<span class="covered"><b> 289</b>     pauseResults() { for (const side of sides) resultVideo(side).pause(); },</span>
-<span class=""><b> 290</b>     /** @param {Side} side */</span>
-<span class="covered"><b> 291</b>     track(side) { const state = states[side]; return state.enabled &amp;&amp; state.source === options.source(side) &amp;&amp; videos[side].getAttribute('src') === state.source ? state.track : null; },</span>
-<span class="covered"><b> 292</b>     signature() { return sides.map(side =&gt; [states[side].enabled, states[side].revision]); },</span>
-<span class=""><b> 293</b>     assertCoverage() {</span>
-<span class="covered"><b> 294</b>       for (const side of sides) {</span>
-<span class="covered"><b> 295</b>         const state = states[side]; if (!state.enabled || !state.track || state.source !== options.source(side)) continue;</span>
-<span class="covered"><b> 296</b>         const [start, end] = options.range(side);</span>
-<span class="covered"><b> 297</b>         if (start &lt; state.track.start - 0.001 || end &gt; state.track.end + 0.001) throw new Error(`${label(side)}的比較區間超出已分析範圍，請重新框選分析，或關閉該側跟隨。`);</span>
-<span class=""><b> 298</b>       }</span>
-<span class=""><b> 299</b>     },</span>
-<span class=""><b> 300</b>   };</span>
-<span class=""><b> 301</b> }</span>
-<span class=""><b> 302</b> </span></pre></details><details id="web/follow.js"><summary>web/follow.js — 100% lines</summary><pre><span class=""><b>   1</b> /* 檔案用途：人物選框、身分連續性與可重播裁切路徑。所在層：純畫面邏輯。主要關聯：follow-ui.js、main.js、person-worker.js。 */</span>
+<span class=""><b>  77</b>     // 兩個入口都在成功交換後通知全頁，避免殘留舊錯誤，也不搶先覆蓋失敗／取消原因。</span>
+<span class="covered"><b>  78</b>     options.status(`${side === 'reference' ? '老師' : '自己'}跟隨影片已完成，可播放或匯出；原片與筆記仍保留。`);</span>
+<span class=""><b>  79</b>   }</span>
+<span class=""><b>  80</b>   function paint() {</span>
+<span class="covered"><b>  81</b>     if (!draft || !context) return;</span>
+<span class="covered"><b>  82</b>     const { video, box } = draft;</span>
+<span class="covered"><b>  83</b>     context.drawImage(video, 0, 0, canvas.width, canvas.height);</span>
+<span class="covered"><b>  84</b>     const x = box.x * canvas.width, y = box.y * canvas.height, width = box.width * canvas.width, height = box.height * canvas.height;</span>
+<span class="covered"><b>  85</b>     context.fillStyle = '#0008'; context.fillRect(0, 0, canvas.width, y); context.fillRect(0, y + height, canvas.width, canvas.height - y - height);</span>
+<span class="covered"><b>  86</b>     context.fillRect(0, y, x, height); context.fillRect(x + width, y, canvas.width - x - width, height);</span>
+<span class="covered"><b>  87</b>     context.strokeStyle = '#65e8c2'; context.lineWidth = 3; context.strokeRect(x, y, width, height);</span>
+<span class=""><b>  88</b>   }</span>
+<span class=""><b>  89</b>   function setBox(box) {</span>
+<span class="covered"><b>  90</b>     if (!draft) return;</span>
+<span class="covered"><b>  91</b>     draft.box = validBox(box);</span>
+<span class="covered"><b>  92</b>     for (const input of inputs) input.value = String(Math.round(draft.box[input.name] * 1000) / 10);</span>
+<span class="covered"><b>  93</b>     paint();</span>
+<span class=""><b>  94</b>   }</span>
+<span class=""><b>  95</b>   function closeDraft() {</span>
+<span class="covered"><b>  96</b>     const trigger = draft?.trigger;</span>
+<span class="covered"><b>  97</b>     if (pointer &amp;&amp; canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id);</span>
+<span class="covered"><b>  98</b>     pointer = null;</span>
+<span class="covered"><b>  99</b>     if (draft) { draft.video.pause(); draft.video.removeAttribute('src'); draft.video.load(); }</span>
+<span class="covered"><b> 100</b>     draft = null; if (dialog.open) dialog.close(); if (trigger) options.focus(trigger);</span>
+<span class=""><b> 101</b>   }</span>
+<span class="covered"><b> 102</b>   const cancel = () =&gt; { if (analyzing) cancelAnalysis(); else closeDraft(); };</span>
+<span class="covered"><b> 103</b>   document.getElementById('follow-cancel')?.addEventListener('click', cancel);</span>
+<span class="covered"><b> 104</b>   dialog.addEventListener('cancel', event =&gt; { event.preventDefault(); cancel(); });</span>
+<span class="covered"><b> 105</b>   window.addEventListener('pagehide', event =&gt; {</span>
+<span class="covered"><b> 106</b>     cancelAnalysis(); closeDraft();</span>
+<span class=""><b> 107</b>     // 返回同頁的 BFCache 仍需原下載 URL；真正離頁才釋放這份本頁結果。</span>
+<span class="covered"><b> 108</b>     for (const side of sides) { resultVideo(side).pause(); if (!event.persisted &amp;&amp; states[side].result) URL.revokeObjectURL(states[side].result.url); }</span>
+<span class=""><b> 109</b>   });</span>
+<span class="covered"><b> 110</b>   window.addEventListener('pagehide', event =&gt; { if (!event.persisted &amp;&amp; metricsUrl) URL.revokeObjectURL(metricsUrl); });</span>
+<span class="covered"><b> 111</b>   for (const input of inputs) input.addEventListener('change', () =&gt; {</span>
+<span class="covered"><b> 112</b>     if (!draft || analyzing) return;</span>
+<span class="covered"><b> 113</b>     try { setBox(Object.fromEntries(inputs.map(item =&gt; [item.name, Number(item.value) / 100]))); message.textContent = '框好完整身體，留一點手腳活動空間，再開始分析。'; }</span>
+<span class="missing"><b> 114</b>     catch (error) { message.textContent = error instanceof Error ? error.message : '選框範圍不正確。'; setBox(draft.box); }</span>
+<span class=""><b> 115</b>   });</span>
+<span class="covered"><b> 116</b>   const point = event =&gt; {</span>
+<span class="covered"><b> 117</b>     const rect = canvas.getBoundingClientRect();</span>
+<span class="covered"><b> 118</b>     return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };</span>
+<span class=""><b> 119</b>   };</span>
+<span class="covered"><b> 120</b>   canvas.addEventListener('pointerdown', event =&gt; {</span>
+<span class="covered"><b> 121</b>     if (!draft || analyzing || event.button !== 0) return;</span>
+<span class="covered"><b> 122</b>     pointer = { ...point(event), id: event.pointerId }; canvas.setPointerCapture(event.pointerId); event.preventDefault();</span>
+<span class=""><b> 123</b>   });</span>
+<span class="covered"><b> 124</b>   const move = event =&gt; {</span>
+<span class="covered"><b> 125</b>     if (!pointer || pointer.id !== event.pointerId || !draft || analyzing) return;</span>
+<span class="covered"><b> 126</b>     const next = point(event), width = Math.abs(next.x - pointer.x), height = Math.abs(next.y - pointer.y);</span>
+<span class="covered"><b> 127</b>     if (width &gt;= 0.02 &amp;&amp; height &gt;= 0.02) setBox({ x: Math.min(pointer.x, next.x), y: Math.min(pointer.y, next.y), width, height });</span>
+<span class=""><b> 128</b>   };</span>
+<span class="covered"><b> 129</b>   canvas.addEventListener('pointermove', move);</span>
+<span class="covered"><b> 130</b>   canvas.addEventListener('pointerup', event =&gt; { move(event); if (pointer?.id === event.pointerId) { canvas.releasePointerCapture(event.pointerId); pointer = null; } });</span>
+<span class="covered"><b> 131</b>   canvas.addEventListener('pointercancel', () =&gt; { pointer = null; });</span>
+<span class="covered"><b> 132</b>   canvas.addEventListener('keydown', event =&gt; {</span>
+<span class="covered"><b> 133</b>     if (!draft || analyzing || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;</span>
+<span class="covered"><b> 134</b>     event.preventDefault(); const box = { ...draft.box }, horizontal = ['ArrowLeft', 'ArrowRight'].includes(event.key), positive = ['ArrowRight', 'ArrowDown'].includes(event.key);</span>
+<span class="covered"><b> 135</b>     const key = event.shiftKey ? horizontal ? 'width' : 'height' : horizontal ? 'x' : 'y';</span>
+<span class="covered"><b> 136</b>     box[key] = Math.max(event.shiftKey ? 0.02 : 0, box[key] + (positive ? 0.01 : -0.01)); setBox(box);</span>
+<span class=""><b> 137</b>   });</span>
+<span class="covered"><b> 138</b>   for (const side of sides) {</span>
+<span class="covered"><b> 139</b>     button(side).addEventListener('click', () =&gt; options.operate(async signal =&gt; {</span>
+<span class="covered"><b> 140</b>       closeDraft(); const source = options.source(side), [start, end] = options.range(side);</span>
+<span class="covered"><b> 141</b>       if (!source) throw new Error('請先選好兩側影片。');</span>
+<span class="covered"><b> 142</b>       const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.preload = 'auto';</span>
+<span class="covered"><b> 143</b>       const trigger = button(side);</span>
+<span class="covered"><b> 144</b>       const measuring = metricsEnabled.checked;</span>
+<span class="covered"><b> 145</b>       try {</span>
+<span class=""><b> 146</b>         // 分析播放器不掛在畫面上；等解碼 seeked 即可，不能等待不存在的螢幕呈現通知。</span>
+<span class="covered"><b> 147</b>         let began = measuring ? performance.now() : 0;</span>
+<span class="covered"><b> 148</b>         await load(video, source, signal); const loadMs = measuring ? performance.now() - began : 0;</span>
+<span class="covered"><b> 149</b>         began = measuring ? performance.now() : 0;</span>
+<span class="covered"><b> 150</b>         await seek(video, start, signal); const firstSeekMs = measuring ? performance.now() - began : 0;</span>
+<span class="covered"><b> 151</b>         draft = { side, video, source, start, end, box: { x: 0.2, y: 0.05, width: 0.6, height: 0.9 }, trigger, measuring, preparation: { loadMs, firstSeekMs } };</span>
+<span class="covered"><b> 152</b>         canvas.width = 640; canvas.height = Math.round(640 * video.videoHeight / video.videoWidth);</span>
+<span class="covered"><b> 153</b>         dialog.querySelector('h2')?.replaceChildren(`框選${side === 'reference' ? '老師' : '自己'} · ${label(side)}`);</span>
+<span class="covered"><b> 154</b>         controls.disabled = false; confirm.disabled = false; message.textContent = `從比較起點 ${start.toFixed(2)} 秒開始，框住完整身體後分析到 ${end.toFixed(2)} 秒，接著自動製作可播放、下載的單側結果。`;</span>
+<span class="covered"><b> 155</b>         setBox(draft.box); dialog.showModal(); canvas.focus();</span>
+<span class="missing"><b> 156</b>       } catch (error) { video.removeAttribute('src'); video.load(); throw error; }</span>
+<span class=""><b> 157</b>     }));</span>
+<span class="covered"><b> 158</b>     toggle(side).addEventListener('change', () =&gt; { states[side].enabled = toggle(side).checked; options.changed(); update(true); });</span>
+<span class="covered"><b> 159</b>     clear(side).addEventListener('click', () =&gt; { states[side].track = null; states[side].enabled = false; states[side].revision++; options.changed(); update(true); });</span>
+<span class="covered"><b> 160</b>     for (const type of ['play', 'pause', 'ended']) resultVideo(side).addEventListener(type, () =&gt; {</span>
+<span class="covered"><b> 161</b>       if (!resultVideo(side).paused) {</span>
+<span class="covered"><b> 162</b>         if (options.busy()) resultVideo(side).pause();</span>
+<span class="covered"><b> 163</b>         else { for (const other of sides) { videos[other].pause(); if (other !== side) resultVideo(other).pause(); } }</span>
+<span class=""><b> 164</b>       }</span>
+<span class="covered"><b> 165</b>       options.playbackChanged();</span>
+<span class=""><b> 166</b>     });</span>
+<span class="covered"><b> 167</b>     refresh(side).addEventListener('click', () =&gt; options.operate(async signal =&gt; {</span>
+<span class="covered"><b> 168</b>       const state = states[side], source = options.source(side), track = state.track, mirror = options.mirror(side);</span>
+<span class="covered"><b> 169</b>       if (!source || state.source !== source || !track) throw new Error('請先框選這一側並完成分析。');</span>
+<span class="covered"><b> 170</b>       const blob = await makeResult(side, track, mirror, signal, text =&gt; { resultStatus(side).textContent = text; });</span>
+<span class="covered"><b> 171</b>       signal.throwIfAborted(); if (options.source(side) !== source) throw new Error('來源已變更，原結果保留。');</span>
+<span class="covered"><b> 172</b>       publishResult(side, blob, source, mirror); options.focus(resultVideo(side));</span>
+<span class=""><b> 173</b>     }));</span>
+<span class=""><b> 174</b>   }</span>
+<span class="covered"><b> 175</b>   confirm.addEventListener('click', () =&gt; options.operate(async parentSignal =&gt; {</span>
+<span class="covered"><b> 176</b>     if (!draft || analyzing) return;</span>
+<span class="covered"><b> 177</b>     const current = draft, controller = new AbortController(), signal = controller.signal;</span>
+<span class="covered"><b> 178</b>     const sampleHz = 8, count = Math.ceil((current.end - current.start) * sampleHz);</span>
+<span class="covered"><b> 179</b>     const probe = current.measuring ? measurements.start({ side: current.side, source: current.source, start: current.start, end: current.end, box: current.box, sampleHz, plannedFrames: count + 1, preparation: current.preparation }) : null;</span>
+<span class=""><b> 180</b>     /** @type {'complete'|'cancelled'|'failed'} */</span>
+<span class="covered"><b> 181</b>     let outcome = 'failed';</span>
+<span class="covered"><b> 182</b>     let trackedFrames = 0;</span>
+<span class="covered"><b> 183</b>     const aborted = () =&gt; controller.abort(parentSignal.reason);</span>
+<span class="covered"><b> 184</b>     parentSignal.addEventListener('abort', aborted, { once: true }); if (parentSignal.aborted) aborted();</span>
+<span class="covered"><b> 185</b>     analyzing = true; cancelAnalysis = () =&gt; controller.abort(); controls.disabled = true; confirm.disabled = true;</span>
+<span class="covered"><b> 186</b>     let worker, compatibility = false;</span>
+<span class="covered"><b> 187</b>     const createWorker = () =&gt; {</span>
+<span class="covered"><b> 188</b>       const began = probe ? performance.now() : 0;</span>
+<span class="covered"><b> 189</b>       if (probe) { probe.workerCreatedNow = began; probe.workerCreatedAt = performance.timeOrigin + began; }</span>
+<span class="covered"><b> 190</b>       worker = new Worker('/person-worker.js');</span>
+<span class="covered"><b> 191</b>       if (probe) { probe.workerConstructorMs = (probe.workerConstructorMs ?? 0) + performance.now() - began; probe.workerAttempts++; }</span>
+<span class=""><b> 192</b>     };</span>
+<span class="covered"><b> 193</b>     try {</span>
+<span class="covered"><b> 194</b>       createWorker();</span>
+<span class="covered"><b> 195</b>       const detect = async search =&gt; {</span>
+<span class="covered"><b> 196</b>         signal.throwIfAborted();</span>
+<span class=""><b> 197</b>         // 只看選框／目標附近，避免團體寬畫面把人物縮得太小而漏偵測；座標再映回完整原片。</span>
+<span class="covered"><b> 198</b>         const width = search.width * current.video.videoWidth, height = search.height * current.video.videoHeight;</span>
+<span class="covered"><b> 199</b>         const began = probe ? performance.now() : 0;</span>
+<span class="covered"><b> 200</b>         const bitmap = await createImageBitmap(current.video, search.x * current.video.videoWidth, search.y * current.video.videoHeight, width, height, { resizeWidth: Math.round(640 * width / Math.max(width, height)), resizeHeight: Math.round(640 * height / Math.max(width, height)) });</span>
+<span class="covered"><b> 201</b>         probe?.samples.bitmap.push(performance.now() - began);</span>
+<span class="covered"><b> 202</b>         if (signal.aborted) { bitmap.close(); signal.throwIfAborted(); }</span>
+<span class="covered"><b> 203</b>         return /** @type {Promise&lt;import('./follow').Box[]&gt;} */ (new Promise((resolve, reject) =&gt; {</span>
+<span class="covered"><b> 204</b>           const requested = probe ? performance.now() : 0;</span>
+<span class="covered"><b> 205</b>           let settled = false;</span>
+<span class="covered"><b> 206</b>           const finish = (error, boxes) =&gt; { if (settled) return; settled = true; probe?.samples.roundTrip.push(performance.now() - requested); clearTimeout(timer); signal.removeEventListener('abort', abort); if (worker) { worker.onmessage = null; worker.onerror = null; } error ? reject(error) : resolve(boxes); };</span>
+<span class="covered"><b> 207</b>           const abort = () =&gt; finish(signal.reason, null);</span>
+<span class="covered"><b> 208</b>           const timer = setTimeout(() =&gt; finish(new Error('人物分析逾時，請縮短片段後重試。'), null), 30_000);</span>
+<span class="covered"><b> 209</b>           signal.addEventListener('abort', abort, { once: true });</span>
+<span class="covered"><b> 210</b>           const reply = ({ data }) =&gt; {</span>
+<span class="covered"><b> 211</b>             if (data.retryCompatibility) {</span>
+<span class="covered"><b> 212</b>               if (settled || signal.aborted || compatibility || !data.bitmap) { data.bitmap?.close(); finish(signal.aborted ? signal.reason : new Error('人物相容初始化失敗，原結果保留。'), null); return; }</span>
+<span class="covered"><b> 213</b>               probe?.recordWorker(data.timing); if (probe) { probe.compatibilityFallbacks++; probe.runtime = null; }</span>
+<span class=""><b> 214</b>               // 停掉半初始化 runtime 後才建新 Worker；沿用原偵測期限與同一張影格，不重取樣。</span>
+<span class="covered"><b> 215</b>               worker.onmessage = null; worker.onerror = null; worker.terminate(); worker = undefined; compatibility = true;</span>
+<span class="covered"><b> 216</b>               try { createWorker(); worker.onmessage = reply; worker.onerror = failed; worker.postMessage({ bitmap: data.bitmap, measure: !!probe, compatibility }, [data.bitmap]); }</span>
+<span class="covered"><b> 217</b>               catch (error) { data.bitmap.close(); finish(error, null); }</span>
+<span class="covered"><b> 218</b>               return;</span>
+<span class=""><b> 219</b>             }</span>
+<span class="covered"><b> 220</b>             probe?.recordWorker(data.timing); if (probe &amp;&amp; !data.error) probe.processedFrames++;</span>
+<span class="covered"><b> 221</b>             finish(data.error ? new Error(data.error) : null, data.boxes?.map(box =&gt; ({ x: search.x + box.x * search.width, y: search.y + box.y * search.height, width: box.width * search.width, height: box.height * search.height })));</span>
+<span class=""><b> 222</b>           };</span>
+<span class="covered"><b> 223</b>           const failed = () =&gt; finish(new Error('無法啟動本機人物分析，請確認應用資源完整。'), null);</span>
+<span class="covered"><b> 224</b>           worker.onmessage = reply; worker.onerror = failed;</span>
+<span class="covered"><b> 225</b>           try { worker.postMessage({ bitmap, measure: !!probe, compatibility }, [bitmap]); }</span>
+<span class="missing"><b> 226</b>           catch (error) { bitmap.close(); finish(error, null); }</span>
+<span class=""><b> 227</b>         }));</span>
+<span class=""><b> 228</b>       };</span>
+<span class="covered"><b> 229</b>       let first, previous, lastSeen = current.start, held = 0;</span>
+<span class=""><b> 230</b>       /** @type {import('./follow').Sample[]} */</span>
+<span class="covered"><b> 231</b>       const samples = [];</span>
+<span class="covered"><b> 232</b>       for (let index = 0; index &lt;= count; index++) {</span>
+<span class="covered"><b> 233</b>         const time = Math.min(current.end, current.start + index / sampleHz);</span>
+<span class="covered"><b> 234</b>         const began = probe ? performance.now() : 0;</span>
+<span class="covered"><b> 235</b>         await seek(current.video, Math.min(time, current.video.duration - 0.02), signal);</span>
+<span class="covered"><b> 236</b>         probe?.samples.seek.push(performance.now() - began);</span>
+<span class="covered"><b> 237</b>         const search = previous ? validBox({ x: previous.x - previous.width * 0.75, y: previous.y - previous.height * 0.2, width: previous.width * 2.5, height: previous.height * 1.4 }) : current.box;</span>
+<span class="covered"><b> 238</b>         const person = matchPerson(await detect(search), previous || current.box);</span>
+<span class="covered"><b> 239</b>         if (!person &amp;&amp; !first) throw new Error('選框中未找到明確人物，請只框住一個人的完整身體後重試。');</span>
+<span class="covered"><b> 240</b>         if (person) { first ||= person; previous = person; lastSeen = time; }</span>
+<span class="missing"><b> 241</b>         else { held++; if (time - lastSeen &gt; 0.75) throw new Error(`在 ${time.toFixed(2)} 秒無法確定同一個人，請縮短片段或重新框選。`); }</span>
+<span class="covered"><b> 242</b>         samples.push({ time, ...followBox(current.box, first, previous) });</span>
+<span class="covered"><b> 243</b>         trackedFrames++;</span>
+<span class="covered"><b> 244</b>         message.textContent = `只在本機分析 ${Math.round(index / count * 100)}%（${time.toFixed(2)} 秒）；可隨時取消。`;</span>
+<span class=""><b> 245</b>       }</span>
+<span class="covered"><b> 246</b>       signal.throwIfAborted();</span>
+<span class="covered"><b> 247</b>       if (options.source(current.side) !== current.source) throw new Error('來源已更換，請重新框選。');</span>
+<span class="covered"><b> 248</b>       const track = { start: current.start, end: current.end, samples: smoothTrack(samples), held }, mirror = options.mirror(current.side);</span>
+<span class=""><b> 249</b>       // 推論已結束就釋放模型，製作影片不需同時占用另一份 WASM 記憶體。</span>
+<span class="covered"><b> 250</b>       worker.terminate(); worker = undefined;</span>
+<span class="covered"><b> 251</b>       probe?.endAnalysis();</span>
+<span class="covered"><b> 252</b>       const resultBegan = probe ? performance.now() : 0;</span>
+<span class=""><b> 253</b>       let blob;</span>
+<span class=""><b> 254</b>       // 製片失敗或取消也保留部分耗時，但仍由原成功交換點保全上次結果。</span>
+<span class="covered"><b> 255</b>       try { blob = await makeResult(current.side, track, mirror, signal, text =&gt; { message.textContent = text; }); }</span>
+<span class="covered"><b> 256</b>       finally { if (probe) probe.resultMs = performance.now() - resultBegan; }</span>
+<span class="covered"><b> 257</b>       signal.throwIfAborted(); if (options.source(current.side) !== current.source) throw new Error('來源已變更，請重新框選。');</span>
+<span class=""><b> 258</b>       // 路徑與可播放影片完整成功後一起交換；取消或製作失敗保留上次整組結果。</span>
+<span class="covered"><b> 259</b>       const state = states[current.side]; state.source = current.source; state.track = track; state.enabled = true; state.revision++;</span>
+<span class="covered"><b> 260</b>       publishResult(current.side, blob, current.source, mirror);</span>
+<span class="covered"><b> 261</b>       closeDraft(); options.changed(); options.focus(resultVideo(current.side));</span>
+<span class="covered"><b> 262</b>       outcome = 'complete';</span>
+<span class=""><b> 263</b>     } catch (caught) {</span>
+<span class="covered"><b> 264</b>       if (signal.aborted) outcome = 'cancelled';</span>
+<span class="covered"><b> 265</b>       const error = caught instanceof Error ? caught : new Error(String(caught));</span>
+<span class="covered"><b> 266</b>       message.textContent = error.name === 'AbortError' ? '已取消分析，原片與上次成功的追蹤保留；可以調整選框再試。' : `${error.message} 上次成功的追蹤保留。`;</span>
+<span class="covered"><b> 267</b>       throw error;</span>
+<span class=""><b> 268</b>     } finally {</span>
+<span class="covered"><b> 269</b>       worker?.terminate(); parentSignal.removeEventListener('abort', aborted); analyzing = false; cancelAnalysis = () =&gt; {}; controls.disabled = false; confirm.disabled = false;</span>
+<span class="covered"><b> 270</b>       showMetrics(probe?.finish(outcome, trackedFrames));</span>
+<span class=""><b> 271</b>     }</span>
+<span class=""><b> 272</b>   }));</span>
+<span class=""><b> 273</b>   function update(available) {</span>
+<span class="covered"><b> 274</b>     for (const side of sides) {</span>
+<span class="covered"><b> 275</b>       const state = states[side], source = options.source(side);</span>
+<span class="covered"><b> 276</b>       if (state.source !== source) { state.source = source; state.track = null; state.enabled = false; state.revision++; }</span>
+<span class="covered"><b> 277</b>       const track = state.track;</span>
+<span class="covered"><b> 278</b>       const result = state.result, current = result &amp;&amp; track &amp;&amp; result.source === source &amp;&amp; result.revision === state.revision &amp;&amp; result.mirror === options.mirror(side);</span>
+<span class="covered"><b> 279</b>       const busy = options.busy(); refresh(side).disabled = !track || state.source !== source || busy;</span>
+<span class="covered"><b> 280</b>       refresh(side).classList.toggle('primary', !!track &amp;&amp; !!result &amp;&amp; !current);</span>
+<span class="covered"><b> 281</b>       download(side).textContent = `匯出${result &amp;&amp; !current ? '上次' : ''}${side === 'reference' ? '老師' : '自己'}跟隨影片`;</span>
+<span class="covered"><b> 282</b>       if (busy) resultVideo(side).pause(); resultVideo(side).controls = !busy;</span>
+<span class="covered"><b> 283</b>       resultStatus(side).textContent = !result ? '框選完成後，這裡會顯示可獨立播放與匯出的跟隨影片。' : current ? '這是目前選框與鏡像的單側結果，以原速播放並保留該側原片聲音。請匯出另存；結果只留本頁。' : '這是先前影片或設定的結果，原檔保留。請重新框選，或按「更新跟隨結果」套用目前鏡像，再匯出。';</span>
+<span class="covered"><b> 284</b>       button(side).disabled = !available || options.busy(); toggle(side).disabled = !track || options.busy(); clear(side).disabled = !track || options.busy(); toggle(side).checked = state.enabled;</span>
+<span class="covered"><b> 285</b>       note(side).textContent = track ? `${state.enabled ? '已開啟跟隨' : '跟隨已暫停'} · ${track.start.toFixed(2)}–${track.end.toFixed(2)} 秒${track.held ? `；${track.held} 個分析點暫用前次位置，請預覽檢查。` : '；請預覽確認全段都跟對人。'} 設定只留本頁，匯出影片會保留裁切。` : '尚未框選，使用完整畫面。';</span>
+<span class=""><b> 286</b>     }</span>
+<span class=""><b> 287</b>   }</span>
+<span class="covered"><b> 288</b>   return {</span>
+<span class=""><b> 289</b>     update,</span>
+<span class="covered"><b> 290</b>     playing() { return sides.some(side =&gt; !resultVideo(side).paused); },</span>
+<span class="covered"><b> 291</b>     pauseResults() { for (const side of sides) resultVideo(side).pause(); },</span>
+<span class=""><b> 292</b>     /** @param {Side} side */</span>
+<span class="covered"><b> 293</b>     track(side) { const state = states[side]; return state.enabled &amp;&amp; state.source === options.source(side) &amp;&amp; videos[side].getAttribute('src') === state.source ? state.track : null; },</span>
+<span class="covered"><b> 294</b>     signature() { return sides.map(side =&gt; [states[side].enabled, states[side].revision]); },</span>
+<span class=""><b> 295</b>     assertCoverage() {</span>
+<span class="covered"><b> 296</b>       for (const side of sides) {</span>
+<span class="covered"><b> 297</b>         const state = states[side]; if (!state.enabled || !state.track || state.source !== options.source(side)) continue;</span>
+<span class="covered"><b> 298</b>         const [start, end] = options.range(side);</span>
+<span class="covered"><b> 299</b>         if (start &lt; state.track.start - 0.001 || end &gt; state.track.end + 0.001) throw new Error(`${label(side)}的比較區間超出已分析範圍，請重新框選分析，或關閉該側跟隨。`);</span>
+<span class=""><b> 300</b>       }</span>
+<span class=""><b> 301</b>     },</span>
+<span class=""><b> 302</b>   };</span>
+<span class=""><b> 303</b> }</span>
+<span class=""><b> 304</b> </span></pre></details><details id="web/follow.js"><summary>web/follow.js — 100% lines</summary><pre><span class=""><b>   1</b> /* 檔案用途：人物選框、身分連續性與可重播裁切路徑。所在層：純畫面邏輯。主要關聯：follow-ui.js、main.js、person-worker.js。 */</span>
 <span class=""><b>   2</b> import { contain } from './timeline.js';</span>
 <span class="covered"><b>   3</b> const clamp = (value, min, max) =&gt; Math.max(min, Math.min(max, value));</span>
 <span class=""><b>   4</b> /** @typedef {{x:number,y:number,width:number,height:number}} Box */</span>
@@ -1222,7 +1224,7 @@
 <span class="covered"><b>  35</b>   source: side =&gt; urls.get(side), busy: () =&gt; !!active || storageUnconfirmed(), operate: operation,</span>
 <span class="covered"><b>  36</b>   file: side =&gt; side === 'reference' ? currentReferenceFile : takeBlob,</span>
 <span class="covered"><b>  37</b>   mirror: side =&gt; side === 'reference' ? $('reference-mirror').checked : $('self-mirror').checked,</span>
-<span class=""><b>  38</b>   focus: focusControl, playbackChanged: updateStopControl,</span>
+<span class=""><b>  38</b>   status, focus: focusControl, playbackChanged: updateStopControl,</span>
 <span class=""><b>  39</b>   range: side =&gt; {</span>
 <span class="covered"><b>  40</b>     const value = recipe(), range = comparison(value), first = positions(value, 0), last = positions(value, range.durationMs);</span>
 <span class="covered"><b>  41</b>     return side === 'reference' ? [first.referenceMs / 1000, last.referenceMs / 1000] : [first.selfMs / 1000, last.selfMs / 1000];</span>

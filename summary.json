@@ -1,17 +1,17 @@
 {
-  "sourceHead": "148f5845d52a9433dcd97274feb45edb35e40c79",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41258472712",
-  "generatedAt": "2026-11-01T01:13:45.208Z",
+  "sourceHead": "7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41275375327",
+  "generatedAt": "2026-11-01T05:25:29.249Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
     "web/follow-export.js": "234dab3bbe491676c3f8c7466e6ecd2e2c6877eba3d3c142eafecc64a9e7a921",
     "web/follow-metrics.js": "f6b216071ab82116ed50a2538309c81add4831f68539dd9a670aca1409d1c834",
-    "web/follow-ui.js": "5e014f7e3993af280fdc802eef582a828750ae46e6e17ba00c6ebdd723658667",
+    "web/follow-ui.js": "1a34127d6cdf2b1aa1475ddb8b99044890d493694a1ae655901e60debd56948a",
     "web/follow.js": "2c257c6524b852ec71b0f6c7c4e97ec8c6c147f7cc8171af29b481834dbfa94f",
     "web/library.js": "5f166c72637673327bf2d0fdea0c8258989371b5b7a41c8268444c77fcb5823c",
     "web/local-audio.js": "a1d1ca1bc8974bee4564cb816359ba3b2510c82f6c0b5436b5df7c727c3b40d0",
-    "web/main.js": "cb5ef12750be9de06e2bcb719f14578e6e82e77127cdb5e0b93db397f23e4a20",
+    "web/main.js": "e433a8cf7fa59fdc27617982e11ec3b9edc03df50efa4cddca204699d8517865",
     "web/offline.js": "84e0032d931798ca571966d94fa6103f2d6c67f271bfb0ae7fe19e780ab0b59a",
     "web/person-worker.js": "c1d9138d81c0a139a9e0bf8077d40abebf8f4a064fc2860ef3441448b824c7da",
     "web/recorder.js": "f1e217b85e8fa8c068fc024a552da6ae939d8da5dec6b0c585b670b613c4deb7",
@@ -22,28 +22,28 @@
   "scenarios": 78,
   "total": {
     "lines": {
-      "total": 2601,
-      "covered": 2591,
+      "total": 2602,
+      "covered": 2592,
       "skipped": 0,
       "pct": 99.61
     },
     "statements": {
-      "total": 4761,
-      "covered": 4527,
+      "total": 4762,
+      "covered": 4529,
       "skipped": 0,
-      "pct": 95.08
+      "pct": 95.1
     },
     "functions": {
       "total": 837,
-      "covered": 811,
+      "covered": 812,
       "skipped": 0,
-      "pct": 96.89
+      "pct": 97.01
     },
     "branches": {
-      "total": 2867,
-      "covered": 2548,
+      "total": 2869,
+      "covered": 2550,
       "skipped": 0,
-      "pct": 88.87
+      "pct": 88.88
     },
     "branchesTrue": {
       "total": 0,
@@ -164,63 +164,59 @@
     },
     "web/follow-ui.js": {
       "lines": {
-        "total": 221,
-        "covered": 217,
+        "total": 222,
+        "covered": 218,
         "skipped": 0,
         "pct": 98.19
       },
       "functions": {
         "total": 63,
-        "covered": 56,
+        "covered": 57,
         "skipped": 0,
-        "pct": 88.88
+        "pct": 90.47
       },
       "statements": {
-        "total": 444,
-        "covered": 399,
+        "total": 445,
+        "covered": 401,
         "skipped": 0,
-        "pct": 89.86
+        "pct": 90.11
       },
       "branches": {
-        "total": 240,
-        "covered": 201,
+        "total": 242,
+        "covered": 203,
         "skipped": 0,
-        "pct": 83.75
+        "pct": 83.88
       },
       "uncoveredLines": [
-        112,
-        154,
-        224,
-        239
+        114,
+        156,
+        226,
+        241
       ],
       "uncoveredFunctions": [
         {
           "name": "(anonymous_21)",
-          "line": 102
+          "line": 104
         },
         {
           "name": "(anonymous_30)",
-          "line": 129
+          "line": 131
         },
         {
           "name": "(anonymous_34)",
-          "line": 156
+          "line": 158
         },
         {
           "name": "(anonymous_35)",
-          "line": 157
+          "line": 159
         },
         {
           "name": "(anonymous_42)",
-          "line": 181
+          "line": 183
         },
         {
           "name": "(anonymous_49)",
-          "line": 206
-        },
-        {
-          "name": "(anonymous_52)",
-          "line": 221
+          "line": 208
         }
       ]
     },
