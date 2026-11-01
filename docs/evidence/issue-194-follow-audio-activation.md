@@ -141,3 +141,13 @@ CI341仍未命中`follow-ui.js`第67行的AudioContext建構失敗。兩條原�
 同受測head的[CI #350](https://github.com/sunpochin/dance-stamp/actions/runs/41259227389)完整成功：78個不同瀏覽器案例／14模組、0失敗；harness／App／Linux三項success，badge工作按條件skipped。App及Linux checkout f1da093，harness為merge `4f11ae2ac73666b18b2dd08592ab53a364459165`進148f584。同輪App行99.61%、函式96.91%、分支88.99%，不是100%；原片／VS及SIMD／相容回退的下載另在CI產品停止後獨立重播、解碼。後續文件提交不冒稱這份CI的受測head。
 
 本輪只補固定整合版的本機合成原生證據，旁聽仍可能影響時序；未代驗真人聽感、iPhone、任意舞蹈、長片品質、#11原130ms或完整G1–G7。首份失敗與殘留錯誤訊息仍待處理，PR維持draft及待獨立審查，不合併或發布。
+
+## 2026-11-02 整合 main7dede9 的原回歸與下載
+
+把「按確認時先準備聲音」和「影片完成就報成功」放在同一份版本檢查；先前失敗的錄影與收據仍保留，沒有用新成功抹掉舊失敗。
+
+本輪來源為head `47c2689` 加尚未提交的main `7dede9f` 整合，十四份產品及測試指紋另存本機。整合已包含主線#201的成功提示及#203的Worker載入失敗／重試；文件索引與`follow-results`有兩處衝突，音訊手勢／建構早停與真正空白選框失敗後的逐側成功提示原斷言全部保留，原78案名稱／順序、模型／8Hz、聲畫及取消期限不改。
+
+原五案person-follow／follow-results／follow-performance／webkit-follow-results／follow-runtime分別17,648／15,859／26,705／16,445／39,887ms通過，0頁面例外；兩種供聲路徑均核對兩側確認時先建構／resume再建立Worker、取消／失敗關閉環境、舊成果保留及成功提示正確。這是選定五案，非完整78案；Chrome指定WebKit條件仍不等於原生Safari。
+
+十二份本輪真下載在產品瀏覽器／主機關閉後，以全新離線file播放器全部自然ended、error0、dropped0、有音訊與全軌解碼，完整hash不變；Worker請求失敗後保全檔與同輪前一成功檔相同。自有播放器程序退出、nonce釋放，未重播挑零掉格。本輪尚未驗原生Safari整合版；上節f1da093原生十秒及首次activation失敗維持原來源，PR仍為draft、待獨立審查，沒有合併或發布。
