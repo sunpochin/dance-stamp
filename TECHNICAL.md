@@ -31,6 +31,8 @@
 
 #103 的[單側結果供聲補測](docs/evidence/issue-103-follow-webkit-audio.md)讓老師與自己共用原檢查表分別驗 Chrome 及 Safari 供聲路徑，確認真正下載帶各自聲音且取消保留舊成品。只新增第77個條件分支情境，原76個順序、所有數值門檻及十四份產品JS不改；Chromium指定Safari UA不代表原生Safari或真機驗收。
 
+#103 的[背景程式載入失敗補測](docs/evidence/issue-103-worker-load.md)中斷一次真正人物 Worker 請求，核對原生錯誤、及時恢復、舊下載內容與同頁完整重試。沿原 runtime 回歸追加邊界，產品、原門檻及完整情境順序不改；受控載入中斷不稱自然故障或原生 Safari 驗收。
+
 版本號、更新紀錄與里程碑草稿流程見[版本與更新說明](docs/RELEASE.md#版本與更新說明)。
 
 #165 的雙側人物框選、跟隨裁切與鏡像見[本次設計](#165-雙側人物跟隨裁切)及[合成驗證](docs/evidence/issue-165-person-follow.md)；手動對齊仍保留。
