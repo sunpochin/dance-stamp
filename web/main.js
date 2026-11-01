@@ -35,7 +35,7 @@ const following = createFollowUI({ reference, self }, {
   source: side => urls.get(side), busy: () => !!active || storageUnconfirmed(), operate: operation,
   file: side => side === 'reference' ? currentReferenceFile : takeBlob,
   mirror: side => side === 'reference' ? $('reference-mirror').checked : $('self-mirror').checked,
-  focus: focusControl, playbackChanged: updateStopControl,
+  status, focus: focusControl, playbackChanged: updateStopControl,
   range: side => {
     const value = recipe(), range = comparison(value), first = positions(value, 0), last = positions(value, range.durationMs);
     return side === 'reference' ? [first.referenceMs / 1000, last.referenceMs / 1000] : [first.selfMs / 1000, last.selfMs / 1000];
