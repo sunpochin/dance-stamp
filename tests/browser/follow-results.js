@@ -22,6 +22,13 @@ async (page, { boundedAudio = false } = {}) => {
   const stored = await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data));
   for (const side of ['reference', 'self']) {
     assert(await page.locator('#' + side + '-follow-result').isHidden(), '未分析已顯示假結果');
+    // 真正框到空白後同頁重試，才能抓到新成品成功卻仍顯示上次錯誤的矛盾。
+    await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle();
+    for (const [field, value] of [['width', 5], ['x', 0], ['y', 0], ['height', 5]]) { await page.locator('#follow-' + field).fill(String(value)); await page.locator('#follow-' + field).dispatchEvent('change'); }
+    await page.locator('#follow-confirm').click(); await idle();
+    assert((await page.locator('#follow-message').textContent()).includes('未找到明確人物') && (await page.locator('#status').textContent()).includes('未找到明確人物'), '無人物失敗未保留真正原因');
+    assert(await page.locator('#' + side + '-follow-result').isHidden() && await page.evaluate(async () => JSON.stringify((await (await import('/storage.js')).readLibrary()).data)) === stored, '無人物失敗新增假結果或改動筆記／配方');
+    await page.locator('#follow-cancel').click();
     await page.locator('#' + side + '-follow').click(); await page.waitForFunction(() => document.getElementById('follow-dialog').open); await idle();
     for (const [field, value] of [['width', side === 'reference' ? 37 : 40], ['x', side === 'reference' ? 3.5 : 55], ['y', 2.5], ['height', 95]]) { await page.locator('#follow-' + field).fill(String(value)); await page.locator('#follow-' + field).dispatchEvent('change'); }
     await page.locator('#follow-confirm').click();
@@ -29,6 +36,7 @@ async (page, { boundedAudio = false } = {}) => {
     assert(!await page.locator('#follow-dialog').evaluate(d => d.open), '結果製作失敗：' + await page.locator('#follow-message').textContent());
     const video = page.locator('#' + side + '-follow-result'); await video.waitFor({ state: 'visible' });
     await page.waitForFunction(id => document.getElementById(id).readyState >= 2, side + '-follow-result');
+    assert((await page.locator('#status').textContent()).includes(`${side === 'reference' ? '老師' : '自己'}跟隨影片已完成`), '成品已成功卻仍顯示舊錯誤：' + await page.locator('#status').textContent());
     assert(await video.getAttribute('src') === await page.locator('#' + side + '-follow-download').getAttribute('href'), '預覽與匯出不是同一份結果');
     assert(await video.evaluate(v => v.controls && v.videoHeight > v.videoWidth && Math.abs(v.duration - 3) <= .1 && v.videoHeight <= 1280 && v.videoWidth % 2 === 0 && v.videoHeight % 2 === 0), '單側結果尺寸／原速片長不正確');
     assert(await page.evaluate(() => document.activeElement.id) === side + '-follow-result', '製作完成未將鍵盤焦點帶到結果');
@@ -67,6 +75,7 @@ async (page, { boundedAudio = false } = {}) => {
   await page.locator('#reference-follow-refresh').click(); await page.waitForFunction(() => document.getElementById('reference-follow-result-status').textContent.includes('正在製作'));
   await page.locator('#stop').click(); await idle();
   assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '取消更新破壞既有結果');
+  assert((await page.locator('#status').textContent()).includes('已停止'), '取消更新被錯誤的完成提示覆蓋');
   // 真正先暫停原生 AudioContext，再讓 resume 保持等待；停止不能被這個未完成承諾卡住。
   await page.evaluate(async () => {
     window.followNativeAudioContext = window.AudioContext;
@@ -84,10 +93,12 @@ async (page, { boundedAudio = false } = {}) => {
   await page.evaluate(() => { window.resultRecorder = window.MediaRecorder; window.MediaRecorder = class { static isTypeSupported() { return false; } }; });
   await page.locator('#reference-follow-refresh').click(); await idle();
   assert(await page.locator('#reference-follow-download').getAttribute('href') === oldTeacher, '編碼失敗破壞舊結果');
+  assert((await page.locator('#status').textContent()).includes('原片仍保留，可重試') && !(await page.locator('#status').textContent()).includes('跟隨影片已完成'), '編碼失敗被錯誤的完成提示覆蓋');
   await page.evaluate(() => { window.MediaRecorder = window.resultRecorder; });
   await page.locator('#reference-follow-refresh').click(); await idle();
   assert(await page.locator('#reference-follow-download').getAttribute('href') !== oldTeacher && await page.locator('#self-follow-download').getAttribute('href') === oldSelf, '更新沒有逐側替換結果');
   assert(!(await page.locator('#reference-follow-result-status').textContent()).includes('先前'), '更新後仍標舊鏡像');
+  assert((await page.locator('#status').textContent()).includes('老師跟隨影片已完成'), '更新成功後仍顯示前次編碼失敗');
   const mirrorPixels = await page.locator('#reference-follow-result').evaluate(async v => {
     if (v.readyState < 2) await new Promise(resolve => v.addEventListener('loadeddata', resolve, { once: true }));
     await new Promise(resolve => { v.addEventListener('seeked', resolve, { once: true }); v.currentTime = 1; });
