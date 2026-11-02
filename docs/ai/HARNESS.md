@@ -30,6 +30,20 @@ Dance Stamp 自行維護開發工具、規則、skills、測試與文件。新 c
 | 公開前檢查 | `scripts/check-public.ts`，檢查 Git 追蹤內容、憑證與非範例個人識別 |
 | 交付與裝置證據 | issue／PR 範本及 [證據範本](../agents/acceptance-template.md) |
 
+## 完整 App CI 的整場時間預算
+
+追蹤 [#241](https://github.com/sunpochin/dance-stamp/issues/241)，Refs #103／#234。
+
+白話：檢查影片、重新播放和保存報告都需要時間。整場上限由25調到30分鐘，讓最後收尾也有空間；每一項檢查仍須在原來的期限通過，不少跑、不放寬影片標準。
+
+技術：只改 `harness-ci.yml` 的 `app-coverage.timeout-minutes`；所有案例／原順序、完整 `web/*.js` 分母、下載與離站全軌解碼、報表上傳及其他job保持。原5秒離線、15秒恢復、100ms音畫與各媒體期限不變；30分鐘仍是整場有限上限，不將個別失敗改標成功。
+
+依據是 [#234 的原CI](https://github.com/sunpochin/dance-stamp/actions/runs/41498913294/job/125462889268)，head `6984861bc9cd4a911bf7ecfd79771c9b54a50236`：81個不同案例PASS／0FAIL、五份真下載離站自然播完與全軌解碼及artifact上傳完成，整場仍因25分鐘上限cancelled。協調者已實讀annotation「The job has exceeded the maximum execution time of 25m0s」，UTC 18:19:28開始、18:44:29結束，最後log 18:42:57為orphan cleanup。完整報告行3311／3357、函式1077／1127、分支3211／3713、skipped0，ZIP SHA-256 `07d431f9ff982a153b727ac7d04dbd7e956fd32bea6dfc0562c0465d247c61f8`。只能記「量測與成品已通過，整場超時取消」，不是CI成功，也沒有證明cleanup唯一根因或30分鐘一定足夠。
+
+本次修復以同步main `e3d4ebd7a7e20802eeb539369067d5b96ac9d501` 為來源，只改workflow與本節，不帶產品依賴。正常check／hook及精確head CI後獨立審查；後續要重驗依賴PR須正常merge此infra形成新head，不重寫舊head或移記舊報告。這是完成既有檢查的阻擋修復，不新增coverage子範圍、外部服務或發布。
+
+本機驗證：YAML解析後比對整份設定，語意唯一差異為App整場25→30，所有其他job與命令相同。正常check為754 pass／0 fail／4,142 expects、保留19項lint info，靜態仍83a29a61027b205d。首輪753／1是專用worktree切回主線後，原建置白名單拒絕先前節拍器分支留下的生成檔；保全整份自有舊產物後重建／重跑通過，未改白名單或測試，失敗log保留。本票不重跑無關影音，精確head完整CI仍待實際結果。
+
 ## 新 clone 使用
 
 使用 `.bun-version` 固定的 Bun，在 repo 根目錄執行：
