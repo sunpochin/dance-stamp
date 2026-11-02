@@ -150,3 +150,7 @@ CSS／NOTICE 的瀏覽器 body 與建置原 bytes 不同，仍精確符合 Windo
 來源核對為 `web/index.html` 的 `data-comparison-only`／`data-deferred` 及實際控制文字、package／release manifest；沒有操作畫面或重跑媒體。技術設計、產品／測試／workflow／版本設定、打包白名單、Release 物件、tag 與服務均未變。既有恢復、安全更新、正式來源、真人／真機與發布核准條件保留，#15 不因這份指南修正結案；本輪 Codex 獨立審查已獲使用者授權。
 
 Bun 1.4.4 原 `bun run check` 通過：760 pass／0 fail／4,385 expects，51 個 harness 指紋、482 個公開檔、型別／lint／build 通過，保留原 19 項 info，產品靜態仍 `07cdd7b66289af39`。`package:web`／`check:package` 通過，95 檔、11,994,086 bytes，archive SHA256 `ac2493df71ac0db4243896515b57a71e4b67b2212abe33860a182141ceafb7e5`。這份本機包在文件尚未提交時生成，sourceRevision 為上述 ff83c11c、trackedChanges=true，不是正式 clean-head 發行包，也未上傳附件。正常 hook 與最終提交／PR 的精確來源另綁；本機檢查與下載包校驗不代替新使用者 P0 或真機驗收。
+
+整合來源：保留指南提交 `e98d9aa8afa8d57f6ab8797b1a774b774ab07f2f`，正常合入 main `697f8ce33ecaebf47e5fa02dc3ba93d9d398e850`（來源 PR #247 精確 e8ddfe1 的必要 CI 已成功，main 本身同輪結果另記；#247 僅既有 #13 文件新增 34 行）。無衝突，五份使用／發行指南內容不變，本節另補來源綁定；不修改 #247 原 head，也不把 e98d9aa8 的舊 CI 改標成新整合 head。整合工作樹另沿原 check／package 校驗，正常 merge commit hook／push 與精確新 head CI 分開綁定。
+
+整合工作樹的原 check 完整日誌仍為760 pass／0 fail／4,385 expects、19項info與07cdd7不變；接手時舊執行handle已不存在且本工作樹無Bun程序，不據此補造exit code，最終正常提交hook另確認。整合後 `package:web`／`check:package` 已各自exit0，95檔、11,996,740 bytes、archive SHA256 `99b56aec0fa1ab9e504b57a6204ea5589352b82e1fbb31b71b505b5524e77dae`。這仍是補齊最終交接文字前的本機工作樹快照，sourceRevision=e98d9aa8、trackedChanges=true，未當成乾淨來源的發行附件；最後head由其CI獨立校驗。
