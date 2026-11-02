@@ -1373,3 +1373,18 @@ Safari 僅解碼合法來源交集，來源 PCM 最多 300 秒／48kHz／雙聲�
 原建置 `ee5ddfa6bae1d6ec` 的同頁往返已重現：原雙片有來源，回首頁後兩側來源皆空。新增回歸同原建置在五秒內收不到 popup，按預期拒絕；修正建置 `c5b39d5859458487` 沿相同回歸通過，開啟／關閉工具後原雙片 URL 與完整 library（含 revision、take／配方）相同，瀏覽器 `window.opener` 為 null，無 opener 直接開頁可正常開始／停止。原 120 BPM 原生解碼／worklet、套用、半速／倍速、無效輸入、原聲並播、背景停止處理、320px 與兩次取消重試仍通過，頁面錯誤零；自有瀏覽器／主機正常關閉、鎖依自有 nonce 釋放。
 
 以上只證明隔離 Chrome 的流程及資料保全；未驗證 Safari、實體手機、觸控／讀屏、人工聽感或完整 G1–G7，亦未宣稱發布。
+
+
+### #227 分析準備期間的媒體取消
+
+白話：按分析後，聲音工具還在準備時也能改主意。暫停、拖到別段或變速都會取消這次分析；晚到的工具不能再偷偷開播。明確按分析仍可從片尾重播，也會把原先慢速播放切回分析需要的原速。
+
+技術：`analysisStarting` 與 `analyzing` 共用原生 pause／seeking／ratechange 取消入口；取消遞增既有 generation，後續 resume／addModule／play 等待依原 token 守門，不新增逾時。片尾 `currentTime=0` 與 `playbackRate=1` 本身也送相同事件，故只記當次 generation 真正需要的 seek／rate 初始化，按實際目標值各消耗一次；其餘事件照常取消，取消同時清掉預期。排除只在最後檢查按鈕狀態、把事件全忽略或延長 28 秒期限：前者容許舊工作重播，後者會吞掉使用者明確改段。未新增 runtime 依賴、工作排程器或第二套分析流程。
+
+版本與重現：原產品 PR #225 `ec5106a0a43be97de82792bd48a51669f51ad4a5`、`metronome.js` SHA-256 `3cbb94cf10931919384eb845ca82a6db1becc9f7c0d3388af6d40fb47dee636e`。Bun 1.4.4／macOS arm64／Chrome 156.0.8078.76，21 秒合成 WAV。先真正播放再按分析，只將原生 Worklet.addModule 呼叫延後，解除後仍轉交原方法／原 promise；pause／seek／rate 三案均重現舊工作重新播放、顯示正在分析。首次無拒絕出口的 request 觀察未完成，僅停止確認屬本輪的九個自有程序、全退出後釋鎖；第二次有界 request 觀察雖逾時，產品已正常分析，表明網路攔截沒有形成 Worklet hold。這兩份工具前置失敗保留，不當作產品成敗；轉換觀察方式後才確認缺陷。
+
+先紅後綠的 `tests/browser/metronome-startup.ts` 已接入原 `scripts/verify-metronome.ts`，原碼在第一個 module／pause 案五秒內無法取消而被拒絕。修正後，module 與 resume 邊界各三個原生 pause／currentTime／playbackRate 案全部及時取消；解除邊界後先等原生 promise 真正 fulfilled／rejected（原值／拒絕照常轉交），才核對仍暫停、沒有新結果、可重試；不用固定毫秒等待冒充舊工作已結束。另驗片尾真正 ended 後重播及原 0.75× 明確分析回 1×，兩正例皆可開始再取消。只延後原生方法，不派送假媒體事件、不偽造成功結果，也未改產品期限。原工作台雙片／完整 library 保全、noopener、直接入口、二十秒 120 BPM 原生解碼／worklet、控制、背景處理、320px 及兩次取消重試亦完整通過、零頁面例外。
+
+綠燈受測為上述基線加本次產品／回歸工作樹，正常建置與原始日誌留本機 ignored／暫存證據，不冒稱提交後乾淨來源重跑。原有影音／BPM 門檻不變；完成後自有測試子程序 exit0、瀏覽器與主機關閉，外部包裝核對自有 nonce 釋鎖。原生 Safari、實體手機、人工聽感及完整 G1–G7 未由此合成回歸驗收。重跑使用正常 `bun run check`、`bun run build`，再執行原 `bun --no-env-file scripts/verify-metronome.ts`；須先取得共同影音鎖，不與原生媒體量測競跑。
+
+完整檢查：Bun 1.4.4 `bun run check` 通過 757 tests／4,198 expects／0 fail，公開掃描、型別、lint、build 通過，保留原 19 項 lint info。修正建置 `07cdd7b66289af39`；`web/metronome.js` SHA-256 `c4ee81c0351701215b4162e3df04b201ebc83b1705e19f61955a8ad4cecddf0a`，加強後 startup helper SHA-256 `fb5f548f2467ef95c26ad62ff0c664a02caaea6b28116c474f5aae00b46290cd`。最後整輪六個受控原生等待的 settlement 均為 fulfilled，之後才核對取消與不重播；兩個合法初始化及原二十秒分析亦通過。該輪日誌 SHA-256 `55bb3cdb824ac3aab5401cafbdc7c92d0728498ee19b8fc6f0401283b7ec267f`，退出碼 0 且自有 nonce 釋鎖；原始日誌不公開。等待補測時曾在啟動前遇共同鎖 EEXIST，當次沒有開瀏覽器或改鎖，後續等持有者正常收尾才重跑。

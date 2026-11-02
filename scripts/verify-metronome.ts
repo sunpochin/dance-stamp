@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { chromium } from 'playwright-core'
 import { webPaths, webHeaders } from './web-assets'
+import { verifyMetronomeStartup } from '../tests/browser/metronome-startup'
 const root = resolve(import.meta.dir, '..')
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const file = webPaths.get(new URL(request.url).pathname)
@@ -48,6 +49,7 @@ try {
     const t = i / 16000, phase = t % 0.5, envelope = Math.exp(-(((phase - 0.07) / 0.035) ** 2))
     wav.writeInt16LE(Math.round(Math.sin(t * 440 * 2 * Math.PI) * envelope * 12000), 44 + i * 2)
   }
+  console.log('PASS startup:', JSON.stringify(await verifyMetronomeStartup(browser, String(server.url), wav)))
   await page.locator('#source-file').setInputFiles({ name: 'synthetic-count.wav', mimeType: 'audio/wav', buffer: wav })
   await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#source')!.readyState >= 1)
   await page.locator('#analyze').click()
