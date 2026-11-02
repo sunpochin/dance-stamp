@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+#11直接Canvas串流的原生captureTime兩圖樣能力觀察見[本輪證據](docs/evidence/issue-11-native-capturetime.md)：Safari27.2可見兩個遞增原生值；唯一短成檔嘗試在診斷工具收尾失敗，逐格metadata／PTS配對未驗證。沒有改產品、原Worker0／0 gate或130ms失敗；不從非零欄位推定擷取／排隊延遲或音訊唯一根因。
+
 比較／VS 的現行五分鐘上限與相機仍維持 60 秒的分工，見[五分鐘決策](#比較與-vs-匯出放寬至五分鐘195)；下方舊 60 秒描述與證據保留其當時版本歸屬。
 
 首頁 badge 的真實數字、來源與更新限制見 [README coverage badge](#readme-coverage-badge)。
