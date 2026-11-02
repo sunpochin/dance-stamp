@@ -1,6 +1,10 @@
 <!-- 檔案用途：記錄下載包、免費主機、來源邊界及發布前缺口。所在層：#15 發布準備。主要關聯：START_HERE.md、LICENSING_AND_COST.md、ACCEPTANCE.md。 -->
 # Web 下載包與發布準備
 
+2026-11-03 現況：[v0.1.0](https://github.com/sunpochin/dance-stamp/releases/tag/v0.1.0) 已於 2026-10-31 21:27:38 UTC 公開，來源 `22bd3411133746d94dbe6b8d0bc96172ee1d92f3`。發布的是桌面 Web 預覽版本與說明，Release 未附預建置服務包；GitHub 自動原始碼壓縮檔仍須建置。後續 main 與下方歷史候選分開識別，不把目前功能或舊實測改記到 v0.1.0。#15 的正式來源盤點、新使用者 P0、真人／真機及後續發布決策仍未由此完成。
+
+以下日期段落保留當時版本、未合併／未發布等歷史狀態；現況以本段與實際 GitHub Release 為準。
+
 2026-11-02：[既有 HTTPS 預覽核對](evidence/issue-15-hosted-preview.md)已完成指定 PR 來源的 24 檔／48 次 GET／HEAD、完整內容、回應政策與 SW 清單比對；其十四份產品 JS 與 main `7dede9f` 相同。這份證據補上實際託管的靜態檢查，正式發行來源、完整 P0／真人／真機與發布核准仍待驗；下方歷史候選各保留原版本歸屬。
 
 2026-10-30 PR #80 續作（靜態 `4651fae419d8d9c8`）：已納入 #82 的建置授權副本連結修正，以及按原受測版本保存的 [媒體保全／Safari 操作界線](evidence/issue-3-current-protection-audit.md)、[#79 近上限原生容量 UI](evidence/issue-12-native-capacity-ui.md)與 [#81 新版正常／注入救援](evidence/issue-12-backup-recovery.md)。下載包只明列增加前兩份匿名 Markdown；產品 HTTP 路由／Web 資源白名單與授權條款維持原樣。舊 396037f 的包／UI 證據保留，新包另記來源、manifest、校驗與必要 smoke，不宣稱重跑各來源媒體矩陣。
@@ -21,7 +25,7 @@ Safari不需改Profiles或日常設定。345b2d1／fe4bf7952cad2421的一般模�
 
 GitHub Releases 是對使用者的版本公告；根目錄 `CHANGELOG.md` 累積各版本變更；Git history 留開發細節。採 Semantic Versioning，tag 為 `vMAJOR.MINOR.PATCH`，與 `release.json` 的靜態內容雜湊用途不同。Preview Deploy 不等於版本發行；版本 PR 合併、草稿、正式發布與網站部署分開記錄。
 
-`package.json` 的 `0.0.0` 是尚未發布的開發基線，空的 `.release-please-manifest.json` 表示沒有歷史發行；首次 PR 預設提議 `0.1.0`。`bootstrap-sha` 固定為導入前 main `1fbbf5ba38633723a34e3695ebc8ee7fd5885fcb`，只自動整理其後的變更，避免把所有早期原型都當成新功能。首次公告須人工補寫該版本真正開放的功能與限制，不補造過去版本／日期，也不把範例功能寫成已完成。
+導入版本工具時，`package.json` 的 `0.0.0` 與空的 `.release-please-manifest.json` 是當時尚未發行的基線，首次 PR 提議 `0.1.0`。目前兩者分別為 `0.1.0` 與 `{".":"0.1.0"}`；實際公開紀錄為上述 v0.1.0。`bootstrap-sha` 固定為導入前 main `1fbbf5ba38633723a34e3695ebc8ee7fd5885fcb`，只自動整理其後的變更，避免把所有早期原型都當成新功能。首次公告須人工補寫該版本真正開放的功能與限制，不補造過去版本／日期，也不把範例功能寫成已完成。
 
 後續 `fix:`／`perf:` 升 PATCH、`feat:` 升 MINOR；`!` 或 `BREAKING CHANGE:` 標出不相容變更。0.x 階段不相容變更升 MINOR，1.x 起升 MAJOR；0.x 不代表穩定或所有裝置已支援。一般 `docs:`／`chore:`／`test:`／`ci:` 等不進使用者更新說明。沿用提交的 `type: Title` 與 why-explanation；squash merge 時也要保留 Conventional Commit 標題與不相容變更說明。
 
@@ -33,13 +37,13 @@ GitHub Releases 是對使用者的版本公告；根目錄 `CHANGELOG.md` 累積
 4. 依 `AGENTS.md` 取得合併授權並完成審查後合併版本 PR。再在 `main` 啟動 **Release preparation**，選 `phase=draft`；此輪只依已合併版本 PR 建立 GitHub Release **草稿**。設定固定 `draft=true`，不強制建立 tag、不上傳下載包、不部署網站。
 5. 在 GitHub Releases 檢查草稿的版本、來源 commit、筆記與既有發布／支援證據；明確取得使用者對該版本的發布核准後，由維護者按 Publish release。發布前仍遵守下方來源、授權、備份及驗收要求。草稿尚未發布時先完成或處理該草稿，再準備下一版，避免未建立 tag 的版本被誤認為未發行。必要下載包沿本文件另行核對與授權，不由本 workflow 夾帶。
 
-repository 須允許 **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**，否則準備版本 PR 會失敗；維護者確認政策後自行啟用。本次只提供可審查設定，不修改帳戶／repository 權限、不新增 secrets。工作只在本 repo 的 main 執行，僅該工作持有 contents／pull-requests／issues 寫入權限供官方 action 建 PR／草稿及標籤；Harness CI 維持 contents 唯讀。正式遠端工作與首次草稿尚未實跑，不以本機設定檢查當成已可公開發行。
+repository 須允許 **Settings → Actions → General → Workflow permissions → Allow GitHub Actions to create and approve pull requests**，否則準備版本 PR 會失敗；維護者確認政策後自行啟用。本次只提供可審查設定，不修改帳戶／repository 權限、不新增 secrets。工作只在本 repo 的 main 執行，僅該工作持有 contents／pull-requests／issues 寫入權限供官方 action 建 PR／草稿及標籤；Harness CI 維持 contents 唯讀。v0.1.0 的既有公開紀錄不證明下列 `prepare`／`draft` 自動工作已成功，仍須以各工作實際結果核對；不以本機設定檢查替代。
 
 官方契約：[release-please Action](https://github.com/googleapis/release-please-action)、[manifest、草稿與版本設定](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md)、[內建 token 的事件限制](https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication)。自動產生的內容只是審閱起點，不能代替使用者可讀的筆記或真人／真機驗收。
 
 ## 取得與重建
 
-下載包的使用入口為 [START_HERE.md](../START_HERE.md)。已建置包無須 Git、套件安裝或編譯，仍需 Bun 1.4.4 啟動本機 HTTP 主機；不能以雙擊 HTML 代替可信任 localhost。尚無公開發行檔／網址，新使用者取得來源仍需自行建置或由維護者交付候選包，這項安裝限制尚未經真人驗收。
+下載包的使用入口為 [START_HERE.md](../START_HERE.md)。已建置包無須 Git、套件安裝或編譯，仍需 Bun 1.4.4 啟動本機 HTTP 主機；不能以雙擊 HTML 代替可信任 localhost。v0.1.0 的公開版本頁可取得說明與原始碼，沒有預建置的 `dance-stamp-web.tar.gz` 附件；GitHub 自動提供的 source archive 不能直接當成服務包。新使用者仍須自行建置，或取得維護者交付且綁定來源與校驗碼的包；這項安裝限制尚未經真人驗收。
 
 來源 checkout 使用 Bun 1.4.4：
 
