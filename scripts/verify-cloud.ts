@@ -1,0 +1,85 @@
+/* 檔案用途：用合成 OAuth／Drive 回應走真正首頁的雲端保存與接續。所在層：瀏覽器回歸入口。主要關聯：cloud-drive.ts、CLOUD_SYNC_SHARING.md；不是實際 Google／雙實體裝置驗收。 */
+import assert from 'node:assert/strict'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { createHash } from 'node:crypto'
+import { chromium, type BrowserContext } from 'playwright-core'
+import { cloudDriveFixture } from '../tests/fixtures/cloud-drive'
+import { webHeaders, webPaths } from './web-assets'
+const root = resolve(import.meta.dir, '..'), out = resolve(root, 'output/playwright/cloud')
+mkdirSync(out, { recursive: true })
+for (const [name, color] of [['reference', 'blue'], ['self', 'red']]) {
+  const result = Bun.spawnSync(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x120:r=30:d=2`, '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libvpx', '-c:a', 'libopus', '-shortest', resolve(out, `${name}.webm`)], { stdout: 'pipe', stderr: 'pipe' })
+  assert.equal(result.exitCode, 0, result.stderr.toString())
+}
+const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
+  const file = webPaths.get(new URL(request.url).pathname)
+  return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
+} })
+const fixture = cloudDriveFixture(), errors: string[] = [], contexts: BrowserContext[] = []
+const browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
+async function page() {
+  const context = await browser.newContext({ serviceWorkers: 'block' }); contexts.push(context)
+  await context.route('https://accounts.google.com/gsi/client', route => route.fulfill({ contentType: 'text/javascript', body: `window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:config=>({requestAccessToken:()=>queueMicrotask(()=>config.callback({access_token:'owner-a',expires_in:3600,scope:'https://www.googleapis.com/auth/drive.file'}))})}}};` }))
+  await context.route('https://www.googleapis.com/**', async route => {
+    const request = route.request(), headers = await request.allHeaders(), raw = request.postDataBuffer()
+    if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type,content-range,range,x-upload-content-type,x-upload-content-length', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS' } }); return }
+    const init = { method: request.method(), headers: { ...headers, Authorization: headers.authorization, Range: headers.range, 'Content-Range': headers['content-range'] }, body: raw && (request.method() === 'PUT' ? new Blob([raw]) : raw.toString()) }
+    try {
+      const response = await fixture.fetcher(request.url(), init)
+      await route.fulfill({ status: response.status, headers: { ...Object.fromEntries(response.headers), 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'Location,Range,Content-Length' }, body: Buffer.from(await response.arrayBuffer()) })
+    } catch (error) { console.log('synthetic route failure', error instanceof Error ? error.message : 'unknown'); await route.abort('failed') }
+  })
+  const result = await context.newPage(); result.setDefaultTimeout(15000); result.on('pageerror', error => errors.push(error.message))
+  await result.goto(`http://127.0.0.1:${server.port}/`); await result.waitForFunction(() => !document.getElementById('select-video')?.matches(':disabled'))
+  return result
+}
+async function idle(p) { await p.waitForFunction(() => document.getElementById('controls')?.getAttribute('aria-busy') !== 'true') }
+async function connect(p) {
+  await p.locator('#open-cloud').click(); await p.locator('#cloud-dialog summary').first().click()
+  await p.locator('#cloud-client').fill('123-synthetic.apps.googleusercontent.com')
+  await p.locator('#cloud-load').click(); await idle(p)
+  await p.locator('#cloud-connect').click();
+  try { await p.waitForFunction(() => document.getElementById('cloud-account')?.textContent?.includes('synthetic@example.com')) }
+  catch (error) { console.log(JSON.stringify({ cloudStatus: await p.locator('#cloud-status').textContent(), errors })); throw error }
+  await idle(p)
+}
+const evidence: any = { simulatedProvider: true, realOAuth: '未驗證', physicalDevices: '未驗證', anonymousPlayback: '未驗證' }
+try {
+  const first = await page()
+  const unsolicited = await first.evaluate(() => performance.getEntriesByType('resource').filter(r => !r.name.startsWith(location.origin)).length); assert.equal(unsolicited, 0)
+  await first.locator('#reference-file').setInputFiles(resolve(out, 'reference.webm')); await idle(first)
+  await first.locator('#self-file').setInputFiles(resolve(out, 'self.webm')); await idle(first)
+  await connect(first); await first.locator('#cloud-create-root').click(); await idle(first)
+  const rootId = await first.locator('#cloud-root').inputValue(); assert.ok(rootId)
+  await first.locator('#cloud-preview-practice').click(); await idle(first)
+  assert.equal(await first.locator('#cloud-local-assets input').count(), 2)
+  await first.locator('#cloud-local-assets input').nth(0).check(); await first.locator('#cloud-local-assets input').nth(1).check(); await first.locator('#cloud-save-confirm').check()
+  await first.locator('#cloud-save-practice').click(); await idle(first)
+  assert.match(await first.locator('#cloud-status').innerText(), /完整快照/)
+  const complete = [...fixture.files.values()].filter(f => f.appProperties.dsKind === 'snapshot-v1'); assert.equal(complete.length, 1)
+  const second = await page(); await connect(second)
+  await second.locator('#cloud-roots').click(); await idle(second); await second.locator('#cloud-root').selectOption(rootId)
+  await second.locator('#cloud-list-snapshots').click(); await idle(second)
+  const snapshot = await second.locator('#cloud-snapshots option').nth(1).getAttribute('value'); assert.ok(snapshot)
+  await second.locator('#cloud-snapshots').selectOption(snapshot); await second.locator('#cloud-preview-snapshot').click(); await idle(second)
+  assert.equal(await second.locator('#cloud-remote-assets input').count(), 2)
+  await second.locator('#cloud-remote-assets input').nth(0).check(); await second.locator('#cloud-remote-assets input').nth(1).check()
+  await second.locator('#cloud-download-media').click(); await idle(second)
+  assert.equal(await second.locator('#cloud-media-preview video').count(), 2)
+  await second.locator('#cloud-restore-confirm').check(); await second.locator('#cloud-apply-snapshot').click(); await idle(second)
+  assert.match(await second.locator('#cloud-status').innerText(), /原子保存/)
+  await second.locator('#cloud-open-restored').click(); await idle(second)
+  if (await second.locator('#cloud-dialog').evaluate(el => (el as HTMLDialogElement).open)) console.log('open-restored-status', await second.locator('#cloud-status').innerText())
+  assert.equal(await second.locator('#cloud-dialog').evaluate(el => (el as HTMLDialogElement).open), false)
+  const restored = await second.evaluate(async () => { const storage = await import('/storage.js'); const { data } = await storage.readLibrary(); return { takes: data.takes.length, media: (await storage.readMediaKeys()).length, recipes: data.recipes.length } })
+  assert.deepEqual(restored, { takes: 1, media: 2, recipes: 1 })
+  await second.setViewportSize({ width: 390, height: 844 }); await second.locator('#open-cloud').click()
+  assert.equal(await second.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true)
+  await second.screenshot({ path: resolve(out, 'narrow.png') }); await second.keyboard.press('Escape')
+  assert.equal(await second.evaluate(() => document.activeElement?.id), 'open-cloud')
+  Object.assign(evidence, { browser: browser.version(), noUnsolicitedRemote: true, realUIUploadAndReadback: true, separateBrowserContextImport: restored, narrowNoOverflow: true, escapeFocusReturn: true, errors })
+  assert.deepEqual(errors, [])
+  evidence.sourceHashes = Object.fromEntries(['web/main.js', 'web/storage.js', 'web/library.js', 'web/cloud-ui.js', 'web/cloud-practice-ui.js', 'web/cloud-snapshot.js', 'web/google-drive.js', 'web/cloud-auth.js'].map(file => [file, createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex')]))
+  writeFileSync(resolve(out, 'result.json'), JSON.stringify(evidence, null, 2)); console.log(JSON.stringify(evidence))
+} finally { await Promise.all(contexts.map(context => context.close())); await browser.close(); fixture.drive.disconnect(); server.stop(true) }

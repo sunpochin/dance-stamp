@@ -215,3 +215,15 @@ Google 工作／學校帳號可能禁止外部分享；Dropbox 連結受傳輸�
 A 切片同一來源執行 Bun 1.4.4 `bun run check`：713 tests／3864 expects／0 fail，typecheck、lint（原有 19 項 info）與 build 通過。受限環境第一次無法開啟測試 HTTP 主機／寫入建置產物，改在允許本機測試的環境完整重跑，未刪測試或改門檻。Chrome 的實際新入口檢查確認缺設定錯誤、未設定時連接停用、390×844 無橫向溢出、Escape 關閉回焦點、本機選片可用、尚未載入 Google 時零外部資源請求；不屬於手機真機或 OAuth 驗收。精確提交可由本段所在的 A 實作提交追溯，後續切片須重新驗證。
 
 下一片沿同一邊界加入 B 的選定練習快照及 C 的獨立成品分享。A 的真實 OAuth、兩台實體裝置讀回相同 bytes、Safari／手機、匿名播放全部**未驗證**；D／E 仍須等 Google B／C 穩定，不先做第二供應商或自動同步。
+
+### B：手動保存／接續工程候選
+
+接續 A `09a6ec79a53050860ffb056f583aafdff2de8967`。目前兩片配對可預覽「僅這份練習」的標題／比較設定，另外選私人筆記及逐支影片；沒有隱性整庫上傳。`dance-stamp-cloud` v1 封套獨立於既有 backup／share，記錄 account、root、dataset、snapshot、parent、必要關聯、媒體 role／asset ID／file ID／大小／每 4 MiB SHA-256，未選或失效媒體保持缺片。
+
+新版本先完成全部媒體並讀回，再新增不可覆寫 manifest；完整舊快照不改動。中斷工作保存在本機 IndexedDB metadata 的獨立 key，沒有 token／session URL／影片 bytes；目前帳號與位置的工作清單在本機維護，須明確重試，關頁後可重選完整 hash 一致的原片。沒有自動刪除或跨裝置刪除傳播。舊工作會占用本機與雲端空間，沒有自動清理。
+
+接續先讀小型 manifest、驗證格式／關聯／供應商完整校驗，再選影片下載、逐段核對、實際解碼與播放預覽；確認後 metadata 和多支影片同一 IndexedDB transaction。另一分頁 revision、quota、取消及損壞都保留舊資料。匯入沿既有穩定衝突副本，新增純 ID 映射回傳，讓媒體接到正確副本；後續保存反向映射到原資料集，同一父版本分支全部列出，不以時間選勝負。開啟接續先開示範再取回自己的原片／配方；缺片仍可人工重連。
+
+尚未設定 OAuth。擁有者已於本聊天回覆「尚未設定，先完成程式與設定說明」；程式及合成回歸繼續，沒有操作真實 Google 帳號。瀏覽器回歸發現原生 fetch 不能以類別 instance 作 this 呼叫，已在共同 API 入口修正；Bun 模擬 fetch 沒有暴露這個差異。測試的跨來源預檢／可讀標頭也分開修正，不能以模擬設定推定真實 Drive 一定可用。
+
+新增 `tests/unit/cloudSnapshot.test.ts`，並擴充既有儲存交易測試；B 的完整檢查為 Bun 1.4.4、719 tests／3916 expects／0 fail。`bun --no-env-file scripts/verify-cloud.ts` 會產生無第三方音樂的短合成影片，以模擬 OAuth／Drive 回應走真正預設首頁的保存、另一隔離 Chrome context 下載／預覽／原子匯入與雙片重開，結果及來源 SHA-256 留在 `output/playwright/cloud/result.json`。這是同機合成回歸，**不是兩台裝置、真實 OAuth／雲端傳輸或人耳驗收**。C 接著補獨立成品公開與撤銷；D／E 仍等真實 Google 路徑穩定。

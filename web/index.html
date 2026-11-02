@@ -292,6 +292,30 @@
     <p id="cloud-account" role="status">尚未連接；本機功能可照常使用。</p>
     <label>私人資料夾<select id="cloud-root"><option value="">請先連接並讀取位置</option></select></label>
     <div class="actions"><button type="button" id="cloud-roots" disabled>讀取私人位置</button><button type="button" id="cloud-create-root" disabled>建立新的私人位置</button></div>
+    <h3>手動保存目前練習</h3>
+    <p>只處理目前的兩片配對，標題與比較設定會保存；不會上傳整個資料庫。未勾選的影片須另行重連。只存 VS 不能代替兩支原片繼續調整。</p>
+    <label class="check-label"><input id="cloud-notes" type="checkbox">也包含這份練習的私人標記、筆記與相關動作</label>
+    <button id="cloud-preview-practice" type="button" disabled>預覽目前練習與保存範圍</button>
+    <div id="cloud-local-assets"></div>
+    <details><summary>核對將保存的標題、筆記與設定</summary><pre id="cloud-practice-preview"></pre></details>
+    <label class="check-label"><input id="cloud-save-confirm" type="checkbox">已確認目前帳號、私人位置與以上保存範圍</label>
+    <button id="cloud-save-practice" type="button" disabled>存到雲端，新增一個版本</button>
+    <details><summary>中斷工作的恢復</summary>
+      <button id="cloud-list-jobs" type="button" disabled>讀取此帳號／位置的保存工作</button>
+      <label>保存工作<select id="cloud-jobs"></select></label>
+      <label>關頁後缺少原片時，重新選取相同檔案（完整內容核對）<input id="cloud-retry-files" type="file" accept="video/*,.mov,.mp4,.webm,.mkv" multiple></label>
+      <button id="cloud-retry-job" type="button" disabled>重試並核對這個工作</button>
+    </details>
+    <h3>從雲端接續</h3>
+    <button id="cloud-list-snapshots" type="button" disabled>讀取此位置的完整版本</button>
+    <label>練習版本<select id="cloud-snapshots"></select></label>
+    <button id="cloud-preview-snapshot" type="button" disabled>預覽選定版本與本機衝突</button>
+    <details><summary>核對所選版本的標題、筆記與設定</summary><pre id="cloud-remote-preview"></pre></details>
+    <div id="cloud-remote-assets"></div>
+    <button id="cloud-download-media" type="button" disabled>下載勾選影片並預覽</button>
+    <div id="cloud-media-preview"></div>
+    <label class="check-label"><input id="cloud-restore-confirm" type="checkbox">已核對所選版本；勾選下載的影片已播放確認，缺片稍後重連</label>
+    <div class="actions"><button id="cloud-apply-snapshot" type="button" disabled>接續此版本，保留本機資料／衝突副本</button><button id="cloud-open-restored" type="button" disabled>開啟這份比較</button></div>
     <details><summary>合成小檔連線檢查</summary><p>只傳送工具產生的文字測試檔，不含影片、筆記或檔名。可在另一台裝置連接相同帳號、選同一位置後讀回。</p><div class="actions"><button type="button" id="cloud-probe" disabled>上傳並核對合成小檔</button><button type="button" id="cloud-read-probe" disabled>讀回合成小檔</button></div></details>
     <p id="cloud-status" role="status" aria-live="polite">Google 連接與傳輸仍待真實帳號、兩台實體裝置驗收。</p>
     <p class="hint">中斷連接會停止傳輸、清除當次憑證。雲端檔案及既有公開連結仍保留；撤銷 App 授權、刪除雲端檔案與停止公開分享是不同操作。</p>

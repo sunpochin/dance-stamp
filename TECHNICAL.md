@@ -147,6 +147,8 @@ Safari WebM 缺 format.duration 時，沿既有 v5 方法使用最後視訊 PTS 
 
 分段上傳採預先配置檔案 ID、4 MiB 分塊與最多兩次進度查詢；重試讀同一 ID 核對，不覆寫既有內容。每段 SHA-256 與上傳後全部讀回核對避免整檔 hash 的瞬間記憶體峰值；首版 200 MiB 上限並多耗一次下載流量。排除用 HTTP 成功、同名或大小相同冒充內容一致。私人位置要求本人唯一 owner、非 shared drive、沒有其他讀者；同名位置全部列出，不自動選第一筆。設定、恢復與尚缺的真實驗收見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。
 
+B 以 `cloud-snapshot.js` 保存一份選定練習的獨立 v1 封套；資料仍經現有 `validateBackup`／`planBackupImport`，不改舊交換格式。只新增原始 ID 到實際匯入／衝突副本 ID 的回傳映射，供影片落盤與下一次雲端保存反向使用。`writeLibrary` 向後相容單媒體，也接受同一交易的媒體陣列；本機待傳工作用 metadata 獨立 key 新增、不改 schemaVersion、不存 session URL。排除逐支媒體分開提交、先寫 manifest、整庫 base64 及 last-write-wins，以避免半份接續或隱性外傳。完整版本列表要讀每份有界 manifest，首版以正確性優先，大量版本的索引／清理待實測再評估。
+
 第一候選：**TypeScript + Vite + Svelte，靜態 Web／PWA，原生媒體 API，IndexedDB（透過 Dexie）保存筆記。** 不需要 SSR、登入、SQL 雲端、付費影片平台或訂閱表。
 
 這是可驗證的選擇，並非因為「換框架就能解決錄影」。最先做的工作是用最小 Web 頁面驗證手機同時播放與錄影，以及 VS 影片匯出。若 iPhone Web 過不了門檻，保留 Web 筆記，先以 SwiftUI + AVFoundation 做 iOS 媒體功能，再考慮 Android。

@@ -1906,7 +1906,42 @@ function updateAudioStatus() {
   $('audio-status').textContent = hasAudio === false ? '老師影片未偵測到音軌，將輸出無聲影片；我的影片不混音。' : hasAudio === true ? '只播放老師影片的聲音，我的影片靜音。' : '只使用老師影片音訊；沒有音軌時輸出無聲。請下載後重播確認聲音。';
 }
 // 雲端沿用同一個取消／儲存鎖，避免下載套用期間與選片或合成互相覆寫。
-const cloud = createCloudUI({ operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort() });
+const cloud = createCloudUI({
+  operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort(),
+  revision: () => state.revision, media: getAvailableMedia,
+  selection: async signal => {
+    await saveCurrentRecipe(undefined, signal);
+    return { data: state.data, revision: state.revision, videoId: currentVideoId, takeId: activeTakeId };
+  },
+  planImport: (data, signal) => planBackupImport(state.data, data, signal),
+  applyImport: async (plan, revision, media, signal) => {
+    for (const { id } of media) Object.assign(plan.data.assets.find(a => a.id === id), { state: 'ready', storageKind: 'indexeddb' });
+    state = await writeLibrary(plan.data, revision, media, signal); renderLibrary();
+  },
+  openTake: async (id, signal) => {
+    const take = state.data.takes.find(t => t.id === id); if (!take) throw new Error('找不到接續練習。');
+    if (takeBlob && activeTakeId !== id && !confirm('請先下載目前的原片與 VS。確定開啟這份已保存的比較？')) return false;
+    if (!await openVideoNotes(take.referenceVideoId, signal)) return false;
+    if (referenceDurationMs) await openTake(take, signal);
+    else {
+      // 缺片仍帶回原配方，後續人工重連才不會誤建另一組零偏移配對。
+      const row = state.data.recipes.find(r => r.takeId === id);
+      if (!row) throw new Error('接續練習缺少比較配方。');
+      pendingTakeId = id; existingMode = true; $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
+      $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
+    }
+    return true;
+  },
+  validateMedia: async (file, asset, data, signal) => {
+    const video = document.createElement('video'), url = URL.createObjectURL(file);
+    video.muted = true; video.playsInline = true;
+    try {
+      const duration = await load(video, url, signal);
+      // 雲端內容已核對完整 hash，仍須真的解碼；老師原片不能短於已保存的比較終點。
+      if (asset.kind === 'reference' && data.takes.some(t => t.referenceVideoId === asset.videoId && t.referenceEndMs > duration)) throw new Error('下載原片短於比較終點，沒有套用。');
+    } finally { video.pause(); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url); }
+  },
+});
 ready = (async () => {
   state = await readLibrary(); validateBackup(state.data);
   // 不自動改寫其他分頁可能仍在錄製的 take；恢復操作會先取得該 take 的互斥鎖。

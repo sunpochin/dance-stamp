@@ -76,6 +76,15 @@ async function fixture(behavior: Mode) {
   const next = structuredClone(data); next.videos[0].title = '合成待保存筆記'
   return { db, storage, next, assetId, indexedDB }
 }
+test('雲端批次媒體與筆記同一交易；任一支失敗保留完整舊版', async () => {
+  for (const behavior of ['complete', 'error-abort'] as const) {
+    const { db, storage, next, assetId } = await fixture(behavior), before = structuredClone(db.record), secondId = crypto.randomUUID()
+    next.assets.push({ id: secondId, kind: 'take', byteLength: 3, mimeType: 'video/webm' })
+    const changes = [{ id: assetId, blob: new Blob(['new']) }, { id: secondId, blob: new Blob(['two']) }]
+    if (behavior === 'complete') { await storage.writeLibrary(next, 1, changes); expect(await db.media.get(assetId)!.text()).toBe('new'); expect(await db.media.get(secondId)!.text()).toBe('two') }
+    else { await expect(storage.writeLibrary(next, 1, changes)).rejects.toThrow(); expect(db.record).toEqual(before); expect(await db.media.get(assetId)!.text()).toBe('old'); expect(db.media.has(secondId)).toBe(false) }
+  }
+})
 test('開庫被阻擋後的遲到成功必須關閉；版本通知關閉連線後仍可重新開庫', async () => {
   const { db, storage, indexedDB } = await fixture('complete'), original = indexedDB.open, before = structuredClone(db.record)
   let request: any

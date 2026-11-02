@@ -4,6 +4,8 @@
 
 ## 1. 分開筆記、媒體與練習配方
 
+#209 的選用 Google 雲端工程候選使用獨立 `dance-stamp-cloud` v1 封套，內含經本文件驗證的一份選定練習 backup 子集與另外的媒體核對清單；不把 OAuth 或遠端位置加進既有 backup／share。詳見 [雲端保存／恢復契約](CLOUD_SYNC_SHARING.md#b手動保存接續工程候選)。本機原有 JSON、ID 與 schema 保持相容；真實跨裝置驗收仍未完成。
+
 | 實體 | 核心欄位 | 不變條件 |
 | --- | --- | --- |
 | Library | id、schemaVersion、createdAt | 本機資料集，不是雲端帳號 |

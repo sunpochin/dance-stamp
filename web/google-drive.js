@@ -4,7 +4,7 @@ const api = 'https://www.googleapis.com/drive/v3/';
 const folderMime = 'application/vnd.google-apps.folder';
 export const cloudChunkSize = 4 * 1024 * 1024;
 export const cloudMediaLimit = 200 * 1024 * 1024;
-const fields = 'id,name,mimeType,size,parents,trashed,driveId,ownedByMe,owners(permissionId),appProperties,webViewLink';
+const fields = 'id,name,mimeType,size,parents,trashed,driveId,ownedByMe,owners(permissionId),appProperties,webViewLink,sha256Checksum';
 export function driveId(value) {
   if (typeof value !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(value)) throw new Error('雲端檔案識別無效。');
   return value;
@@ -60,13 +60,14 @@ export class GoogleDrive {
   binding() { const session = this.assert(); if (!session.account) throw new Error('正在確認帳號。'); return session.account.id; }
   checkAccount(account) { if (this.binding() !== account) throw new Error('帳號已切換，舊帳號的工作已暫停。'); }
   async request(path, init = {}, signal) {
-    const session = this.assert(), url = new URL(path, api);
+    const session = this.assert(), url = new URL(path, api), fetcher = this.fetcher;
     // 絕不把 Bearer token 送到回應提供的任意網址；session URL 也只在記憶體使用。
     if (url.origin !== 'https://www.googleapis.com' || !/^\/(?:upload\/)?drive\/v3\//.test(url.pathname)) throw new Error('拒絕不明雲端端點。');
     signal?.throwIfAborted();
     let response;
     try {
-      response = await this.fetcher(url.href, { ...init, headers: { ...init.headers, Authorization: `Bearer ${session.token}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: AbortSignal.any([session.controller.signal, ...(signal ? [signal] : []), AbortSignal.timeout(60000)]) });
+      // 原生 fetch 不能以 GoogleDrive 當 this 呼叫；Bun 的合成 fetch 不會暴露這個瀏覽器陷阱。
+      response = await fetcher(url.href, { ...init, headers: { ...init.headers, Authorization: `Bearer ${session.token}` }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal: AbortSignal.any([session.controller.signal, ...(signal ? [signal] : []), AbortSignal.timeout(60000)]) });
     } catch { signal?.throwIfAborted(); this.assert(session); throw new Error('雲端連線中斷或逾時；傳輸結果待確認，可用原工作重試。'); }
     this.assert(session); signal?.throwIfAborted();
     if (response.status === 401) { this.disconnect(); throw new Error('授權已到期，請重新連接。'); }
@@ -114,6 +115,17 @@ export class GoogleDrive {
     this.checkAccount(account); return this.privateFile(file.id, signal, true);
   }
   async newId(signal) { const result = await this.json('files/generateIds?count=1&space=drive&type=files', {}, signal); return driveId(result.ids?.[0]); }
+  async readJSON(id, signal) {
+    const account = this.binding(), file = await this.privateFile(id, signal), size = Number(file.size);
+    if (!Number.isSafeInteger(size) || size < 1 || size > 10 * 1024 * 1024 || !/^[a-f0-9]{64}$/.test(file.sha256Checksum)) throw new Error('雲端快照大小或校驗資訊無效。');
+    const response = await this.request(`files/${driveId(id)}?alt=media`, {}, signal);
+    if (!response.ok) throw new Error('無法讀取雲端快照。');
+    const blob = await boundedBlob(response, size, signal);
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
+    this.checkAccount(account); signal?.throwIfAborted();
+    if (blob.size !== size || hash !== file.sha256Checksum) throw new Error('雲端快照校驗不符。');
+    return { file, text: await blob.text() };
+  }
   async download(id, size, hashes, signal, progress = (_done, _total) => {}) {
     if (!Number.isSafeInteger(size) || size < 1 || size > cloudMediaLimit || !Array.isArray(hashes) || hashes.length !== Math.ceil(size / cloudChunkSize) || hashes.some(h => !/^[a-f0-9]{64}$/.test(h))) throw new Error('雲端內容描述無效或超過容量上限。');
     const parts = [], account = this.binding();

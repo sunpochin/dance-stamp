@@ -323,7 +323,9 @@ export async function planBackupImport(local, source, signal) {
   const data = mergeBackup(local, incoming);
   if (empty && !shared) data.sourceLibraryId = incoming.sourceLibraryId;
   signal?.throwIfAborted();
-  return { data, additions, added, conflicts, copied: forks.size, differentSource: foreign, skipped: tables.reduce((sum, table) => sum + incoming[table].length, 0) - added };
+  // 雲端另存仍須沿用既有穩定副本 ID；回傳純映射，讓下載的原片不會接到被保留的舊配方。
+  const mapping = Object.fromEntries(tables.map(table => [table, Object.fromEntries((source[table] || []).map(row => { const mapped = ids[table].get(row.id) || row.id; return [row.id, copies[table].get(mapped) || mapped]; }))]));
+  return { data, additions, added, conflicts, mapping, copied: forks.size, differentSource: foreign, skipped: tables.reduce((sum, table) => sum + incoming[table].length, 0) - added };
 }
 
 /** @param {import('./types').Video[]} videos */
