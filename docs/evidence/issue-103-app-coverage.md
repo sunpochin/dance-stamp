@@ -1,6 +1,29 @@
 <!-- 檔案用途：記錄九個 App 程式的統一覆蓋率、重跑入口與驗收限制。所在層：版本固定的工程證據。主要關聯：tests/app-coverage/、TECHNICAL.md 第 8 節、issue #103。 -->
 # #103：全 App 覆蓋率與恢復流程
 
+
+## 2026-11-03 雲端公開流程接入同一 App 量測（#222）
+
+白話：雲端功能已經加入產品，檢查表也要真的點過保存、接續與分享。這次把原本獨立跑的同一份檢查接回總檢查，不另寫一套流程，也不把沒有測到的檔案拿掉來提高數字。
+
+固定基線為 main `83220edabd90cab274532900763c4ff696dffdc5`。[該版完整 CI](https://github.com/sunpochin/dance-stamp/actions/runs/41473945359) 已包含全部 **21 個 `web/*.js`**：行 2,956／3,182（92.89%）、函式 920／1,066（86.30%）、分支 2,926／3,506（83.45%）。取得其 `app-coverage-report` 的 `summary.json`／HTML 後，逐一比對本輪全部 21 份產品 SHA-256 相同；GitHub artifact metadata 的 digest 為 `a8c4342ab6cf3559b7abdf508e335392f4c60415468adfbb7c52d1f7f5ebfe2e`，本輪未另下載原 ZIP 重算該 digest。原報表可見雲端 UI 大量未覆蓋，原因是原 `scripts/verify-cloud.ts` 尚未進同一輪插樁，並非分母遺漏。
+
+技術：原腳本抽出 `runCloudScenario(browser, origin, out, buildVersion?)`，獨立 CLI 仍建立自己的瀏覽器／靜態主機；完整量測則注入原插樁瀏覽器及來源，在原 78 個情境之後追加第 79 個 `cloud-integration`。新建 context 經原 `newContext` 包裝，關閉前仍收集 coverage；原 statement／function／branch 位置表、來源核對與完整分母全部保留。共用情境只關閉自己建立的 contexts，瀏覽器／主機由各入口收尾；匯入共用函式本身不啟動瀏覽器或主機。完整量測使用插樁資源，未提供實際 buildVersion，不把缺省值當正式建置識別。
+
+原公開 UI 斷言完整沿用：合成供應商授權／背景往返、雙片保存與讀回、session-only 原片在新頁真正從 IndexedDB 讀回 SHA、另一隔離 context 預覽／下載／原子接續、父版本與缺片、切換版本清除舊確認、獨立成品分享與確認、permission 收據 PATCH 未送達後重試補送／撤銷、390px 及 Escape 回焦點。供應商端點全部為受控合成回應；沒有真實 OAuth、帳號或私人影片。
+
+本機 Bun 1.4.4／macOS arm64／Chrome 156.0.8078.76：
+
+- 原 `bun run check`：754 pass／0 fail／4,141 expects，公開掃描、型別、lint、build 通過，保留原 19 項 lint info，靜態仍 `83a29a61027b205d`。
+- `bun --no-env-file tests/app-coverage/run-app.ts cloud-integration`：選定 1／1，6,906ms、0 page errors；`browserClosed=true`、`serverStopped=true`、`lockRetained=false`。來源如實為上述基線加未提交測試修改，不冒稱乾淨提交重跑。21 份產品 SHA 與基線完全相同。
+- 此選定輪共用單元基準後，cloud-ui／cloud-practice-ui／cloud-share-ui／cloud-auth 行數分別為 77.21%／88.07%／86.66%／96.42%；整體為 2,173／3,182（68.29%），**這是一個情境，不能與原 78 案的 92.89% 比成整體退步或提高，也不拼加報表**。完整第 79 案後數字以確切提交的 CI 另記。
+- 原 `bun --no-env-file scripts/verify-cloud.ts` 亦完整通過、0 page errors；獨立 CLI 收據有真建置 `83a29a61027b205d`，不與插樁輪混用。所有既有公開操作／資料保全斷言保持，兩路只共用同一函式。
+- 插樁收據 `run.json` SHA-256 `b42868a90284ea1fb2d6490b59188edef8fed884acf364027f11854f106ea7e9`、完整計數器收據 SHA-256 `5738f878b9c7e55d52e50759847a234e90bbd7e87718bee6dbab10dff990798f`；原始合成素材、截圖與收據只留 ignored 目錄。
+
+重跑先 `bun run check`，局部用上述選定命令，完整用原 `bun run test:coverage:app`；原下載離站驗證與 badge 的乾淨來源／完整矩陣守門照舊。尚未達 100%，且此接線不新增原生 Safari、真 Google、匿名實播、實體裝置、真人聽感或完整 G1–G7 證據，#103／#209 等原驗收保持開啟。後續若納入節拍器等新產品檔，必須自然加入新分母、重新量測，不能移用這份 21 檔數字。
+
+以下為 2026-10-30 的九檔歷史來源，數字與當時環境保持原歸屬。
+
 2026-10-30，從 main `5078401dd1dea60050a9961e34cb499a274e3183` 建專用分支，承接既有未提交的量測工作。受測為該基線加本輪測試／工具的工作樹，`trackedChanges=true`；九份產品 `web/*.js` 與該 main 完全相同。後續只補文件、CI 及授權索引，不將本機工作樹結果改稱乾淨提交實測。Bun 1.4.4、macOS arm64、Chrome 156.0.8078.76 headless；只使用合成影片、假相機及獨立瀏覽器 context。
 
 完整輪後納入既有 [PR #105](https://github.com/sunpochin/dance-stamp/pull/105) `d491917052d8fb7b4c5bc8bafa937af5208ab1df` 作前置，沿用其鍵盤焦點修正與原始證據；本輪只在該案例增加可見性與真正 Enter→FileChooser 的檢查。納入後的九份產品程式及本輪實際執行的瀏覽器案例與受測工作樹相同，不把 #105 自己的媒體數字移記為覆蓋率證據。遠端 CI 另綁提交後 head。
