@@ -1,7 +1,7 @@
 {
-  "sourceHead": "e3d4ebd7a7e20802eeb539369067d5b96ac9d501",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41503387606",
-  "generatedAt": "2026-11-02T19:08:22.420Z",
+  "sourceHead": "1ecc42f2086d3edafdf53d334879aefcfa4b738d",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41510575159",
+  "generatedAt": "2026-11-02T19:54:31.239Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -30,15 +30,15 @@
   "total": {
     "lines": {
       "total": 3182,
-      "covered": 3127,
+      "covered": 3128,
       "skipped": 0,
-      "pct": 98.27
+      "pct": 98.3
     },
     "statements": {
       "total": 5874,
-      "covered": 5466,
+      "covered": 5469,
       "skipped": 0,
-      "pct": 93.05
+      "pct": 93.1
     },
     "functions": {
       "total": 1066,
@@ -48,9 +48,9 @@
     },
     "branches": {
       "total": 3506,
-      "covered": 3032,
+      "covered": 3033,
       "skipped": 0,
-      "pct": 86.48
+      "pct": 86.5
     },
     "branchesTrue": {
       "total": 0,
@@ -493,9 +493,9 @@
     "web/follow-ui.js": {
       "lines": {
         "total": 236,
-        "covered": 233,
+        "covered": 234,
         "skipped": 0,
-        "pct": 98.72
+        "pct": 99.15
       },
       "functions": {
         "total": 71,
@@ -505,9 +505,9 @@
       },
       "statements": {
         "total": 469,
-        "covered": 436,
+        "covered": 438,
         "skipped": 0,
-        "pct": 92.96
+        "pct": 93.39
       },
       "branches": {
         "total": 259,
@@ -517,7 +517,6 @@
       },
       "uncoveredLines": [
         177,
-        249,
         264
       ],
       "uncoveredFunctions": [
@@ -673,15 +672,15 @@
       },
       "statements": {
         "total": 2528,
-        "covered": 2372,
+        "covered": 2373,
         "skipped": 0,
-        "pct": 93.82
+        "pct": 93.86
       },
       "branches": {
         "total": 1478,
-        "covered": 1262,
+        "covered": 1263,
         "skipped": 0,
-        "pct": 85.38
+        "pct": 85.45
       },
       "uncoveredLines": [
         249,
