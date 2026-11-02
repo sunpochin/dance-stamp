@@ -69,6 +69,6 @@ captureTime−encodedPTS全案319618–319692ms是不同origin的差，不是延
 
 真正原下載後，執行 `python3 scripts/qa/analyze-vs.py <新報告目錄> <原下載> <原生收據>`，再以 `--summarize <報告目錄> <原生收據>` 重建事後分層；先自行建立新報告目錄並保留首錯。既有 `scripts/analyze-comparison.py` 仍在原PTS gate拒絕。本機完整原始媒體／PNG／metadata／失敗版／凍結來源265檔／255,828,263 bytes已獨立封存逐檔重讀，manifest SHA `2a75dd3198f97432a3e82f2842ea75c6405b947395380c603ad38c3233650832`；另有全原生聲道／取樣率PCM與8k單聲道量測PCM及解碼收據3檔／24,967,915 bytes獨立封存，manifest SHA `1b2e3c27f1719aca7f94accb705c1a6e7328d084a472b5798c013ded39e86b5e`。公開只交方法與匿名數字；不公開profile、原始媒體或本機識別。
 
-新增6項工具回歸／46斷言通過，含同一旁聽器的故障注入與原API轉送；固定Bun1.4.4正常完整check／hooks另列PR。資料保全首個摘要讀錯library外層而未列舊資料列，保留後改讀實際data層：15個video／92個asset／100個take／100個recipe／39個export逐列完全相同，空markers／moves不冒充非空驗收。
+新增6項工具回歸／46斷言通過，包含同一旁聽器的故障注入與原API轉送。主機單元測試另在dist不存在前後獨立通過：隔離目錄只複製原HTML／JS作bytes供應測試，實際QA主機預設仍讀dist/web。固定Bun1.4.4正常完整check／hooks另列PR。資料保全首個摘要讀錯library外層而未列舊資料列，保留後改讀實際data層：15個video／92個asset／100個take／100個recipe／39個export逐列完全相同，空markers／moves不冒充非空驗收。
 
 本次工程檢查與QA回歸見PR；不是Claude Code／使用者指定終審。原130ms唯一根因、原案例08–20、完整20組／十輪、實體相機／裝置、人工聽感、實體離線、完整G1–G7仍未完成。#11保持開啟，iPhone延後；未合併main、發布或混入#209雲端功能。

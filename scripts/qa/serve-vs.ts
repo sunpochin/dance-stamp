@@ -3,12 +3,12 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { bounded } from './capture-lifecycle.js'
-export function createVsHost(folder: string, port = 62279, lock = '/private/tmp/dance-stamp-p0-media-test.lock') {
+export function createVsHost(folder: string, port = 62279, lock = '/private/tmp/dance-stamp-p0-media-test.lock', buildFolder = 'dist/web') {
 if (Bun.version !== '1.4.4') throw Error('Bun1.4.4 required')
 mkdirSync(folder, { recursive: true })
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 const assets = new Map<string, { bytes: Buffer; mime: string }>()
-for (const file of readdirSync('dist/web')) if (file !== '_headers') assets.set(file === 'index.html' ? '/' : '/' + file, { bytes: readFileSync('dist/web/' + file), mime: file.endsWith('.html') ? 'text/html' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'application/octet-stream' })
+for (const file of readdirSync(buildFolder)) if (file !== '_headers') assets.set(file === 'index.html' ? '/' : '/' + file, { bytes: readFileSync(resolve(buildFolder, file)), mime: file.endsWith('.html') ? 'text/html' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'application/octet-stream' })
 for (const file of ['vs-observer.js', 'vs-content.js']) assets.set('/' + file, { bytes: readFileSync(resolve(import.meta.dir, file)), mime: 'text/javascript' })
 const original = assets.get('/')!.bytes
 assets.get('/')!.bytes = Buffer.from(original.toString().replace('<script type="module" src="/main.js"></script>', '<script src="/qa-config.js"></script><script type="module" src="/vs-observer.js"></script><script type="module" src="/main.js"></script>'))
