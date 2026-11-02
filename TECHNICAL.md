@@ -73,6 +73,8 @@ PR #119 調查時，Safari #9 的 0.75× 收尾回跳已由無產品／錄影／
 
 新 VS 成檔後的保存尾段回歸見 [#11／#13 證據](docs/evidence/issue-11-vs-save-tail.md)：沿用 `persistExport` 不借用 `active.signal` 的保全契約，新增 Stop／原生拒絕與明示缺通知的可重跑入口；沒有更改產品設計或放寬品質護欄。
 
+#13 的離站音訊 QA 對照見[同頁續驗](docs/evidence/issue-13-unconfirmed-storage.md#原下載離站音訊對照2026-11-02)：每個 AudioContext 使用全新影片元素，以合成 WAV 正／靜音控制與選檔指紋區分來源政策及取樣能力。Safari 原 WebM 全零仍未解；沒有修改產品保存或音訊 runtime。
+
 2026-11-02 普通 Safari 27.2 的成檔保存 Stop 直接觀察見 [#13 的 7dede9f 續驗](docs/evidence/issue-13-unconfirmed-storage.md#7dede9f-普通-safari-成檔保存-stop)：原生雙寫後 trusted Stop，解除 QA 自有 get hold 才 complete，舊筆記／媒體保留。產品靜態 80faff7573fa1d79 與 persistExport 保全契約不變；QA 讀取必須在原生 active 回呼排入，不能從 pending 推論可讀或已回滾。離站音訊 RMS 全 0、null muxer DTS 訊息與私人／裝置等未驗項按原收據保留，不接 active.signal 換取 abort、不改期限或品質門檻。
 
 #11 已保存十份 Safari VS 的示範側逐格停格、來源覆蓋及 600 組閃光／提示音量測見[獨立檔案分析](docs/evidence/issue-11-reference-file-quality.md)。這是固定 e6f0300 舊來源的局部品質證據；練習側沒有二進位碼，不能由示範側結果宣告兩側同步或完整 G2／G3 通過。

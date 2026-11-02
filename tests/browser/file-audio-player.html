@@ -1,0 +1,116 @@
+<!doctype html>
+<!-- 檔案用途：區分離站檔案播放與 Web Audio 取樣政策。所在層：獨立 QA。主要關聯：MEDIA_PROBE.md、download-playback.js。 -->
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'self' file: blob:; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>離站音訊取樣對照</title>
+<style>body{font:16px system-ui;max-width:900px;margin:24px auto}button,input{font:inherit;margin:8px}video{width:640px;max-width:100%}pre{white-space:pre-wrap}</style>
+<h1>離站音訊取樣對照</h1>
+<p>只用合成下載檔；將本頁和 complete-new-vs.webm 放在同一資料夾。每項只播一次，不拖曳。此頁禁止網路連線，並不代表整台電腦已斷網。</p>
+<p><button id="control">1. 合成 WAV 聲音與靜音控制</button><button id="direct" disabled>2. 直接 file URL 播放</button></p>
+<p><label>3. 選取同一下載檔 <input id="file" type="file" accept="video/webm" disabled></label><button id="blob" disabled>播放選檔 Blob URL</button></p>
+<video id="video" playsinline preload="auto"></video>
+<p><a id="save" hidden download="file-audio-receipt.json">另存完整收據</a></p><pre id="status">待開始</pre>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const report = {schema:1, userAgent:navigator.userAgent, protocol:location.protocol, networkPolicy:'CSP connect-src none; no external resources; physical network unverified', cases:[], errors:[]};
+let video = $('video');
+const options=new URLSearchParams(location.hash.slice(1));
+let selected, selectedUrl, receiptUrl, activeCleanup;
+const errorInfo = e => ({name:e?.name ?? 'Error', message:String(e?.message ?? e)});
+for (const type of ['error','unhandledrejection','securitypolicyviolation']) addEventListener(type,e => {report.errors.push({type,detail:type==='securitypolicyviolation'?e.violatedDirective:errorInfo(e.error??e.reason??e.message)});});
+// 原生內部 console 不一定送到頁面；僅記錄本頁可觀察的訊息，不冒稱擷取 WebKit 日誌。
+for (const level of ['warn','error']) {const original=console[level].bind(console); console[level]=(...args)=>{report.errors.push({type:`console.${level}`,detail:args.map(String)});original(...args);};}
+function render() {
+  $('status').textContent=JSON.stringify(report,null,2);
+  if(receiptUrl) URL.revokeObjectURL(receiptUrl);
+  receiptUrl=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
+  $('save').href=receiptUrl; $('save').hidden=false;
+}
+function stamp(ctx) {
+  const q=video.getVideoPlaybackQuality?.();
+  return {at:performance.now(),contextState:ctx.state,contextTime:ctx.currentTime,sampleRate:ctx.sampleRate,
+    time:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:null,muted:video.muted,volume:video.volume,
+    paused:video.paused,ended:video.ended,readyState:video.readyState,networkState:video.networkState,
+    error:video.error?{code:video.error.code,message:video.error.message}:null,
+    quality:q?{totalVideoFrames:q.totalVideoFrames,droppedVideoFrames:q.droppedVideoFrames,corruptedVideoFrames:q.corruptedVideoFrames}:null,
+    audioDecodedBytes:video.webkitAudioDecodedByteCount??null};
+}
+function measure(analyser) {
+  const data=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(data);
+  let sum=0,peak=0;for(const x of data){sum+=x*x;peak=Math.max(peak,Math.abs(x));}
+  return {rms:Math.sqrt(sum/data.length),peak};
+}
+async function run(kind,event) {
+  const ctx=new AudioContext(), analyser=ctx.createAnalyser();analyser.fftSize=2048;
+  const record={kind,trustedClick:event.isTrusted,file:kind==='selected-blob'?selected:null,events:[],samples:[]};report.cases.push(record);
+  let source, controlUrl, timer, raf, finished=false;
+  // 同一 media element 不能跨 context 重接來源；每個案例使用全新元素，避免前案節點污染。
+  const fresh=document.createElement('video');fresh.id='video';fresh.playsInline=true;fresh.preload='auto';video.replaceWith(fresh);video=fresh;
+  const listeners=[];
+  const observe=(type,e)=>record.events.push({type,trusted:e?.isTrusted??null,...stamp(ctx)});
+  const finish=async reason=>{
+    if(finished)return;finished=true;clearTimeout(timer);cancelAnimationFrame(raf);
+    // 先保存播放中的末態，再關閉 context；closed 不能倒推播放時曾 suspended。
+    record.reason=reason;record.terminal=stamp(ctx);video.pause();
+    for(const [type,fn] of listeners)video.removeEventListener(type,fn);
+    source?.disconnect();analyser.disconnect();
+    if(controlUrl){URL.revokeObjectURL(controlUrl);video.removeAttribute('src');video.load();}
+    await ctx.close();record.cleanup={contextState:ctx.state,paused:video.paused};activeCleanup=null;
+    if(kind==='selected-blob'){URL.revokeObjectURL(selectedUrl);selectedUrl=null;video.removeAttribute('src');video.load();}
+    if(kind==='control'){if(options.has('selectedOnly'))$('file').disabled=false;else $('direct').disabled=false;}
+    if(kind==='direct-file')$('file').disabled=false;
+    render();
+  };
+  activeCleanup=()=>finish('pagehide');timer=setTimeout(()=>finish('timeout-15000ms'),15000);
+  try {
+    analyser.connect(ctx.destination);
+    if(kind==='control') {
+      // WAV 經同一 MediaElementSource，排除「oscillator 可量但元素聲路不可量」的漏測。
+      const count=38400, bytes=new ArrayBuffer(44+count*2), d=new DataView(bytes);
+      const text=(at,s)=>Array.from(s).forEach((c,i)=>d.setUint8(at+i,c.charCodeAt(0)));
+      text(0,'RIFF');d.setUint32(4,36+count*2,true);text(8,'WAVE');text(12,'fmt ');
+      d.setUint32(16,16,true);d.setUint16(20,1,true);d.setUint16(22,1,true);d.setUint32(24,48000,true);
+      d.setUint32(28,96000,true);d.setUint16(32,2,true);d.setUint16(34,16,true);text(36,'data');d.setUint32(40,count*2,true);
+      for(let i=0;i<count;i++)d.setInt16(44+i*2,i<24000?Math.round(Math.sin(2*Math.PI*660*i/48000)*3276):0,true);
+      controlUrl=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'}));video.src=controlUrl;
+      record.synthetic={format:'PCM16 mono 48000Hz',bytes:bytes.byteLength,toneHz:660,toneSeconds:0.5,silenceSeconds:0.3};
+    } else video.src=kind==='direct-file'?'complete-new-vs.webm':selectedUrl;
+    video.muted=false;video.volume=1;
+    source=ctx.createMediaElementSource(video);source.connect(analyser);
+    for(const type of ['loadedmetadata','loadeddata','play','playing','pause','ended','error','seeking','seeked','volumechange']) {
+      const fn=e=>{observe(type,e);if(type==='ended'||type==='error')finish(type);};video.addEventListener(type,fn);listeners.push([type,fn]);
+    }
+    observe('start',event);await ctx.resume();observe('resumed');
+    if(finished)return;
+    await video.play();
+    const sample=()=>{
+      if(finished)return;
+      const state=stamp(ctx);record.samples.push({...state,...measure(analyser),phase:kind==='control'?(video.currentTime<0.5?'tone':'silence'):null});
+      if(kind!=='control'&&!record.pixelRead&&video.readyState>=2){
+        try{const c=document.createElement('canvas');c.width=c.height=1;const g=c.getContext('2d');g.drawImage(video,0,0,1,1);record.pixelRead={ok:true,rgba:Array.from(g.getImageData(0,0,1,1).data)};}
+        catch(e){record.pixelRead={ok:false,...errorInfo(e)};}
+      }
+      raf=requestAnimationFrame(sample);
+    };sample();
+  }catch(e){record.failure=errorInfo(e);await finish('tool-error');}
+}
+$('control').onclick=e=>{$('control').disabled=true;run('control',e);};
+$('direct').onclick=e=>{$('direct').disabled=true;run('direct-file',e);};
+$('file').onchange=async e=>{
+  $('file').disabled=true;
+  try{
+    const f=e.target.files[0];if(!f)throw Error('沒有選檔');
+    const bytes=await f.arrayBuffer(),sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('');
+    // 指紋以頁面 hash 參數提供，避免誤選其他下載或將私人原檔名寫入收據。
+    const expected=options;
+    selected={bytes:bytes.byteLength,sha256,type:f.type,trustedSelection:e.isTrusted};
+    if(sha256!==expected.get('sha256')||String(bytes.byteLength)!==expected.get('bytes'))throw Error('選檔指紋與事前本機核對值不同');
+    selectedUrl=URL.createObjectURL(f);report.selected=selected;$('blob').disabled=false;render();
+  }catch(e){report.errors.push({type:'file-selection',detail:errorInfo(e)});render();}
+};
+$('blob').onclick=e=>{$('blob').disabled=true;run('selected-blob',e);};
+addEventListener('pagehide',()=>{activeCleanup?.();if(selectedUrl)URL.revokeObjectURL(selectedUrl);if(receiptUrl)URL.revokeObjectURL(receiptUrl);});
+</script>
+</html>
