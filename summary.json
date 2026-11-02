@@ -1,7 +1,7 @@
 {
-  "sourceHead": "1ecc42f2086d3edafdf53d334879aefcfa4b738d",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41510575159",
-  "generatedAt": "2026-11-02T19:54:31.239Z",
+  "sourceHead": "8ef7f009644d2e86460805aedbf9f9bd7bdaf17a",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41517396206",
+  "generatedAt": "2026-11-02T20:38:40.610Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -19,38 +19,41 @@
     "web/library.js": "ad329bf5a5bb07cbdcade65f6d1fde1d05a3028122b1282155fa2e209b548593",
     "web/local-audio.js": "a1d1ca1bc8974bee4564cb816359ba3b2510c82f6c0b5436b5df7c727c3b40d0",
     "web/main.js": "728ef88512d7402ba5a1e014c70c11312e27742115c05807541ebac6b3e746f2",
+    "web/metronome.js": "c4ee81c0351701215b4162e3df04b201ebc83b1705e19f61955a8ad4cecddf0a",
     "web/offline.js": "84e0032d931798ca571966d94fa6103f2d6c67f271bfb0ae7fe19e780ab0b59a",
     "web/person-worker.js": "c1d9138d81c0a139a9e0bf8077d40abebf8f4a064fc2860ef3441448b824c7da",
     "web/recorder.js": "f1e217b85e8fa8c068fc024a552da6ae939d8da5dec6b0c585b670b613c4deb7",
     "web/storage.js": "3a73a0da0af0fe1aed3220a46f386eddc2c0781a0c879b54c72fb286aaae265d",
     "web/sw.js": "8e60a3ad3c5e50aaf7618245c08f91b573af83e7a52e0c0579679fb1c0f11d88",
+    "web/tempo-worklet.js": "06a12d1398fe10f61d887b2e6348b68dbd5d0ebef02b46356612ad22066e87ea",
+    "web/tempo.js": "922670fb4234056853aefd492f31ea8c9baee8c6251955e9c4235aacccb1cc13",
     "web/timeline.js": "29f13d156675d17acdd06d0211faffe95f471b52b8bd8c3ed96498b15fa95d1b"
   },
-  "scenarios": 79,
+  "scenarios": 83,
   "total": {
     "lines": {
-      "total": 3182,
-      "covered": 3128,
+      "total": 3357,
+      "covered": 3335,
       "skipped": 0,
-      "pct": 98.3
+      "pct": 99.34
     },
     "statements": {
-      "total": 5874,
-      "covered": 5469,
+      "total": 6291,
+      "covered": 5909,
       "skipped": 0,
-      "pct": 93.1
+      "pct": 93.92
     },
     "functions": {
-      "total": 1066,
-      "covered": 1014,
+      "total": 1127,
+      "covered": 1084,
       "skipped": 0,
-      "pct": 95.12
+      "pct": 96.18
     },
     "branches": {
-      "total": 3506,
-      "covered": 3033,
+      "total": 3713,
+      "covered": 3224,
       "skipped": 0,
-      "pct": 86.5
+      "pct": 86.83
     },
     "branchesTrue": {
       "total": 0,
@@ -142,101 +145,64 @@
     "web/cloud-practice-ui.js": {
       "lines": {
         "total": 109,
-        "covered": 96,
+        "covered": 108,
         "skipped": 0,
-        "pct": 88.07
+        "pct": 99.08
       },
       "functions": {
         "total": 50,
-        "covered": 44,
+        "covered": 49,
         "skipped": 0,
-        "pct": 88
+        "pct": 98
       },
       "statements": {
         "total": 220,
-        "covered": 181,
+        "covered": 206,
         "skipped": 0,
-        "pct": 82.27
+        "pct": 93.63
       },
       "branches": {
         "total": 79,
-        "covered": 46,
+        "covered": 57,
         "skipped": 0,
-        "pct": 58.22
+        "pct": 72.15
       },
       "uncoveredLines": [
-        64,
-        65,
-        66,
-        67,
-        68,
-        71,
-        72,
-        73,
-        74,
-        75,
-        76,
-        77,
-        78
+        68
       ],
       "uncoveredFunctions": [
         {
           "name": "(anonymous_18)",
           "line": 47
-        },
-        {
-          "name": "(anonymous_25)",
-          "line": 63
-        },
-        {
-          "name": "(anonymous_26)",
-          "line": 66
-        },
-        {
-          "name": "(anonymous_27)",
-          "line": 70
-        },
-        {
-          "name": "(anonymous_28)",
-          "line": 70
-        },
-        {
-          "name": "(anonymous_29)",
-          "line": 76
         }
       ]
     },
     "web/cloud-share-ui.js": {
       "lines": {
         "total": 60,
-        "covered": 52,
+        "covered": 57,
         "skipped": 0,
-        "pct": 86.66
+        "pct": 95
       },
       "functions": {
         "total": 29,
-        "covered": 25,
+        "covered": 27,
         "skipped": 0,
-        "pct": 86.2
+        "pct": 93.1
       },
       "statements": {
         "total": 138,
-        "covered": 112,
+        "covered": 121,
         "skipped": 0,
-        "pct": 81.15
+        "pct": 87.68
       },
       "branches": {
         "total": 42,
-        "covered": 22,
+        "covered": 25,
         "skipped": 0,
-        "pct": 52.38
+        "pct": 59.52
       },
       "uncoveredLines": [
-        61,
-        62,
-        63,
-        64,
-        71,
         74,
         75,
         76
@@ -245,14 +211,6 @@
         {
           "name": "(anonymous_12)",
           "line": 36
-        },
-        {
-          "name": "(anonymous_23)",
-          "line": 60
-        },
-        {
-          "name": "(anonymous_24)",
-          "line": 60
         },
         {
           "name": "(anonymous_27)",
@@ -297,32 +255,24 @@
       },
       "functions": {
         "total": 26,
-        "covered": 21,
+        "covered": 24,
         "skipped": 0,
-        "pct": 80.76
+        "pct": 92.3
       },
       "statements": {
         "total": 118,
-        "covered": 105,
+        "covered": 109,
         "skipped": 0,
-        "pct": 88.98
+        "pct": 92.37
       },
       "branches": {
         "total": 95,
-        "covered": 80,
+        "covered": 83,
         "skipped": 0,
-        "pct": 84.21
+        "pct": 87.36
       },
       "uncoveredLines": [],
       "uncoveredFunctions": [
-        {
-          "name": "(anonymous_7)",
-          "line": 19
-        },
-        {
-          "name": "(anonymous_8)",
-          "line": 19
-        },
         {
           "name": "(anonymous_10)",
           "line": 21
@@ -330,82 +280,39 @@
         {
           "name": "(anonymous_11)",
           "line": 21
-        },
-        {
-          "name": "(anonymous_13)",
-          "line": 22
         }
       ]
     },
     "web/cloud-ui.js": {
       "lines": {
         "total": 79,
-        "covered": 61,
+        "covered": 79,
         "skipped": 0,
-        "pct": 77.21
+        "pct": 100
       },
       "functions": {
         "total": 32,
-        "covered": 26,
+        "covered": 31,
         "skipped": 0,
-        "pct": 81.25
+        "pct": 96.87
       },
       "statements": {
         "total": 163,
-        "covered": 123,
+        "covered": 154,
         "skipped": 0,
-        "pct": 75.46
+        "pct": 94.47
       },
       "branches": {
         "total": 57,
-        "covered": 35,
+        "covered": 44,
         "skipped": 0,
-        "pct": 61.4
+        "pct": 77.19
       },
-      "uncoveredLines": [
-        70,
-        71,
-        78,
-        79,
-        80,
-        81,
-        82,
-        84,
-        85,
-        88,
-        89,
-        90,
-        91,
-        92,
-        93,
-        94,
-        95,
-        97
-      ],
+      "uncoveredLines": [],
       "uncoveredFunctions": [
         {
           "name": "(anonymous_19)",
           "line": 67
-        },
-        {
-          "name": "(anonymous_21)",
-          "line": 69
-        },
-        {
-          "name": "(anonymous_25)",
-          "line": 77
-        },
-        {
-          "name": "(anonymous_26)",
-          "line": 77
-        },
-        {
-          "name": "(anonymous_27)",
-          "line": 87
-        },
-        {
-          "name": "(anonymous_28)",
-          "line": 87
         }
       ]
     },
@@ -583,9 +490,9 @@
       },
       "branches": {
         "total": 192,
-        "covered": 155,
+        "covered": 156,
         "skipped": 0,
-        "pct": 80.72
+        "pct": 81.25
       },
       "uncoveredLines": [
         54
@@ -737,6 +644,68 @@
         }
       ]
     },
+    "web/metronome.js": {
+      "lines": {
+        "total": 129,
+        "covered": 125,
+        "skipped": 0,
+        "pct": 96.89
+      },
+      "functions": {
+        "total": 42,
+        "covered": 35,
+        "skipped": 0,
+        "pct": 83.33
+      },
+      "statements": {
+        "total": 313,
+        "covered": 266,
+        "skipped": 0,
+        "pct": 84.98
+      },
+      "branches": {
+        "total": 143,
+        "covered": 104,
+        "skipped": 0,
+        "pct": 72.72
+      },
+      "uncoveredLines": [
+        79,
+        96,
+        97,
+        164
+      ],
+      "uncoveredFunctions": [
+        {
+          "name": "(anonymous_13)",
+          "line": 88
+        },
+        {
+          "name": "(anonymous_14)",
+          "line": 89
+        },
+        {
+          "name": "(anonymous_15)",
+          "line": 89
+        },
+        {
+          "name": "(anonymous_19)",
+          "line": 91
+        },
+        {
+          "name": "(anonymous_21)",
+          "line": 93
+        },
+        {
+          "name": "(anonymous_29)",
+          "line": 129
+        },
+        {
+          "name": "(anonymous_31)",
+          "line": 130
+        }
+      ]
+    },
     "web/offline.js": {
       "lines": {
         "total": 93,
@@ -837,21 +806,21 @@
     "web/storage.js": {
       "lines": {
         "total": 113,
-        "covered": 112,
+        "covered": 113,
         "skipped": 0,
-        "pct": 99.11
+        "pct": 100
       },
       "functions": {
         "total": 46,
-        "covered": 44,
+        "covered": 45,
         "skipped": 0,
-        "pct": 95.65
+        "pct": 97.82
       },
       "statements": {
         "total": 214,
-        "covered": 203,
+        "covered": 205,
         "skipped": 0,
-        "pct": 94.85
+        "pct": 95.79
       },
       "branches": {
         "total": 90,
@@ -859,17 +828,11 @@
         "skipped": 0,
         "pct": 91.11
       },
-      "uncoveredLines": [
-        143
-      ],
+      "uncoveredLines": [],
       "uncoveredFunctions": [
         {
           "name": "(anonymous_17)",
           "line": 53
-        },
-        {
-          "name": "readCloudWork",
-          "line": 142
         }
       ]
     },
@@ -897,6 +860,62 @@
         "covered": 36,
         "skipped": 0,
         "pct": 97.29
+      },
+      "uncoveredLines": [],
+      "uncoveredFunctions": []
+    },
+    "web/tempo-worklet.js": {
+      "lines": {
+        "total": 16,
+        "covered": 16,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 45,
+        "covered": 45,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 19,
+        "covered": 19,
+        "skipped": 0,
+        "pct": 100
+      },
+      "uncoveredLines": [],
+      "uncoveredFunctions": []
+    },
+    "web/tempo.js": {
+      "lines": {
+        "total": 30,
+        "covered": 30,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 15,
+        "covered": 15,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 59,
+        "covered": 58,
+        "skipped": 0,
+        "pct": 98.3
+      },
+      "branches": {
+        "total": 45,
+        "covered": 41,
+        "skipped": 0,
+        "pct": 91.11
       },
       "uncoveredLines": [],
       "uncoveredFunctions": []
