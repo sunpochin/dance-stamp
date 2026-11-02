@@ -1,0 +1,57 @@
+<!-- 用途：同串流像素／captureTime／成檔PTS的合成入口；層：獨立QA；關聯：capture-lifecycle.js、serve-capture.ts。 -->
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>合成影格短診斷</title>
+<style>body{font:22px system-ui;margin:32px;background:#14232b;color:white}button,a{font:inherit;margin:10px;padding:10px}a{color:#adf}canvas,video{width:320px;height:120px}pre{font:14px monospace;white-space:pre-wrap}</style>
+<h1>合成影格短診斷</h1><p>只執行一次三秒合成串流，不存取相機、麥克風或資料庫。</p>
+<canvas id="c" width="640" height="240"></canvas><video id="direct" muted playsinline></video><canvas id="read" width="640" height="240"></canvas>
+<button id="start" disabled>一次 3 秒同串流短成檔</button><p id="status">載入固定來源</p><div id="downloads"></div><pre id="out"></pre>
+<script type="module">
+import { runCapture, limits, frameScheduler } from '/capture-lifecycle.js';
+const config=await(await fetch('/config')).json(),canvas=document.querySelector('#c'),ctx=canvas.getContext('2d',{alpha:false}),video=document.querySelector('#direct'),read=document.querySelector('#read'),reader=read.getContext('2d',{willReadFrequently:true,alpha:false});
+const button=document.querySelector('#start'),status=document.querySelector('#status');
+let hardwareCalls=0,id=0,burstDone=false,audioBase=null,url;
+const forbidden=()=>{hardwareCalls++;return Promise.reject(Error('synthetic-only'));};
+if(navigator.mediaDevices)for(const key of ['getUserMedia','getDisplayMedia'])if(navigator.mediaDevices[key])navigator.mediaDevices[key]=forbidden;
+const crc16=id=>{let crc=65535;for(const value of [id&255,id>>8]){crc^=value<<8;for(let i=0;i<8;i++)crc=(crc&0x8000)?((crc<<1)^0x1021)&65535:(crc<<1)&65535;}return crc;};
+function draw(result,audio,start){
+ const elapsed=audioBase===null?-1:audio.clock.currentTime-audioBase,flash=[.6,1.4,2.2].some(cue=>elapsed>=cue&&elapsed<cue+.07);
+ const paint=()=>{const begin=performance.now(),audioBegin=audio?.clock.currentTime??null;
+ ctx.fillStyle=flash?'white':'black';ctx.fillRect(0,0,640,240);
+ for(const [word,value] of [0xa55a,id,id^65535,crc16(id)].entries())for(let bit=0;bit<16;bit++){ctx.fillStyle=value>>bit&1?'white':'black';ctx.fillRect(bit*40,32+word*40,40,32);}
+ result.paintLog.push({id:id++,flash,begin,end:performance.now(),audioBegin,audioEnd:audio?.clock.currentTime??null});};
+ paint();
+ // 受控連畫只驗證缺碼會被照實記錄；不把request或callback次數當影格身分。
+ if(!burstDone&&start!==null&&performance.now()-start>=700){burstDone=true;result.deliberateBurstFirstId=id;paint();paint();}
+}
+function readPixels(){const before=performance.now();reader.drawImage(video,0,0,640,240);const pixels=reader.getImageData(0,0,640,240).data,words=[],levels=[];
+ for(let word=0;word<4;word++){let value=0;for(let bit=0;bit<16;bit++){let level=0;for(let y=44+word*40;y<52+word*40;y++)for(let x=bit*40+16;x<bit*40+24;x++)level+=pixels[(y*640+x)*4];level/=64;levels.push(level);if(level>=70&&level<=185)throw Error('ambiguous content');value|=Number(level>185)<<bit;}words.push(value);}
+ if(words[0]!==0xa55a||words[2]!==((words[1]^65535)&65535)||words[3]!==crc16(words[1]))throw Error('magic/complement/CRC invalid');
+ let flashLevel=0;for(let y=4;y<12;y++)for(let x=0;x<640;x++)flashLevel+=pixels[(y*640+x)*4];flashLevel/=5120;
+ // 保存實際讀回PNG供本機獨立解碼；metadata與drawImage仍不是原子操作。
+ return {id:words[1],words,levels,flash:flashLevel>185,before,after:performance.now(),png:read.toDataURL('image/png')};
+}
+const primitive=value=>({type:typeof value,value:typeof value==='number'&&!Number.isFinite(value)?String(value):value===undefined?'undefined':value});
+const snapshot=metadata=>{const keys=[...new Set([...Object.keys(metadata),...Reflect.ownKeys(metadata).map(String)])];return {keys,fields:Object.fromEntries(keys.map(key=>[key,primitive(metadata[key])])),captureTimeIn:'captureTime'in metadata,captureTimeOwn:Object.hasOwn(metadata,'captureTime')};};
+const post=async(path,body)=>{const response=await fetch(path,{method:'POST',body,signal:AbortSignal.timeout(limits.stop)});if(!response.ok)throw Error('local receipt refused '+response.status);};
+button.disabled=false;status.textContent='待明確操作';
+button.onclick=async event=>{
+ if(!event.isTrusted||button.disabled)return;button.disabled=true;const chunks=[];
+ const output=await runCapture({
+ video,delay:0,now:()=>performance.now(),visible:()=>document.visibilityState,...frameScheduler(window),paint:draw,readPixels,snapshot,
+ onInterrupt(cancel){const hide=()=>cancel(Error('page hidden or leaving'));const visible=()=>{if(document.visibilityState!=='visible')hide();};window.addEventListener('pagehide',hide);document.addEventListener('visibilitychange',visible);return()=>{window.removeEventListener('pagehide',hide);document.removeEventListener('visibilitychange',visible);};},
+ makeStream(result){draw(result,null,null);return canvas.captureStream(0);},
+ makeAudio(){const clock=new AudioContext({sampleRate:48000}),audio={clock,tracks:[],node:null,
+ prepare(stream){const destination=clock.createMediaStreamDestination();audio.tracks=destination.stream.getTracks();audio.tracks.forEach(track=>stream.addTrack(track));const buffer=clock.createBuffer(1,clock.sampleRate*4,clock.sampleRate),data=buffer.getChannelData(0);
+ for(const cue of [.6,1.4,2.2])for(let i=Math.round(cue*clock.sampleRate);i<Math.round((cue+.04)*clock.sampleRate);i++)data[i]=.25*Math.sin(2*Math.PI*660*(i/clock.sampleRate-cue));
+ audio.node=clock.createBufferSource();audio.node.buffer=buffer;audio.node.connect(destination);},
+ start(when){audioBase=when;audio.node.start(when);},stop(){audio.node.stop();}};return audio;},
+ makeRecorder(stream){const mimeType='video/webm;codecs=vp8,opus';if(!MediaRecorder.isTypeSupported(mimeType))throw Error('native mime unsupported');return new MediaRecorder(stream,{mimeType,videoBitsPerSecond:2000000});},
+ chunk:chunk=>chunks.push(chunk),
+ async saveMedia(recorder){const blob=new Blob(chunks,{type:recorder.mimeType}),bytes=await blob.arrayBuffer(),sha256=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
+ await post('/media/'+config.nonce,blob);url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='capture-content.webm';a.textContent='下載同串流原檔';document.querySelector('#downloads').append(a);return {bytes:blob.size,sha256,mime:blob.type};},
+ publish:receipt=>post('/result/'+config.nonce,JSON.stringify({ ...receipt,config,timeOrigin:performance.timeOrigin,userAgent:navigator.userAgent,hardwareCalls }))
+ });
+ // 本頁即使POST失敗也顯示完整收據；不自動重錄或改寫已結束結果。
+ document.querySelector('#out').textContent=JSON.stringify(output,null,2);status.textContent=output.receipt.firstError||output.receipt.cleanupErrors.length||!output.publication.ok?'已停止，保留首次結果':'已完成，等待真正另存原檔';
+};
+window.addEventListener('pagehide',()=>{if(url)URL.revokeObjectURL(url);});
+</script></html>
