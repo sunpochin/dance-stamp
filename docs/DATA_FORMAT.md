@@ -15,7 +15,7 @@
 | ExportArtifact | id、recipeId、recipeRevision、assetId、mimeType、state、createdAt | 修改配方後舊輸出仍可留存，但標記與新配方不同 |
 | Move（#17 v2 候選） | id、name、danceStyle、status、revision | 一個動作可由多個 marker 指向 |
 
-不建立 users、subscriptions、share_tokens 或同步 outbox；本期沒有對應服務。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
+現行格式不建立 users、subscriptions、share_tokens 或同步 outbox；目前沒有對應服務。2026-11-02 的 [#209 雲端提案（線上）](https://github.com/sunpochin/dance-stamp/issues/209) 另規劃版本化同步封套、私人練習子集與媒體映射，尚未修改 schema 或 migration；不能把規劃欄位當成現行可匯入格式。`createdAt/updatedAt` 使用 UTC ISO 時間，課程日期用使用者輸入的日期字串，不能只靠檔案修改時間冒充拍攝日期。
 
 新建本機 ID 為隨機 UUIDv4，與檔名、路徑或影片內容 hash 分離；不同來源匯入／衝突副本的穩定 UUIDv8 規則見第 8 節。reference 指向錯誤影片比找不到影片更危險，因此不得只憑同檔名自動連結。
 
