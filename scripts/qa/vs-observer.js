@@ -51,7 +51,8 @@ HTMLCanvasElement.prototype.captureStream = function(...args) {
   result.events.push({ kind: 'captureStream', args, entered, exited: performance.now(), ...stamp() });
   try {
   const nativeRequest = capturedTrack.requestFrame;
-  capturedTrack.requestFrame = (...when) => { try { appendPaint(this); } catch (e) { fail('request observation', e); } const before = performance.now(); const value = nativeRequest.apply(capturedTrack, when); result.events.push({ kind: 'requestFrame', id: serial - 1, before, after: performance.now() }); return value; };
+  // 只旁聽原生已有的方法，缺能力必須留給產品的自動擷取回退。
+  if (typeof nativeRequest === 'function') capturedTrack.requestFrame = (...when) => { try { appendPaint(this); } catch (e) { fail('request observation', e); } const before = performance.now(); const value = nativeRequest.apply(capturedTrack, when); result.events.push({ kind: 'requestFrame', id: serial - 1, before, after: performance.now() }); return value; };
   direct = document.createElement('video'); direct.muted = true; direct.playsInline = true;
   direct.style.cssText = 'position:fixed;right:0;top:0;width:160px;height:90px;z-index:9999;background:black'; direct.setAttribute('aria-label', '合成擷取旁聽'); document.body.append(direct);
   direct.srcObject = stream;

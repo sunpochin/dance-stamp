@@ -46,10 +46,12 @@ test('file旁聽只接受同資料夾原檔與有界期限；不自行播放且�
   for (const query of ['?file=../outside.webm', '?file=https://example.com/a.webm', '?file=a.webm&watchdogMs=NaN', '?file=a.webm&watchdogMs=999999']) expect(() => execute(query)).toThrow('invalid')
 })
 
-test('旁聽讀碼／取消失敗仍照原receiver與參數呼叫產品API，釋放其他旁聽資源', async () => {
+test.each([true, false])('旁聽保留 requestFrame 能力（%s），讀碼／取消失敗仍呼叫原API及收尾', async supported => {
   const { readFileSync } = await import('node:fs'), { runInNewContext } = await import('node:vm')
   const calls: unknown[] = [], listeners: Record<string, Function> = {}, videos: any[] = []
   class Track { requestFrame(...args: unknown[]) { calls.push(['request', this, args]); return 'request-return' } stop(...args: unknown[]) { calls.push(['stop', this, args]); return 'stop-return' } }
+  // 原生缺能力時保持缺少，產品才能選 captureStream(30) 的既有回退。
+  if (!supported) Object.defineProperty(Track.prototype, 'requestFrame', { value: undefined, writable: true })
   const track = new Track(), stream = { getVideoTracks: () => [track], getTracks: () => [track] }
   class Canvas { id = 'canvas'; getContext() { return {} } captureStream(...args: unknown[]) { calls.push(['capture', this, args]); return stream } }
   class Context { fillRect() {} }
@@ -65,9 +67,12 @@ test('旁聽讀碼／取消失敗仍照原receiver與參數呼叫產品API，釋
   runInNewContext(readFileSync('scripts/qa/vs-observer.js', 'utf8').replace(/^import .*;$/m, ''), global)
   listeners.click({ target: { closest: () => ({ id: 'export' }) }, isTrusted: true })
   const canvas = new Canvas(); expect(canvas.captureStream(0)).toBe(stream)
-  expect(track.requestFrame('same')).toBe('request-return'); expect(track.stop('same-stop')).toBe('stop-return')
+  if (supported) expect(track.requestFrame('same')).toBe('request-return')
+  else expect(typeof track.requestFrame).toBe('undefined')
+  expect(track.stop('same-stop')).toBe('stop-return')
   expect(calls[0]).toEqual(['capture', canvas, [0]])
-  expect(calls.find((x: any) => x[0] === 'request')).toEqual(['request', track, ['same']])
+  if (supported) expect(calls.find((x: any) => x[0] === 'request')).toEqual(['request', track, ['same']])
+  else expect(calls.some((x: any) => x[0] === 'request')).toBe(false)
   expect(calls.find((x: any) => x[0] === 'stop')).toEqual(['stop', track, ['same-stop']])
   expect(calls.some((x: any) => x[0] === 'pause observer')).toBe(true); expect(videos[0].srcObject).toBe(null)
 })
