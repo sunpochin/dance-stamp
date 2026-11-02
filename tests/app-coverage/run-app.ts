@@ -69,7 +69,7 @@ function watchPage(page: Page) {
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 const selected = process.argv.slice(2)
 // 獨立跟隨結果也走真正預設頁；整合時不能退回暫藏工具全開的介面。
-const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance', 'webkit-follow-results', 'follow-runtime', 'cloud-integration'])
+const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance', 'webkit-follow-results', 'follow-runtime', 'cloud-integration', 'metronome-integration'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
 const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
@@ -107,6 +107,8 @@ if (!selected.length) scenarios.push('webkit-follow-results')
 if (!selected.length) scenarios.push('follow-runtime')
 // 雲端 UI 也必須進同一個來源分母；重用原合成供應商流程，保留前78案順序。
 if (!selected.length) scenarios.push('cloud-integration')
+// 獨立工具仍是產品的一部分，沿用原生分析／工作台保全回歸追加在原79案之後。
+if (!selected.length) scenarios.push('metronome-integration')
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -222,10 +224,14 @@ try {
       const frameGuard = name === 'recovery-frame-guard'
       // 影格守門也以recovery開頭，必須留在原TS函式入口，不能被一般恢復分流攔走。
       const recovery = !frameGuard && name.startsWith('recovery-') ? name.slice('recovery-'.length) : undefined
-      const path = name === 'cloud-integration' ? resolve(root, 'scripts/verify-cloud.ts') : resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name === 'webkit-follow-results' ? 'follow-results' : name}.${frameGuard ? 'ts' : 'js'}`)
+      const path = name === 'metronome-integration' ? resolve(root, 'scripts/verify-metronome.ts') : name === 'cloud-integration' ? resolve(root, 'scripts/verify-cloud.ts') : resolve(root, 'tests/browser', `${recovery ? 'coverage-recovery' : metadataKind ? 'metadata-stop' : practiceError ? 'practice-native-errors' : tail ? 'vs-save-tail' : name.startsWith('storage-recovery-') ? 'storage-recovery-keyboard' : name === 'webkit-follow-results' ? 'follow-results' : name}.${frameGuard ? 'ts' : 'js'}`)
       assert(existsSync(path), `找不到既有瀏覽器測試：${name}`)
       let result
-      if (name === 'cloud-integration') {
+      if (name === 'metronome-integration') {
+        const { runMetronomeScenario } = await import(pathToFileURL(path).href)
+        result = await runMetronomeScenario(browser, origin)
+        result.scenarioSha256 = createHash('sha256').update(readFileSync(path)).digest('hex')
+      } else if (name === 'cloud-integration') {
         const { runCloudScenario } = await import(pathToFileURL(path).href)
         result = await runCloudScenario(browser, origin, resolve(directory, name))
         result.scenarioSha256 = createHash('sha256').update(readFileSync(path)).digest('hex')

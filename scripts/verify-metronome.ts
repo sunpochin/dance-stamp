@@ -1,20 +1,18 @@
 /* 檔案用途：以合成數拍驗證節拍器的真瀏覽器流程。所在層：本機 QA。主要關聯：web/metronome.js、tests/unit/tempo.test.ts。 */
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { chromium } from 'playwright-core'
+import { chromium, type Browser } from 'playwright-core'
 import { webPaths, webHeaders } from './web-assets'
 import { verifyMetronomeStartup } from '../tests/browser/metronome-startup'
 const root = resolve(import.meta.dir, '..')
-const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
-  const file = webPaths.get(new URL(request.url).pathname)
-  return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: { ...webHeaders, 'Content-Type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html' } }) : new Response('missing', { status: 404 })
-} })
-const browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
+// 共用原公開流程，完整 App 入口才能收集所有 context 與彈出頁的計數。
+export async function runMetronomeScenario(browser: Browser, origin: string) {
+const context = await browser.newContext({ viewport: { width: 320, height: 800 } })
 try {
-  const workspace = await browser.newPage({ viewport: { width: 320, height: 800 } }), errors: string[] = []
+  const workspace = await context.newPage(), errors: string[] = []
   workspace.on('pageerror', error => errors.push(error.message))
   await workspace.addInitScript(() => Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined }))
-  await workspace.goto(String(server.url))
+  await workspace.goto(origin)
   const idle = () => workspace.waitForFunction(() => document.querySelector('#storage-status')!.textContent !== '正在開啟本機筆記…' && document.querySelector('#library-panel')!.getAttribute('aria-busy') !== 'true')
   await idle()
   // 真正選取未保存的雙片後開工具；只驗空白首頁會漏掉切頁丟失當次原片。
@@ -49,7 +47,7 @@ try {
     const t = i / 16000, phase = t % 0.5, envelope = Math.exp(-(((phase - 0.07) / 0.035) ** 2))
     wav.writeInt16LE(Math.round(Math.sin(t * 440 * 2 * Math.PI) * envelope * 12000), 44 + i * 2)
   }
-  console.log('PASS startup:', JSON.stringify(await verifyMetronomeStartup(browser, String(server.url), wav)))
+  const startup = await verifyMetronomeStartup(browser, origin, wav)
   await page.locator('#source-file').setInputFiles({ name: 'synthetic-count.wav', mimeType: 'audio/wav', buffer: wav })
   await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#source')!.readyState >= 1)
   await page.locator('#analyze').click()
@@ -80,9 +78,9 @@ try {
   }
   await page.close()
   assert.deepEqual(await snapshot(), before, '關閉節拍器後原片或配方未保留')
-  const standalone = await browser.newPage()
+  const standalone = await context.newPage()
   standalone.on('pageerror', error => errors.push(error.message))
-  await standalone.goto(new URL('/metronome.html', server.url).href)
+  await standalone.goto(new URL('/metronome.html', origin).href)
   assert.equal(await standalone.evaluate(() => window.opener), null)
   assert.equal(await standalone.getByRole('link', { name: '開啟練舞工作台' }).getAttribute('href'), '/')
   await standalone.locator('#toggle').click()
@@ -91,5 +89,18 @@ try {
   assert.equal(await standalone.locator('#toggle').getAttribute('aria-pressed'), 'false')
   await standalone.close()
   assert.deepEqual(errors, [])
-  console.log('PASS: 原工作台雙片／配方保全、獨立直開、120 BPM 原生分析、套用、半速／倍速、無效輸入、播放／停止、背景處理、320px、取消重試；無頁面錯誤。')
-} finally { await browser.close(); await server.stop() }
+  return { workspaceMediaPreserved: true, openerIsNull: true, standaloneEntry: true, native120BpmAnalysis: true, tempoControls: true, playbackAndStop: true, simulatedBackgroundStop: true, narrowNoOverflow: true, cancellationRetries: 2, startup, errors }
+} finally { await context.close() }
+}
+
+if (import.meta.main) {
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
+    const file = webPaths.get(new URL(request.url).pathname)
+    return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: { ...webHeaders, 'Content-Type': file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html' } }) : new Response('missing', { status: 404 })
+  } })
+  let browser
+  try {
+    browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
+    console.log('PASS:', JSON.stringify(await runMetronomeScenario(browser, String(server.url))))
+  } finally { try { await browser?.close() } finally { await server.stop() } }
+}

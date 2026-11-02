@@ -1,6 +1,17 @@
 <!-- 檔案用途：依既有驗收條件核對可結案與尚未實作的 issue，避免重做已交付功能。所在層：版本固定的工程盤點。主要關聯：ROADMAP.md、AGENTS.md、GitHub issue #1。 -->
 # 開啟 issues 的工程與驗收盤點
 
+
+## 2026-11-03 兩路實作與合併交接
+
+使用者已授權「維持平行兩個做到好然後 merge」：沿既有 issue 工作，可驗收的新缺口才開子票；協調者逐一審查與合併，保持來源、CI、真人／真機驗收與正式發布各自分開。本節只更新當時工作狀態，下方歷史數字與判斷仍歸原日期。
+
+本輪從 main `83220edabd90cab274532900763c4ff696dffdc5` 開始。已開 #222（雲端公開流程插樁，[PR #224](https://github.com/sunpochin/dance-stamp/pull/224)，`c9558ff5c01035ad7379d2df425f17c365bca74f`）、#223（開節拍器保留原雙片，[PR #225](https://github.com/sunpochin/dance-stamp/pull/225)，`ec5106a0a43be97de82792bd48a51669f51ad4a5`）、#226（節拍器／Worklet 完整量測）及審查後確認的 #227（準備期間取消，[PR #230](https://github.com/sunpochin/dance-stamp/pull/230)，`496af41a258c603d056e11ac718e1cab7ef5bd96`）。寫入本節後 #224 已由協調者審查／合併，main 前進到 `4e52e604deeb89b73abafcd2d28aaacaa4fc0c2b`，#222 自動結案；其精確 head 完整 79 案 CI 成功。#221／#225／#230 仍 open；#226 原生受測來源 `ad941dc8eee3ba4019249f38589d3d67f93db78e` 的 24 檔產品，在正常同步主線的 `59d1bb287d141ae4df0751886f762ddf9be6203d` 保持逐檔 SHA 相同，後者完整 CI 尚未預勾。詳細測試只讀[全 App 證據](issue-103-app-coverage.md)及[節拍器／準備取消設計](../../TECHNICAL.md#227-分析準備期間的媒體取消)，不在此重抄規格。
+
+使用者確認 #209 尚未設定，先處理其他 issues；真 Google OAuth／私人帳號與跨實體裝置驗收不啟動，設定交接仍見[雲端文件](../CLOUD_SYNC_SHARING.md)。第一路續查 #194 原生首次操作與 #13 私人 Safari；單次成功不消除歷史首次失敗，保存前遭影音守門拒絕也不算保存／救援通過。原生版本與未完成範圍沿[首次操作證據](issue-194-follow-audio-activation.md)與[私人保存證據](issue-13-safari-private-storage.md)承接。
+
+#8／#161 票內指定最終審查、真人 4／5、讀屏／觸控、跨實體裝置、完整 G1–G7 與 #15 發布條件均保持原要求，不能由程式合併或合成回歸代簽；#16 條件未觸發，iPhone 暫緩。接手時重新核對即時 PR／CI／issue；本節來源與當時狀態不是未來版本的驗收證明。
+
 ## 2026-10-30：67bd630 基線與後續變動
 
 依使用者指定，以 main `67bd6308854bf8b560ad61bfcbe73babca5db0af`／靜態 `7c728c8a5bd7fa2f` 對照開啟 issue 的原始範圍、現行程式、測試及來源證據。該提交已透過 [PR #88](https://github.com/sunpochin/dance-stamp/pull/88) 整合 #84–#87；[main CI](https://github.com/sunpochin/dance-stamp/actions/runs/41006187933) 的 harness、linux-install-restart 均成功。歷史段落的「尚未合併／尚無證據」不能直接當作今日工程缺口。

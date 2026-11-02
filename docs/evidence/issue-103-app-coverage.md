@@ -2,6 +2,39 @@
 # #103：全 App 覆蓋率與恢復流程
 
 
+
+## 2026-11-03 節拍器與真正 Worklet 量測（#226）
+
+白話：節拍器也是產品的一部分，因此檢查表真的選片、找速度、播放和取消；負責算音量的小工具另外直接跑原程式，確認取消不交出半份結果，超過二十秒也不繼續長大。兩邊共用原檢查，不另寫一套節拍器。
+
+前置為 #224 `c9558ff5c01035ad7379d2df425f17c365bca74f`、#225 `ec5106a0a43be97de82792bd48a51669f51ad4a5` 及 #230 `496af41a258c603d056e11ac718e1cab7ef5bd96`，均以正常 Git 來源保留。#227 的準備中取消缺陷先獨立修正，不混在本票純測試接線；設計與紅綠紀錄見 [TECHNICAL #227](../../TECHNICAL.md#227-分析準備期間的媒體取消)。本機選定輪產品來源為正常整合 `ad941dc8eee3ba4019249f38589d3d67f93db78e` 加未提交測試，`trackedChanges=true`。後續同步已合併 #224 的 main 到 `59d1bb287d141ae4df0751886f762ddf9be6203d`，全部 **24 個 `web/*.js`** SHA-256 與受測輪逐一相同；不把來源相同改稱提交後乾淨重跑。
+
+技術：`verify-metronome.ts` 抽出 `runMetronomeScenario`，瀏覽器與來源由建立者提供；明確以 `newContext().newPage()` 建頁，彈出工具及獨立直開頁也經原收集器。原 CLI 仍建立自己的瀏覽器／主機；匯入共用函式不啟動它們。原 79 案名稱與順序保留，尾端新增 `metronome-integration` 第 80 案，沿同一份原生二十秒 120 BPM、工作台雙片保全、noopener、直開、控制、背景處理、320px、取消重試及 #227 八案。後者收據包含真正原生 promise 的 settlement，不把短暫等待當舊工作已結束。
+
+`tempo-worklet.js` 位於獨立 AudioWorklet 全域，不能拿頁面計數替它作證。本票沿現有 `sourceForVm`／`vmCoverageContext` 執行真正註冊的 `TempoEnvelope` 類別，僅提供訊息埠與固定合成 sampleRate；核對雙聲道原聲通過、缺聲道／無輸入、RMS、stop 只交付一次、cancel 不交付、重開不沿用前次 requestId／半桶樣本，以及 2,000 包絡上限後原聲仍通過且不再累積。三個既有 BPM 單元加三個 Worklet 邊界單元共 6／6、212 斷言。這是 VM 邏輯證據，原生 worklet 能力另由瀏覽器真正解碼／分析確認，不宣稱已擷取 AudioWorklet 原生 scope 計數。
+
+Bun 1.4.4／macOS arm64／Chrome 156.0.8078.76：原 `bun run check` 通過 **760 tests／4,383 expects／0 fail**，公開掃描、型別、lint、build，原 19 項 lint info保留，產品靜態仍 `07cdd7b66289af39`。選定 `run-app.ts metronome-integration` **1／1、26,262ms、0 page errors**，六個延遲等待全部真 fulfilled 後仍保持取消；兩個合法初始化與原完整功能皆通過。收據 `browserClosed=true`、`serverStopped=true`、`lockRetained=false`，自有 nonce 已釋放。
+
+同一選定輪的 24 檔同來源、同位置表數字如下；左欄是本輪單元／VM，右欄才加入單一節拍器情境，**不是完整 80 案結果**：
+
+| 範圍 | 單元／VM | 加入節拍器公開流程 |
+| --- | --- | --- |
+| 全 App 行 | 1,231／3,357（36.66%） | 1,982／3,357（59.04%） |
+| 全 App 函式 | 418／1,127（37.08%） | 572／1,127（50.75%） |
+| 全 App 分支 | 1,386／3,713（37.32%） | 1,825／3,713（49.15%） |
+| metronome.js 行 | 0／129 | 125／129（96.89%） |
+| tempo-worklet.js 行／函式／分支（VM） | 16／16、4／4、19／19 | 同樣 100%，不當原生 scope 收據 |
+| tempo.js 行／函式／分支 | 30／30、15／15、41／45 | 100%／100%／91.11% |
+
+原獨立 `bun --no-env-file scripts/verify-metronome.ts` 在抽取後亦完整通過，六份 startup 原生等待皆 fulfilled、兩正例及原二十秒分析／工作台保全全部通過，零頁面錯誤；自有測試子程序 exit0 後依 nonce 釋鎖。其日誌 SHA-256 `71d2d48da1830d22f77b50c7a32894182fe9c4691ae90a17ba716e4830a5f100`；不與插樁輪混成另一個完整 80 案結果。
+
+原始選定收據 SHA-256 `d23ad7f63d0ddc9d0a9027113880a09ffbb8b0934496777abc2da786826f1d3b`，完整計數器收據 SHA-256 `07c2968d1c3ccf1aeafb5c863c7e3869f04e8f3764db3b8c31d9c0e053ae1bf9`。合成素材、raw 與截圖留 ignored 目錄，不公開音訊或私人媒體。重跑先原 `bun run check`，局部用 `bun --no-env-file tests/app-coverage/run-app.ts metronome-integration`，完整用原 `bun run test:coverage:app`；原下載、badge 的完整矩陣／乾淨來源守門保持。原生 Safari、手機、真人聽感、完整 G1–G7 未驗證，#103／#209 的原完整目標不結案。
+
+### #224 的 21 模組完整 CI 收尾（與上表分開）
+
+[CI 41488467616](https://github.com/sunpochin/dance-stamp/actions/runs/41488467616) 固定 head `c9558ff5c01035ad7379d2df425f17c365bca74f`，原 78 案加最後 cloud-integration 共 79 個不同名稱全部成功，全部 21 份產品 SHA 對上來源；行 **3,127／3,182（98.27%）**、函式 **1,014／1,066（95.12%）**、分支 **3,034／3,506（86.53%）**，skipped=0。協調者另下載 ZIP 並核對 GitHub digest `a5013d429107a9b6a584a2324eec6f2bf1299ea862eb5c18413ee125e5dd73e5`，逐項核對精確 head、完整矩陣、下載與必要 checks 後合併 #224 為 main `4e52e604deeb89b73abafcd2d28aaacaa4fc0c2b`，#222 自動結案。這個 21 模組來源的 before／after 是 92.89%→98.27% 行、86.30%→95.12% 函式、83.45%→86.53% 分支；不能與新增節拍器後 24 模組的選定輪混算或代簽完整 80 案。
+
+
 ## 2026-11-03 雲端公開流程接入同一 App 量測（#222）
 
 白話：雲端功能已經加入產品，檢查表也要真的點過保存、接續與分享。這次把原本獨立跑的同一份檢查接回總檢查，不另寫一套流程，也不把沒有測到的檔案拿掉來提高數字。
