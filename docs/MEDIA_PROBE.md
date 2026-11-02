@@ -479,3 +479,24 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 最大聲畫差88.333ms、最大配方差48.911ms、新增漂移絕對值42.511ms、最長重複畫面70.966ms、最低平均29.943fps、最長完整匯出上界64,003ms。48份實際下載全片解碼並保留bytes／SHA256；逐例已保存媒體可讀、missing=0。這輪下載指紋沒有與每份IndexedDB Blob做全bytes比對；相關儲存證據維持原受測版本歸屬。
 
 依本文件既有隔離合成環境，以原 `run-media-feasibility.py` 加 `--analyze`，依序執行六模式、label=candidate-13976bb；重跑請用新label保留原證據。十輪同context／資料庫、逐輪導航，常駐無重載／實體資源仍待驗。完整版本、恢復負向控制與限制見[候選證據](evidence/issue-3-bounded-audio.md)。自有瀏覽器／主機／nonce鎖已清理，未合併或發布，Safari原生與人工／裝置gates保持開啟。
+
+
+## 普通 Safari 成檔保存 Stop
+
+[7dede9f 原生證據](evidence/issue-13-unconfirmed-storage.md#7dede9f-普通-safari-成檔保存-stop)只驗普通 Safari 的三秒情境。使用專用 managed worktree、固定 Bun 1.4.4、全新 origin 與原子共用鎖；保留原日常 Safari 視窗，不開 SafariDriver 或改設定。原產品 HTML 只於 main.js 前載入 [旁聽程式，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-save-stop/tests/browser/safari-save-stop-observer.js)，其他資源 bytes／標頭與產品相同，Permissions-Policy 額外禁止硬體擷取。旁聽不替換 put、不額外訂閱影格或改產品時鐘。
+
+本機 QA 主機須只綁 loopback、服務正常建置資源及 `/qa/config`（nonce、sourceHead）、同源 `POST /qa/blob/<完整SHA256>.bin` 與 `POST /qa/receipt/<三位編號>`；binary 核對完整 SHA／bytes，收據核對自有 nonce、只准新檔、不覆寫歷史。原主機 bytes／SHA、原 HTML／注入 HTML 與 fixture 指紋留本機收據。不能把這些 QA 上傳路由加進產品或公開主機。
+
+先以可見產品選片及匯出建立真正舊 VS。筆記／副本工具目前隱藏，非空筆記及雙片持久基準只能在全新 origin 明示 QA 設定階段以原 schema／產品儲存 API 建立並核對完整 bytes；不得移除 data-deferred、改 CSS 或 script-click 隱藏產品工具。預置完成後重載，從正常可見入口選 3 秒雙片，保留非空舊筆記／3 份持久媒體，保存基準收據。
+
+按「QA 暫留下一筆成檔雙寫」再按可見輸出。等 metadata／media 兩個 trusted success、recorder inactive、可下載且無 complete／abort 後，保存 pending 收據、Safari 原生 SaveAs，從可見產品 Stop 送一次 trusted 操作，再保存 pending 收據／另存；只有「QA 解除自己的 get 暫留」後的真正結束事件可判定結果。快照讀取由 get success 回呼排入；pending 交易可能 inactive，不能從另一按鈕事件直接 getAll，也不能為讀 chunks 更改產品交易 scope。前／後／complete 收據編號依次 001–004；收妥後移入本輪 `run/`，同 origin reload 的完整收據另存 001。真產品護欄失敗即保留首次失敗停止，不盲重試。
+
+本機只讀核對，不啟動瀏覽器、不取得媒體鎖或外傳資料：
+
+```sh
+python3 scripts/check-safari-save-stop.py /absolute/path/to/local-receipts /absolute/path/to/genuine-old-vs.webm
+```
+
+核對器要求 metadata-only 準備／目標雙寫、一次 trusted Stop、真正 complete、完整舊欄位／媒體 SHA、三份實際 SaveAs 與 candidate bytes 相同、complete／reload 相同；輸入為本機合成資料，不公開 raw。UI 計時／JS drift 不取代聲畫量尺。
+
+最後關自己的產品視窗／主機，證明埠拒連及已知 PID 退出，再持自有鎖以專用 file 播放器自然到 ended。保留 error／dropped 原值、音訊樣本、全軌解碼與 hash；沒有音訊正值就明記原生出聲未驗，stderr 有警告就逐字保留，不能修檔或補 0 取得通過。nonce／PID／埠／自有視窗交叉收尾。普通軟體觀察不代替私人／實體離線／斷電／人耳／裝置或指定 review；不合併、發布或關票。

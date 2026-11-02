@@ -3,6 +3,8 @@
 
 2026-10-29，工程候選，已補受測 `99e862d` 的原生 Safari 私人／一般儲存對照；未完成全部 #13／P0 驗收。這是產品修正的後續 PR，不修改 #65 的歷史 quota 數據。
 
+普通 Safari 的成檔保存 Stop 最新直接觀察見[本頁 7dede9f 續驗](#7dede9f-普通-safari-成檔保存-stop)；私人模式仍未驗。下方歷史結果保留原來源。
+
 ## 已知原生缺陷
 
 使用者提供的只讀 Safari 私人模式取樣，來源 head `98fb5517c0027c4fa9a1b147e75c05ac1bdf7660`、原 `storage.js` SHA256 `2de40d537d2ab049596acaaf549e9e9d324e7b8ce705b0edfe86af1396dbbd77`：真正 Blob put 發出 UnknownError 後，沒有 abort／complete；3 秒要求取消，9 秒時產品 writeLibrary 仍 pending。另一次在真 error 後 12ms 呼叫原生 tx.abort() 雖返回，仍缺結束事件且 9 秒 pending。沒有替換 put 或偽造事件。
@@ -134,3 +136,62 @@ Stop前後recorder均inactive、既有影格訂閱0；原canvas串流音／視tr
 原生輪11個已知自有子PID／1群組，加上failed解碼1／1、原命令解碼1／1、時間戳診斷6／6，共19個已知自有子PID／9群組、4個ownnonce釋放。精確profile無活程序、自有server拒絕連線、共用鎖不存在、mediaCalls=0。較早彙整僅13／3／3，不涵蓋最後時間戳診斷；本段使用完整交叉清理範圍，不宣稱所有瀏覽器或其他預覽已退出。
 
 本次只補匿名文件與包，14份runtime維持14128c2／99a2169相同來源；原工作樹十案、乾淨99三案、9e6 Chrome24＋3及345 Safari十九案不改標新版重跑。一般Chrome的此保存Stop觀察已完成；Safari／私人模式保存Stop、私人新VS保存失敗／未確認救援、永久保存、真低磁碟、實體／五人操作／讀屏聽感／跨裝置及iPhone仍未驗。原始媒體、profiles、raw與操作識別留本機，不入Git或包；不合併、發布或關未驗收票。
+
+
+## 7dede9f 普通 Safari 成檔保存 Stop
+
+2026-11-02 Asia/Taipei，乾淨 main `7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca`、靜態 `80faff7573fa1d79`、Bun 1.4.4；macOS **27.2／26B123**、真正普通 Safari **27.2**。版本由本機系統、Safari bundle 與頁面 UA 核對，不沿用舊證據的 27.0.1。只補一個「3 秒、1×、成檔保存中按停止」情境；不跑私人、實體斷網／斷電、相機或其他票，不納入 PR #198。
+
+白話結果：影片已做好、可以下載時，按停止仍讓正在安全保存的成品完成保存。原片、舊 VS 與非空筆記保留；這是完成檔的保全，不是取消回滾。沒有發現需要改產品的問題，`persistExport` 仍不接 `active.signal`。
+
+### 來源、預置與首輪工具失敗
+
+在本聊天 managed worktree 建置；共用入口及協調工作樹只讀，既有 4193 使用者離線包／profile 未開啟或變更。普通 Safari 原視窗保留，另開專用普通視窗及全新 loopback origin。原 HTML 只加 QA script，產品資源沿建置白名單逐份記 SHA；未改產品程式、CSS、`data-deferred`、schema、100ms／250ms 護欄、保存期限或取消契約，未啟用 SafariDriver／修改偏好。
+
+合成片沿 `make-export-fixtures.ts` 的 8 秒色條／660Hz／880Hz 原片，只讀複製到自己的 output，以 FFmpeg copy 取 3 秒，沒有真人或第三方音樂。兩支實際輸入為 41,736／67,209 bytes，完整 SHA256 分別 `4899551b4cec878137bca1e1d510cfbea00d5de1ae62799275cdcf04d8c689ae`、`ae6db98e328a05a1a0cff319e30ee4651607af84b8b0bcf0d4204cd55777af9f`。
+
+先從可見選片／匯出介面真正建立舊 VS，191,811 bytes，SHA256 `bae3912b242c392328e77f05429c580fa65fc4b652cce63089d3ac4367434d6e`；再由明示 QA 設定階段，以產品 `writeLibrary`／原 schema 預置非空標記筆記及兩側副本，完整 bytes／SHA 讀回核對。沒有點隱藏的筆記／副本按鈕，也不稱真人建立筆記或正常 UI 可用性驗收。
+
+首輪新 VS 已成檔，雙 put 成功後真正 Stop，解除自有 hold 才 trusted complete；但 QA 按鈕直接向 pending 交易排入讀取，Safari 拒絕 `TransactionInactiveError`，所以首輪缺少 Stop 前後完整快照，不列為完整通過。原失敗、196,301-byte 下載及 complete 收據保留，沒有清庫、改檔或掩蓋。修正的是 QA：讀取改由既有 keep-alive 原生 get 的 success 回呼排入，因為「pending」不代表在任意事件裡都是 active。之後在另一個全新 origin 預置上述已核對的舊 VS／雙片／筆記，再由可見介面選雙片，只重驗同一情境的一次新 VS；沒有重跑產品護欄失敗或擴跑矩陣。
+
+### 修正輪的真正 Stop 與提交
+
+旁聽 `transaction` 的原生 success／complete／abort；**不替換 put、不偽造事件、不取消其他交易**。只有新 VS 的 media put 成功才開始同一 readwrite 交易的原生 get 循環，避開匯出前 metadata-only 配方保存。沒有以 timeout 推測回滾。
+
+| 時點（頁內單調 ms） | 真正收據與資料 |
+| --- | --- |
+| 基準 | revision 5，非空筆記，舊雙片／VS 共 3 個持久媒體 key。 |
+| 匯出準備 | metadata-only trusted complete，revision 6，data 不變。 |
+| 21,519／21,520 | 目標 metadata／media 兩個 trusted success；候選 revision 7，尚無 complete／abort。錄製器 inactive，成品已可下載。 |
+| 65,724 | 可見停止按鈕的一次 trusted click。原生 SaveAs 已取得本次新 VS。 |
+| Stop 後 24,296ms | 仍 hold／busy=true、unknown=false；沒有 complete／abort。完整 metadata／media 及候選 bytes 指紋和 Stop 前相同，下載連結仍可真正另存。這不是已取消。 |
+| 130,898 | 只解除 QA 自己的 get hold 後，才得到 trusted complete，沒有 abort。busy=false、unknown=false，UI 顯示已成檔保存；沒有未確認／救援說明。 |
+| 同 origin 完整 reload | metadata、全部 keys／非空筆記、4 份持久媒體的完整 bytes SHA 與 complete 快照相同。比較區此時尚未選片，aria-busy 原值為 null，不改寫成 false。 |
+
+除了新增本次一個 asset／export，逐欄舊 data 全相同；舊 VS 與兩原片每次完整原生讀回／SHA 均保留。舊 VS 的持久層讀回與先前真正 SaveAs 相同；隱藏庫存 UI 的真人取回沒有驗證。chunks 在基準／complete／reload 都空且完全相同；pending 目標 scope 只有 metadata／media，**沒有直接另讀 pending chunks**，不把不相交或排隊讀取冒充當時快照。
+
+Stop 前後 recorder 皆 inactive、影格訂閱 0；被觀察的 1 video／2 audio tracks 仍 live，AudioContext running。真正 complete 後才全 ended、Context suspended；沒有 QA 代停 tracks、額外影格訂閱或直接驗 AudioContext 節點圖，不能說 Stop 立即釋放所有資源。
+
+新 VS 194,114 bytes、`video/webm; codecs=vp8,opus`，SHA256 **`3abbbf46cf1906110c0c8666ecfdd2ebe86b9d3a3da44948055058de6a173973`**。候選、原生 media 讀回與 Stop 前／後／complete 後三份真正 Safari「Download Linked File As」檔逐 byte 相同。產品原護欄得到 3,019ms 解碼長度，配方為 0–3,000ms、1×、offset 0，非鏡像；JS drift 26ms／render gap 28ms 只作旁聽，不取代成檔同步量尺。
+
+### 關站後原始檔播放與音訊限制
+
+先關閉本案產品視窗、自有主機，證實原埠拒連、主機 PID 退出，再於專用 `file:` 播放器自然播放實際 complete SaveAs 原檔到 trusted ended，沒有 seeking／seeked／重播。原始 quality：totalVideoFrames **92**、droppedVideoFrames **0**、corruptedVideoFrames **0**、error **null**；舊式解碼計數未提供的欄位保留 null，沒有補 0。
+
+播放器 Web Audio 分析保留 **183 筆 RMS／peak 全 0**，原因未定，因此**未驗證原生有聲播放／人耳聽感**。另外原檔全軌解碼 exit 0，通用 null muxer 原 stderr 有 **32 條音訊 DTS 訊息**，原樣保留，不宣稱 stderr 乾淨或已定位原因。獨立全影像 framehash 解碼 **91 格**、原 48,000Hz stereo 音訊解為 **144,840 samples/channel**／1,158,720 PCM bytes，兩項 exit 0、stderr 空；PCM RMS 0.0885276587。影像 framehash 收據 SHA256 `cdd90cd8c11e0dcef342c613eca364e48872d9ab80065a80b52670600543c27b`、PCM SHA256 `d15be81e154956990dd57ea3271ada36f540c61397686daeeda46f5d4a924646`。沒有重封裝、修 PTS／DTS、重採樣或修改原檔；解碼、自然播放、音訊取樣三者分開記錄，不能升格 G2–G4／完整品質通過。
+
+### 工具、收據與收尾
+
+受測旁聽程式原 bytes 隨本 PR 收入 [safari-save-stop-observer.js，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-save-stop/tests/browser/safari-save-stop-observer.js)，SHA256 `2d26bc8bf55d9305e02e55ec44cfcf26e692ac1f0dec7cdb6da6f7d164673403`；[只讀核對器，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-save-stop/scripts/check-safari-save-stop.py)以完整本機收據核對先後、舊欄位／完整媒體 SHA、三份下載 bytes 及 reload。主機／明示設定／file 播放工具的原始來源與設定指紋均留本機；重現契約見[媒體指南](../MEDIA_PROBE.md#普通-safari-成檔保存-stop)。
+
+- 修正輪 Stop 前 pending 收據 SHA256：`d6b0175a8ca1f49c2e936d9e7196ef32ab1033e7f72d273b2c99a29b7ac1db69`。
+- Stop 後 pending：`2e4a1a6cfb853c7a65fe2668300a375b05583f1e5204396d484758cfd1d6f6f4`；真正 complete：`7e41aba4c6616088e9ef63e071b5250ec476c23852a046a06d5332498ee4653c`。
+- 完整 reload：`5e31631be6f5ecc5181abc5dbfd65ceaacff7cc2ea63ad993f8251eafb482d31`；逐欄核對結論：`32663f61e46559a2b42e5d09e83c57b9b083514146590c967acb62313b1f7560`。
+- 解碼收據：`f277da57af112d11270cfc5db2d660232195c7f235a020f901411b59b746d4dc`；真正 file 播放另存收據：`d6dc34107a749b079ab088ffa4c4d206251870cddffe532e613e1bdd23df4f2a`。
+- 本機 raw／工具／媒體清單指紋：`a8c24af0d170416f3ad9f738bdf7e40e02819d36d4f106e213004c5d3ea2b6bb`；該清單在最終 cleanup 結論與公開核對器結果寫入前封存，不冒稱包含其後檔案。
+
+共用鎖曾忙，僅讀 PID／cwd 並等原持有人自然釋放。自有 nonce 分別核對釋鎖；三個主機與兩個 holder 共 **5 個已知自有 PID** 皆退出、三個自有埠拒連、最後鎖不存在。首個離站 holder 因非互動 stdin EOF 走 finally 釋鎖的工具失敗保留；第二個互動 holder 正常收尾。一次電腦操作呼叫逾時後，先查原生 clicks 證明 Stop 已送出，沒有重按。只關自己的兩個產品視窗／一個 file 視窗，日常 Safari 視窗保留；不宣稱整個 Safari 程序退出。
+
+本次只交付匿名文件與 QA 工具，產品 runtime／schema／靜態版本不變。普通 Safari 的這筆成檔保存 Stop 已有直接保全觀察；**私人模式、pending chunks 直接快照、原生出聲／真人聽感、實體離線／斷電、裝置／iPhone、完整 G1–G7 及指定最終審查仍未驗**。#13／#3 保持開啟，沒有合併、發布或變更服務／帳務／權限。文件 head／正常 check 與 PR CI 另由本 PR 綁定，不把文件提交稱作重跑媒體。
+
+正常 `bun run check` 通過 **704 tests／3,806 expects／0 fail**、公開掃描、型別、原 lint 與 build；原 19 項 lint info 保留。首輪 703／1 的失敗是隨包指南指向未封裝 QA 原始碼，已改需連網來源連結，沒有擴充使用者包或弱化測試。只讀核對器正控制通過，將原片誤當舊 VS 的負控制會拒絕。正常 commit hooks 與最終 head CI 另綁。
