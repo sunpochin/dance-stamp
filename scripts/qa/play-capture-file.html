@@ -2,16 +2,20 @@
 <!doctype html><html lang="zh-Hant"><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src file:; connect-src 'none'; base-uri 'none'">
 <title>原檔獨立播放收據</title><style>body{font:22px system-ui;margin:24px}video{width:640px;height:240px}pre{font:16px monospace;white-space:pre-wrap}</style>
-<h1>原檔獨立播放收據</h1><p>本頁只讀旁邊的 capture-content.webm；沒有主機、網路、重試、seek或重編碼。</p>
-<video id="v" src="capture-content.webm" controls muted playsinline></video><pre id="out">請按一次原生 Play，再讓原檔自然播放到尾</pre><a id="save" hidden download="file-playback.local.json">另存播放收據</a>
+<h1>原檔獨立播放收據</h1><p>本頁只讀旁邊的指定合成原檔；沒有主機、網路、重試、seek或重編碼。</p>
+<video id="v" controls muted playsinline></video><pre id="out">請按一次原生 Play，再讓原檔自然播放到尾</pre><a id="save" hidden download="file-playback.local.json">另存播放收據</a>
 <script>
 const video=document.querySelector('#v'),events=[],raw=value=>({type:typeof value,value:value===undefined?null:value});
+const query=new URLSearchParams(location.search),file=query.get('file')||'capture-content.webm',watchdogMs=Number(query.get('watchdogMs')||15000);
+if(!/^[a-zA-Z0-9._-]+\.webm$/.test(file)||!Number.isFinite(watchdogMs)||watchdogMs<15000||watchdogMs>330000)throw Error('local synthetic filename/watchdog invalid');
 let sealed=false;
 const snapshot=()=>{const quality=video.getVideoPlaybackQuality?.();return {now:performance.now(),protocol:location.protocol,nativeOnline:navigator.onLine,ended:video.ended,paused:video.paused,currentTime:video.currentTime,duration:video.duration,error:video.error?.code??0,width:video.videoWidth,height:video.videoHeight,totalVideoFrames:raw(quality?.totalVideoFrames),droppedVideoFrames:raw(quality?.droppedVideoFrames),corruptedVideoFrames:raw(quality?.corruptedVideoFrames),audioDecodedBytes:raw(video.webkitAudioDecodedByteCount),muted:video.muted};};
 const finish=reason=>{if(sealed)return;sealed=true;clearTimeout(deadline);const result={reason,events,final:snapshot()};document.querySelector('#out').textContent=JSON.stringify(result,null,2);const a=document.querySelector('#save');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(result,null,2));a.hidden=false;};
 let deadline;
 // file頁的autoplay可能被瀏覽器拒絕；明確點一次原生Play後才開始觀察，不重試播放。
-video.addEventListener('play',()=>{if(deadline||sealed)return;deadline=setTimeout(()=>finish('15 second watchdog'),15000);events.push({event:'play',...snapshot()});});
+video.addEventListener('play',()=>{if(deadline||sealed)return;deadline=setTimeout(()=>finish('watchdog '+watchdogMs+'ms'),watchdogMs);events.push({event:'play',...snapshot()});});
 // 只旁聽，不呼叫play/pause/seek或假ended；保留瀏覽器真正回報的數值及不支援型別。
 for(const type of ['loadedmetadata','playing','pause','seeking','seeked','volumechange','ended','error'])video.addEventListener(type,()=>{if(sealed)return;events.push({event:type,...snapshot()});if(type==='ended'||type==='error')finish(type);});
+// 長片只增加獨立播放器的旁聽期限；不呼叫播放、不調整產品期限或原媒體。
+video.src=file;
 </script></html>
