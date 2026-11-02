@@ -19,17 +19,22 @@ export class ResponseReceipts {
     this.records.push(receipt)
     // 先登記再開始 await；重複 URL 及讀取失敗也各有自己的收據，不覆蓋上一筆。
     const task = Promise.resolve().then(async () => {
-      const [headers, body] = await Promise.allSettled([Promise.resolve().then(() => response.allHeaders()), readBody ? Promise.resolve().then(() => response.body()) : Promise.resolve(null)])
-      // drain 逾時已形成失敗收據；遲到的回覆不能改寫已交付證據或補寫 body。
-      if (receipt.state === 'timed-out') return
-      if (headers.status === 'fulfilled') receipt.headers = headers.value
-      else receipt.errors.push(`headers: ${String(headers.reason)}`)
-      if (body.status === 'rejected') receipt.errors.push(`body: ${String(body.reason)}`)
-      else if (body.value !== null) {
-        receipt.bytes = body.value.length
-        receipt.sha256 = createHash('sha256').update(body.value).digest('hex')
-        try { this.saveBody(receipt, body.value) } catch (error) { receipt.errors.push(`save: ${String(error)}`) }
+      const recordError = (stage: string, error: unknown) => {
+        if (receipt.state !== 'timed-out') receipt.errors.push(`${stage}: ${String(error)}`)
       }
+      // body 可能永不返回；每項完成就保存，不能讓它拖住已取得的標頭或具體錯誤。
+      const headers = Promise.resolve().then(() => response.allHeaders()).then(value => {
+        if (receipt.state !== 'timed-out') receipt.headers = value
+      }, error => recordError('headers', error))
+      const body = (readBody ? Promise.resolve().then(() => response.body()) : Promise.resolve(null)).then(value => {
+        // drain 逾時已形成失敗收據；遲到回覆不能改寫證據或補寫 body。
+        if (receipt.state === 'timed-out' || value === null) return
+        receipt.bytes = value.length
+        receipt.sha256 = createHash('sha256').update(value).digest('hex')
+        try { this.saveBody(receipt, value) } catch (error) { recordError('save', error) }
+      }, error => recordError('body', error))
+      await Promise.all([headers, body])
+      if (receipt.state === 'timed-out') return
       receipt.state = receipt.errors.length ? 'failed' : readBody ? 'complete' : 'metadata-only'
     }).finally(() => this.pending.delete(receipt))
     this.pending.set(receipt, task)
