@@ -29,6 +29,18 @@ Bun 1.4.4／macOS arm64／Chrome 156.0.8078.76 headless，原 `bun run check` **
 
 來源重跑：先 `bun run check`，局部 `bun --no-env-file tests/app-coverage/run-app.ts cloud-pending-recovery`，完整原 `bun run test:coverage:app`。最後 run.json SHA-256 `ec8db1bd7284f75d54bb4c537c958fa3ba7260fc2d2db83d627cb84bb93ffbc6`、完整計數器 `f678b63e166cfa656fe3ebf72ae7592c18bc7b6ca341bb5e0f16fafe011f0352`、共用腳本 `eb717b1302095221f6394fc09ea42461236bcad59f9830e55aecb3a209dfec0a`、新 helper `15b29fe489096d031228956c2b377cda4255838409946c95ac5f211a25cf3bda`。完整 CI 要以本票提交 head 另記，不能預勾成功；#103／#209 不因單案關閉。真 OAuth、真 Google、自然離線、Safari／私人模式、實體跨裝置、真人相機與聽感、完整 G1–G7 未驗證；不登入帳號或讀私人媒體。
 
+### #234 獨立審查後補強：兩片齊全且僅一 byte 不同
+
+白話：先前測試同時有「選錯內容」與「少選另一片」，無法單獨證明產品認內容。現在兩片都選好，老師片保持原名稱、大小與 MIME，只把原 bytes 複本最後一個 byte 翻轉；自己片提供完全正確原檔。這是審查後把檢查變精準，不是產品缺陷或產品修正；上一輪只當作複合錯誤拒絕，內容校驗採本段新證據。
+
+受測來源為已交付 `5ea89b6369be1c89a3f887fbd8b97784a084cb51` 加未提交補強，`trackedChanges=true`；原24份產品SHA及位置表完全相同。公開重試仍拒絕，遠端ID、upload POST數與整個新頁snapshot（完整library、全部媒體SHA、來源／成品狀態）均不變；之後選回兩份正確原檔，原同工作／資料集／遠端ID流程成功，再次重試不重複上傳。真正 readCloudWork 單元0→公開6次。
+
+新選定輪 `coverage/app-bbBSXL/` **1／1、5,037ms、0頁面錯誤**，browserClosed／serverStopped=true、lockRetained=false。單案行2,100／3,357、函式633／1,127、分支1,907／3,713，分母／原80案與第81序列不變，並非完整81結果。正常 `bun run check` 及提交hook仍沿原入口，760 pass／0 fail／4,383 expects、原19項lint info保留；產品靜態07cdd7b66289af39。
+
+獨立CLI亦通過，兩份下載各36,792bytes／SHA `0ea3738bf1c21c7b7fb94d78ede8eb4c881c96b1bbbdff2632bcedfc417735b6`，與插樁輪分開。新插樁輪真下載前後各 **36,679bytes**／同SHA `25389a3f80f8bf5c73240f6630508923ce0cdaa174838f766d96748c0004fd91`；兩份另以FFmpeg -xerror全檔解碼exit0（H264 1280×720／60 video frames、AAC93 audio frames），file:離線各播至 **1.998967秒 ended**、60frames／0dropped／0media error，0頁錯，正常關閉與nonce釋鎖。這些是新輪結果，不沿用前段舊成品hash。
+
+新helper SHA-256 `6e82f93ed239a5e0dc2b772cfa3b20aa177c7ec31861cfc04f11703ac47278a3`；run.json `9baed55d98ba035f1c625ac542ad6b745cbaec4aa8598f29b342f3c1934af41c`；完整計數器 `039e72b06d34a0cffb6fc4fbdc09466dcb9b125352422cfa3eda3f72d8cf86e4`；離站收據 `3c589941217e22cc3b89e5e732045877012f28789f2e529232e6966f98025a08`。原始資料留ignored／本機暫存，來源、原生／真Google／跨裝置未驗證限制仍照前段。完整CI綁追加提交後head另記，未預勾。
+
 ## 2026-11-03 節拍器與真正 Worklet 量測（#226）
 
 白話：節拍器也是產品的一部分，因此檢查表真的選片、找速度、播放和取消；負責算音量的小工具另外直接跑原程式，確認取消不交出半份結果，超過二十秒也不繼續長大。兩邊共用原檢查，不另寫一套節拍器。

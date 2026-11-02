@@ -90,13 +90,18 @@ export async function cloudPendingRecovery({ page, connect, idle, fixture, out, 
   assert.equal(await fresh.locator('#cloud-jobs option').count(), 1)
   await fresh.locator('#cloud-jobs').selectOption(interrupted.id)
   assert.match(await fresh.locator('#cloud-jobs').innerText(), /待傳/)
-  const beforeWrong = [...fixture.files.keys()].sort()
-  // 同名檔案不是身分證；缺少真正原片時，錯內容也不能沿用舊工作傳出去。
-  await fresh.locator('#cloud-retry-files').setInputFiles({ name: 'reference.webm', mimeType: 'video/webm', buffer: Buffer.from('synthetic wrong bytes') })
+  const beforeWrong = [...fixture.files.keys()].sort(), wrongWrites = fixture.calls.filter(call => call.init.method === 'POST' && call.url.pathname.startsWith('/upload')).length
+  // 兩側都提供且維持同名／大小／MIME，只改一 byte，排除缺片或格式不同也會拒絕的混淆。
+  const changed = Buffer.from(readFileSync(resolve(out, 'reference.webm'))); changed[changed.length - 1] ^= 1
+  await fresh.locator('#cloud-retry-files').setInputFiles([
+    { name: 'reference.webm', mimeType: 'video/webm', buffer: changed },
+    { name: 'self.webm', mimeType: 'video/webm', buffer: readFileSync(resolve(out, 'self.webm')) },
+  ])
   await fresh.locator('#cloud-retry-job').click(); await idle(fresh)
   assert.match(await fresh.locator('#cloud-status').innerText(), /來源已失效|相同原片/)
   assert.deepEqual([...fixture.files.keys()].sort(), beforeWrong)
-  assert.deepEqual((await snapshot(fresh, false)).library, saved.library); assert.deepEqual((await snapshot(fresh, false)).media, saved.media)
+  assert.equal(fixture.calls.filter(call => call.init.method === 'POST' && call.url.pathname.startsWith('/upload')).length, wrongWrites)
+  assert.deepEqual(await snapshot(fresh, false), saved)
   await fresh.locator('#cloud-retry-files').setInputFiles([resolve(out, 'reference.webm'), resolve(out, 'self.webm')])
   await fresh.locator('#cloud-retry-job').click(); await idle(fresh)
   assert.match(await fresh.locator('#cloud-status').innerText(), /沒有建立重複快照/)
