@@ -33,9 +33,9 @@ jobs:
   app-coverage:
     needs: harness
     runs-on: ubuntu-24.04
-    # 76 案與離站重播已實測超過 20 分鐘，舊總預算會在成功收尾時取消工作。
-    # 只留足整場收尾餘裕；原五秒離線、十五秒恢復及各媒體守門期限不變。
-    timeout-minutes: 25
+    # 81案與下載驗證／報表上傳完成仍被25分鐘總上限取消，整場含收尾須留有界餘裕。
+    # 只調整整場預算；原五秒離線／十五秒恢復期限與100ms等影音門檻不變。
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
