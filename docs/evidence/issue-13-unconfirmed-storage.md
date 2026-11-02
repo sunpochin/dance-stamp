@@ -345,3 +345,77 @@ raw／媒體／本機識別留 ignored output 與獨立本機封存，不放 Git
 #229 仍開啟。下一步先用單變量分辨呈現停滯與觀察效應，充分定位後才改產品。修後仍需相同合成 fixture 的實際下載、離站自然播放／完整全軌解碼及原資料保全回歸；所有 G1–G7引用 [錄影比較](../RECORD_COMPARE.md)，不另訂門檻。#11／#13 的完整矩陣、保存雙 put／未知保存救援、真機與人工聽感仍未由本輪驗收，亦未發布。
 
 文件分支從當時同步 main `26d3f25152335c73e037dd0d75034497fa2e658a` 建立，保留 #194 新證據；這不是原生受測來源。正常 `bun run check` 通過：754 pass／0 fail／4,142 expects，公開掃描、型別、lint與build通過，19項既有lint info保留；建置仍 `83a29a61027b205d`。正常hooks與遠端CI另綁交付head。
+
+## 2026-11-03 #229 解鎖後的實際可見區域對照
+
+白話：兩支影片都在畫面內時，再做一次比較影片，仍然因聲音走在畫面前面而停止。這次沒有做出新成品，但原片與筆記都留下；不能只把失敗歸因於影片捲出畫面，也還沒找到可採用的修正。
+
+使用者明確回覆Mac已解鎖後，另開自有私人Safari視窗、全新測試位置，原日常視窗保留。受測仍為乾淨 `83220edabd90cab274532900763c4ff696dffdc5`／build `83a29a61027b205d`，Safari27.2／macOS27.2；相同兩份合成fixture與A0/B3/C0、1×、offset0、並排／無鏡像及非空筆記基準，產品與原100ms守門不變。後續main `8ef7f009644d2e86460805aedbf9f9bd7bdaf17a` 的原21份產品JS逐byte相同，但此輪不移記為該main重新實測。
+
+新觀察器 SHA-256 `97fbdf8b5b050eaf60b517475863be228a6e5919c3956a84041a1d70214b66cd` 在原正式rAF加入rect／computed style，並記錄原生scroll；沒有改play、BufferSource、Recorder或速率setter行為。原生點按短暫捲到底，真正wheel在暖機play前返回來源；點按＋wheel共175ms，之後5,005ms不讀AX／輸入。兩側原生畫面在匯出前後均可見，正式19筆rAF的兩側rect比率全1、visible／opacity1、focused=true／hidden=false，AudioContext running；114筆clock／0丟棄，exposure亦0丟棄。
+
+唯一首匯出仍被原100ms守門拒絕、0重試。reference停在 `0.587988458` 秒，正式尾段音畫差 `34.224→71.345→106.012ms`；rAF前後觀測span為0–3ms，沒有觀察到整個JS callback停住100ms。`timeline`先檢查音畫差、之後才檢查paused／較長停滯，所以錯誤文字本身不是根因。正式可見幾何不足以避免這次失敗；幾何不等於逐像素遮擋或持續呈現證明，先前短暫離屏、原生管線與觀察效應仍不能全部排除。
+
+原片URL及完整hash、既有資料保留；三筆metadata原生complete、revision3→4為預期配方保存。沒有candidate VS Blob、VS下載、media keys／chunks或保存雙put；故新VS保存／未確認救援仍未驗證。recorder inactive、全部tracks ended、硬體呼叫與頁面錯誤0，自有主機exit0、匹配nonce釋放，只關本輪視窗。
+
+`private-wheel-visible-resumed-cohort` manifest SHA-256 `305fd4a610f477bddae01df97493a3d98300b1993a650d4e32b2fcbf5d85c9b8`，12項（含2合成fixture）的bytes／SHA均經協調者獨立重算相符；匿名summary SHA `64bf3311a3f0defe447d1a561a9bb1287ea8b848b68247ae3bdc189a590bc748`，首錯receipt SHA `99cfcbf7e59c0bb52aaaac73f3fb1fca881981ecf13062358fa53bde7ddf41c7`。原250ms checker仍因前提不同exit1，另沿原保全斷言精確綁100ms作局部核對，沒有改稱原checker全過。raw與影片只留本機；rect讀取、既有wrapper及wheel均可能影響時間，不宣稱無旁聽的原版或唯一根因。
+
+### 同來源、同觀察器的一般Safari首案
+
+白話：在另開的一般視窗，相同影片這次做出了VS，也真的另存並播完；私人視窗的失敗沒有消失。兩輪操作的細微時間仍不同，因此還不能說一定是私人模式造成。
+
+只將目標改為自有全新一般Safari視窗；83220ed／83a29a、兩fixture、配方、非空筆記及觀察器97fb bytes保持相同，不改產品、CSP、play／BufferSource／Recorder／原護欄。唯一首匯出0重試，頁面回「VS影片已成檔並保存在此瀏覽器」；原資料完整保留，僅新增1個VS asset／1 export。revision3→5為配方及VS保存；三筆metadata-only原生complete後，第4筆readwrite真正metadata＋media雙put complete，原片URL／hash不變，recorder inactive／tracks ended，硬體0／頁面錯誤0。
+
+原生click＋wheel230ms，指定5,005ms不讀AX／輸入、實際等待5,010ms；但暖機play發生在最後wheel前，最後wheel在正式play前恢復來源可見，與私人輪的自然操作時序不同。240筆原上限滿後丟703筆，**只有最初43個正式rAF**（reference 0.004013→0.678635秒）記錄兩側rect全1，音畫差1.158–28.080ms、rAF間距15–18ms。此區段涵蓋私人0.587988秒停滯窗口；後段曝光未記錄，前後原生截圖不能補造中間資料。這是模式／新窗／自然操作時序關聯，並非只改模式且所有時間完全相同的因果證明。
+
+真正原生另存WebM **195,938bytes**，SHA-256 `9ee54d18c62668d74a7fa5b0d54223b0f92a97129ee2bf17b6f55fc0f9b87fc2` 與頁內Blob逐byte相同。網站及主機關閉後，沿既有下載播放器以file首播自然ended，time＝duration **3.008秒**、1280×720、97frames、error0、audioBytes71,756，**播放器dropped1**。本機額外包裝的zero-drop assert因此exit1，原helper未改、沒有重播補綠；該包裝未走到FFmpeg，另只補同檔未完成的全軌解碼，exit0／stderr空，VP8 92影格、Opus 1,207音訊frames。精確區分播放完成、額外斷言失敗與解碼通過，不稱全部離站檢查全過；RECORD_COMPARE G3未另訂播放器dropped必0，也不藉此新增關票門檻或代簽整體G1–G7／人耳品質。
+
+下載後QA收尾按鈕出現AX `-10005 elementHasNoFrame`，原工具錯誤保留；以匹配自有nonce／Origin的空POST200正常停主機，再原生File→Close Window關自有視窗。原日常視窗保留，主機exit0、離站播放程序全退出，browserClosed及nonce不存在確認。沒有因收尾工具失敗重做產品匯出。
+
+`ordinary-wheel-control-cohort` manifest SHA-256 `d721e649b0e20c7772b5cc33b6a4b99fa7661291f16bf30939d9aaf8ac9a79a4`；15項含2fixture及真正下載VS的bytes／SHA經協調者獨立重算全符。匿名summary SHA `0320cbfed5124d6173ad30ec6de6865e4437514c9fd992c092cd84f887e70365`。不公開raw、影片、測試位置或視窗ID；本輪沒有產品修正，#229保持open，私人新VS保存／救援仍未驗證。
+
+### 私人視窗固定原匯出按鈕：點按後不捲動仍拒絕
+
+白話：再讓原本的匯出按鈕一開始就在畫面上，點了以後完全不捲動，仍然遇到相同拒絕。這個介面安排沒有解決問題，所以沒有把它放進產品當修正。
+
+同83220ed／83a29a／兩fixture／配方／非空基準／觀察器97fb及240筆上限，新自有私人視窗，只增加同源QA CSS `39216281636a1e4c142fbf903d484f4b541085c94152be70c758e3ae4db85ab3`：把唯一原`#export`元素固定左上、與兩來源不相交；沒有clone、proxy或DOM.click。移除QA注入後的HTML逐byte等於原版，原產品JS／style、module／deferred flags及CSP保持；仍須明列為**UI配置診斷變體**，不是未修改介面的證明。
+
+匯出前trusted checkpoint與原生畫面確認來源全露出；唯一原生點按88ms後，指定5,005ms（實際5,009ms）沒有wheel／shortcut／AX／snapshot／其他輸入。export至buffer.stop間零scroll；唯一後續scroll在保存QA收據時。110rows／0drop、exposure0drop、20筆正式rAF兩來源rect全1，hidden=false／focused=true／context running。reference停0.620573667秒，音畫差36.736→73.426→110.760ms，仍100ms首錯、0重試；沒有VS Blob／下載／雙put。
+
+三筆metadata complete、revision3→4及全部原資料／兩來源URL／hash保持，recorder inactive／tracks ended，硬體與頁面錯誤0。自有視窗關閉、主機exit0、匹配nonce不存在，原日常視窗保留。14項封存（含2fixture）經協調者全部重算相符，manifest SHA `282afdf9a768657028265558bafbb6589e0dda66a441424b38ec0a7cdf5b8e97`，summary SHA `60504edcef4e22e5bffcd5bdfaa02fe07da5fe39c6c859a06c44e889258d650a`。原250ms checker前提拒絕保留、100ms局部保全另記；不宣稱完整品質或私人保存通過。這個案例不需要點按後捲動也能失敗，停止以此UI配置作修正候選，未據此修改Recorder／PCM或放寬守門。
+
+### 私人視窗原公開雙片預覽：完成但不等於匯出
+
+白話：相同私人視窗條件下，先只播放兩支影片，這次能走到片尾；因此接著檢查播放與匯出不同的環節，不能把預覽完成當成比較影片已做好。
+
+同83220ed／83a29a／fixture／配方／非空資料與觀察器97fb，新自有私人視窗；同源QA CSS `6832c2275737b1937f486f63820fbfef0c4595278558eca598b406488ac132ea` 固定唯一原`#play`，沒有proxy／clone或改產品。原生click一次88ms，0重試；指定5,005ms、實際5,012ms無AX／wheel／shortcut／其他輸入。匯出點按數0，原產品診斷精確為 **elapsedMs3,087／observedMaxDriftMs74／maxRenderGapMs28**，status「預覽結束」。完整資料與非空標記、四個retained及兩原片URL／hash保持，revision3→4、三筆metadata-only complete，沒有VS／media keys／雙put／下載，recorders／tracks空，硬體與頁面錯誤0；自有視窗、主機exit0及匹配nonce清理完成。
+
+97fb只對export armed、只由BufferSource設定clock.context，原click清單也不包含play；本輪僅2筆exposure／0drop，沒有formal-clock或DOM play isTrusted收據是原觀察範圍，不補造相位、逐格或全程曝光。原生操作回執及產品診斷保存，前後畫面來源可見；唯一scroll在首結果後QA快照，沒有用前後畫面填補中間觀測。
+
+這是整組階段差異：preview仍用原recipe保存、prepareAudio／align、共同timeline、微rate修正與1秒stall，但沒有export暖機前進／回零／第二次play、PCM解碼／BufferSource／captureStream／Recorder；reference走原聲，額外預覽繪圖不同，export-only100ms／250ms守門亦未執行。完成字樣與74ms診斷只屬這次preview，不證明VS或完整聲畫品質通過；尚不能唯一歸PCM、Recorder或靜音。
+
+13項封存含2fixture經協調者全部重算相符；manifest SHA `e8f1a41df6cbb23b4ce5f01f5b716aff50cfb8b7b16c9519afdf549dce10b96c`，summary SHA `6ff6cf0df65a54a057f428702758279868639d0e99a27616946b23246244bc3f`，原產品diagnostics SHA `e894410083e885bad1e104739cb8bef3d50ccebc73dfd4db3e79ca810c91a95a`。raw留本機，先前匯出首錯不改標；本輪沒有產品修改。
+
+### 完整匯出只保留reference原聲：250ms先拒絕，尚未走到舊停滯點
+
+白話：只在測試副本保留示範片原聲，仍沒做出VS。這次練習片時間反覆接近零，先被另一項同步檢查停止；不是原問題已修好。
+
+同固定原export的私人前提、83220ed基底／83a29a原建置標記、fixture／配方／97fb／QA CSS39216281，僅served `main.js` **原第880行** `reference.muted = true` 改為false。原檔SHA `728ef88512d7402ba5a1e014c70c11312e27742115c05807541ebac6b3e746f2` 與git832逐byte相同，變體 `14b7481b775d15d59ff0edd5a2276e195d6b516e799ca948ae4ab05460753ede` 經協調者逐行核對只有此行；未改repo／dist產品。PCM目的端／BufferSource、capture／真Recorder、暖機回零／第二play、微rate／100ms／250ms／片長仍原樣。這是受控runtime變體，83a29a只識別基底，不能稱served產品全bytes原樣。97fb未另觀察muted getter或人工實聽，聲音配置由精確served差異及實際路徑確認，不改系統音量。
+
+唯一原生click86ms後指定5,005ms（實際5,009ms）無輸入，0重試；91rows／0drop、15正式rAF來源全rect1，context running、正式區間無scroll。音畫相位36.959–39.391ms，但最後reference0.514963375秒／self0.000002003秒，原生微速率setter未忽略且self反覆近零。原250ms守門在500ms後先拒絕，尚未到較早私人約0.62秒停滯窗口，不能宣稱避免後續100ms。原250ms checker不改即可exit0僅證明該守門／保全適用，並非VS成功或靜音唯一因果。
+
+全部舊資料與兩來源URL／hash保持，revision3→4／三metadata complete，無VS Blob／下載／雙put，硬體0／頁錯0，recorder inactive／tracks ended。自有視窗關閉、主機exit0與nonce釋放。16項封存含2fixture全部bytes／SHA經協調者重算相符，manifest SHA `955af0e18eb46176965db4fed6e81f27a1da43c6e9002049a05d2e717907a23f`，summary SHA `0baf8eca2a4c4fcf1f2f6fcdd9900d40adfc7fcc2915b33eb629b5434eb32068`。沒有正式取消靜音的產品修正；可聽行為變化也需另評估。
+
+### 原聲再搭配既有原速控制：仍250ms，不能稱所有setter都被阻止
+
+白話：再把已做過的原速控制加在這個測試副本，仍沒做出VS。這次練習片先正常前進、之後停住；不把兩個測試變化合在一起就當成修正。
+
+同上一案served main14b748／97fb／固定原export CSS39216281與其他條件，只啟用97fb既有`hold-self-rate-one`配置。首匯出前實際config與native baseline均核對生效，observer bytes未改。這個旗標僅於BufferSource開始後忽略self的非1速率寫入，**仍轉交value===1**；不是原產品或全部setter停止的證明，也不把不同觀測版本／操作條件的舊案硬算成嚴格因果矩陣。
+
+唯一首匯出0重試、原生click89ms後指定5,005ms（實際5,009ms）無任何輸入；144rows／0drop、27正式rAF兩來源全rect1、正式區間無scroll。81768 buffer.start→82770 stop間27筆rate before/after逐pair核對：26非1請求ignored，1筆1→1於81820真正轉交native setter，getter after均1。初始rate設定及stop後restore另列，不混進formal統計。
+
+self最初與reference約差0.24ms，後停0.693125333秒；reference繼續至0.948687333秒，差255.562ms觸發原250ms，PCM／reference相位42.407–44.793ms。原生self正式首rVFC在buffer.start約819ms後才回mediaTime0.033333，後至0.233333；這與`currentTime`估計不同，不能把時鐘前進當成像素已正確播放，也沒有完整成品證據。沒有VS Blob／下載／雙put，舊資料及原片URL／hash保持、revision3→4／三metadata complete，硬體0／頁錯0，recorder inactive／tracks ended；自有視窗、主機exit0及匹配nonce清理完成。
+
+18項封存含2fixture全部bytes／SHA經協調者重算相符，manifest SHA `683ea3e6c727f3128f1b4dfdc8b213e08e4b699c0dc513679d25871c1e742e28`，summary SHA `54cf370b9ca947f2266b15516be6e2d2dfa669082b70cf20f12fc4248e525d86`，逐筆formal-rate ledger獨立保留。原250ms checker不改exit0仍僅屬guard／保全；沒有解除100ms或成功匯出的結論，這個組合也不是可採用產品修正。接手須先重新核對warmup→seek回起點→正式play的呈現邊界，勿繼續疊未證實的靜音／速率補丁；原100ms／250ms與首尾／取消保全契約維持。
+
+本輪證據交接分支從同步main `8ef7f009644d2e86460805aedbf9f9bd7bdaf17a` 建立，僅修改本文件與既有結案盤點，沒有產品／測試修改。正常 `bun run check` **760 pass／0 fail／4,384 expects**，公開掃描、型別、lint／build通過，原19項lint info及靜態 `07cdd7b66289af39` 保持；提交仍走正常hook，遠端結果另綁交付head。本段是文件檢查，不把上述受控失敗或一般案額外wrapper失敗改標成功。
