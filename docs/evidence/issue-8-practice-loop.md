@@ -1,6 +1,43 @@
 <!-- 檔案用途：記錄 #8 練習循環實測與未完成 gate。所在層：版本驗收證據。主要關聯：practice.js、practice-background.js、TECHNICAL.md。 -->
 # #8 練習循環驗證
 
+## 2026-11-03：現行 main 的 120 循環與真正背景 gate
+
+白話說：把一小段影片反覆練習120次，停止時播放和工作都確實收起；切到別的分頁也會停，回來後要自己按才重新開始。這輪只補現在版本的證據，沒有修改產品或護欄。
+
+固定乾淨來源 `26d3f25152335c73e037dd0d75034497fa2e658a`／靜態 `83a29a61027b205d`，Bun1.4.4、macOS、Chrome156.0.8078.76／Playwright-core1.64.1。只用原明列合成素材；`practice` 經既有 App runner 的 fake-device／合成Y4M安全入口，沒有實體相機／麥克風。來源與既有測試SHA、所有輸入指紋先凍結，舊來源結果仍保留。
+
+### 循環與工作生命週期
+
+既有 `tests/app-coverage/run-app.ts practice` 選定一案通過，53,295ms、頁面未處理例外0；不是完整 App 矩陣。保留練習介面沿原 runner 的 `retained-full-interface`，不是預設精簡比較首頁。六速度0.5／0.75／1／1.25／1.5／2皆有原生呈現影格前進，`preservesPitch=true`，未驗聽感。
+
+原片中1–1.25秒／片尾64.75–65秒，各以0.5／1／2倍各20次，共120次。原媒體與原生影格門檻均為≤150ms，不把 setter返回值當顯示影格：
+
+| 位置 | 速度 | 回捲次數 | 最大媒體越界ms | 最大顯示影格越界ms |
+| --- | --- | --- | --- | --- |
+| 片中 | 0.5 | 20 | 12.518 | 16.667 |
+| 片中 | 1 | 20 | 27.540 | 16.667 |
+| 片中 | 2 | 20 | 30.759 | 83.333 |
+| 片尾 | 0.5／1／2 | 各20 | 各0 | 各0 |
+
+各組停止後paused=true／pending=0、速度保留；同時最多1個產品callback、重疊seek=0。啟動中取消、拒播、手動seek、鏡像像素／控制不翻轉、合成visibility、假相機倒數取消與速度恢復、換片及真正pagehide清理均通過。鏡像未翻差160095／左右對照差0；pagehide後pending=0／paused=true。合成visibility只驗handler，不填下列真正背景gate。
+
+### 真正分頁背景
+
+沿原 `scripts/launch-native-browser.ts`（不帶capture）及其生成runner，獨立新Chrome profile／僅loopback、既有default context的`noDefaults: true`；原 `practice-background.js` SHA-256 `b27df87314ddff49adc3b08c1d4d0c92b2be570799da1d527ddae81d88a48598`，launcher SHA `97a3250c5dd1ffe6425c98f97bd0f30e5920a42ce7787928802c1d11a8a8c67f`，均未修改。控制端用現有Playwright-core執行原生成函式，沒有安裝新CLI或更動日常瀏覽器設定。
+
+測試主機凍結原dist，只有HTML移除`data-comparison-only`以恢復既有保留練習介面，原HTML／保留HTML指紋分開記；產品JS、SW與原規格不變，硬體權限禁止。這是保留練習介面的生命週期驗證，不宣稱預設精簡UI有顯示這些練習入口。
+
+原嚴格函式首輪通過：真正`hidden=true→false`事件均`isTrusted=true`；背景停止位置1.423882秒、pending=0；回前景500ms仍暫停且原生playing次數不增。明確再按開始後原生trusted playing在A=1.000秒，沿原A後150ms上界。全程最多1個產品callback，最終pending=0；沒有覆寫hidden、合成事件或替產品先按暫停。
+
+App runner與原生案皆正常exit0。原生控制端、stock launcher、自有Chrome及主機已確認退出；兩輪各自匹配nonce才釋鎖，未關使用者日常視窗。11項非媒體收據／來源核對檔manifest SHA-256 `bfbd2169a726d91ad7a298fab6fade32ef20911b53c14d975c192062ae7a71c7`，原始素材、profile與本機端點留ignored output，不公開媒體或附件。
+
+### 範圍與待審
+
+正常 `bun run check` 通過：754 pass／0 fail／4,141 expects，公開掃描、型別、原lint與build通過，19項既有lint info保留；產品建置仍為`83a29a61027b205d`。正常hooks及遠端CI另綁交付head。
+
+本輪未重跑舊版負控制、缺API的RAF分支、完整App矩陣、Safari、實體相機、鎖屏／來電、人工音高／聽感或完整G1–G7，也不當成#9硬體驗收。未取得新的指定Claude Code／使用者終審，#8保持開啟；後續審查與合併另記，沒有發布。
+
 ## 2026-10-28 解鎖後：main 桌面背景通過
 
 使用者手動解鎖後，main `e9e154a6931f9efeb0e349096515f834774fe868`、靜態 `2f1ec6b3335cd790` 在 macOS 27.0.1／Chrome 156.0.8078.49／Bun 1.4.4 通過原始嚴格函式。其後補強觀察與新啟動入口；QA 提交以此 PR head 為準，`web/` bytes 未變，不重用其他候選的結果。

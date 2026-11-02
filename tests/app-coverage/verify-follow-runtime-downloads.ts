@@ -20,8 +20,18 @@ assert.equal(run.runnerSha256, sha(readFileSync(resolve(root, 'tests/app-coverag
 assert.deepEqual(Object.keys(run.sourceHashes).sort(), readdirSync(resolve(root, 'web')).filter(name => name.endsWith('.js')).map(name => 'web/' + name).sort())
 for (const [file, hash] of Object.entries(run.sourceHashes)) assert.equal(sha(readFileSync(resolve(root, file))), hash)
 const scenario = run.scenarios.find(item => item.name === 'follow-runtime'); assert.equal(scenario.status, 'passed')
-const files = scenario.result.downloads; assert.deepEqual(files.map(item => item.mode).sort(), ['simd', 'unsupported', 'wasm-failure'])
+const original = scenario.result.downloads; assert.deepEqual(original.map(item => item.mode).sort(), ['simd', 'unsupported', 'wasm-failure'])
+// 原三模式契約不改；新故障案的七份檔案另驗role，不能偽標成原成功模式混過來源核對。
+const transfer = scenario.result.transferDownloads
+assert.deepEqual(transfer.map(item => item.role).sort(), ['after-reference', 'after-self', 'after-vs', 'before-reference', 'before-self', 'before-vs', 'retry-reference'])
+assert.equal(new Set(transfer.map(item => item.role)).size, 7)
+const files = [...original, ...transfer]
+// 先限制本輪media路徑再讀bytes，外來收據不能任意指定本機檔。
 for (const file of files) assert(realpathSync(file.path).startsWith(resolve(path, '..', 'media') + '/'))
+for (const file of transfer) {
+  assert(Number.isSafeInteger(file.bytes) && file.bytes > 0 && /^[a-f0-9]{64}$/.test(file.sha256))
+  const bytes = readFileSync(file.path); assert.equal(bytes.length, file.bytes); assert.equal(sha(bytes), file.sha256)
+}
 const lock = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 writeFileSync(lock, JSON.stringify({ owner: 'follow-runtime-playback', nonce, pid: process.pid }), { flag: 'wx' })
 const evidence: any = { sourceHead: head, sourceReceiptSha256: sha(raw), helperSha256: sha(readFileSync(import.meta.path)), scope: 'Synthetic runtime downloads only; not device, Safari, human hearing or arbitrary dance acceptance.', results: [], status: 'running' }
@@ -38,7 +48,7 @@ try {
     const playback = await verify(page, pathToFileURL(file.path).href); assert(playback.audioBytes > 0)
     const decode = Bun.spawnSync(['ffmpeg', '-v', 'error', '-i', file.path, '-map', '0', '-enc_time_base', '1:90000', '-fps_mode', 'passthrough', '-f', 'null', '-'])
     assert.equal(decode.exitCode, 0); assert.equal(decode.stderr.toString(), ''); assert.equal(sha(readFileSync(file.path)), hash)
-    evidence.results.push({ mode: file.mode, sha256: hash, playback, audioTracks: 1, fullDecode: true })
+    evidence.results.push({ ...(file.role ? { role: file.role } : { mode: file.mode }), sha256: hash, playback, audioTracks: 1, fullDecode: true })
   }
 } catch (error) { failure = error; evidence.failure = String(error) }
 finally {
