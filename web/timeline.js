@@ -45,3 +45,12 @@ export function contain(width, height, boxWidth, boxHeight) {
   const scale = Math.min(boxWidth / width, boxHeight / height);
   return { width: width * scale, height: height * scale, x: (boxWidth - width * scale) / 2, y: (boxHeight - height * scale) / 2 };
 }
+
+/** @param {number} lastCaptureAt @param {number} now */
+export function advanceCaptureBudget(lastCaptureAt, now) {
+  const frameMs = 1000 / 30;
+  // 容差內接受也要消耗至少一格，避免兩側影格通知重用同一拍點。
+  const next = Math.max(lastCaptureAt + frameMs, now - ((now - lastCaptureAt) % frameMs));
+  // 長 gap 的取餘數也可能落在前一格；沿原容差消耗最後到期的格，保持相位且不補畫。
+  return now - next >= frameMs - 1 ? next + frameMs : next;
+}

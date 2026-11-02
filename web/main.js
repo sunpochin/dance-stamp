@@ -1,5 +1,5 @@
 /* 檔案用途：串起 M0 選片、相機、校正與單一 VS 成檔。所在層：獨立 Web 原型。主要關聯：timeline.js、recorder.js、MEDIA_PROBE.md。 */
-import { comparison, positions, contain, validateMarkerRange, captureDuration, MAX_COMPARISON_MS } from './timeline.js';
+import { comparison, positions, contain, validateMarkerRange, captureDuration, MAX_COMPARISON_MS, advanceCaptureBudget } from './timeline.js';
 import { event, normalizedVideo, mediaAction, presentedFrame, seek, load, record, extension, cameraError } from './recorder.js';
 import { validateBackup, parseBackup, planBackupImport, createShare, mediaInventory, videoLabels, planDeletion, moveStatuses, searchLibrary, practiceHistory } from './library.js';
 import { startOffline } from './offline.js';
@@ -463,7 +463,7 @@ async function timeline(value, signal, exporting, captureFrame = () => {}, start
       if (now - lastCaptureAt >= 1000 / 30 - 1) {
         // 每輪只畫選定的輸出佈局，兩種影片沿用同一時鐘與編碼護欄。
         render(); captureFrame();
-        lastCaptureAt = now - ((now - lastCaptureAt) % (1000 / 30));
+        lastCaptureAt = advanceCaptureBudget(lastCaptureAt, now);
       }
     };
     const watchVideo = video => {

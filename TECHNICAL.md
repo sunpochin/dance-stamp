@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+#11 的 [30fps 繪圖預算修正](docs/evidence/issue-11-paint-budget.md)像「一個拍點用過就不能再用」：沿用原 1ms 容差接受畫圖後，至少消耗一格；長 gap 取餘數落在前一格時，再消耗已到期的一格而不補畫，保留相位。只修共用 paint 的預算更新，不改音訊或同步門檻；乾淨 f8621e8 的單次原生 Safari 0.75×／60秒真正下載，原量尺最大聲畫差78ms、兩側差44.444ms、停格112ms；關站後自然 ended／error0／dropped0。這些結果另綁受測提交，不能據此宣稱原130ms已修復。
+
 #11診斷工具的[生命週期修復與可重建入口](docs/evidence/issue-11-capture-lifecycle.md)把第一個錯誤與逐項收尾錯誤分開；先供應首格再等play，保留原2／5／2秒期限。QA helper／合成頁／本機nonce主機／獨立原檔分析器隨Git提供，不進產品包；工具回歸與原生短案分開。排除吞例外或延長期限，原130ms與原Worker gate不改。
 
 #11直接Canvas串流的原生captureTime兩圖樣能力觀察見[本輪證據](docs/evidence/issue-11-native-capturetime.md)：Safari27.2可見兩個遞增原生值；唯一短成檔嘗試在診斷工具收尾失敗，逐格metadata／PTS配對未驗證。沒有改產品、原Worker0／0 gate或130ms失敗；不從非零欄位推定擷取／排隊延遲或音訊唯一根因。
