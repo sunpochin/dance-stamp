@@ -419,3 +419,37 @@ self最初與reference約差0.24ms，後停0.693125333秒；reference繼續至0.
 18項封存含2fixture全部bytes／SHA經協調者重算相符，manifest SHA `683ea3e6c727f3128f1b4dfdc8b213e08e4b699c0dc513679d25871c1e742e28`，summary SHA `54cf370b9ca947f2266b15516be6e2d2dfa669082b70cf20f12fc4248e525d86`，逐筆formal-rate ledger獨立保留。原250ms checker不改exit0仍僅屬guard／保全；沒有解除100ms或成功匯出的結論，這個組合也不是可採用產品修正。接手須先重新核對warmup→seek回起點→正式play的呈現邊界，勿繼續疊未證實的靜音／速率補丁；原100ms／250ms與首尾／取消保全契約維持。
 
 本輪證據交接分支從同步main `8ef7f009644d2e86460805aedbf9f9bd7bdaf17a` 建立，僅修改本文件與既有結案盤點，沒有產品／測試修改。正常 `bun run check` **760 pass／0 fail／4,384 expects**，公開掃描、型別、lint／build通過，原19項lint info及靜態 `07cdd7b66289af39` 保持；提交仍走正常hook，遠端結果另綁交付head。本段是文件檢查，不把上述受控失敗或一般案額外wrapper失敗改標成功。
+
+## 2026-11-03 #229 準備階段與擷取方式的後續對照
+
+白話：多等一張暖機畫面、改用自動擷取，都沒有做出比較影片；只把預覽靜音，則仍能播到片尾。這些結果幫助縮小排查範圍，還沒有找到可放進產品的修正。原片與筆記保留，失敗不改寫成通過。
+
+以下各用新自有私人Safari視窗、原83220ed／83a29a基底、同兩份三秒合成素材、A0/B3/C0／1×／offset0／並排無鏡像及非空資料基準。每案只做第一次操作，0重試；原日常視窗及Safari設定不變。served變體與QA樣式只屬本機診斷，沒有改repo產品／測試。原100ms／250ms／片長守門均保留；各列是不同流程，不能把較早250ms拒絕當成已避開後段100ms問題。
+
+| 有界控制 | 實際結果與適用限制 |
+| --- | --- |
+| 每側暖機等兩個嚴格遞增的真rVFC時間 | 兩側確實由0.033333→0.066667秒，沿原每側單次15秒期限，回零及正式播放保持；112rows／0drop、20正式rAF兩側rect全1、無正式scroll。reference仍停0.632225875秒，音畫差35.882→72.441→109.774ms，原100ms拒絕。增加暖機影格不足以修好，沒有繼續疊等待影格數。 |
+| 原公開preview只增加reference.muted=true | 原生一次播放後5,005ms無輸入，原產品diagnostics為elapsed3,062ms／最大雙側差57ms／最大render gap36ms，狀態預覽結束。原生畫面顯示兩側可取消靜音；單純靜音在本次preview不足以重現停滯。沒有PCM／擷取／Recorder／VS，原observer只對export armed，不能補造formal-clock／全程曝光或當作輸出驗收。 |
+| 原manual capture改為原生captureStream(30)，同時不呼叫手動requestFrame | 保留原回零／首張前進暖機、靜音／微速率、PCM／真Recorder及繪圖預算；91rows／0drop、15正式rAF兩側rect全1、無正式scroll。reference0.519136875／self0.000002003秒，原250ms先拒絕，所觀測PCM／reference相位32.018–33.983ms。沒有Blob或成品，不能證明30fps或舊100ms已避免。 |
+
+第三案served main僅把timeline的captureFrame參數改為undefined（沿既有空callback），以及主captureStream(0)改成30，避免同時自動與手動擷取；原能力檢查及fallback原樣。由原97fb衍生的observer只在結果後既有snapshot tracks map增加唯讀`typeof t.requestFrame`，正式callback／arm／240筆上限不改。baseline tracks空；結果後影片軌ended且requestFrameType=function，音軌ended／undefined；沒有假造方法缺失或聲稱fallback觸發，30只是要求值。此能力讀取不是編碼影格證據。
+
+| 控制 | served main SHA-256 | manifest SHA-256（entry數） | summary SHA-256 |
+| --- | --- | --- | --- |
+| 兩張前進暖機 | `6366f2920fba6ad4f44257b0841b1892d3007ce640aeeb5016ac9dec9ac6fa5e` | `5c572937e36478fd9a37567d59d97bac15c8960b6c4c2af17e26344d6d6a0688`（21） | `6859d8ecec8ed8af1e22f874f1e8310237349e0bd78119ee26b62048ca5d09db` |
+| 靜音preview | `8398f3d20a3193d5f820c982d63fd319fe795fa19c4c46644d6a5863bd0da301` | `81688513505d9d4738c60c5a587e0edd274b678d784acb9000998b22dd19f3f3`（20） | `35ebced8456dd0744f3f1feac2e4e366a719defb0bfbafeec075d5cb77c4eb17` |
+| auto30 | `402b02731103740714469cd052a6655ac49ec7504d226cd4bdae0d565442845c` | `67a8b1ffc5a394c088c5a77435d168d3d8cdf827500c51071b10dc71713f22c2`（23） | `7847fc1db5da7f3331d68bde44b9884e5fa2d9e04584b92c8c17d9d72accdbe2` |
+
+原main SHA仍728ef885；前兩案observer97fb，auto30衍生observer SHA `afa491734bfeb3fb0a752fdc84a4d88a24612f073bfb5772a92a9d61d43b787a`。匯出沿固定原按鈕CSS39216281，preview沿CSS6832c227；完整原hash及來源限制見上一節。64項manifest entry（含各案兩素材）由協調者全部重算bytes／SHA相符。靜音preview在首結果後、auto30在匯出前的QA收據另存曾有工具app-change警告，以重新讀取同自有視窗後的新索引完成；沒有重播／重匯出，測量區間未插入操作。auto30 preflight檢查曾誤替換fallback再反向比對，當時未開原生case／未寫變體；修正QA檢查後實際GET核對才執行，準備錯誤原封保留。
+
+三案舊資料／筆記／配方、retained及兩原片URL／完整hash保持，revision3→4、三筆metadata-only原生complete；沒有VS Blob／下載／media雙put。輸出案recorder inactive／tracks ended，preview資源清單空；硬體呼叫與頁面錯誤0。自有視窗關閉、主機exit0及匹配nonce釋放均完成，raw／素材／本機識別只留本機。兩張暖機案原250ms checker因前提不同仍exit1、100ms局部保全另列；auto30原250ms checker不改exit0仍只證明該guard／保全，preview不套匯出checker。沒有完整G1–G7、私人VS保存／救援或發布結論，#229仍開啟。
+
+### 單次啟播變體：準備完成，尚未執行匯出
+
+白話：另一個測試副本準備比較「不先播放再倒回，而是正式播放一次」，但畫面操作的前提變得不確定，因此沒有按匯出；這不是新的產品成功或失敗。
+
+served main `1ec122320d014b31443ffda270179618e9b5981680ffe926b66ac40cbe03c0e0` 僅替換原timeline443–447：preview原第一組play保持，export略過前進暖機／第一組play／內層回零；原outer align、abort→startOutput→abort→唯一正式bothplay與其他產品碼逐byte不變。這明確移除了export-ready呈現屏障及該處15秒等待，首張Canvas可能尚未準備，不能稱等價取消／初格契約或可採用修正。既有export-ready暖機Stop／兩次拒播及local-audio-clock第2play故障的前置也不同，不沿用舊綠燈。preflight manifest `f9f7e2d6a86caa9329f74573ccb1cd5017a9eac79831a88e97d0ce27ab70dd0f` 九項含兩素材經root全部重算，第二路只讀核對唯一差異，原observer97fb／CSS392及無hold配置保持。
+
+本案實際GET已核對，非空metadata基準及兩素材載入、匯出前收據保存完成，**0 export／0 play**；trusted可見checkpoint尚未完成，沒有完整曝光前提。前置多次出現工具app-change警告，並觀察到原測試視窗新增來源不明分頁，不能宣稱全程獨占視窗；未切換／讀取／關閉未知分頁。協調者已詢問是否有其他Safari操作，沒有把等待回覆當作原生測試。暫停新畫面輸入，僅以匹配自有nonce正常停止主機（POST200／exit0、程序退出／鎖不存在），保留分頁，待確認操作前提後才決定如何續驗；不從此案推論任何同步／成品結果，也沒有重建case挑成功。最終19項manifest `6a9378037d668fc5129005ef3e5e2cf5fd649589b14113080980114bde155d9f` 由root全部重算相符，summary SHA `fbb1ef31ee3bdc5d37c6757659e554a097d54798c15ac9c2f7fdce72a68da0cd`；本機check只在沒有播放／匯出的前置期執行，未與原生計時媒體重疊。
+
+本文件分支從同步main `ff83c11c2f2a835b31afb4dd80a71353e54b6d93` 建立，沒有產品／測試／格式／CSP變更。首次本機check因子命令取得Bun1.4.2而在版本前置停止；固定PATH後的受限環境又有6個loopback listen失敗（754 pass／6 fail），沒有改測試。在固定Bun1.4.4、可建立本機連線的環境重跑原完整check，760 pass／0 fail／4,384 expects，公開掃描、型別、lint／build通過，原19項info與靜態07cdd7b66289af39保持。正常hook及遠端CI另綁最後提交；上述環境失敗及原生前置停止不改記為產品已修好。
