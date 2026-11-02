@@ -27,6 +27,8 @@ export const packageInputs = [
   'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
   // 保存尾段指南新增直接證據連結，裸包離線閱讀也須能核對範圍與限制。
   'docs/evidence/issue-11-vs-save-tail.md',
+  // 五分鐘指南已連到本票匿名證據；離線也須可讀，不收原始收據、影片或 profiles。
+  'docs/evidence/issue-195-slow-five-minute.md',
   // 四線整合指南實際連到這兩份匿名證據；只補離線依賴，不把測試 raw 或工具收進包。
   'docs/evidence/issue-12-import-planning-stop.md', 'docs/evidence/issue-14-storage-keyboard.md',
   'docs/evidence/issue-9-capture-recovery.md', 'docs/evidence/issue-9-comparison-integration.md',
@@ -37,6 +39,8 @@ export const packageInputs = [
   'docs/evidence/issue-3-current-protection-audit.md', 'docs/evidence/issue-12-native-capacity-ui.md',
   // 功能指南的相對證據連結需隨包提供，離線閱讀才不會遺漏支援限制。
   'docs/evidence/issue-17-moves.md', 'docs/evidence/issue-18-sharing.md', 'docs/evidence/issue-19-manual-beats.md',
+  // 發行指南連到本輪匿名託管證據，離線包也須能開啟；原始回應仍留本機。
+  'docs/evidence/issue-15-hosted-preview.md',
   // 授權隨獨立下載包提供，不依賴開發者的其他 checkout。
   'vendor/agent-work-methods/LICENSE', 'vendor/agent-work-methods/NOTICE.md', 'docs/ai/work-methods-lock.json',
   'vendor/harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'vendor/mediapipe/LICENSE', 'docs/ai/harness-import.json',

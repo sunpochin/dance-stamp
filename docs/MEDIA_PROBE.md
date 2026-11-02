@@ -5,11 +5,15 @@
 
 白話驗法：準備兩支超過五分鐘的合成影片，確認太長會提示、縮短後可用、取消不丟資料，最後真的下載完整五分鐘 VS。原相機 60 秒矩陣不變；這個案例只用本機測片，不呼叫相機／麥克風。
 
-`tests/browser/long-comparison.js` 沿用本文件的隔離 session／`run-code --filename` 入口。先取得共用媒體鎖，在 ignored `output/long-comparison/` 準備 `reference.mp4`、`self.mp4`，兩者均為 320 秒、30fps、320×180 的合成片，分別附 660Hz／880Hz AAC 音軌；也可將獨立素材目錄作第二參數傳入。腳本驗超過 300 秒選片保全、三速度完整 300 秒配方、取消保全、原速 300 秒真正匯出／下載與備份往返，等待上限 330 秒只容納實時合成，不改產品護欄。下載檔與資料庫 SHA256 須相同，再完整解碼、檢查音訊並從網站外重播。
+`tests/browser/long-comparison.js` 沿用本文件的隔離 session／`run-code --filename` 入口。先取得共用媒體鎖，在 ignored `output/long-comparison/` 準備 `reference.mp4`、`self.mp4`，兩者均為 320 秒、30fps、320×180 的合成片，分別附 660Hz／880Hz AAC 音軌；也可將獨立素材目錄作第二參數傳入。第三參數 `exportRate` 可選 `0.5`／`0.75`／`1`，預設仍為 `1`；每次只實際輸出一種速度，慢速分別取來源 150／225 秒，完整共同輸出均為 300 秒。腳本驗超過 300 秒選片保全、三速度完整 300 秒配方、取消保全、所選速度 300 秒真正匯出／下載與備份往返，等待上限 330 秒只容納實時合成，不改產品護欄。下載檔與資料庫 SHA256 須相同，再完整解碼、檢查音訊並從網站外重播。
 
 此案例的配方／片長與原生產品護欄不代替 G2–G4 的獨立逐格來源同步分析；原生 Safari、手機、人工聽感與五分鐘穩定性須另記。未取得鎖時不執行媒體、不搶刪鎖，明記未驗證。
 
+慢速的兩片像不同速度的碼表：老師走 150／225 秒時，自己的原片走 300 秒。若兩支測片各自編自己的原始影格碼，須依 `positions` 的老師 `A+r×t`／自己 `t+δ` 轉回共同時間後比較；既有短片量尺使用的自己片已預先帶老師時間碼，不能直接套在這兩支原始碼表片。提示音事件數也按老師來源秒數推導；完整覆蓋、逐事件聲畫與原 100ms／250ms／24fps 門檻仍逐項檢查。
+
 2026-11-01 續驗：固定 `850b3d2`／`0c899fa5c65d6e51` 的原速五分鐘首輪已完成實際匯出、下載、完整解碼與關站後離線自然重播；像把成品拿離工作台，從檔案重新打開並播到結尾。原版長片案例亦通過三速度設定、超界／取消保全及備份往返。下載 11,329,909 bytes／299.965792 秒，與 IndexedDB hash 相同；另以 14 位來源影格碼及閃光／音量事件核對原同步與凍結門檻，正控制通過、音訊延後 250ms 的負控制拒絕，唯一產品檔最大聲畫差 94.733ms。技術來源、量尺修正、重播 dropped 計數及未驗項見[來源庫五分鐘續驗，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/comparison-five-minutes/TECHNICAL.md#2026-11-01五分鐘實際成檔下載及離站重播續驗)。慢速五分鐘真正成檔、十輪、原生 Safari／手機及真人聽感仍未驗證。
+
+2026-11-02 慢速續驗：固定 `7dede9f`／`80faff7573fa1d79`，0.5×／0.75× 各完成單輪真正五分鐘輸出、保存與下載 hash 核對、原門檻完整品質檢查及關站後離線自然播到 ended。原生播放各掉 1 格照實保留；量尺前置失敗、精確環境、工具差異與剩餘驗收見 [#195 慢速證據](evidence/issue-195-slow-five-minute.md)。舊原速與其 13 dropped 不移記本輪。
 
 ## 新 VS 成檔後的保存尾段
 
@@ -475,3 +479,41 @@ matrix 為三速度 × 15／30／60 秒；stability 為同 session／同資料�
 最大聲畫差88.333ms、最大配方差48.911ms、新增漂移絕對值42.511ms、最長重複畫面70.966ms、最低平均29.943fps、最長完整匯出上界64,003ms。48份實際下載全片解碼並保留bytes／SHA256；逐例已保存媒體可讀、missing=0。這輪下載指紋沒有與每份IndexedDB Blob做全bytes比對；相關儲存證據維持原受測版本歸屬。
 
 依本文件既有隔離合成環境，以原 `run-media-feasibility.py` 加 `--analyze`，依序執行六模式、label=candidate-13976bb；重跑請用新label保留原證據。十輪同context／資料庫、逐輪導航，常駐無重載／實體資源仍待驗。完整版本、恢復負向控制與限制見[候選證據](evidence/issue-3-bounded-audio.md)。自有瀏覽器／主機／nonce鎖已清理，未合併或發布，Safari原生與人工／裝置gates保持開啟。
+
+
+## 普通 Safari 成檔保存 Stop
+
+[7dede9f 原生證據](evidence/issue-13-unconfirmed-storage.md#7dede9f-普通-safari-成檔保存-stop)只驗普通 Safari 的三秒情境。使用專用 managed worktree、固定 Bun 1.4.4、全新 origin 與原子共用鎖；保留原日常 Safari 視窗，不開 SafariDriver 或改設定。原產品 HTML 只於 main.js 前載入 [旁聽程式，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-save-stop/tests/browser/safari-save-stop-observer.js)，其他資源 bytes／標頭與產品相同，Permissions-Policy 額外禁止硬體擷取。旁聽不替換 put、不額外訂閱影格或改產品時鐘。
+
+本機 QA 主機須只綁 loopback、服務正常建置資源及 `/qa/config`（nonce、sourceHead）、同源 `POST /qa/blob/<完整SHA256>.bin` 與 `POST /qa/receipt/<三位編號>`；binary 核對完整 SHA／bytes，收據核對自有 nonce、只准新檔、不覆寫歷史。原主機 bytes／SHA、原 HTML／注入 HTML 與 fixture 指紋留本機收據。不能把這些 QA 上傳路由加進產品或公開主機。
+
+先以可見產品選片及匯出建立真正舊 VS。筆記／副本工具目前隱藏，非空筆記及雙片持久基準只能在全新 origin 明示 QA 設定階段以原 schema／產品儲存 API 建立並核對完整 bytes；不得移除 data-deferred、改 CSS 或 script-click 隱藏產品工具。預置完成後重載，從正常可見入口選 3 秒雙片，保留非空舊筆記／3 份持久媒體，保存基準收據。
+
+按「QA 暫留下一筆成檔雙寫」再按可見輸出。等 metadata／media 兩個 trusted success、recorder inactive、可下載且無 complete／abort 後，保存 pending 收據、Safari 原生 SaveAs，從可見產品 Stop 送一次 trusted 操作，再保存 pending 收據／另存；只有「QA 解除自己的 get 暫留」後的真正結束事件可判定結果。快照讀取由 get success 回呼排入；pending 交易可能 inactive，不能從另一按鈕事件直接 getAll，也不能為讀 chunks 更改產品交易 scope。前／後／complete 收據編號依次 001–004；收妥後移入本輪 `run/`，同 origin reload 的完整收據另存 001。真產品護欄失敗即保留首次失敗停止，不盲重試。
+
+本機只讀核對，不啟動瀏覽器、不取得媒體鎖或外傳資料：
+
+```sh
+python3 scripts/check-safari-save-stop.py /absolute/path/to/local-receipts /absolute/path/to/genuine-old-vs.webm
+```
+
+核對器要求 metadata-only 準備／目標雙寫、一次 trusted Stop、真正 complete、完整舊欄位／媒體 SHA、三份實際 SaveAs 與 candidate bytes 相同、complete／reload 相同；輸入為本機合成資料，不公開 raw。UI 計時／JS drift 不取代聲畫量尺。
+
+最後關自己的產品視窗／主機，證明埠拒連及已知 PID 退出，再持自有鎖以專用 file 播放器自然到 ended。保留 error／dropped 原值、音訊樣本、全軌解碼與 hash；沒有音訊正值就明記原生出聲未驗，stderr 有警告就逐字保留，不能修檔或補 0 取得通過。nonce／PID／埠／自有視窗交叉收尾。普通軟體觀察不代替私人／實體離線／斷電／人耳／裝置或指定 review；不合併、發布或關票。
+
+
+## 離站音訊取樣對照（#13）
+
+白話：先確認量聲音的工具量得到合成聲，再把已下載的同一檔交給獨立播放器；播放結束不代表量到了聲音。原失敗必須保留。工具原始碼 [file-audio-player.html，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-file-audio/tests/browser/file-audio-player.html)與[只讀核對器，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-file-audio/scripts/check-file-audio.py)只屬 QA，不隨使用者包加入播放器。
+
+1. 在本聊天專用工作樹的新 ignored 輸出目錄，複製工具頁及既有合成 WebM 原下載（命名 `complete-new-vs.webm`，保持容器），先核對原收據／完整 bytes／SHA256；不得重輸出、重封裝或覆寫原收據。事前記錄 helper SHA、計畫及下載指紋。原子取共用媒體鎖，忙時等待原持有人自然釋放。
+2. 產品與本輪主機保持停止，另開普通 Safari 新視窗，以 `file:` 開工具頁，URL hash 附 `#bytes=實際位元組數&sha256=完整雜湊`。不改安全／隱私設定。CSP 禁止所有連線及外部資源；這不表示實體網路已斷開。
+3. 點合成 WAV 控制（48kHz PCM16 mono，0.5 秒 660Hz＋0.3 秒靜音），再點直接 file URL。最後用標準選檔交入同一下載；頁面核對完整 File bytes／SHA 後才允許獨立 Blob URL 播放。只需補選檔時，可加 `&selectedOnly=1` 跳過直接 file 案例，必須事前寫理由。
+4. 每項只播放一次，15 秒工具等待上限。每個 AudioContext 使用全新影片元素，保留逐樣本 context state/time、volume/muted、播放／解碼／quality 末態、原生事件、像素讀取診斷及頁面可見錯誤；沒有攔截 WebKit 內部 console。先保存末態，再斷開節點及 close。沒有以 ended、音軌存在或最後 closed 推定音訊通過。
+5. 從「另存完整收據」使用 Safari 原生另存，留在本輪 output；按下列核對器讀回。`receiptValid=true` 只表示收據符合觀察契約，`zero-unresolved` 仍是音訊未解。dropped 原值不作挑片／重播依據。關閉自己的窗口、核對已知自有程序與 nonce 才釋鎖；raw／媒體／profiles 本機獨立封存。
+
+```sh
+python3 scripts/check-file-audio.py /absolute/path/receipt.json /absolute/path/complete-new-vs.webm
+```
+
+本輪控制／原失敗／來源及限制見[原下載音訊對照](evidence/issue-13-unconfirmed-storage.md#原下載離站音訊對照2026-11-02)。原 `download-playback.js` 可補其他瀏覽器的產品外播放，但不能替 Safari analyser、真人聽感或實體離線補勾；不為診斷新增人耳才能完成軟體核對的門檻。
