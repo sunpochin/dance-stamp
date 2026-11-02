@@ -1,6 +1,7 @@
 /* 檔案用途：驗證五分鐘雙片配對、取消保全與真正下載。所在層：合成媒體驗收。主要關聯：timeline.js、RECORD_COMPARE.md、MEDIA_PROBE.md。 */
-async (page, directory = 'output/long-comparison') => {
+async (page, directory = 'output/long-comparison', exportRate = 1) => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
+  assert([0.5, 0.75, 1].includes(exportRate), '請指定 0.5、0.75 或 1 倍輸出');
   const origin = new URL(page.url()).origin;
   const idle = () => page.waitForFunction(() => !document.getElementById('controls').disabled, null, { timeout: 330000 });
   await page.addInitScript(() => {
@@ -24,6 +25,12 @@ async (page, directory = 'output/long-comparison') => {
     await change('end', 300 * rate);
     assert((await page.locator('#intersection').textContent()).includes('300.00 秒') && await page.locator('#export').isEnabled(), '五分鐘配方被拒絕或截短');
   }
+  // 三速度邊界仍全驗；實際成檔另固定本輪速度，避免把設定成功冒充慢速成檔。
+  if (exportRate !== 1) {
+    await change('end', 150);
+    await page.locator('#rate').selectOption(String(exportRate)); await idle();
+    await change('end', 300 * exportRate);
+  }
   const beforeCancel = await read();
   await page.locator('#export').click();
   await page.waitForFunction(() => document.getElementById('progress').value > 0.01);
@@ -34,7 +41,7 @@ async (page, directory = 'output/long-comparison') => {
   const totalExportMs = Date.now() - began, status = await page.locator('#status').textContent();
   assert(status.includes('已成檔') && await page.locator('#output-download').isVisible(), '五分鐘沒有真正成檔：' + status);
   const waiting = page.waitForEvent('download'); await page.locator('#output-download').click();
-  const download = await waiting, file = directory + '/vs-1-300-single.' + download.suggestedFilename().split('.').pop();
+  const download = await waiting, file = directory + '/vs-' + exportRate + '-300-single.' + download.suggestedFilename().split('.').pop();
   await download.saveAs(file);
   const stored = await page.evaluate(async () => {
     const storage = await import('/storage.js'), { data } = await storage.readLibrary(), latest = data.exports.at(-1);
@@ -46,5 +53,5 @@ async (page, directory = 'output/long-comparison') => {
   });
   assert(Math.abs(stored.durationMs - 300000) <= 100 && stored.takesRoundTrip, '成檔片長或長配方備份不符');
   return { file, totalExportMs, stored, diagnostics: JSON.parse(await page.locator('#diagnostics').textContent()).export,
-    overLimitPreservesData: true, cancelledExportPreservesData: true, rates: [0.5, 0.75, 1] };
+    overLimitPreservesData: true, cancelledExportPreservesData: true, rates: [0.5, 0.75, 1], exportRate, sourceRangeMs: [0, 300000 * exportRate] };
 }
