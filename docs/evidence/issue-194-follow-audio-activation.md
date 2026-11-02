@@ -233,3 +233,38 @@ FFmpeg完整影音全軌解碼2／2、exit0／stderr空；既有原音量尺（0
 自有兩視窗關閉，日常 Safari／Chrome 視窗保留；產品與播放持鎖程序均正常 exit0、已知 PID 消失及自有 nonce 釋放，不宣稱共用瀏覽器全部程序退出。正常前置 check 為 704 pass／0 fail／3,804 expects，型別／lint／建置通過，19 項既有 lint info 保留。原始 82 檔／52,600,841 bytes 已封存並逐檔 readback 一致，manifest SHA256 `a502e424010600b180ff6a4f9d845d6b08fd4269b9dc0345727ad97bc94b6c06`；此封存固定於文件提交前，後續文件檢查／hooks／CI 另綁新 head。
 
 只補本票兩份匿名文件，沒有產品修改或新增功能。PR198 維持 draft；首次鏡像播放掉格、非空筆記／既存媒體 Blob 保全、f1da093 首次座標資格原因、原 #11 的 130ms、指定 Claude Code／使用者獨立審查、真人聽感／手機／任意舞蹈／完整 G1–G7 與發布仍保留。前輪十秒晚停與所有歷史失敗保持原來源；沒有合併、發布或關票。
+
+## 2026-11-03 當前主線的首次座標確認：未重現資格失效
+
+### 白話結果
+
+這次只做一次老師的框選確認：按鈕收到完整點按、聲音環境正常打開，人物分析與單側結果準備完成，最後音訊環境也關閉。這能補上「現在這一版、這次點按」的紀錄；不能倒推舊版第一次失敗的原因，也不能把結果顯示成功當作下載影片品質已通過。
+
+### 固定來源與方法
+
+- 受測乾淨 main `83220edabd90cab274532900763c4ff696dffdc5`，靜態建置 `83a29a61027b205d`；沒有帶入 #221／#225 節拍器。Bun 1.4.4、FFmpeg 8.1.2、macOS 27.2、Safari 27.2，一般專用新視窗、新 loopback origin；原日常視窗保留，未改 Safari 或系統設定。
+- 沿 repo `make-follow-fixtures.ts` 與 AI 虛構人物圖片產生四秒／960×540／30fps 合成雙片，自製老師 660Hz／自己 880Hz。老師 92,129 bytes、SHA256 `041e76a45142f43e717589accfeacabec20bae0c860df5ff9a167cfa2f571378`；自己 90,448 bytes、SHA256 `308e85d2ae262d1d23af1ee2f896cb773dc42e8215e41dd40e44b255ee9d9416`。未使用真人、私人媒體或第三方音樂。
+- A＝0.4 秒、B＝3.4 秒、自己起點 C＝0.5 秒、1×；老師 ROI 為 x3.5／y2.5／width37／height95%。在第一次確認前逐欄視覺核對，沿原生座標點按「確認選框並分析跟隨」。本次確認 **1 次，重試 0 次**；首次成功後停止，不再用 Return 或第二輪挑結果。
+- 僅在 QA 首頁 HTML 加入有限旁聽，產品 JS／模型／WASM／編碼、原期限及數值門檻不改。旁聽記輸入前序、可見性／焦點及真正 AudioContext 建構、resume、statechange、close；轉交原呼叫並回傳原 Promise，不偽造 activation／running，也不插入媒體暖機。原首頁／加旁聽首頁、全部執行資源與 helper SHA 分開保留；主機政策另外關閉相機／麥克風。旁聽仍可能影響時序，不能視為完全無觀察效應。
+
+### 唯一首輪收據
+
+| 原生事件 | 距 click | 觀察 |
+| --- | ---: | --- |
+| pointerdown → mousedown | −57ms | 兩項 trusted=true、active=true |
+| pointerup → mouseup → click | 0ms | 三項 trusted=true、active=true；當時 hidden=false、focused=true |
+| AudioContext 建構、resume | +4ms | 同一真正環境，active=true、state=suspended、currentTime=0 |
+| resume resolve | +1031ms | state=running；不是偽造成功或延長原等待期限 |
+| statechange running | +1032ms | 同一環境真正通知 |
+| close 呼叫 | +5898ms | state=running、currentTime=4.866667 秒 |
+| statechange closed | +5912ms | 最後已 closed |
+
+完整旁聽 77 筆、丟棄 0；沒有 error／unhandled rejection 紀錄。產品耗時報告只列第 1 輪老師 complete：25／25 格、25 路徑格，分析 2,634ms、單側製片 3,254ms、確認後總等待 5,894ms。頁面顯示老師完成、老師結果 readyState=4／duration=3.01 秒，自己結果仍空；這些僅是產品狀態與 metadata，**不是完整解碼、真下載或離站播放證據**。
+
+保存前後完整 library（含 revision、1 影片筆記、2 assets、1 take／recipe）完全相同，兩側原片 URL 相同。原 marker=0，未另讀持久 media store 的完整 bytes；不能替代非空筆記／既存 Blob 保全。自有專用 Safari 視窗正常關閉，原視窗保留；自有主機執行 handle 結束 exit0、正常停止並依自有 nonce 釋鎖。9 份 helper／配置／收據／合成輸入共 219,109 bytes 已逐檔讀回核對，manifest SHA256 `1c64773b4299b07266727d8a953b830c93c76b33a313ce8a6a9e34f6e348956f`，raw、媒體、內部 origin／程序識別都只留本機 ignored output。
+
+### 前置失誤與界線
+
+原生 range 的 AX `setValue` 沒有送出預期定位；一次鍵盤前置先到 2.000 秒，之後用原「往前 0.1 秒」15 次還原並核對 C＝0.500 秒，才設起點。CUA 一次回報 user-changed，已重新讀當前專用視窗再操作。ROI 首次填入後 y 顯示 0.5%，在任何確認前改回 2.5% 並再次核對。保存比較設定期間的早到框選點擊與 modal AX 只顯示 stepper 均保留，不算人物分析失敗；最終使用可見欄位及真正座標確認。截圖只存在本次工具輸出，未宣稱有本機截圖檔。
+
+這次沒有重現歷史 f1da093 的首次 active=false，也沒有找到其唯一原因。未執行自己側、鏡像、取消、長片、十輪、真下載／完整音畫解碼／離站播放、人工聽感或實體手機；原歷史失敗、鏡像 dropped=5、#11 的 130ms 及原完整 G1–G7 各保留來源。沒有新增產品修正、放寬門檻、關閉 #194 或發布；下一步只在有具體可重現缺陷時修正，不因本次單輪成功補簽原未驗項。
