@@ -500,3 +500,20 @@ python3 scripts/check-safari-save-stop.py /absolute/path/to/local-receipts /abso
 核對器要求 metadata-only 準備／目標雙寫、一次 trusted Stop、真正 complete、完整舊欄位／媒體 SHA、三份實際 SaveAs 與 candidate bytes 相同、complete／reload 相同；輸入為本機合成資料，不公開 raw。UI 計時／JS drift 不取代聲畫量尺。
 
 最後關自己的產品視窗／主機，證明埠拒連及已知 PID 退出，再持自有鎖以專用 file 播放器自然到 ended。保留 error／dropped 原值、音訊樣本、全軌解碼與 hash；沒有音訊正值就明記原生出聲未驗，stderr 有警告就逐字保留，不能修檔或補 0 取得通過。nonce／PID／埠／自有視窗交叉收尾。普通軟體觀察不代替私人／實體離線／斷電／人耳／裝置或指定 review；不合併、發布或關票。
+
+
+## 離站音訊取樣對照（#13）
+
+白話：先確認量聲音的工具量得到合成聲，再把已下載的同一檔交給獨立播放器；播放結束不代表量到了聲音。原失敗必須保留。工具原始碼 [file-audio-player.html，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-file-audio/tests/browser/file-audio-player.html)與[只讀核對器，需連網](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-file-audio/scripts/check-file-audio.py)只屬 QA，不隨使用者包加入播放器。
+
+1. 在本聊天專用工作樹的新 ignored 輸出目錄，複製工具頁及既有合成 WebM 原下載（命名 `complete-new-vs.webm`，保持容器），先核對原收據／完整 bytes／SHA256；不得重輸出、重封裝或覆寫原收據。事前記錄 helper SHA、計畫及下載指紋。原子取共用媒體鎖，忙時等待原持有人自然釋放。
+2. 產品與本輪主機保持停止，另開普通 Safari 新視窗，以 `file:` 開工具頁，URL hash 附 `#bytes=實際位元組數&sha256=完整雜湊`。不改安全／隱私設定。CSP 禁止所有連線及外部資源；這不表示實體網路已斷開。
+3. 點合成 WAV 控制（48kHz PCM16 mono，0.5 秒 660Hz＋0.3 秒靜音），再點直接 file URL。最後用標準選檔交入同一下載；頁面核對完整 File bytes／SHA 後才允許獨立 Blob URL 播放。只需補選檔時，可加 `&selectedOnly=1` 跳過直接 file 案例，必須事前寫理由。
+4. 每項只播放一次，15 秒工具等待上限。每個 AudioContext 使用全新影片元素，保留逐樣本 context state/time、volume/muted、播放／解碼／quality 末態、原生事件、像素讀取診斷及頁面可見錯誤；沒有攔截 WebKit 內部 console。先保存末態，再斷開節點及 close。沒有以 ended、音軌存在或最後 closed 推定音訊通過。
+5. 從「另存完整收據」使用 Safari 原生另存，留在本輪 output；按下列核對器讀回。`receiptValid=true` 只表示收據符合觀察契約，`zero-unresolved` 仍是音訊未解。dropped 原值不作挑片／重播依據。關閉自己的窗口、核對已知自有程序與 nonce 才釋鎖；raw／媒體／profiles 本機獨立封存。
+
+```sh
+python3 scripts/check-file-audio.py /absolute/path/receipt.json /absolute/path/complete-new-vs.webm
+```
+
+本輪控制／原失敗／來源及限制見[原下載音訊對照](evidence/issue-13-unconfirmed-storage.md#原下載離站音訊對照2026-11-02)。原 `download-playback.js` 可補其他瀏覽器的產品外播放，但不能替 Safari analyser、真人聽感或實體離線補勾；不為診斷新增人耳才能完成軟體核對的門檻。

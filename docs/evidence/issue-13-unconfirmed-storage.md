@@ -195,3 +195,56 @@ Stop 前後 recorder 皆 inactive、影格訂閱 0；被觀察的 1 video／2 au
 本次只交付匿名文件與 QA 工具，產品 runtime／schema／靜態版本不變。普通 Safari 的這筆成檔保存 Stop 已有直接保全觀察；**私人模式、pending chunks 直接快照、原生出聲／真人聽感、實體離線／斷電、裝置／iPhone、完整 G1–G7 及指定最終審查仍未驗**。#13／#3 保持開啟，沒有合併、發布或變更服務／帳務／權限。文件 head／正常 check 與 PR CI 另由本 PR 綁定，不把文件提交稱作重跑媒體。
 
 正常 `bun run check` 通過 **704 tests／3,806 expects／0 fail**、公開掃描、型別、原 lint 與 build；原 19 項 lint info 保留。首輪 703／1 的失敗是隨包指南指向未封裝 QA 原始碼，已改需連網來源連結，沒有擴充使用者包或弱化測試。只讀核對器正控制通過，將原片誤當舊 VS 的負控制會拒絕。正常 commit hooks 與最終 head CI 另綁。
+
+
+## 原下載離站音訊對照（2026-11-02）
+
+白話結果：原下載不是全零音訊檔。Chrome 的獨立播放器有解碼音訊；Safari 能量到合成 WAV，卻仍量不到這份 WebM 的播放音訊。原因尚未定位，不能把「播到結尾」當作 Safari 有聲通過。這輪只補 QA 工具與證據，沒有修改產品、保存 Stop 契約或任何品質／期限護欄。
+
+來源固定 [PR #214](https://github.com/sunpochin/dance-stamp/pull/214) head `14cdaefd8159b0b1939d1304df1033f08edded0e`；從該 head 建本聊天 managed worktree／依賴分支，未寫共享入口、原工作樹或原分支。產品來源仍為 `7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca`／靜態 `80faff7573fa1d79`。原生 Safari **27.2**／macOS **27.2（26B123）**，檢查與 hooks 使用固定 Bun **1.4.4**。沒有重開產品、製作新 VS、重驗保存 Stop／私人／寫入中斷。
+
+### 原檔與原失敗保持不變
+
+只讀複製前段原三份 SaveAs、候選 Blob、原播放／解碼／交易收據及必要分析來源，逐 byte 核對：每份 **194,114 bytes**，SHA256 **`3abbbf46cf1906110c0c8666ecfdd2ebe86b9d3a3da44948055058de6a173973`**。本輪結束再核對原檔相同；只用合成內容，沒有相機、麥克風或畫面擷取。
+
+原播放收據 `d6dc34107a749b079ab088ffa4c4d206251870cddffe532e613e1bdd23df4f2a` 的 **183 筆 RMS／peak 全零**不改標通過。原 PCM `d15be81e154956990dd57ea3271ada36f540c61397686daeeda46f5d4a924646` 重算仍為 289,680 個 f32 樣本、非零 288,480、peak 0.2491246015、RMS 0.08852765875；這是既有全 PCM 解碼，並非本輪 Safari 播放出聲證據。原 fullAV null 的 **32 條音訊 DTS 訊息**與完整 stderr（SHA `7675f5b1c78849e62a15f096b973290ee838ad3ade35d420f02e929a556eaf93`）保留，沒有改檔、重封裝、修 PTS／DTS 或重採樣，也未以時間量尺抹除訊息。
+
+### 有界控制與一次 QA 修正
+
+先記計畫與 helper／原下載 SHA，才取得共用鎖、開自有普通 Safari 窗口。工具頁只讀本機媒體；CSP `connect-src 'none'`、沒有外部資源，產品／主機全程未啟動。這是頁面網路限制，**不是實體斷網**。
+
+首輪 helper SHA `723edccfea27516e96b6843b675a2d7471d68156dcb4d64e57eb65abd7482347`：oscillator 660Hz／gain 0.1 正控制有訊號，49 筆 running 樣本，clock 0→0.802667 秒、peak 0.1000000015，靜音尾段 peak 0。直接 file 原下載一次自然 trusted ended，185 筆全零；running clock 0.026667→3.082667 秒，muted=false／volume=1，duration=3.019 秒、quality 92／dropped 0／corrupted 0、error=null；同一 video 的像素讀取 `SecurityError`。可排除該次懸停時鐘／靜音，不能由像素拒絕斷言音訊唯一根因。
+
+首輪同檔 File→Blob 的完整 SHA 相同、像素可讀、自然 ended、20 筆仍全零；取樣時間有大空隙，且讀碼發現 helper 跨 context 重用影片元素。該案原值／工具保留，不用於單獨定位。最小 QA 修正：每案建立全新 video；把正控制改成 **76,844-byte** 純合成 WAV 經相同 MediaElementSource 聲路，避免只測 oscillator 而漏測元素聲路。修正後 helper SHA **`51605af81de15d027699c2d51b5d8df5e129fc98b72c6c5183b500e460c8c866`**。只補 WAV 與新元素的同一原下載 Blob，一次，不重跑直接 file 或挑 dropped=0。
+
+| 修正輪 | 合成 WAV | 選取同一原下載 File→Blob |
+| --- | --- | --- |
+| 原生結果 | trusted playing／ended，0.8 秒，error=null | trusted playing／ended，3.019 秒，error=null；無 seeking／seeked |
+| 音訊原值 | 70 筆，28 筆非零；peak 0.09997558594、max RMS 0.07086271742；0.65 秒後靜音樣本全零 | **185 筆 RMS／peak 全零，未解** |
+| context | 全部樣本 running，clock 0.034667→1.181333 秒 | 全部樣本 running，clock 0.032→3.090667 秒 |
+| 最大取樣間隔 | 21ms | 25ms |
+| 元素／影格 | muted=false、volume=1；純音訊無影片影格 | muted=false、volume=1；92 frames、dropped 0、corrupted 0；像素可讀 |
+| 可用舊式 audioDecodedBytes | null（未提供） | null（未提供，不補 0） |
+| 收尾 | 原播放末態 running；斷節點後 closed | 原播放末態 running；斷節點後 closed，撤銷 Blob URL／清除 src |
+
+兩案頁面可見 errors／console warn/error 均空；沒有讀取 WebKit 內部 console 或聲卡輸出。修正只改善 QA 可判讀性，**沒有證據把原 WebM 零值歸因這個工具重用問題**，也未宣稱修正後音訊通過。
+
+[W3C 安全規則](https://www.w3.org/TR/webaudio-1.0/#MediaElementAudioSourceNode-security)要求被 fetch 標為 CORS-cross-origin 的 MediaElementAudioSource 輸出靜音；[固定 WebKit 來源](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/Modules/webaudio/MediaElementAudioSourceNode.cpp)另有 wouldTaintOrigin、未初始化格式、provider 不可用等輸出零的路徑。這是候選解釋的依據，**不是安裝中 Safari binary 的對應證明**。選檔 Blob 像素可讀仍全零，使「只要換掉直接 file URL 就會恢復」不成立；剩餘音訊聲路／格式原因未定位，停止擴跑矩陣。沒有改 Safari 安全／隱私偏好、CSP、弱化來源旗標或新增產品修補。
+
+### Chrome 補充與收據
+
+沿用既有 `download-playback.js` 原 bytes（SHA `737e4be2d69c9f6c60da1c20c73754558b8d4b2416793bfaa989bc5a2c7c2ba1`），專用 **Chrome 156.0.8078.76 headless**、全新隔離 profile；context offline=true、navigator.onLine=false，未快取探針 `net::ERR_INTERNET_DISCONNECTED`，預期 console 錯誤保留。僅本機 file document／media 讀取，沒有產品／HTTP 主機。首輪探針導航失敗後的 error-page 導航與 file 導航競爭，尚未完成播放；失敗原 log 保留。只把探針改成空頁 fetch，另開乾淨分頁重驗。
+
+同一下載自然 trusted ended，**3.008 秒、1280×720、92 frames、dropped=1、error=0、audioBytes=66,366**。原 helper 的初始化 pause／currentTime=0 造成原生 seeking／seeked 與兩個 playing，照錄；之後不拖曳、不為 dropped 重播。這是下載本身可獨立播放及音訊解碼的補充軟體證據，**不能代簽 Safari analyser、人耳／喇叭聽感、實體斷網或 G1–G7**；也不增加「軟體核對一定要人耳實聽」的新門檻。
+
+可重建工具及核對方式見[媒體指南](../MEDIA_PROBE.md#離站音訊取樣對照13)。只讀 checker 對本輪收據有效，但明列 WebM `zero-unresolved`；受控改成 suspended、錯 SHA 或正控制全零的三個負控制均 exit 1，避免收據有效被誤當音訊通過。
+
+- 首輪直接 file 收據 SHA `d709a025c2aa232395b462ce6d324e2d3fe002af3a40fa57482c1d03d5fe0f8f`；首輪含重用元素案的完整原值留獨立 raw 封存。
+- 修正輪完整收據（177,964 bytes）SHA **`f79a67aad86382a3db08569e5ec646a2c1a63eb82cc2de1797e144b28b5ecc9e`**；只讀核對結果 `88c89f44dc58c9fc81f2ccc67530c960d43b44bd9399505d0ee76fb63cbbee8c`。
+- 修正前計畫 `f6f25c0605b36a442bcb8bec1bc25bb6ab909bfc441d2d2464831bc0701e5e6f`；修正理由／新計畫 `ecfbaf252f325bcbf359a501dc75c80cb7c8bfdaf143dfc1aa66a3d9e960a9a5`。
+- Chrome 讀回 JSON `39ce3f28fa1a926cf6be17f8faba81eb21bf006614cb3af4ff24c44c2b94f894`；三個負控制收據 `56d2c22087440fa0a2fbd4718e611e3cf33db1ab795bfd8e99ca4c1db0ece84e`。
+- 收尾收據 `c73acae6aa260273dccf7adbf72b88ba52856cb1dd3d337712499b4d6c6e3905`：兩個自有 Safari 窗口正常關閉，專用 Chrome 關閉、共 11 個已知自有 PID 全退出，兩輪只核對自有 nonce 釋鎖，觀察鎖不存在。日常 Safari、他人工作樹與 4193 使用者包／profile 未更動。
+
+raw／媒體／本機識別留 ignored output 與獨立本機封存，不放 Git。普通 Safari 此檔的音訊取樣原因仍未解；真人聲畫／聽感、實體離線／私人／裝置／iPhone、完整 G1–G7 及指定 Claude Code／使用者審查各自保留。#13／#3 不關閉；未合併、發布或變更服務／帳務／權限。正常 check／hooks 與交付 head 的結果另記，文件提交不冒充再跑媒體。
+
+正常 `bun run check` 通過 **704 tests／3,808 expects／0 fail**，公開掃描、型別、原 lint 與 build 通過，原 19 項 lint info 保留；建置靜態仍為 `80faff7573fa1d79`。原生控制與三個 checker 負控制按上述原收據綁定，正常 commit hooks／遠端 CI 另綁交付 head。
