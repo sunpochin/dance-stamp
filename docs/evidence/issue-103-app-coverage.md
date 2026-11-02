@@ -3,6 +3,32 @@
 
 
 
+## 2026-11-03 待傳工作在新頁重新選檔恢復（#232）
+
+白話：練舞影片傳到一半遇到錯誤，關頁後仍能找到同一件待辦。選錯影片不能繼續；選回原來兩支片後會接著完成，不多存一份。這次確認原有流程已正確，再加上自動回歸，沒有修改產品或宣稱修到產品缺陷。
+
+來源為正常保留 #231 `671a5b3bc94e636a724a5bf778fc92ee7e266de9` 前置，再同步 main 的 #228 原生音訊證據到 `a5114d91c57f351b4a3d1a8e4884e7c4d4ed9e41`，加本票未提交測試，`trackedChanges=true`。全部 **24 份 `web/*.js`** SHA-256 與此來源逐一相同，靜態 CLI 建置仍 `07cdd7b66289af39`。前置 #230 含產品修正，合併及指定獨立終審仍各自依授權處理，不把這次通過寫成已核准合併。
+
+技術：沿同一個 `runCloudScenario` 的隔離 context、合成供應商與公開 UI，新增 `pending-recovery` 模式；原 core 模式與 CLI 保留。真正頁面 fetch 已完成兩份媒體上傳，快照 manifest 的 POST 傳輸邊界只回一次受控 HTTP 503，尚未建立 manifest。這是合成供應商錯誤回應，**不是實際斷網或真 Google 故障證據**。URL 觀察器只轉交原生 createObjectURL／revokeObjectURL，保留真正 Blob 供讀取 SHA；不放寬原 CSP 的 connect-src。
+
+公開流程及保全斷言：
+
+- 選雙片並產生舊 VS，再預覽雲端保存；基準有 1 take、1 recipe、1 export（不宣稱有手寫筆記）。兩側實際 Blob URL 未撤銷，原片雜湊等於輸入；已保存 VS 的非空 Blob 等於真正下載檔。
+- 503 後本機完整 library、全部媒體 SHA、兩側來源／時間／暫停／速率及舊成品連結與基準完全相同；再次點下載取回相同 bytes／SHA。
+- 真正關閉原頁，在同 context 開新頁：IndexedDB 資料保留，兩側 session 原片 src 已不存在。重新連線同一合成根目錄，點「中斷工作的恢復」→「列出待傳工作」→選唯一原工作。
+- 同名錯內容從真正檔案欄位選入，按重試遭拒；本機資料及遠端 ID 均不變。重新選回兩份原檔後，以同 operation、dataset、snapshot、manifest ID 及 media fileId 完成，遠端僅原兩份媒體與一份快照。再按一次重試不新增遠端項目或 upload POST。
+- 待傳 work 的診斷以現有 openStore 加原生 readonly IDB transaction 讀取，避免測試自行呼叫待驗證的 readCloudWork。最終插樁收據該函式由單元基準 **0 次→公開流程 6 次**；來源與完整位置表不變。
+
+Bun 1.4.4／macOS arm64／Chrome 156.0.8078.76 headless，原 `bun run check` **760 pass／0 fail／4,383 expects**，型別、公開掃描、lint／build 通過，原 19 項 lint info 保留。獨立 `bun --no-env-file scripts/verify-cloud.ts pending-recovery` 通過，0 page errors；自有測試程序 exit0 後按 nonce 釋鎖。其下載前後均 **36,752 bytes**，SHA-256 `dc296fdd92bcbd71c11be65ff88607cce5be6605ad07cdb068cf0e1bad460056`。
+
+同一最終選定輪 `coverage/app-fu8z11/`：`cloud-pending-recovery` **1／1、5,060ms、0 page errors**，`browserClosed=true`、`serverStopped=true`、`lockRetained=false`。原 80 案名稱與順序保留，新案只追加第 81；完整所有檔案、門檻、來源校驗與下載守門均保留。同輪單元／VM→加這一案的行數 **1,231／3,357（36.66%）→2,100／3,357（62.55%）**，函式 **418／1,127（37.08%）→633／1,127（56.16%）**，分支 **1,386／3,713（37.32%）→1,907／3,713（51.36%）**。這是選定單案，**不是完整 81 案結果，不與舊 21 模組完整百分比混算**。本輪真正下載前後各 **36,678 bytes**，同 SHA-256 `8eaa37dd0f7754db8fd8dabde2c2fb663bbf424045ee22f043f50254b548d52d`；不同輪的編碼 bytes 不拼成同一對。
+
+取得第一路正常收尾交還的 nonce 鎖後，只讀上述插樁輪兩份真下載另行離站檢查：各為 H.264 1280×720、60 video frames、AAC 93 audio frames，FFmpeg `-xerror` 全檔解碼各 exit0。另建離線 Chromium context、拒絕 HTTP，從 `file:` 頁各播至 **2.0006 秒 ended**，60 frames／0 dropped／0 media error；無產品頁、0 page errors，瀏覽器正常關閉並釋鎖。這是兩秒合成成品的可讀／保全證據，不冒稱真人聽感或整套同步矩陣。離站收據 SHA-256 `741fcf103be9a64cb4173af9e8a1e08a7b26fd9743864d726f18acfa77d924df`；只讀核對腳本 SHA-256 `d633d69c6cc7852434150724f3dbd33cd2831d955a65d20872f64d9e3adc6f74`，均留本機 ignored／暫存。
+
+失敗歷史保留：第一輪診斷誤用 fetch(blob:)，在原 CSP 先被拒，尚未注入傳輸錯誤；改為轉交原生 URL 的 Blob 觀察。第二輪預期過於具體的錯誤文案，實際 503 回到原 GoogleDrive.request 的「雲端操作未完成，原工作可重試。」；核對 owning source 後改成精確既有文案，未改產品或降低時間／保全門檻。兩個是測試前提／斷言問題，不冒稱產品先紅後綠；raw 日誌及第二輪合成目錄留本機 ignored／暫存。
+
+來源重跑：先 `bun run check`，局部 `bun --no-env-file tests/app-coverage/run-app.ts cloud-pending-recovery`，完整原 `bun run test:coverage:app`。最後 run.json SHA-256 `ec8db1bd7284f75d54bb4c537c958fa3ba7260fc2d2db83d627cb84bb93ffbc6`、完整計數器 `f678b63e166cfa656fe3ebf72ae7592c18bc7b6ca341bb5e0f16fafe011f0352`、共用腳本 `eb717b1302095221f6394fc09ea42461236bcad59f9830e55aecb3a209dfec0a`、新 helper `15b29fe489096d031228956c2b377cda4255838409946c95ac5f211a25cf3bda`。完整 CI 要以本票提交 head 另記，不能預勾成功；#103／#209 不因單案關閉。真 OAuth、真 Google、自然離線、Safari／私人模式、實體跨裝置、真人相機與聽感、完整 G1–G7 未驗證；不登入帳號或讀私人媒體。
+
 ## 2026-11-03 節拍器與真正 Worklet 量測（#226）
 
 白話：節拍器也是產品的一部分，因此檢查表真的選片、找速度、播放和取消；負責算音量的小工具另外直接跑原程式，確認取消不交出半份結果，超過二十秒也不繼續長大。兩邊共用原檢查，不另寫一套節拍器。

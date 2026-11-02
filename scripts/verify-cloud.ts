@@ -6,19 +6,27 @@ import { createHash } from 'node:crypto'
 import { chromium, type Browser, type BrowserContext } from 'playwright-core'
 import { cloudDriveFixture } from '../tests/fixtures/cloud-drive'
 import { webHeaders, webPaths } from './web-assets'
+import { cloudPendingRecovery } from '../tests/browser/cloud-pending-recovery'
 const root = resolve(import.meta.dir, '..')
 
 // 同一份公開操作同時供獨立驗證與全 App 插樁使用，避免兩套斷言逐漸分歧。
-export async function runCloudScenario(browser: Browser, origin: string, out: string, buildVersion?: string) {
+export async function runCloudScenario(browser: Browser, origin: string, out: string, buildVersion?: string, mode: 'core' | 'pending-recovery' = 'core') {
 mkdirSync(out, { recursive: true })
 for (const [name, color] of [['reference', 'blue'], ['self', 'red']]) {
   const result = Bun.spawnSync(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x120:r=30:d=2`, '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libvpx', '-c:a', 'libopus', '-shortest', resolve(out, `${name}.webm`)], { stdout: 'pipe', stderr: 'pipe' })
   assert.equal(result.exitCode, 0, result.stderr.toString())
 }
 const fixture = cloudDriveFixture(), errors: string[] = [], contexts: BrowserContext[] = []
-let failShareReceipt = false
-async function page() {
+let failShareReceipt = false, failNextManifest = false, interruptedManifest = null
+async function page(captureSources = false) {
   const context = await browser.newContext({ serviceWorkers: 'block' }); contexts.push(context)
+  if (captureSources) await context.addInitScript(() => {
+    // CSP 正常禁止 fetch(blob:)；旁聽真正原片物件，不能放寬產品政策換取測量成功。
+    const blobs = new Map(), revoked = new Set(), create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL)
+    ;(window as any).__cloudRecoverySources = { blobs, revoked }
+    URL.createObjectURL = blob => { const url = create(blob); if (blob instanceof Blob) blobs.set(url, blob); return url }
+    URL.revokeObjectURL = url => { revoked.add(url); return revoke(url) }
+  })
   await context.route('https://accounts.google.com/gsi/client', route => route.fulfill({ contentType: 'text/javascript', body: `window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:config=>({requestAccessToken:()=>{window.syntheticOAuthReturn=()=>config.callback({access_token:'owner-a',expires_in:3600,scope:'https://www.googleapis.com/auth/drive.file'});if(!window.syntheticHoldOAuth)queueMicrotask(window.syntheticOAuthReturn)}})}}};` }))
   await context.route('https://www.googleapis.com/**', async route => {
     const request = route.request(), headers = await request.allHeaders(), raw = request.postDataBuffer()
@@ -26,6 +34,13 @@ async function page() {
     const init = { method: request.method(), headers: { ...headers, Authorization: headers.authorization, Range: headers.range, 'Content-Range': headers['content-range'] }, body: raw && (request.method() === 'PUT' ? new Blob([raw]) : raw.toString()) }
     // 模擬請求未送達，而不是假裝遠端已保存；重試必須補齊另一裝置可讀的收據。
     if (failShareReceipt && request.method() === 'PATCH') { failShareReceipt = false; await route.abort('failed'); return }
+    if (failNextManifest && request.method() === 'POST' && new URL(request.url()).pathname === '/upload/drive/v3/files') {
+      const file = JSON.parse(raw!.toString())
+      if (file.appProperties?.dsKind === 'snapshot-v1') {
+        failNextManifest = false; interruptedManifest = { id: file.id, operation: file.appProperties.dsOperation, status: 503 }
+        await route.fulfill({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, body: '{}' }); return
+      }
+    }
     try {
       const response = await fixture.fetcher(request.url(), init)
       await route.fulfill({ status: response.status, headers: { ...Object.fromEntries(response.headers), 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'Location,Range,Content-Length' }, body: Buffer.from(await response.arrayBuffer()) })
@@ -56,6 +71,12 @@ const evidence: any = {
   buildVersion,
 };
 try {
+  if (mode === 'pending-recovery') {
+    const result = await cloudPendingRecovery({ page, connect, idle, fixture, out, failManifest: () => { failNextManifest = true }, errors })
+    assert(interruptedManifest, '必須到達真正manifest傳輸邊界並只中斷一次'); assert.deepEqual(errors, [])
+    const value = { ...evidence, ...result, interruptedManifest, errors }
+    writeFileSync(resolve(out, 'result.json'), JSON.stringify(value, null, 2)); return value
+  }
   const first = await page()
   const unsolicited = await first.evaluate(() => performance.getEntriesByType('resource').filter(r => !r.name.startsWith(location.origin)).length); assert.equal(unsolicited, 0)
   await first.locator('#reference-file').setInputFiles(resolve(out, 'reference.webm')); await idle(first)
@@ -156,6 +177,8 @@ try {
 }
 
 if (import.meta.main) {
+  const mode = process.argv[2] || 'core'
+  assert(mode === 'core' || mode === 'pending-recovery', '只接受明確的雲端回歸名稱')
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
     const file = webPaths.get(new URL(request.url).pathname)
     return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
@@ -164,7 +187,7 @@ if (import.meta.main) {
   try {
     browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
     const buildVersion = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([^']+)'/)?.[1]
-    console.log(JSON.stringify(await runCloudScenario(browser, `http://127.0.0.1:${server.port}`, resolve(root, 'output/playwright/cloud'), buildVersion)))
+    console.log(JSON.stringify(await runCloudScenario(browser, `http://127.0.0.1:${server.port}`, resolve(root, mode === 'core' ? 'output/playwright/cloud' : 'output/playwright/cloud-pending-recovery'), buildVersion, mode)))
   } finally {
     try { await browser?.close() } finally { await server.stop(true) }
   }
