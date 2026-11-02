@@ -22,6 +22,9 @@ const source = readFileSync(join(dist, 'sw.js'), 'utf8')
 const oldVersion = source.match(/const version = '([a-f0-9]{16})'/)?.[1]
 assert(oldVersion, '請先執行原建置入口')
 const manifest = JSON.parse(source.match(/const manifest = (\{[^\n]+\});/)![1])
+// 必須卡在 manifest 的第二份資源，才能固定只完成首頁；新頁面不能改變中斷前置。
+const barrierPath = Object.keys(manifest)[1]
+assert.equal(Object.keys(manifest)[0], '/'); assert(barrierPath && barrierPath !== '/')
 const output = join(root, 'output'); mkdirSync(output, { recursive: true })
 // 每次都新建目錄，失敗的 profile／日誌也保留，不能換空庫來把同一次失敗變成功。
 const run = mkdtempSync(join(output, mode === '--recovery-frame' ? 'recovery-frame-' : mode === '--chunk-write' ? 'chunk-write-' : mode ? 'pending-write-' : 'forced-install-')), profile = join(run, 'profile'), nonce = randomUUID()
@@ -164,9 +167,9 @@ try {
     const bytes = (candidate ? candidateFiles : oldFiles).get(path)
     if (!bytes) return new Response('Not found', { status: 404 })
     event('network', { path, mode: candidate ? 'candidate' : 'old' })
-    if (candidate && path === '/style.css') {
+    if (candidate && path === barrierPath) {
       held++; event('barrier-held', { path, held })
-      // 真正 HTTP 回應保持未完成，讓原生 install 等下載；不替換 Cache API 或偽造生命週期。
+      // 真正 HTTP 回應保持未完成，讓原生 install 等第二份資源；不替換 Cache API 或偽造生命週期。
       await new Promise<void>(resolve => pending.push(resolve))
       return new Response('barrier closed', { status: 503 })
     }
@@ -280,7 +283,7 @@ try {
   assert.equal(status.installing, 'installing'); assert.equal(status.waiting, null); assert.equal(status.active, 'activated')
   assert.equal(status.status.version, oldVersion); assert.equal(status.status.complete, true)
   assert.deepEqual(await cacheSnapshot(page, oldCache), manifest); assert.deepEqual(await snapshot(page), before)
-  evidence.barrier = { held, path: '/style.css', partial, candidateManifest, status, beforeKillAt: new Date().toISOString() }; event('partial-install-proven')
+  evidence.barrier = { held, path: barrierPath, partial, candidateManifest, status, beforeKillAt: new Date().toISOString() }; event('partial-install-proven')
   // 先保存 barrier 與原生資料證據，再送不可攔截的 SIGKILL；此處絕不先呼叫 browser.close。
   await stop('SIGKILL')
   const restarted = await launch('restart')

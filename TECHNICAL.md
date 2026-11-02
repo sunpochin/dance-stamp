@@ -1353,3 +1353,10 @@ Safari 僅解碼合法來源交集，來源 PCM 最多 300 秒／48kHz／雙聲�
 排除雲端語音辨識／AI API（隱私與免費核心）、第三方音樂辨識（人聲數拍不需識曲）、完整影片轉碼（大檔記憶體與手機負擔）及把控制全塞首頁（比較流程已擁擠）。沒有新增 runtime 依賴；新靜態頁面、模組與 worklet 加入同一白名單，建置／下載包／離線 manifest 共用。
 
 合成數拍與噪音／靜音、誤觸測試見 `tests/unit/tempo.test.ts`；建置後執行 `bun --no-env-file scripts/verify-metronome.ts` 可重跑原生解碼／worklet／取消與窄版流程。瀏覽器自動化與本機範例只證明流程及估算可運行；不代表人工聽感、真實 BPM 標註或實體手機／Safari 已驗收。
+
+
+### #221 更新中斷回歸的資源順序
+
+白話：測試像只收到新課本第一張紙就強制關機，再確認舊課本和筆記還在。新增節拍器後，原先擋住的樣式表前多了幾張紙，讓「只完成第一張」的測試前置失效。
+
+技術：`forced-install-restart.ts` 改依實際 manifest 的第二份資源設定 HTTP barrier，仍精確斷言候選只有 `/`，保留原生生命週期、SIGKILL、同 profile 離線重開、舊 cache 與 metadata／Blob 逐項比對。產品 SW、資源排序、原期限及 Linux job 均不改；原 Linux 失敗、本機同因重現、修正後 macOS 通過與 Linux 待驗界線見[中斷證據](docs/evidence/issue-13-forced-install.md#221-節拍器新增資源後的中斷前置修正2026-11-03)。排除挪動產品檔案避開舊假設或放寬 partial-cache 斷言。

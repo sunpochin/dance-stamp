@@ -147,3 +147,21 @@ default 原收據 SHA256 `c784d057e88975c176eb5a13f59fd22d4b6b5eff713eac781d6299
 乾淨受測來源的完整 `bun run check` 通過 **632 tests／3051 expects／0 fail**，含 harness 指紋、公開掃描、型別、原 lint 與 build；19 項既有 lint info 保留。文件修改後仍執行原 pre-commit／pre-push hooks，不跳過或降低門檻。raw、profiles、程序／主機識別及瀏覽器日誌只留本機 ignored output，不加入 Git 或公開附件。
 
 本輪只補這個固定版本的未提交 metadata＋Blob 交易中斷，不重跑 default、chunks 恢復、VS 保存尾段、低空間／配額、Safari 或影音矩陣；也不證明提交瞬間、斷電、永久保存或其他瀏覽器／裝置。實體離線測試與最終審查依使用者指示保留，#13 保持開啟；iPhone 繼續暫緩，沒有合併、部署或發布。
+
+
+## #221 節拍器新增資源後的中斷前置修正（2026-11-03）
+
+### 白話說明
+
+這項 Linux 工作像「換新課本到一半，突然把電腦關掉，再拔掉網路重開」：要確認舊畫面和筆記還找得到。Linux 是 GitHub 自動測試使用的機器，這項測試驗證 Web 更新恢復。
+
+原測試擋住固定的主樣式表，並認為前面只有首頁一張紙。新增節拍器後，前面多了五張紙，所以核對張數失敗。修正改為依真正清單擋住第二張紙，仍嚴格檢查只有首頁完成，再執行真正強制關閉與同一資料夾離線重開；沒有刪掉這項檢查。
+
+### 技術原因與結果
+
+- 原失敗來源為 PR #221 head `0684f31293f647d8a48e8987a20cd2b0e7020add`，[Linux job](https://github.com/sunpochin/dance-stamp/actions/runs/41484206341/job/125411282940) 在 `forced-install-restart.ts` 的精確 partial-cache 斷言失敗。候選 cache 多出 `/metronome.html`、`/metronome.css`、`/metronome.js`、`/tempo.js`、`/tempo-worklet.js`，因為它們位於固定 `/style.css` barrier 之前。不是 Linux 特有問題，本機 macOS 用同一來源也重現 failed，且自有鎖成功釋放。
+- 修正從實際 manifest 取第二份資源作 `barrierPath`，並斷言第一份為 `/`、第二份存在且不同。保留原生 HTTP held、精確只有候選首頁、installing／waiting／active、完整舊 cache、原生筆記與 Blob、真正 SIGKILL、同 profile 離線重開及程序收尾全部斷言；不改產品 SW、資源排序、timeout 或 CI。
+- 修正後在 macOS／Chrome `156.0.8078.76`、Bun 1.4.4、Playwright core 1.64.1 沿原入口通過。產品靜態 `ee5ddfa6bae1d6ec` 未改；barrier 為 `/metronome.html`，候選 cache 僅 1／35 份，原資料逐項比對、離線舊殼與原生 probe 斷言通過，媒體請求 0、鎖已釋放。測試工具 SHA256 `89d88e9efacb66ce8c62e4181210a340f0b678e5ef53c98be915561d098c4019`，worker SHA256 `4077bea0db4e4c15cb1fe79e4cfca2ee2cbed90a54c3977393e31681217da524`。這是原生 macOS 重跑，不冒充 Linux 重跑。
+- 排除為了綠燈移動產品檔案順序、接受任意部分 cache、放寬預期張數或移除 Linux job：它們會保留脆弱前置或降低原品質守門。
+
+交接：修正隨 PR #221 發送，Linux 仍須由修正 head 的新 CI 取得結果；上面的原失敗工作保留，不改寫成成功。app-coverage 是另一項工作，不能用本機中斷回歸通過代替。真機、人工聽感及發布驗收不在此修正範圍。
