@@ -34,3 +34,32 @@ macOS arm64、Bun 1.4.4、Chromium 156.0.8078.76：乾淨主線原案九種邊�
 故障後真正下載為 405,196 bytes，SHA-256 `ac3fe2102068523bcfc62a5c439841fef104dc353001b3faeaa550b51f4170df`，與故障前最後成功下載逐 byte 指紋一致。產品及原瀏覽器關閉後，另開離線 file 播放器重播原三份 runtime 下載與這份保全檔：四份全部自然 ended、error 0、有音訊、全軌完整解碼、檔案指紋不變。自有播放器的已知 PID 全退出、nonce 鎖釋放；原始收據及檔案只留本機忽略目錄。
 
 獨立審查、真人／聽感、實體裝置、原生 Safari、冷網路效能、快取損壞及完整 G1–G7 未由本案驗收。#103 保持其餘缺口，沒有合併或正式發布。
+
+
+## 2026-11-03：#239 原生影格傳輸拒絕與同頁重試
+
+白話說：助手已經準備好，但遞照片時瀏覽器拒收，也要收掉工作、保留舊影片，修好前置後在同頁再試。這輪真正觸發原生拒收，現有保護正確，因此只新增測試、離站工具接線及文件，沒有修改產品。
+
+來源為main `3cccbd27cec87bfafc23175e880e114fe8677222` 加本次未提交測試，Bun1.4.4／macOS arm64／隔離Chromium156.0.8078.76；提交後的CI另綁精確head。原11個 `follow-runtime` 子情境與順序全部保留，最後只追加第12個傳輸子情境，沒有增加App頂層情境、修改CSP、播放策略、8Hz／25格、180秒成功或15秒失敗恢復門檻。
+
+先保留原第11案teacher成果，再經公開流程完成self成果與真正VS；**三者完成後才凍結同一完整library（含revision）基準**，不把新VS前後不同revision混為同一快照。故障前後比較全部library／已存媒體、兩原片URL／位置／完整指紋、兩跟隨成果及舊VS；三份舊成品都真正下載比較bytes／SHA。
+
+局部觀察器轉交原 `createImageBitmap`，只將下一份原生443×640 ImageBitmap關閉到0×0再交回。真正 `Worker.postMessage` 以同一bitmap與transfer list同步拋 `DOMException: DataCloneError`，觀察者重拋同一錯誤；沒有派送假error／完成事件。產品第249行catch確實命中；故障只建立並終止1個Worker、零推論／追蹤格、零Worker error事件，onmessage／onerror清空，原15秒門檻內控制恢復，原錯誤傳到對話框及全頁提示。這是受控失效影格，不宣稱自然傳輸故障或Safari重現。
+
+撤回bitmap故障、恢復原生函式後，同頁重新分析25/25格，1個Worker完整終止、新teacher交換且真下載匹配頁內Blob；self及舊VS、全部library／媒體與兩原片仍相同。原三種成功mode下載清單不變；新七份獨立role必須唯一完整且路徑位於本輪media，再逐檔核對真bytes／hash，不能冒名替換原mode。
+
+| 舊成品 | 前後各份bytes | 前後相同SHA-256 |
+| --- | --- | --- |
+| teacher | 409121 | `a11b4f891c43a674075f1d6b330bbae3febbfa841e414b8bd9933dc62a56533a` |
+| self | 338735 | `79ead76c8508c7f0b84fd3e20b85659ad79ce25c8e52ea9bbabd5b53f8b579fa` |
+| VS | 675148 | `4735285f3c38e56b33c0fdbe8e6c61dc0f352824a5084a230955dea201ce22f9` |
+
+第二輪完整11+12子情境53,219ms通過，0頁面例外，主機／瀏覽器關閉後才沿既有離站工具驗原3＋新7共10份：每份皆1視訊／1音訊軌、完整全軌解碼exit0／stderr空、file自然ended、error0／dropped0及檔案hash不變。舊VS前後各3.000267秒，新teacher2.9971秒／400277bytes；可解碼與自然播完不代替完整聲畫同步、真人聽感或G1–G7。自有瀏覽器已關，已知PID剩餘空，匹配nonce才釋鎖。
+
+首輪47,970ms在QA基準fingerprint的 `fetch(blob:)` 前置失敗，未到傳輸故障，不能算第12案通過。原失敗收據保留；修正觀察器只記原createObjectURL／revoke轉交的同context合成真Blob，再用arrayBuffer計指紋，沒有放寬原CSP或產品政策。
+
+對照用完整24模組／80案[CI報告](https://github.com/sunpochin/dance-stamp/actions/runs/41493583378)屬 `671a5b3bc94e636a724a5bf778fc92ee7e266de9`。其完整HTML重建的follow-ui.js與本輪逐byte相同（SHA `1be12f23f0e168b8181f292f5fdf68f4f10136767547ec9ae31579339392e920`），列177／249／264未covered；本輪局部249 counter非0，原生audit故障次數是1，不能拿合併計數器推故障次數。**本地是21模組、只選1個App情境；主線完整仍79頂層情境，未在本機重跑完整79**。不同分母／工作量不相加，不把完整24案的百分比當本輪前後全App比較，也不加「全部100%才結案」的新門檻。
+
+17項非媒體來源／收據及10份合成下載共27項manifest SHA-256 `ae2957b999de5fe8a3650e5c1939046fb6ce2be3622e9292c62602ec39331a2f`；原始檔、失敗／成功收據與本機識別留ignored output，沒有公開媒體附件。獨立審查、整合CI、原生Safari、真人／聽感、實體裝置、完整G1–G7與發布各自記錄；#103依原範圍作整體完成審查。
+
+正常 `bun run check` 通過：754 pass／0 fail，公開掃描、型別、原lint與build通過；19項既有lint info保留，產品靜態仍為`83a29a61027b205d`。正常hooks及遠端CI另綁交付head。
