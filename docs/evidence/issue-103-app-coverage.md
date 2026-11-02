@@ -29,6 +29,16 @@ Bun1.4.4／macOS arm64／Chrome156.0.8078.76 headless，原App runner選定83案
 
 本輪交接校正：#103原驗收是以有意義行為斷言朝100%補測、報前後基準及每檔缺漏，**不是自加「所有數字100%才可關票」**。本票及另一工作線當前任務交付後，先由協調者依原範圍、完整CI與實際剩餘風險／指定審查整體核對，不再逐行追分無限開票；#209真Google仍因未設定暫緩。本票的局部通過本身不代簽#103關票、真機或發布。
 
+### #240 獨立審查補強：正確成品但沒有公開同意仍拒絕
+
+白話：選對影片不代表同意公開。審查指出前輪只檢查預設未勾、之後都先勾才按，因此尚不能單獨證明同意守門。現在新頁先提供完全正確的實際VS，保持unchecked，真正按recover；必須精確回「完成分享仍會公開這份副本，請重新確認公開範圍。」。upload及所有fixture API呼叫數都不增加，remote仍空、localjob及兩頁完整snapshot保持，再接原本單byte錯檔→明確確認→正確原檔／DELETE503全部流程。只補這一次公開拒絕，沒有產品修改或擴scope；未確認不得公開採本段新證據。
+
+新來源為原交付 `739b53170acc17208372687da802631dd3bb3a6d` 加未提交補強，trackedChanges=true、全部24份產品SHA相同；新helper SHA `f8c569f9fc783b16ec1a8330b1553e9d292be49ba7a852a6cf62e02eadbd3bcb`。正常check **760 pass／0 fail／4,384 expects**、原19項lint info及07cdd7b66289af39保留；獨立CLI亦通過，raw與前輪分開。選定 `coverage/app-8MkaXx/` **1／1、5,181ms、0頁錯**，browserClosed／serverStopped=true、lockRetained=false。同輪基準仍1,231／3,357行、418／1,127函式、1,386／3,713分支；加入新83案為 **2,087／3,357行、621／1,127函式、1,892／3,713分支（50.95%）**，不是完整83結果。
+
+新插樁輪真下載前後各 **36,990bytes**，同SHA `e5fe4db7819e3ac9289aa62650b52b5534fc42d1afeacc833f1126893984b077`。兩份全檔FFmpeg -xerror解碼各exit0，H2641280×720／61video frames、AAC93audio frames；file:離線各播至 **2.032367秒 ended**、61frames／0dropped／0media error，0頁錯，正常browser／nonce收尾，不沿用前段舊成品hash。
+
+新run.json SHA `7685a08d48344a6434dcfec4195550184f7a26497d0c578b8632a6b3ba681cf8`、完整計數器 `a8d5441a7154af39e9443c8b2e3643c5390c5b88806d4acca1d41aa8eac621de`、未同意拒絕收據 `bacb894b112867748bbf86aff197b927267989957b4c1c03dbcc5aab008896d9`、離站收據 `ce64df5f736fc1bccc4c26029a252c91d25df83c35f9b40ede2bf2cc02d679a3`。完整CI綁正常追加後新head另記；原非真Google／非真機及#103原驗收邊界保持。此補強交付後只讀整體驗收對照，不另開新票或文件PR。
+
 ## 2026-11-03 合成小檔、斷開及同位置重連（#235）
 
 白話：先用工具產生的小文字檔檢查傳輸，再按中斷連接。之後重新按連接、選回原位置，仍能讀回同一份檔，再按上傳也不會多一份；原本練舞資料、兩支影片與比較成品都留下。既有流程首次即通過，本票只補回歸，沒有產品修正。

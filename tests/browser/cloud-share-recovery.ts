@@ -47,6 +47,17 @@ export async function cloudShareRecovery({ page, connect, idle, fixture, out, er
   assert.equal(await fresh.locator('#cloud-public-confirm').isChecked(), false)
   assert.equal(await fresh.locator('#cloud-share-source option').count(), 0)
   await fresh.locator('summary').filter({ hasText: '分享中斷／權限回應遺失' }).click()
+  // 正確檔先保持未確認，讓刪掉同意guard也必須失敗；不能只看checkbox預設值。
+  await fresh.locator('#cloud-share-retry-file').setInputFiles({ name: pending.name, mimeType: mime, buffer: original })
+  const beforeConsentCalls = fixture.calls.length
+  await fresh.locator('#cloud-share-recover').click(); await idle(fresh)
+  const consentError = await fresh.locator('#cloud-status').innerText()
+  assert.equal(consentError, '完成分享仍會公開這份副本，請重新確認公開範圍。')
+  assert.equal(await fresh.locator('#cloud-public-confirm').isChecked(), false)
+  assert.equal(uploads(), 0); assert.equal(fixture.calls.length, beforeConsentCalls)
+  assert.equal(fixture.files.size, 0); assert.equal(fixture.bytes.size, 0); assert.equal(fixture.grants.size, 0)
+  assert.deepEqual(await localJob(fresh), pending); assert.deepEqual(await snapshot(first), before); assert.deepEqual(await snapshot(fresh, false), reopened)
+  record('public-consent-required', { error: consentError, pending, remote: await remote() })
   const changed = Buffer.from(original); changed[changed.length - 1] ^= 1
   await fresh.locator('#cloud-share-retry-file').setInputFiles({ name: pending.name, mimeType: mime, buffer: changed })
   await fresh.locator('#cloud-public-confirm').check(); await fresh.locator('#cloud-share-recover').click(); await idle(fresh)
