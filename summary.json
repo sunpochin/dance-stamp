@@ -1,13 +1,13 @@
 {
-  "sourceHead": "7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41275375327",
-  "generatedAt": "2026-11-01T05:25:29.249Z",
+  "sourceHead": "710e3d8bd5b6db4970e8273dcc1d03de654c8ca2",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41461779477",
+  "generatedAt": "2026-11-02T14:49:09.131Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
-    "web/follow-export.js": "234dab3bbe491676c3f8c7466e6ecd2e2c6877eba3d3c142eafecc64a9e7a921",
+    "web/follow-export.js": "d056396836afddec5072e4140e1fd48a7b7ce914958998bed95a608503d76e3a",
     "web/follow-metrics.js": "f6b216071ab82116ed50a2538309c81add4831f68539dd9a670aca1409d1c834",
-    "web/follow-ui.js": "1a34127d6cdf2b1aa1475ddb8b99044890d493694a1ae655901e60debd56948a",
+    "web/follow-ui.js": "12bd49cd0a9b40aa5361c4aea025e000268d89fedf2a115d88240759fd25eb8f",
     "web/follow.js": "2c257c6524b852ec71b0f6c7c4e97ec8c6c147f7cc8171af29b481834dbfa94f",
     "web/library.js": "5f166c72637673327bf2d0fdea0c8258989371b5b7a41c8268444c77fcb5823c",
     "web/local-audio.js": "a1d1ca1bc8974bee4564cb816359ba3b2510c82f6c0b5436b5df7c727c3b40d0",
@@ -22,28 +22,28 @@
   "scenarios": 78,
   "total": {
     "lines": {
-      "total": 2602,
-      "covered": 2592,
+      "total": 2616,
+      "covered": 2607,
       "skipped": 0,
-      "pct": 99.61
+      "pct": 99.65
     },
     "statements": {
-      "total": 4762,
-      "covered": 4529,
+      "total": 4786,
+      "covered": 4564,
       "skipped": 0,
-      "pct": 95.1
+      "pct": 95.36
     },
     "functions": {
-      "total": 837,
-      "covered": 812,
+      "total": 843,
+      "covered": 821,
       "skipped": 0,
-      "pct": 97.01
+      "pct": 97.39
     },
     "branches": {
-      "total": 2869,
-      "covered": 2550,
+      "total": 2882,
+      "covered": 2563,
       "skipped": 0,
-      "pct": 88.88
+      "pct": 88.93
     },
     "branchesTrue": {
       "total": 0,
@@ -83,8 +83,8 @@
     },
     "web/follow-export.js": {
       "lines": {
-        "total": 70,
-        "covered": 70,
+        "total": 71,
+        "covered": 71,
         "skipped": 0,
         "pct": 100
       },
@@ -95,10 +95,10 @@
         "pct": 71.42
       },
       "statements": {
-        "total": 168,
-        "covered": 145,
+        "total": 170,
+        "covered": 147,
         "skipped": 0,
-        "pct": 86.3
+        "pct": 86.47
       },
       "branches": {
         "total": 80,
@@ -114,23 +114,23 @@
         },
         {
           "name": "(anonymous_4)",
-          "line": 24
+          "line": 26
         },
         {
           "name": "(anonymous_6)",
-          "line": 40
+          "line": 42
         },
         {
           "name": "(anonymous_8)",
-          "line": 43
+          "line": 45
         },
         {
           "name": "(anonymous_17)",
-          "line": 84
+          "line": 86
         },
         {
           "name": "(anonymous_20)",
-          "line": 86
+          "line": 88
         }
       ]
     },
@@ -164,59 +164,46 @@
     },
     "web/follow-ui.js": {
       "lines": {
-        "total": 222,
-        "covered": 218,
+        "total": 235,
+        "covered": 232,
         "skipped": 0,
-        "pct": 98.19
+        "pct": 98.72
       },
       "functions": {
-        "total": 63,
-        "covered": 57,
+        "total": 69,
+        "covered": 66,
         "skipped": 0,
-        "pct": 90.47
+        "pct": 95.65
       },
       "statements": {
-        "total": 445,
-        "covered": 401,
+        "total": 467,
+        "covered": 434,
         "skipped": 0,
-        "pct": 90.11
+        "pct": 92.93
       },
       "branches": {
-        "total": 242,
-        "covered": 203,
+        "total": 255,
+        "covered": 216,
         "skipped": 0,
-        "pct": 83.88
+        "pct": 84.7
       },
       "uncoveredLines": [
-        114,
-        156,
-        226,
-        241
+        176,
+        248,
+        263
       ],
       "uncoveredFunctions": [
         {
-          "name": "(anonymous_21)",
-          "line": 104
+          "name": "(anonymous_17)",
+          "line": 69
         },
         {
-          "name": "(anonymous_30)",
-          "line": 131
+          "name": "(anonymous_37)",
+          "line": 151
         },
         {
-          "name": "(anonymous_34)",
-          "line": 158
-        },
-        {
-          "name": "(anonymous_35)",
-          "line": 159
-        },
-        {
-          "name": "(anonymous_42)",
-          "line": 183
-        },
-        {
-          "name": "(anonymous_49)",
-          "line": 208
+          "name": "(anonymous_55)",
+          "line": 230
         }
       ]
     },
