@@ -294,3 +294,54 @@ QA 準備輪先遇到可重現的選擇器錯誤：旁聽器用了不存在的 `
 raw／媒體／本機識別留 ignored output 與獨立本機封存，不放 Git。普通 Safari 此檔的音訊取樣原因仍未解；真人聲畫／聽感、實體離線／私人／裝置／iPhone、完整 G1–G7 及指定 Claude Code／使用者審查各自保留。#13／#3 不關閉；未合併、發布或變更服務／帳務／權限。正常 check／hooks 與交付 head 的結果另記，文件提交不冒充再跑媒體。
 
 正常 `bun run check` 通過 **704 tests／3,808 expects／0 fail**，公開掃描、型別、原 lint 與 build 通過，原 19 項 lint info 保留；建置靜態仍為 `80faff7573fa1d79`。原生控制與三個 checker 負控制按上述原收據綁定，正常 commit hooks／遠端 CI 另綁交付 head。
+
+## 2026-11-03：#229 私人 Safari 首次三秒音畫拒絕與有限診斷
+
+白話說：這次影片還沒做好，聲音已經往前走，畫面卻短暫停住，產品因此拒絕交付錯位影片。筆記和兩支原片仍保留。這不是「成品已做好但保存失敗」；尚無足夠根因證據，沒有更改產品或放寬護欄。
+
+### 固定來源與首錯
+
+原生 Safari 27.2／macOS、Bun 1.4.4；產品來源固定 `83220edabd90cab274532900763c4ff696dffdc5`／乾淨建置 `83a29a61027b205d`。每案新專用私人視窗與 loopback origin，非空合成 metadata 基準完成後同頁重開；未改日常視窗、Safari 設定或防護。相機／麥克風與媒體上傳皆不使用。
+
+原 reference 41,736 bytes／SHA-256 `4899551b4cec878137bca1e1d510cfbea00d5de1ae62799275cdcf04d8c689ae`，self 67,209 bytes／SHA-256 `ae6db98e328a05a1a0cff319e30ee4651607af84b8b0bcf0d4204cd55777af9f`；均為原三秒合成 MP4。A=0／B=3／C=0、1×、offset=0、並排、無鏡像，不縮短片段或挑選重跑成功。
+
+首次自然案只有一次 trusted 匯出點按，立即顯示「音訊與畫面偏移超過 100ms，未完成合成；請降低負載後重試。原片仍保留，可重試。」進度最後為 0.213691；首錯保存後 **0 重試**。`timeline` 在正式錄製／play 後，比較 AudioContext 與老師 `currentTime`，於候選 Blob 驗證及 `persistExport` 前拒絕。原旁聽沒有時鐘樣本，不能替首錯補出未觀察的唯一根因。
+
+完整 library data 匯出前後相同，revision 3→4，原一筆非空筆記、配方和兩原片 URL／完整指紋不變。全部三筆 readwrite 交易只有 metadata library put，且為真正 trusted complete。`saveCurrentRecipe` 這筆 metadata-only 寫入不是 VS 雙 put；沒有 VS Blob／下載、exports／media keys／chunks 均空。unknown=false／busy=false，recorder inactive、兩 tracks ended、hardwareCalls=0、旁聽 error 0。
+
+這與舊 `7dede9f` 的 250ms 雙片 drift 首錯分開保留，沒有移記、改稱儲存救援成功或抹除舊結果。原未修改 `check-safari-private-guard.py` 的 250ms 前提對本案不適用，實際拒絕 exit 1 已保留；本輪只作「沿原保全斷言的局部診斷核對，將本新階段文案精確綁100ms」，不是原 checker 未改且全過。
+
+### 有限診斷與反證
+
+所有以下 cohort 仍固定原 source／build／素材／配方，每案只有一次首匯出、0 同案重試，最多240筆，其時鐘／影格旁聽只轉交原 rAF／影格回呼；不新增 callback、暖機、像素讀取或產品顯示。讀值、wrapper 與 Promise 旁聽仍有觀察效應，不能宣稱零負載。
+
+| 案 | 首結果與可支持的觀察 |
+| --- | --- |
+| 只讀時鐘，53筆／0丟棄 | 仍100ms拒絕。正式雙 play 約40ms完成，初相位30ms，之後約29.5–31.7ms；reference 後來停在0.631559秒，context仍running，偏差30.93→65.11→105.11ms。不是觀察到的初始>100ms，也不是context先停。 |
+| 原 setter／既有影格 metadata，108筆／0丟棄 | 仍100ms拒絕。正式 play 後無 JS currentTime setter；self 第一次微調1→1.000177333後回近0，之後亦重現。reference停在0.636535秒；正式首個原生影格回呼延後至拒絕附近，mediaTime僅0.033333／presentedFrames3。這是候選關係，不直接宣布因果。 |
+| **受控行為變體**：正式輸出期間忽略 self 非1速率寫入，112筆／0丟棄 | 19次寫入確實抑制、原生 self rate保持1，self不再回零、兩側約差0.38ms；仍一起停在0.671892／0.671513秒，音訊偏差33.19→70.11→104.78ms，首錯仍100ms。故這個候選改動沒有修好本票，沒有據此修改產品。 |
+| 同observer／未抑制，匯出後5秒不再AX／snapshot／操作，108筆／0丟棄 | native click工具0.1085秒後，5.007秒完全不讀畫面；仍100ms首錯。reference停0.620834秒，偏差31.19→67.83→102.50ms；此案不支持「立即AX讀取」是必要原因，仍保留點按工具與旁聽本身的可能影響。 |
+| viewport嘗試，112筆／0丟棄 | 原click後只按原生Cmd+Home（合計0.1404秒），再5.0035秒不讀AX或操作，仍100ms首錯。但最後原生截圖仍在輸出／QA區，來源不在畫面；沒有rect觀察器，亦沒有追加時間旁聽。**曝光差異未建立，這不是有效viewport負對照，可見性假設未判定**；首錯後不改鍵重試。 |
+
+受控變體 main.js 仍為原 bytes，但旁聽刻意改了 setter 行為，不能標為產品原碼；common observer SHA-256 `35cb98045e71329375951c1f073b433c88252698a0e061f75c5b7e1ec5833768`，variant為`hold-self-rate-one`。原音訊排程、初始 rate／seek、100ms／250ms及片長門檻未變。
+
+上述六個 cohort（原首錯及五個有限診斷／對照）均無 VS 可下載／播放；各案資料保全與資源釋放另核對，並只關自有私人視窗、正常停止自有主機及釋放匹配 nonce 鎖。原首錯 receipt／fixture bytes 未變。
+
+### 本機封存核對
+
+原生素材與收據留在本機 ignored output，沒有公開媒體附件。以下是加入本輪核對收據後的最終 manifest SHA-256；早先 checkpoint不作最終封存hash，所有首錯receipt與fixture bytes維持不變。後續補項使用新版本manifest，不覆寫這些封存。
+
+| Cohort | 最終 manifest SHA-256 |
+| --- | --- |
+| `private-current-cohort` | `071f687df544854d9c9f6168b59e3a61e13a2ca0a80c05249671ee7e1a47bdef` |
+| `private-clock-cohort` | `59429bcd81a5c2be5a69a6c87eacc229e571e136ca0ae90d8bf358477c9b2501` |
+| `private-setter-cohort` | `358eab5464b137f55d0848cc78da70ceabeede3ea4ef934463f8c575cfc1cc7b` |
+| `private-rate-control-cohort` | `38e41596fc858d8540fb4546b62d68ed62be5fe180c7bc25ca62fbfa85f0f769` |
+| `private-observation-control-cohort` | `45e457770092ad83366944db6e053609e1c45d12fb03277d6d18cab5ae1b5ea5` |
+| `private-viewport-control-cohort` | `202cbf9019e7648c3806d3f276acf94f7e793029012fe38ab3338776bf3041fc` |
+
+### 尚待完成
+
+#229 仍開啟。下一步先用單變量分辨呈現停滯與觀察效應，充分定位後才改產品。修後仍需相同合成 fixture 的實際下載、離站自然播放／完整全軌解碼及原資料保全回歸；所有 G1–G7引用 [錄影比較](../RECORD_COMPARE.md)，不另訂門檻。#11／#13 的完整矩陣、保存雙 put／未知保存救援、真機與人工聽感仍未由本輪驗收，亦未發布。
+
+文件分支從當時同步 main `26d3f25152335c73e037dd0d75034497fa2e658a` 建立，保留 #194 新證據；這不是原生受測來源。正常 `bun run check` 通過：754 pass／0 fail／4,142 expects，公開掃描、型別、lint與build通過，19項既有lint info保留；建置仍 `83a29a61027b205d`。正常hooks與遠端CI另綁交付head。
