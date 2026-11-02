@@ -27,6 +27,8 @@ export const packageInputs = [
   'docs/evidence/issue-11-export-failure.md', 'docs/evidence/issue-8-practice-loop.md',
   // 保存尾段指南新增直接證據連結，裸包離線閱讀也須能核對範圍與限制。
   'docs/evidence/issue-11-vs-save-tail.md',
+  // 五分鐘指南已連到本票匿名證據；離線也須可讀，不收原始收據、影片或 profiles。
+  'docs/evidence/issue-195-slow-five-minute.md',
   // 四線整合指南實際連到這兩份匿名證據；只補離線依賴，不把測試 raw 或工具收進包。
   'docs/evidence/issue-12-import-planning-stop.md', 'docs/evidence/issue-14-storage-keyboard.md',
   'docs/evidence/issue-9-capture-recovery.md', 'docs/evidence/issue-9-comparison-integration.md',
