@@ -616,7 +616,7 @@ $('self-file').addEventListener('change', () => operation(async signal => {
   if (pendingTakeId) { $('confirm-take').hidden = false; status('請播放預覽自拍原片，再確認連結到待恢復的 take。'); return; }
   activeTakeId = savedTake.id; $('rate').value = '1'; $('offset').value = '0';
   sessionMedia.set(savedTake.cameraAssetId, selected.file);
-  status(comparisonOnly ? '兩片已載入。設定同一個動作的起點，再一起預覽或輸出 VS。原片不會上傳。' : '兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
+  status(comparisonOnly ? '兩片已載入。設定同一個動作的起點，再一起預覽或輸出 VS。原片不會自動上傳。' : '兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
 }));
 $('camera-facing').addEventListener('change', () => {
   if (active) return;
@@ -1909,6 +1909,7 @@ function updateAudioStatus() {
 const cloud = createCloudUI({
   operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort(),
   revision: () => state.revision, media: getAvailableMedia,
+  shareFiles: () => [...(outputBlob ? [{ id: 'vs', label: '上次完成的 VS 成品（請預覽核對）', blob: outputBlob }] : []), ...following.completed()],
   selection: async signal => {
     await saveCurrentRecipe(undefined, signal);
     return { data: state.data, revision: state.revision, videoId: currentVideoId, takeId: activeTakeId };

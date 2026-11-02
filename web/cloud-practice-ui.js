@@ -21,6 +21,7 @@ export function createCloudPracticeUI({ drive, root, run, message, hooks }) {
     for (const asset of assets) {
       const label = document.createElement('label'); label.className = 'check-label';
       const input = document.createElement('input'); input.type = 'checkbox'; input.value = asset.id; input.disabled = !available(asset);
+      input.dataset.unavailable = String(input.disabled);
       label.append(input, document.createTextNode(`${({ reference: '老師原片', take: '自己原片', vs: 'VS 成品' })[asset.kind]} · ${(asset.byteLength / 1048576).toFixed(2)} MiB${input.disabled ? '（缺片）' : ''}`)); container.append(label);
     }
   }
@@ -93,7 +94,9 @@ export function createCloudPracticeUI({ drive, root, run, message, hooks }) {
     if (!incoming || incoming.value.root !== root()) throw new Error('請先預覽要接續的版本。');
     drive.checkAccount(incoming.value.account); clearMedia(); incoming.media.clear();
     for (const id of selected('cloud-remote-assets')) {
-      const item = incoming.value.media.find(m => m.assetId === id), blob = await drive.download(item.fileId, item.byteLength, item.hashes, signal, progress);
+      const item = incoming.value.media.find(m => m.assetId === id), remote = await drive.privateFile(item.fileId, signal);
+      if (!remote.parents?.includes(incoming.value.root) || remote.appProperties?.dsKind !== 'snapshot-media-v1') throw new Error('影片不屬於這個私人練習位置，沒有下載或套用。');
+      const blob = await drive.download(item.fileId, item.byteLength, item.hashes, signal, progress);
       const file = new File([blob], `dance-${item.role}`, { type: item.mimeType });
       await hooks.validateMedia(file, incoming.value.data.assets.find(a => a.id === id), incoming.value.data, signal);
       const url = URL.createObjectURL(file), video = document.createElement('video'); urls.push(url); video.src = url; video.controls = true; video.playsInline = true; video.preload = 'metadata'; video.setAttribute('aria-label', ({ reference: '老師原片預覽', take: '自己原片預覽', vs: 'VS 預覽' })[item.role]);

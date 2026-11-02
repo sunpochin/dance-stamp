@@ -116,4 +116,4 @@ body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recov
 /* biome-ignore lint/complexity/noImportantStyles: 片段入口獨立於雙片完成階段，仍須覆蓋 fieldset 的版面規則。 */
 body[data-comparison-only]:not(:has(#reference-selection[data-source])) .segment-settings { display: none !important; }
 /* 放在共用播放器之後，避免較窄的預覽上限被其他播放器規則蓋過。 */
-#cloud-media-preview video { width: 100%; max-height: 240px; }
+#cloud-media-preview video, #cloud-share-preview { width: 100%; max-height: 240px; }

@@ -103,7 +103,7 @@
       <pre id="follow-metrics-report">尚未分析。</pre>
       <a id="follow-metrics-download" href="#follow-performance" hidden>另存耗時報告 JSON</a>
     </details>
-    <p class="hint">MOV／MP4 等影片只在這次開啟，不會上傳或自動另存副本。兩片選好後，各自播放同一個動作並設起點；原片不會被裁切。</p>
+    <p class="hint">MOV／MP4 等影片只在這次開啟，不會自動上傳或另存副本。兩片選好後，各自播放同一個動作並設起點；原片不會被裁切。</p>
     <fieldset class="segment-settings"><legend>選想練的片段</legend>
       <div class="settings">
         <label>開始（秒）<input id="start" type="number" min="0" value="0" step="0.001"></label>
@@ -261,7 +261,7 @@
   </section>
   <details id="offline-panel" data-deferred><summary>離線、容量與更新</summary><p id="offline-status" role="status">正在檢查離線資源…</p><p id="capacity-status" role="status"></p><p id="persistence-status" role="status"></p><p id="update-status" role="status"></p><div class="actions"><button type="button" id="check-offline">重新檢查離線與容量</button><button type="button" id="request-persist">請求瀏覽器持久保存</button><button type="button" id="check-update">檢查新版</button></div><p class="hint">應用資源與影片副本分開保存。第一次開站需要連線；離線前請確認影片清單，JSON 不含影片。任何保存方式仍須另行備份。</p></details>
   <details data-deferred><summary>測試資訊（不含檔名或影像）</summary><pre id="diagnostics"></pre></details>
-  <dialog id="share-dialog" aria-labelledby="share-title" aria-describedby="share-warning"><h2 id="share-title">選片段分享筆記</h2><p>這是筆記檔，不含影片。標題與時間一定包含；請先核對標題是否含私人內容。預設不選任何片段、練習或額外欄位。</p><p id="share-warning">另傳影片的畫面、聲音、檔名與內嵌資訊不受筆記篩選保護。已下載副本不能撤回。Dance Stamp 不登入、上傳或同步；雲端連結不能直接播放。</p><fieldset id="share-controls"><legend>選取內容</legend><div id="share-items"></div><h3>額外允許的欄位（預設不包含）</h3><div id="share-fields"><label class="check-label"><input type="checkbox" value="note">筆記正文</label><label class="check-label"><input type="checkbox" value="teacher">老師</label><label class="check-label"><input type="checkbox" value="danceStyle">舞風</label><label class="check-label"><input type="checkbox" value="originalName">原檔名</label><label class="check-label"><input type="checkbox" value="recordedDate">拍攝日期</label></div><button id="share-preview" type="button">預覽分享檔內容</button><p id="share-summary" role="status"></p><h3>分享內容預覽</h3><div id="share-readable"></div><details><summary>檢視檔案完整內容（JSON）</summary><pre id="share-content"></pre></details><div class="actions"><button id="share-download" type="button" disabled>下載筆記分享檔</button><button id="share-system" type="button" hidden>交給系統分享筆記檔</button></div></fieldset><p class="hint">示範原片、自己的原片與已合成 VS 是不同檔案；VS 不能代替原片重連。舞伴已有相同原片時只需筆記。可下載後自行用一般檔案、Google Drive、Dropbox、iCloud Drive 或 AirDrop 傳送；無帳號或系統分享不可用時仍可下載。下載或交給系統不代表對方收到。</p><button id="share-cancel" type="button">關閉，保留原資料</button></dialog>
+  <dialog id="share-dialog" aria-labelledby="share-title" aria-describedby="share-warning"><h2 id="share-title">選片段分享筆記</h2><p>這是筆記檔，不含影片。標題與時間一定包含；請先核對標題是否含私人內容。預設不選任何片段、練習或額外欄位。</p><p id="share-warning">另傳影片的畫面、聲音、檔名與內嵌資訊不受筆記篩選保護。已下載副本不能撤回。此入口只下載筆記檔。個人雲端或影片觀看連結須另從首頁選擇並確認；觀看頁不能當作原片重新連結。</p><fieldset id="share-controls"><legend>選取內容</legend><div id="share-items"></div><h3>額外允許的欄位（預設不包含）</h3><div id="share-fields"><label class="check-label"><input type="checkbox" value="note">筆記正文</label><label class="check-label"><input type="checkbox" value="teacher">老師</label><label class="check-label"><input type="checkbox" value="danceStyle">舞風</label><label class="check-label"><input type="checkbox" value="originalName">原檔名</label><label class="check-label"><input type="checkbox" value="recordedDate">拍攝日期</label></div><button id="share-preview" type="button">預覽分享檔內容</button><p id="share-summary" role="status"></p><h3>分享內容預覽</h3><div id="share-readable"></div><details><summary>檢視檔案完整內容（JSON）</summary><pre id="share-content"></pre></details><div class="actions"><button id="share-download" type="button" disabled>下載筆記分享檔</button><button id="share-system" type="button" hidden>交給系統分享筆記檔</button></div></fieldset><p class="hint">示範原片、自己的原片與已合成 VS 是不同檔案；VS 不能代替原片重連。舞伴已有相同原片時只需筆記。可下載後自行用一般檔案、Google Drive、Dropbox、iCloud Drive 或 AirDrop 傳送；無帳號或系統分享不可用時仍可下載。下載或交給系統不代表對方收到。</p><button id="share-cancel" type="button">關閉，保留原資料</button></dialog>
   <dialog id="import-dialog" aria-labelledby="import-title" aria-describedby="import-summary import-media"><h2 id="import-title">還原筆記預覽</h2><p>JSON 只有筆記、配方與媒體描述，不含任何影片。原有資料保留，確認後才寫入。</p><fieldset id="import-controls"><legend>本次匯入</legend><p id="import-summary" role="status"></p><p id="import-media"></p><details><summary>檢視將匯入的完整內容</summary><pre id="import-content"></pre></details><button id="import-confirm" type="button" class="primary">確認匯入</button></fieldset><button id="import-cancel" type="button">不匯入，保留本機</button></dialog>
   <dialog id="media-dialog" aria-labelledby="media-title" aria-describedby="relink-summary"><h2 id="media-title">選片並預覽重連</h2><p>請確認內容與時間位置；不會依同名自動配對，原比較畫面與配方保留。</p><fieldset id="relink-controls"><legend>重新連結缺少的影片</legend><label><span id="relink-file-label">另存的影片</span><input id="relink-file" type="file" accept=".mov,.mp4,.m4v,.webm,.mkv,video/*"></label><video id="relink-preview" aria-label="待重連影片預覽，尚未確認" controls playsinline muted></video><p id="relink-summary" role="status"></p><label class="check-label"><input id="relink-checked" type="checkbox">我已預覽並確認是這支影片</label><label class="check-label"><input id="relink-save" type="checkbox">同時保存副本到此瀏覽器（初期限 200 MiB）</label><button id="relink-confirm" type="button" class="primary" disabled>確認連結到這份資料</button></fieldset><button id="relink-cancel" type="button">取消，保留原資料</button></dialog>
 
@@ -316,6 +316,21 @@
     <div id="cloud-media-preview"></div>
     <label class="check-label"><input id="cloud-restore-confirm" type="checkbox">已核對所選版本；勾選下載的影片已播放確認，缺片稍後重連</label>
     <div class="actions"><button id="cloud-apply-snapshot" type="button" disabled>接續此版本，保留本機資料／衝突副本</button><button id="cloud-open-restored" type="button" disabled>開啟這份比較</button></div>
+    <h3>分享一支成品影片</h3>
+    <p>只建立所選 VS 或單側跟隨成品的獨立副本；不包含私人筆記與兩支原片，不改私人資料夾權限。</p>
+    <button id="cloud-share-refresh" type="button" disabled>讀取本頁已完成成品</button>
+    <label>分享成品<select id="cloud-share-source"><option value="">預設不選影片</option></select></label>
+    <!-- biome-ignore lint/a11y/useMediaCaption: 使用者自行產生的練舞成品沒有字幕檔，保留原生播放控制與說明。 -->
+    <video id="cloud-share-preview" aria-label="所選分享成品預覽" controls playsinline preload="metadata"></video>
+    <label>分享檔名（會依實際格式加副檔名）<input id="cloud-share-name" maxlength="200" autocomplete="off" value="dance-video"></label>
+    <label class="check-label"><input id="cloud-public-confirm" type="checkbox">已核對影片、聲音、檔名及目前帳號。同意持有連結的人都能看，也可能下載或轉傳；已下載副本無法收回。</label>
+    <button id="cloud-share-publish" type="button" disabled>上傳獨立成品並建立唯讀觀看連結</button>
+    <h3>管理成品連結</h3>
+    <button id="cloud-list-shares" type="button" disabled>讀取分享清單／待確認工作</button>
+    <label>成品副本<select id="cloud-shares"></select></label>
+    <div class="actions"><button id="cloud-share-state" type="button" disabled>重新讀取觀看權限</button><button id="cloud-share-stop" type="button" disabled>停止此 App 連結分享</button></div>
+    <details><summary>分享中斷／權限回應遺失</summary><p>先讀權限；如需完成公開，再勾選上方公開確認。若上傳未完成且來源已失效，可重選同一成品。</p><input id="cloud-share-retry-file" type="file" accept="video/*,.webm,.mp4,.mov" aria-label="重新選取待分享的同一成品"><button id="cloud-share-recover" type="button" disabled>核對同一副本並完成分享</button></details>
+    <div class="actions"><a id="cloud-watch" href="https://drive.google.com/" target="_blank" rel="noopener noreferrer" hidden>開啟 Google Drive 觀看頁</a><button id="cloud-copy-link" type="button" disabled>複製觀看連結</button></div>
     <details><summary>合成小檔連線檢查</summary><p>只傳送工具產生的文字測試檔，不含影片、筆記或檔名。可在另一台裝置連接相同帳號、選同一位置後讀回。</p><div class="actions"><button type="button" id="cloud-probe" disabled>上傳並核對合成小檔</button><button type="button" id="cloud-read-probe" disabled>讀回合成小檔</button></div></details>
     <p id="cloud-status" role="status" aria-live="polite">Google 連接與傳輸仍待真實帳號、兩台實體裝置驗收。</p>
     <p class="hint">中斷連接會停止傳輸、清除當次憑證。雲端檔案及既有公開連結仍保留；撤銷 App 授權、刪除雲端檔案與停止公開分享是不同操作。</p>

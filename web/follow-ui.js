@@ -5,7 +5,7 @@ import { exportFollow } from './follow-export.js';
 import { followMeasurements } from './follow-metrics.js';
 
 /** @typedef {'reference'|'self'} Side */
-/** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number,result?:{url:string,source:string,mirror:boolean,revision:number}}} FollowState */
+/** @typedef {{source?:string,track:import('./follow').Track|null,enabled:boolean,revision:number,result?:{url:string,blob:Blob,source:string,mirror:boolean,revision:number}}} FollowState */
 /** @param {{reference:HTMLVideoElement,self:HTMLVideoElement}} videos
  * @param {{source:(side:Side)=>string|undefined,file:(side:Side)=>Blob|undefined,mirror:(side:Side)=>boolean,status:(message:string)=>void,focus:(element:HTMLElement)=>void,playbackChanged:()=>void, range:(side:Side)=>number[], busy:()=>boolean, operate:(task:(signal:AbortSignal)=>Promise<void>)=>Promise<void>, changed:()=>void}} options */
 export function createFollowUI(videos, options) {
@@ -69,7 +69,8 @@ export function createFollowUI(videos, options) {
   }
   function publishResult(side, blob, source, mirror) {
     const state = states[side], previous = state.result?.url, url = URL.createObjectURL(blob), video = resultVideo(side), link = download(side);
-    state.result = { url, source, mirror, revision: state.revision };
+    // 分享只取已成功成檔的這份 Blob，避免把尚未完成的分析或原片誤當單側成品。
+    state.result = { url, blob, source, mirror, revision: state.revision };
     video.pause(); video.src = url; video.hidden = false; video.load();
     link.href = url; link.download = `dance-${side}-follow.${extension(blob.type)}`; link.hidden = false;
     // 新檔已獨立驗證才能換掉前次結果；失敗／取消不會執行到這裡。
@@ -287,6 +288,7 @@ export function createFollowUI(videos, options) {
   }
   return {
     update,
+    completed() { return sides.flatMap(side => states[side].result ? [{ id: `follow-${side}`, label: `${side === 'reference' ? '老師' : '自己'}單側跟隨成品（請預覽是否為目前設定）`, blob: states[side].result.blob }] : []); },
     playing() { return sides.some(side => !resultVideo(side).paused); },
     pauseResults() { for (const side of sides) resultVideo(side).pause(); },
     /** @param {Side} side */

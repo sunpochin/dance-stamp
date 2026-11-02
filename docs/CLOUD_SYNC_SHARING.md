@@ -1,7 +1,7 @@
 <!-- 檔案用途：規劃 Web 個人雲端接續與免登入影片分享。所在層：產品／架構提案。主要關聯：PRODUCT_PLAN.md、DATA_FORMAT.md、TECHNICAL.md、GitHub #209。 -->
 # Web 個人雲端接續與免登入影片分享
 
-規劃日期：2026-11-02（Asia/Taipei）。追蹤：[#209](https://github.com/sunpochin/dance-stamp/issues/209)。**狀態：規劃已交付，同日使用者已授權在新聊天開始實作；雲端／手機尚未驗收。** 原規劃提交沒有功能實作；最新授權、來源與接手步驟見[實作交接](#10-實作交接2026-11-02)。
+規劃日期：2026-11-02（Asia/Taipei）。追蹤：[#209](https://github.com/sunpochin/dance-stamp/issues/209)。**狀態：Google A／B／C 工程候選已實作；尚缺 OAuth 設定，真實雲端／匿名觀看／實體裝置未驗證，Dropbox／前景同步待 Google 穩定。** 原規劃提交沒有功能實作；授權來源見[實作交接](#10-實作交接2026-11-02)，最新進度與設定見[第 11 節](#11-google-實作進度與設定)。
 
 ## 1. 白話：先把自己的練習帶到另一台，再把成品交給朋友
 
@@ -226,4 +226,14 @@ A 切片同一來源執行 Bun 1.4.4 `bun run check`：713 tests／3864 expects�
 
 尚未設定 OAuth。擁有者已於本聊天回覆「尚未設定，先完成程式與設定說明」；程式及合成回歸繼續，沒有操作真實 Google 帳號。瀏覽器回歸發現原生 fetch 不能以類別 instance 作 this 呼叫，已在共同 API 入口修正；Bun 模擬 fetch 沒有暴露這個差異。測試的跨來源預檢／可讀標頭也分開修正，不能以模擬設定推定真實 Drive 一定可用。
 
-新增 `tests/unit/cloudSnapshot.test.ts`，並擴充既有儲存交易測試；B 的完整檢查為 Bun 1.4.4、719 tests／3916 expects／0 fail。`bun --no-env-file scripts/verify-cloud.ts` 會產生無第三方音樂的短合成影片，以模擬 OAuth／Drive 回應走真正預設首頁的保存、另一隔離 Chrome context 下載／預覽／原子匯入與雙片重開，結果及來源 SHA-256 留在 `output/playwright/cloud/result.json`。這是同機合成回歸，**不是兩台裝置、真實 OAuth／雲端傳輸或人耳驗收**。C 接著補獨立成品公開與撤銷；D／E 仍等真實 Google 路徑穩定。
+新增 `tests/unit/cloudSnapshot.test.ts`，並擴充既有儲存交易測試；B `c58e5c142858c6891a8210bffd599bf2de9916fb` 的原提交 hook 為 Bun 1.4.4、719 tests／3920 expects／0 fail。`bun --no-env-file scripts/verify-cloud.ts` 會產生無第三方音樂的短合成影片，以模擬 OAuth／Drive 回應走真正預設首頁的保存、另一隔離 Chrome context 下載／預覽／原子匯入與雙片重開，結果及來源 SHA-256 留在 `output/playwright/cloud/result.json`。這是同機合成回歸，**不是兩台裝置、真實 OAuth／雲端傳輸或人耳驗收**。
+
+### C：獨立成品觀看連結與撤銷工程候選
+
+已實作從本頁成功成檔的 VS／單側跟隨結果選一支，預覽影片、聲音與實際檔名，明確勾選目前帳號的公開範圍後才上傳。獨立副本直接放 My Drive，不帶私人根目錄 parent，也不包含筆記、原片或其他練習；全部 bytes 核對後才建立 `anyone/reader`、`allowFileDiscovery=false`。只提供 Drive 官方 `webViewLink`，不把分享頁當媒體 URL 或自建觀看代理；未宣稱匿名已可播放／對方已收到。
+
+每份副本保存 App 私有 permission 收據，可在同帳號另一裝置重新讀取；本機另保留同一檔案 ID、操作及公開 intent，回應遺失須重讀／明確重試，取消不代表遠端已撤銷。停止只刪除這份副本的該項 App 授權，重查後才回報；外部修改、繼承或其他授權不自動移除。檔案不刪除，已下載副本不能收回。重複按尚未完成的同一工作沿用 ID，不再傳一支。
+
+整合時固定傳輸期間的勾選／位置，下載的媒體另檢查屬於同一私人根目錄與快照媒體類型；缺片選項不因解除忙碌而重新啟用。關閉／背景會暫停預覽與資料傳輸；供應商授權視窗讓手機原頁暫時 hidden 時不誤取消 OAuth，仍可明確關閉或中斷連接取消。此生命週期只有合成回歸，手機實際流程未驗證。
+
+單元與真正首頁回歸、精確版本、重跑方法及限制統一記錄在 [#209 驗證](evidence/issue-209-cloud.md)。A／B／C 的程式與設定說明已交付實作 PR #213；**Google 真實驗收未完成**。擁有者已確認尚未設定，後續先依上方清單建立自己的 OAuth app 與獲准測試帳號，完成 A→B／C 的真實傳輸／匿名／實體裝置矩陣，再進 D／E。未合併、未正式發布、未做 iOS App。

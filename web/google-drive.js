@@ -141,21 +141,25 @@ export class GoogleDrive {
   }
   async upload(blob, job, signal, progress = (_done, _total) => {}) {
     this.checkAccount(job.account);
-    if (!job.id || !job.root || !job.hashes) throw new Error('傳輸工作缺少核對資訊。');
+    const standalone = job.kind === 'shared-video-v1' && job.root === null;
+    if (!job.id || !job.root && !standalone || !job.hashes) throw new Error('傳輸工作缺少核對資訊。');
     if (JSON.stringify(await chunkHashes(blob, signal)) !== JSON.stringify(job.hashes)) throw new Error('來源內容已改變，不能沿用先前工作識別。');
-    const root = await this.privateFile(job.root, signal, true);
-    if (root.appProperties?.dsKind !== 'private-root-v1') throw new Error('不是本 App 的私人位置。');
+    if (!standalone) {
+      const root = await this.privateFile(job.root, signal, true);
+      if (root.appProperties?.dsKind !== 'private-root-v1') throw new Error('不是本 App 的私人位置。');
+    }
     const existing = await this.request(`files/${driveId(job.id)}?fields=${fields}`, {}, signal);
     if (existing.ok) {
       const file = await existing.json();
-      if (file.appProperties?.dsOperation !== job.operation || !file.parents?.includes(job.root) || Number(file.size) !== blob.size) throw new Error('同一工作已有不同內容，請保留原件並重新預覽。');
+      if (file.appProperties?.dsOperation !== job.operation || !standalone && !file.parents?.includes(job.root) || Number(file.size) !== blob.size) throw new Error('同一工作已有不同內容，請保留原件並重新預覽。');
       await this.privateFile(job.id, signal);
       await this.download(job.id, blob.size, job.hashes, signal); return file;
     }
     if (existing.status !== 404) throw new Error('無法確認先前工作，沒有建立副本。');
     const response = await this.request('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Upload-Content-Type': blob.type || 'application/octet-stream', 'X-Upload-Content-Length': String(blob.size) },
-      body: JSON.stringify({ id: driveId(job.id), name: job.name, mimeType: blob.type || 'application/octet-stream', parents: [job.root], appProperties: { dsOperation: job.operation, dsKind: job.kind } }),
+      // 分享成品獨立放 My Drive，不繼承私人資料集資料夾，也不修改該資料夾權限。
+      body: JSON.stringify({ id: driveId(job.id), name: job.name, mimeType: blob.type || 'application/octet-stream', ...(!standalone && { parents: [job.root] }), appProperties: { dsOperation: job.operation, dsKind: job.kind } }),
     }, signal);
     if (!response.ok) throw new Error('傳輸狀態待確認，請重試同一工作。');
     const location = response.headers.get('Location');
@@ -182,7 +186,7 @@ export class GoogleDrive {
     this.checkAccount(job.account);
     // 不把 HTTP 成功當成成檔：分塊讀回比對全部 bytes，代價是首版需多一次下載流量。
     const file = await this.privateFile(job.id, signal);
-    if (Number(file.size) !== blob.size || !file.parents?.includes(job.root)) throw new Error('雲端成檔不完整。');
+    if (Number(file.size) !== blob.size || !standalone && !file.parents?.includes(job.root)) throw new Error('雲端成檔不完整。');
     await this.download(job.id, blob.size, job.hashes, signal); progress(blob.size, blob.size); return file;
   }
 }

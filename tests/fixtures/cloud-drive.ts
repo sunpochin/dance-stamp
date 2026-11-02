@@ -3,7 +3,7 @@ import { GoogleDrive, driveScope, chunkHashes } from '../../web/google-drive.js'
 export const cloudToken = (id = 'owner-a') => ({ access_token: id, expires_in: 3600, scope: driveScope })
 export function cloudDriveFixture() {
   const calls: { url: URL, init: any }[] = [], files = new Map<string, any>(), bytes = new Map<string, Blob>(), grants = new Map<string, any[]>()
-  let next = 0, accepted = 0, pending: any, failChunk = false, permissionExtra: any[] = [], corrupt = false, denyUpload = ''
+  let next = 0, accepted = 0, pending: any, failChunk = false, permissionExtra: any[] = [], corrupt = false, denyUpload = '', loseGrant = false, loseRevoke = false
   const json = (data: unknown, status = 200) => Response.json(data, { status })
   const fetcher = async (value: string, init: any) => {
     const url = new URL(value); calls.push({ url, init })
@@ -12,8 +12,8 @@ export function cloudDriveFixture() {
     if (url.pathname.endsWith('/generateIds')) return json({ ids: [`file-${++next}`] })
     if (url.pathname.includes('/permissions')) {
       const fileId = url.pathname.split('/')[4], permissions = grants.get(fileId) || []
-      if (init.method === 'POST') { const permission = { id: 'public-reader', ...JSON.parse(init.body) }; grants.set(fileId, [...permissions, permission]); return json(permission) }
-      if (init.method === 'DELETE') { grants.set(fileId, permissions.filter(p => p.id !== id)); return new Response(null, { status: 204 }) }
+      if (init.method === 'POST') { const permission = { id: 'public-reader', ...JSON.parse(init.body) }; grants.set(fileId, [...permissions, permission]); if (loseGrant) { loseGrant = false; throw new Error('synthetic lost grant reply') } return json(permission) }
+      if (init.method === 'DELETE') { grants.set(fileId, permissions.filter(p => p.id !== id)); if (loseRevoke) { loseRevoke = false; throw new Error('synthetic lost revoke reply') } return new Response(null, { status: 204 }) }
       return json({ permissions: [{ id: account, type: 'user', role: 'owner' }, ...permissionExtra, ...permissions] })
     }
     if (url.pathname === '/upload/drive/v3/files' && init.method === 'POST') {
@@ -46,6 +46,7 @@ export function cloudDriveFixture() {
       const q = url.searchParams.get('q') || '', kind = q.match(/key='dsKind' and value='([^']+)'/)?.[1], parent = q.match(/'([^']+)' in parents/)?.[1]
       return json({ files: [...files.values()].filter(f => (!kind || f.appProperties.dsKind === kind) && (!parent || f.parents?.includes(parent))) })
     }
+    if (files.has(id) && init.method === 'PATCH') { const patch = JSON.parse(init.body); Object.assign(files.get(id).appProperties, patch.appProperties); return json(files.get(id)) }
     return files.has(id) ? json(files.get(id)) : json({}, 404)
   }
   const drive = new GoogleDrive({ fetcher })
@@ -53,5 +54,5 @@ export function cloudDriveFixture() {
     await drive.authorize(cloudToken()); const root = await drive.createRoot()
     return { account: drive.binding(), root: root.id, id: await drive.newId(), operation: crypto.randomUUID(), kind: 'probe-v1', name: 'synthetic.bin', hashes: await chunkHashes(blob) }
   }
-  return { drive, job, files, bytes, calls, grants, fetcher, fail: () => { failChunk = true }, deny: (kind: string) => { denyUpload = kind }, shareRoot: () => { permissionExtra = [{ type: 'anyone', role: 'reader' }] }, corrupt: () => { corrupt = true } }
+  return { drive, job, files, bytes, calls, grants, fetcher, fail: () => { failChunk = true }, loseGrant: () => { loseGrant = true }, loseRevoke: () => { loseRevoke = true }, deny: (kind: string) => { denyUpload = kind }, shareRoot: () => { permissionExtra = [{ type: 'anyone', role: 'reader' }] }, corrupt: () => { corrupt = true } }
 }

@@ -1,7 +1,7 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
-**Web 個人雲端接續與免登入分享提案（#209）**：先把選好的練習存進自己的雲端抽屜，另一台 Web 再取回；給朋友看的成品另外放，不把整個抽屜公開。2026-11-02 依使用者要求新增[完整規劃](docs/CLOUD_SYNC_SHARING.md)，Google Drive 先行、Dropbox 後續，iOS App 不列前置。此為規劃，尚未串接或驗收。
+**Web 個人雲端接續與免登入分享（#209）**：2026-11-02 已實作 Google A／B／C 工程候選，包含選定練習手動保存／接續及獨立成品觀看連結。尚無 OAuth client 設定，真實供應商／匿名播放與實體跨裝置全部未驗證；Dropbox／前景同步仍待 Google 穩定。設計、設定與進度以[完整交接](docs/CLOUD_SYNC_SHARING.md)為準，iOS App 不列前置。
 
 同日使用者已要求新聊天開始實作，接手入口見[repo 內交接](docs/CLOUD_SYNC_SHARING.md#10-實作交接2026-11-02)。規劃、決策與驗證摘要須隨 Git 保存的原則已納入根憲法，具體寫法見[交接流程](docs/agents/workflow.md#跨聊天交接)；聊天只提供導航，避免換聊天後失去進度或另生衝突規格。
 
@@ -148,6 +148,8 @@ Safari WebM 缺 format.duration 時，沿既有 v5 方法使用最後視訊 PTS 
 分段上傳採預先配置檔案 ID、4 MiB 分塊與最多兩次進度查詢；重試讀同一 ID 核對，不覆寫既有內容。每段 SHA-256 與上傳後全部讀回核對避免整檔 hash 的瞬間記憶體峰值；首版 200 MiB 上限並多耗一次下載流量。排除用 HTTP 成功、同名或大小相同冒充內容一致。私人位置要求本人唯一 owner、非 shared drive、沒有其他讀者；同名位置全部列出，不自動選第一筆。設定、恢復與尚缺的真實驗收見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。
 
 B 以 `cloud-snapshot.js` 保存一份選定練習的獨立 v1 封套；資料仍經現有 `validateBackup`／`planBackupImport`，不改舊交換格式。只新增原始 ID 到實際匯入／衝突副本 ID 的回傳映射，供影片落盤與下一次雲端保存反向使用。`writeLibrary` 向後相容單媒體，也接受同一交易的媒體陣列；本機待傳工作用 metadata 獨立 key 新增、不改 schemaVersion、不存 session URL。排除逐支媒體分開提交、先寫 manifest、整庫 base64 及 last-write-wins，以避免半份接續或隱性外傳。完整版本列表要讀每份有界 manifest，首版以正確性優先，大量版本的索引／清理待實測再評估。
+
+C 的 `cloud-sharing.js` 只接受已成檔的 VS／單側結果，獨立上傳到 My Drive，沒有私人資料夾 parent。上傳全部校驗後才建立 `anyone/reader`、`allowFileDiscovery=false`；權限 intent／ID 保存在當前帳號的本機工作及副本的 App 私有屬性，重新讀取實際權限才提供供應商 `webViewLink`。撤銷只刪本 App 的那個 permission ID，再重查；其他授權、繼承或外部修改不自動移除。排除公開私人根目錄、改網址冒充串流、複製整份筆記與自建代理。手機授權跳出視窗造成 hidden 不視為 OAuth 取消；真正資料傳輸在背景會停止。工程與未驗證界線見 [#209 證據](docs/evidence/issue-209-cloud.md)。
 
 第一候選：**TypeScript + Vite + Svelte，靜態 Web／PWA，原生媒體 API，IndexedDB（透過 Dexie）保存筆記。** 不需要 SSR、登入、SQL 雲端、付費影片平台或訂閱表。
 

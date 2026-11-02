@@ -2,22 +2,28 @@
 import { GoogleDrive, chunkHashes, driveId } from './google-drive.js';
 import { cloudConfig, loadGoogle, requestGoogle } from './cloud-auth.js';
 import { createCloudPracticeUI } from './cloud-practice-ui.js';
+import { createCloudShareUI } from './cloud-share-ui.js';
 export function createCloudUI(hooks) {
   const $ = id => /** @type {any} */ (document.getElementById(id));
   const configKey = 'dance-stamp-cloud-config-v1', probeKey = 'dance-stamp-cloud-probe-v1';
-  let oauth, config, authController, practiceUI, working = false;
+  let oauth, config, authController, practiceUI, shareUI, working = false;
   const drive = new GoogleDrive({ changed: () => { $('cloud-account').textContent = drive.account ? `目前帳號：${drive.account.name}` : '尚未連接或授權已結束；本機功能可照常使用。'; update(); } });
   function update() {
+    // 傳輸期間固定使用者確認的範圍；晚到下載不能套用到剛改勾選的另一份預覽。
+    for (const input of $('cloud-dialog').querySelectorAll('input,select')) input.disabled = working || input.dataset.unavailable === 'true';
+    $('cloud-root').disabled = working || !drive.account;
+    $('cloud-share-preview').controls = !working;
     $('cloud-connect').disabled = !oauth || !config || working;
     for (const id of ['cloud-roots', 'cloud-create-root', 'cloud-probe', 'cloud-read-probe']) $(id).disabled = !drive.account || working;
     $('cloud-disconnect').disabled = !drive.account && !authController;
     $('cloud-load').disabled = working;
     practiceUI?.update(working, !!drive.account);
+    shareUI?.update(working, !!drive.account);
   }
   function message(text) { $('cloud-status').textContent = text; }
   async function run(task) {
     await hooks.operate(async signal => {
-      working = true; update();
+      working = true; practiceUI?.pause(); shareUI?.pause(); update();
       try { await task(signal); } catch (caught) { const error = caught instanceof Error ? caught : new Error('雲端操作未完成。'); message(error.name === 'AbortError' ? '已取消；本機與已完成的雲端檔案保留。' : error.message); throw error; }
       finally { working = false; update(); }
     });
@@ -31,6 +37,7 @@ export function createCloudUI(hooks) {
   }
   function root() { if (!$('cloud-root').value) throw new Error('請先選擇或建立私人資料夾。'); return driveId($('cloud-root').value); }
   practiceUI = createCloudPracticeUI({ drive, root, run, message, hooks });
+  shareUI = createCloudShareUI({ drive, run, message, hooks });
   $('cloud-root').addEventListener('change', () => practiceUI.invalidate());
   $('open-cloud').addEventListener('click', () => {
     if (hooks.busy()) return;
@@ -38,7 +45,7 @@ export function createCloudUI(hooks) {
     try { const saved = JSON.parse(localStorage.getItem(configKey) || 'null'); if (saved?.origin === location.origin) $('cloud-client').value = saved.clientId; } catch { /* 設定不可用不影響本機資料。 */ }
     $('cloud-dialog').showModal(); update(); $('cloud-close').focus();
   });
-  function close() { authController?.abort(); authController = undefined; hooks.cancel?.(); practiceUI.pause(); $('cloud-dialog').close(); $('open-cloud').focus(); }
+  function close() { authController?.abort(); authController = undefined; hooks.cancel?.(); practiceUI.pause(); shareUI.pause(); $('cloud-dialog').close(); $('open-cloud').focus(); }
   $('cloud-close').addEventListener('click', close);
   $('cloud-dialog').addEventListener('cancel', e => { e.preventDefault(); close(); });
   $('cloud-load').addEventListener('click', () => run(async signal => {
@@ -50,7 +57,7 @@ export function createCloudUI(hooks) {
   }));
   $('cloud-connect').addEventListener('click', () => {
     if (!oauth || !config || hooks.busy() || working) return;
-    authController?.abort(); drive.disconnect(); practiceUI.invalidate(); $('cloud-root').replaceChildren();
+    authController?.abort(); drive.disconnect(); practiceUI.invalidate(); shareUI.invalidate(); $('cloud-root').replaceChildren();
     const controller = new AbortController(); authController = controller; working = true; update();
     // OAuth popup 先同步啟動，之後才進入共用的非同步工作鎖。
     const pending = requestGoogle(oauth, config.clientId, controller.signal);
@@ -60,7 +67,7 @@ export function createCloudUI(hooks) {
     })).catch(error => message(error.name === 'AbortError' ? '已取消授權；本機資料保留。' : error.message)).finally(() => { if (authController === controller) authController = undefined; working = false; update(); });
   });
   $('cloud-disconnect').addEventListener('click', () => {
-    authController?.abort(); authController = undefined; drive.disconnect(); hooks.cancel?.(); practiceUI.invalidate(); $('cloud-root').replaceChildren();
+    authController?.abort(); authController = undefined; drive.disconnect(); hooks.cancel?.(); practiceUI.invalidate(); shareUI.invalidate(); $('cloud-root').replaceChildren();
     message('已停止傳輸並清除本次憑證。檔案與既有公開連結保留；撤銷授權請到 Google 帳號管理，停止分享另操作。');
   });
   $('cloud-roots').addEventListener('click', () => run(roots));
@@ -89,8 +96,11 @@ export function createCloudUI(hooks) {
     }
     message(`已讀回並核對 ${rows.length} 份合成小檔；另一台實體裝置的結果須另記錄。`);
   }));
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { authController?.abort(); practiceUI.pause(); if (working) hooks.cancel?.(); } });
-  window.addEventListener('pagehide', () => { authController?.abort(); drive.disconnect(); });
+  document.addEventListener('visibilitychange', () => {
+    // 手機開供應商授權視窗時，原頁常暫時變背景；此時還沒有傳影片，不能誤當使用者取消 OAuth。
+    if (document.hidden) { practiceUI.pause(); shareUI.pause(); if (working && !authController) hooks.cancel?.(); }
+  });
+  window.addEventListener('pagehide', () => { authController?.abort(); drive.disconnect(); practiceUI.invalidate(); shareUI.invalidate(); });
   update();
   return { busy: () => working || !!authController };
 }
