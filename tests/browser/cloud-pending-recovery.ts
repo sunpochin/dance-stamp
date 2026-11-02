@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-export async function cloudPendingRecovery({ page, connect, idle, fixture, out, failManifest, errors }) {
-  const first = await page(true), origin = first.url()
+// 同一份真雙片與舊成品基準供恢復／斷開情境使用，避免各案抄一套保全核對。
+export async function cloudWorkspace({ page, idle, out }) {
+  const first = await page(true)
   const record = (name, value) => writeFileSync(resolve(out, name + '.json'), JSON.stringify(value, null, 2))
   for (const [id, file] of [['reference-file', 'reference.webm'], ['self-file', 'self.webm']]) {
     await first.locator('#' + id).setInputFiles(resolve(out, file)); await idle(first)
@@ -41,6 +42,11 @@ export async function cloudPendingRecovery({ page, connect, idle, fixture, out, 
     }, id)
   }
   const beforeDownload = await download(first, 'before-interruption-vs.bin')
+  return { first, record, download, snapshot, storedWork, beforeDownload }
+}
+
+export async function cloudPendingRecovery({ page, connect, idle, fixture, out, failManifest, errors }) {
+  const { first, record, download, snapshot, storedWork, beforeDownload } = await cloudWorkspace({ page, idle, out }), origin = first.url()
   await connect(first); await first.locator('#cloud-create-root').click(); await idle(first)
   const rootId = await first.locator('#cloud-root').inputValue(); assert(rootId)
   await first.locator('#cloud-preview-practice').click(); await idle(first)

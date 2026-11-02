@@ -7,10 +7,11 @@ import { chromium, type Browser, type BrowserContext } from 'playwright-core'
 import { cloudDriveFixture } from '../tests/fixtures/cloud-drive'
 import { webHeaders, webPaths } from './web-assets'
 import { cloudPendingRecovery } from '../tests/browser/cloud-pending-recovery'
+import { cloudProbeReconnect } from '../tests/browser/cloud-probe-reconnect'
 const root = resolve(import.meta.dir, '..')
 
 // 同一份公開操作同時供獨立驗證與全 App 插樁使用，避免兩套斷言逐漸分歧。
-export async function runCloudScenario(browser: Browser, origin: string, out: string, buildVersion?: string, mode: 'core' | 'pending-recovery' = 'core') {
+export async function runCloudScenario(browser: Browser, origin: string, out: string, buildVersion?: string, mode: 'core' | 'pending-recovery' | 'probe-reconnect' = 'core') {
 mkdirSync(out, { recursive: true })
 for (const [name, color] of [['reference', 'blue'], ['self', 'red']]) {
   const result = Bun.spawnSync(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x120:r=30:d=2`, '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libvpx', '-c:a', 'libopus', '-shortest', resolve(out, `${name}.webm`)], { stdout: 'pipe', stderr: 'pipe' })
@@ -51,10 +52,13 @@ async function page(captureSources = false) {
   return result
 }
 async function idle(p) { await p.waitForFunction(() => document.getElementById('controls')?.getAttribute('aria-busy') !== 'true') }
-async function connect(p) {
-  await p.locator('#open-cloud').click(); await p.locator('#cloud-dialog summary').first().click()
-  await p.locator('#cloud-client').fill('123-synthetic.apps.googleusercontent.com')
-  await p.locator('#cloud-load').click(); await idle(p)
+async function connect(p, reconnect = false) {
+  // 斷開只清當次授權；同頁重連沿已載入的設定，仍須再次明確按連接。
+  if (!reconnect) {
+    await p.locator('#open-cloud').click(); await p.locator('#cloud-dialog summary').first().click()
+    await p.locator('#cloud-client').fill('123-synthetic.apps.googleusercontent.com')
+    await p.locator('#cloud-load').click(); await idle(p)
+  }
   await p.evaluate(() => { (window as any).syntheticHoldOAuth = true }); await p.locator('#cloud-connect').click();
   await p.evaluate(() => {
     // 只模擬供應商視窗的生命週期；這不是手機實測，也不產生真的授權。
@@ -71,9 +75,12 @@ const evidence: any = {
   buildVersion,
 };
 try {
-  if (mode === 'pending-recovery') {
-    const result = await cloudPendingRecovery({ page, connect, idle, fixture, out, failManifest: () => { failNextManifest = true }, errors })
-    assert(interruptedManifest, '必須到達真正manifest傳輸邊界並只中斷一次'); assert.deepEqual(errors, [])
+  if (mode !== 'core') {
+    const result = mode === 'probe-reconnect'
+      ? await cloudProbeReconnect({ page, connect, idle, fixture, out })
+      : await cloudPendingRecovery({ page, connect, idle, fixture, out, failManifest: () => { failNextManifest = true }, errors })
+    if (mode === 'pending-recovery') assert(interruptedManifest, '必須到達真正manifest傳輸邊界並只中斷一次')
+    assert.deepEqual(errors, [])
     const value = { ...evidence, ...result, interruptedManifest, errors }
     writeFileSync(resolve(out, 'result.json'), JSON.stringify(value, null, 2)); return value
   }
@@ -178,7 +185,7 @@ try {
 
 if (import.meta.main) {
   const mode = process.argv[2] || 'core'
-  assert(mode === 'core' || mode === 'pending-recovery', '只接受明確的雲端回歸名稱')
+  assert(mode === 'core' || mode === 'pending-recovery' || mode === 'probe-reconnect', '只接受明確的雲端回歸名稱')
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
     const file = webPaths.get(new URL(request.url).pathname)
     return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
@@ -187,7 +194,7 @@ if (import.meta.main) {
   try {
     browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
     const buildVersion = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([^']+)'/)?.[1]
-    console.log(JSON.stringify(await runCloudScenario(browser, `http://127.0.0.1:${server.port}`, resolve(root, mode === 'core' ? 'output/playwright/cloud' : 'output/playwright/cloud-pending-recovery'), buildVersion, mode)))
+    console.log(JSON.stringify(await runCloudScenario(browser, `http://127.0.0.1:${server.port}`, resolve(root, 'output/playwright/cloud' + (mode === 'core' ? '' : '-' + mode)), buildVersion, mode)))
   } finally {
     try { await browser?.close() } finally { await server.stop(true) }
   }

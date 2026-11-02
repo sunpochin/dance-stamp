@@ -3,6 +3,33 @@
 
 
 
+## 2026-11-03 合成小檔、斷開及同位置重連（#235）
+
+白話：先用工具產生的小文字檔檢查傳輸，再按中斷連接。之後重新按連接、選回原位置，仍能讀回同一份檔，再按上傳也不會多一份；原本練舞資料、兩支影片與比較成品都留下。既有流程首次即通過，本票只補回歸，沒有產品修正。
+
+原契約沿 [雲端隱私與設定邊界](../CLOUD_SYNC_SHARING.md#7-免費隱私與設定邊界) 及第11節A：中斷連接停止工作並清除當次授權，與撤銷供應商授權、刪雲端檔、停止分享分開。先讀 `cloud-ui.js` 70–97 的 owning source，再沿真正公開probe／disconnect／connect／讀位置及小檔按鈕驗證；沒有新增服務、直接呼叫產品handler或假造產品缺陷，也不為追分擴開無關錯誤案。
+
+基底為已審查補強的 #234 `6984861bc9cd4a911bf7ecfd79771c9b54a50236`，正常保留 #230／#231 等前置；新分支先同步 main 並保留依賴。受測為該基底加未提交本票測試，`trackedChanges=true`，全部 **24 個web JS** SHA-256逐份相同；本票runtime零修改，CLI靜態仍 `07cdd7b66289af39`。`cloudWorkspace` 只共用原有選雙片→匯出／真下載→完整snapshot核對；原第81案的單byte錯檔與恢復斷言完全保持。共用connect新增明確同頁重連參數，沿已載入設定但仍真正點連接、再經同一合成授權生命週期；原首次連接與core模式不變。
+
+公開操作的可核對結果：
+
+- 基準有1 take、1 recipe、1 export；兩側未撤銷Blob URL的完整SHA等於實際輸入，已存舊VS的bytes/SHA等於真下載。完整library、全部媒體鍵／SHA、來源／播放器狀態及成品連結，從probe前到斷開、重連後逐項相同。
+- 上傳一份工具產生的文字probe，供應商真正接收bytes且內容／SHA吻合operation；公開「讀回」成功。遠端完整metadata、全部bytes/SHA與permission清單作獨立基準，整段不變；本案permission清單為空，沒有代驗已公開連結。
+- 中斷後公開帳號顯示未連接、root選項清空、傳輸／讀回／位置及中斷按鈕停用，連接按鈕可用。重新明確連線後root仍空，必須重讀並明選原root；再讀回同probe成功。
+- 再按probe，localStorage工作account/root/id/operation/hash等完整相同，遠端仍僅同一小檔，upload POST數保持1，不新增副本。這是合成供應商同頁重授權，不是實體跨裝置或真Google憑證驗收。
+
+正常 `bun run check` **760 pass／0 fail／4,383 expects**，公開掃描／型別／lint／build通過，原19項lint info保留。獨立 `scripts/verify-cloud.ts probe-reconnect` 首次通過，0頁錯、原CLI仍有core／pending-recovery模式，自有程序正常exit0並按nonce釋鎖。獨立輪前後下載各36,667bytes／SHA `bc1b254fb11651cc008d8fefa6384e06b4bfe27e0ce872b8294e1acc66b835d6`，不與插樁輪拼成同一對。
+
+本機Bun1.4.4／macOS arm64／Chrome156.0.8078.76 headless，原runner同輪選第81及82案 **2／2**：pending-recovery **4,997ms**，新probe-reconnect **3,835ms**，0頁錯；browserClosed／serverStopped=true、lockRetained=false。原81名稱／順序保持，新案只加最後第82。`coverage/app-hyqzc4/` 同來源單元／VM→加入兩個公開案為行 **1,231／3,357（36.66%）→2,118／3,357（63.09%）**、函式 **418／1,127（37.08%）→639／1,127（56.69%）**、分支 **1,386／3,713（37.32%）→1,917／3,713（51.62%）**。這是選定兩案，不是完整82after。cloud-ui本輪行79／79、函式29／32、分支42／57；函式／分支未全覆蓋，不能把行100%冒稱全App已完成。
+
+新第82案實際前後下載各 **36,667bytes**，同SHA `7f57a210d1e16fc8bd28be013d768586eebd9cb6933a980bfb67bf5c8d27f044`。關閉產品頁與主機後，另以FFmpeg -xerror全檔解碼兩份各exit0（H2641280×720／60 video frames、AAC93 audio frames）；離線context拒絕HTTP，從file:各播到 **1.999967秒 ended**、60frames／0dropped／0media error，0頁錯，瀏覽器與nonce正常收尾。離站收據SHA `c7bf3974c6728d3241cfe6b1a61c58f11d75d8c57360688fc3c5bdf3d1c796ca`，不是人耳或整套同步矩陣驗收。
+
+重跑：先原 `bun run check`，CLI `bun --no-env-file scripts/verify-cloud.ts probe-reconnect`；選定 `bun --no-env-file tests/app-coverage/run-app.ts cloud-pending-recovery cloud-probe-reconnect`；完整原 `bun run test:coverage:app`。run.json SHA `ce86e183c2b51df39c00da52de8855d628babc1e9953419856c773c868b6b1d3`、完整計數器 `a7019c27df366a4c7589e66b5671cd6905492947fd0fe5e04d29f253ed31c7c5`；共用入口 `20422f153068a42016aeef38e9047ae99ecc0ef7949a8fd6a014abd11ef4006c`、workspace／pending helper `8587b41e2eab853017f6962b37ef2a415dbc9a6e8027659a84ca061ca9059535`、probe helper `bc00444f2f52d65642f21ae7d9e2e8010d9b5bba686a92fd0176dd8bd780a325`。raw、合成媒體留ignored，完整CI依本票提交head另記，不預勾；前置審查／合併另依既有gate，不修改已交付head。真OAuth／Google、自然離線、Safari／私人模式、實體跨裝置、真人聽感及完整G1–G7未驗證，#103／#209不結案。
+
+### #231 的24模組完整80案CI收尾（與本票選定兩案分開）
+
+[CI41493583378](https://github.com/sunpochin/dance-stamp/actions/runs/41493583378) 固定 #231 head `671a5b3bc94e636a724a5bf778fc92ee7e266de9`。協調者核對原80案／80個不同名稱、0FAIL及所有必要checks成功；本票另只讀其report ZIP核對digest `ebb64137ddcea21704c95985d5b4fbd35111d42a44c1eee97c2d1cae7803a362`、summary來源／80案／24份SHA，並與本輪24份產品SHA逐一相同。完整行 **3,298／3,357（98.24%）**、函式 **1,068／1,127（94.76%）**、分支 **3,199／3,713（86.15%）**，skipped0，仍缺59行／59函式／514分支。這是完整80案來源的結果，與前面局部兩案、舊21模組結果各自保留，不把CI成功或來源相同代簽合併／真機／指定終審。
+
 ## 2026-11-03 待傳工作在新頁重新選檔恢復（#232）
 
 白話：練舞影片傳到一半遇到錯誤，關頁後仍能找到同一件待辦。選錯影片不能繼續；選回原來兩支片後會接著完成，不多存一份。這次確認原有流程已正確，再加上自動回歸，沒有修改產品或宣稱修到產品缺陷。
