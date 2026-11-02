@@ -39,6 +39,7 @@
 | [#17](https://github.com/sunpochin/dance-stamp/issues/17) | M4／P1 | 影片分類、動作庫與練習歷史 | [#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 | [#18](https://github.com/sunpochin/dance-stamp/issues/18) | M4／P1 | 選定筆記與影片檔的可攜分享流程 | [#12](https://github.com/sunpochin/dance-stamp/issues/12)、[#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 | [#19](https://github.com/sunpochin/dance-stamp/issues/19) | M4／P1 | Salsa 八拍、手動 BPM 與錄影倒數 | [#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
+| [#209](https://github.com/sunpochin/dance-stamp/issues/209) | P1／Google 工程候選 | Google A／B／C 已實作，待真實帳號／匿名／實體裝置驗收；Dropbox／前景同步待 Google 穩定 | 復用 #5／#10／#12／#13；公開發布另依 #15；iOS 非前置 | 尚無帳號設定，外部驗收待安排 |
 
 #18 第一版限於檔案匯出／匯入與影片重新連結：選定筆記檔與影片分開，使用者自行透過 Google Drive、Dropbox、iCloud Drive 或 AirDrop 分享。不提供自己的影片儲存服務，不做雲端 API／OAuth 直連、同步或連結串流；未使用雲端仍可交換本機檔案。依賴仍為 #12、#15，維持 M4／P1。2026-10-28 使用者當次授權先做可獨立交付的 P1 工程；#18 桌面本機選取／預覽／分享檔及匯入已實作，沿用 main 的 #12 基礎，未合併 #48 或其他候選。驗證與缺口見 [#18 證據](evidence/issue-18-sharing.md)；不把此授權當作 P0、#15、真實裝置或發布 gates 通過。完整流程見 [DATA_FORMAT.md](DATA_FORMAT.md#6-分享格式p1)，驗收見 [ACCEPTANCE.md](ACCEPTANCE.md#8-p1-檔案分享18)。
 
@@ -101,7 +102,13 @@ Web 全數通過時 #16 保持條件式候選，不是必需執行的 P0 子任�
 
 ## 6. 暫不排程
 
-自建雲端影片託管、帳號／同步、供應商 API／OAuth 直連、公開社群、付款、AI 舞蹈評分、自動下載社群影片、手錶控制、雙平台原生同時上架。使用者自行用個人雲端傳檔屬於 #18，不代表排入服務串接。提出這些新需求時先確認是否仍符合免費與非商用方向，再建立獨立規劃。
+自建雲端影片託管、統一跨供應商帳號、關頁後持續同步、公開社群、付款、AI 舞蹈評分、自動下載社群影片、手錶控制、雙平台原生同時上架。使用者自行用個人雲端傳檔仍屬 #18；#209 已實作可選 Google 手動接續／成品分享工程候選，Dropbox／明確啟用的前景同步仍待 Google 穩定，不升為核心必要服務。
+
+### #209 Web 個人雲端提案（2026-11-02）
+
+白話：先讓電腦存好的練習可在手機取回，成品另外產生朋友不用登入的觀看網址。建議順序是 Google 小檔可行性 → 手動接續與獨立分享 → Dropbox → 明確啟用的前景同步；完整範圍與驗收見 [Web 雲端規劃](CLOUD_SYNC_SHARING.md)。
+
+技術上先用個人雲端的最小權限與直接傳輸，不建自有影片服務；GIS 登入不能取代 OAuth、同步或權限管理。各階段獨立交付與驗收，現行 #12／#18 的狀態不變。此次只交付文件，沒有帳號設定、上傳、部署或手機實測；iOS App 不列為這兩項需求的前置。粗估不含供應商審查／等設備時間，不能代替排程承諾。
 
 ### #17 獨立桌面候選（2026-10-28）
 

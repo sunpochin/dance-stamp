@@ -9,6 +9,9 @@ export const packageInputs = [
   ...[...webFiles, ...notices, '_headers'].map(file => `dist/web/${file}`),
   'scripts/serve-web.ts', 'scripts/web-assets.ts', 'START_HERE.md', ...notices,
   'docs/DATA_FORMAT.md', 'docs/RECORD_COMPARE.md', 'docs/ACCEPTANCE.md', 'docs/LICENSING_AND_COST.md', 'docs/RELEASE.md',
+  // 雲端仍是選用功能；隨資料指南保留設定與未驗證界線，裸包閱讀不能斷鏈。
+  'docs/CLOUD_SYNC_SHARING.md',
+  'docs/evidence/issue-209-cloud.md',
   'docs/WEB_USABILITY_CHECK.md', 'docs/agents/acceptance-template.md', 'docs/MEDIA_PROBE.md',
   'docs/evidence/existing-comparison.md', 'docs/evidence/issue-12-backup-recovery.md', 'docs/evidence/issue-13-offline-storage.md',
   // 支援限制指向的匿名證據也隨包，離線讀指南時才不會遇到缺檔連結。

@@ -43,6 +43,8 @@ PolyForm Noncommercial 授權允許非商用使用、修改與分發，並明列
 
 第一版分享不要求雲端帳號、訂閱或付費 API；個人雲端的免費方案在其可用容量及規則內只是選用傳送途徑，額滿時仍可使用本機檔案或 AirDrop，不引導使用者把升級當成 App 的必要條件。雲端的儲存、權限與傳輸由使用者及其選擇的服務處理；專案不代管影片或提供上傳中繼。靜態網站託管與影片儲存成本分開，分享格式及限制見 [DATA_FORMAT.md](DATA_FORMAT.md#6-分享格式p1)。
 
+2026-11-02 的 [#209 Web 個人雲端（線上）](https://github.com/sunpochin/dance-stamp/issues/209) 已有 Google 手動保存／接續與成品連結工程候選，尚無帳號設定／真實驗收；Dropbox 後續。採可選供應商 OAuth／API 直連，容量、API 配額及分享流量各自受供應商限制，不保證永久免費額度或無限觀看。核心仍免登入、本機可用，不新增必要付費服務、影片代理或追蹤；額滿保留下載途徑。授權條款不變，公開服務尚未發布。
+
 ## 5. iOS 優先與零支出的衝突
 
 若 Web 無法完成 P0，下一步是 iOS，不是先 Android。但 Apple Developer Program 官方目前列出每會員年度 US$99（地區價格可能不同），符合條件的機構才可能申請減免；非商用個人專案不能假設自動免費。[Apple 官方](https://developer.apple.com/programs/enroll/)。

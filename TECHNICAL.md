@@ -1,6 +1,12 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+**Web 個人雲端接續與免登入分享（#209）**：2026-11-02 已實作 Google A／B／C 工程候選，包含選定練習手動保存／接續及獨立成品觀看連結。尚無 OAuth client 設定，真實供應商／匿名播放與實體跨裝置全部未驗證；Dropbox／前景同步仍待 Google 穩定。設計、設定與進度以[完整交接](docs/CLOUD_SYNC_SHARING.md)為準，iOS App 不列前置。
+
+同日使用者已要求新聊天開始實作，接手入口見[repo 內交接](docs/CLOUD_SYNC_SHARING.md#10-實作交接2026-11-02)。規劃、決策與驗證摘要須隨 Git 保存的原則已納入根憲法，具體寫法見[交接流程](docs/agents/workflow.md#跨聊天交接)；聊天只提供導航，避免換聊天後失去進度或另生衝突規格。
+
+技術決策：靜態 Web 先用 GIS OAuth token model／後續 Dropbox PKCE 直接連接個人空間，區分身分登入、檔案授權與同步；首版不建自有帳號後端。先以選定資料、不可覆寫快照及明確衝突選擇完成手動接續，再評估前景自動同步。分享只對獨立成品副本建立供應商唯讀連結，匿名觀看先用供應商頁面。排除整庫默默上傳、單檔最後寫入覆蓋、公開私人同步根目錄及將分享頁假當媒體 CDN。權限、資料封套、失敗保全、成本與驗收只在上述文件維護；既有本機交換格式維持相容，新增雲端 runtime 與未驗證界線見該文件第 11 節。
+
 #11 的 [30fps 繪圖預算修正](docs/evidence/issue-11-paint-budget.md)像「一個拍點用過就不能再用」：沿用原 1ms 容差接受畫圖後，至少消耗一格；長 gap 取餘數落在前一格時，再消耗已到期的一格而不補畫，保留相位。只修共用 paint 的預算更新，不改音訊或同步門檻；乾淨 f8621e8 的單次原生 Safari 0.75×／60秒真正下載，原量尺最大聲畫差78ms、兩側差44.444ms、停格112ms；關站後自然 ended／error0／dropped0。這些結果另綁受測提交，不能據此宣稱原130ms已修復。
 
 #11診斷工具的[生命週期修復與可重建入口](docs/evidence/issue-11-capture-lifecycle.md)把第一個錯誤與逐項收尾錯誤分開；先供應首格再等play，保留原2／5／2秒期限。QA helper／合成頁／本機nonce主機／獨立原檔分析器隨Git提供，不進產品包；工具回歸與原生短案分開。排除吞例外或延長期限，原130ms與原Worker gate不改。
@@ -163,6 +169,14 @@ Safari WebM 缺 format.duration 時，沿既有 v5 方法使用最後視訊 PTS 
 
 ## 1. 架構結論
 
+#209 的 Google 第一片以 `google-drive.js` 負責短效 token、API 帳號身分、私人位置與傳輸，`cloud-auth.js` 只接 GIS，`cloud-ui.js` 從現有雙片首頁進入並沿用操作／取消鎖。沒有新增會員後端或 runtime 依賴。設定僅保存公開 client ID 與精確 origin；token 與 upload session URL 只留記憶體，離頁清除。外部來源只開 GIS 指定路徑及 `www.googleapis.com`，SW 仍只收同源靜態白名單。
+
+分段上傳採預先配置檔案 ID、4 MiB 分塊與最多兩次進度查詢；重試讀同一 ID 核對，不覆寫既有內容。每段 SHA-256 與上傳後全部讀回核對避免整檔 hash 的瞬間記憶體峰值；首版 200 MiB 上限並多耗一次下載流量。排除用 HTTP 成功、同名或大小相同冒充內容一致。私人位置要求本人唯一 owner、非 shared drive、沒有其他讀者；同名位置全部列出，不自動選第一筆。設定、恢復與尚缺的真實驗收見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。
+
+B 以 `cloud-snapshot.js` 保存一份選定練習的獨立 v1 封套；資料仍經現有 `validateBackup`／`planBackupImport`，不改舊交換格式。只新增原始 ID 到實際匯入／衝突副本 ID 的回傳映射，供影片落盤與下一次雲端保存反向使用。`writeLibrary` 向後相容單媒體，也接受同一交易的媒體陣列；本機待傳工作用 metadata 獨立 key 新增、不改 schemaVersion、不存 session URL。排除逐支媒體分開提交、先寫 manifest、整庫 base64 及 last-write-wins，以避免半份接續或隱性外傳。完整版本列表要讀每份有界 manifest，首版以正確性優先，大量版本的索引／清理待實測再評估。 切換或重讀版本時，預覽、下載候選與確認一起失效；已核對的下載原片一律放進同一保存交易，因為本頁可播放不代表 IndexedDB 已保存。
+
+C 的 `cloud-sharing.js` 只接受已成檔的 VS／單側結果，獨立上傳到 My Drive，沒有私人資料夾 parent。上傳全部校驗後才建立 `anyone/reader`、`allowFileDiscovery=false`；權限 intent／ID 保存在當前帳號的本機工作及副本的 App 私有屬性，重新讀取實際權限才提供供應商 `webViewLink`。撤銷只刪本 App 的那個 permission ID，再重查；其他授權、繼承或外部修改不自動移除。排除公開私人根目錄、改網址冒充串流、複製整份筆記與自建代理。手機授權跳出視窗造成 hidden 不視為 OAuth 取消；真正資料傳輸在背景會停止。分享重試須核對遠端 permission 收據，即使本機已知權限存在，也不能省略先前未送達的 PATCH；否則另一裝置無法從 App 撤銷。工程與未驗證界線見 [#209 證據](docs/evidence/issue-209-cloud.md)。
+
 第一候選：**TypeScript + Vite + Svelte，靜態 Web／PWA，原生媒體 API，IndexedDB（透過 Dexie）保存筆記。** 不需要 SSR、登入、SQL 雲端、付費影片平台或訂閱表。
 
 這是可驗證的選擇，並非因為「換框架就能解決錄影」。最先做的工作是用最小 Web 頁面驗證手機同時播放與錄影，以及 VS 影片匯出。若 iPhone Web 過不了門檻，保留 Web 筆記，先以 SwiftUI + AVFoundation 做 iOS 媒體功能，再考慮 Android。
@@ -232,7 +246,7 @@ flowchart LR
 
 使用者在 App 外自行使用 Google Drive、Dropbox、iCloud Drive 或 AirDrop 傳檔。下載／選檔匯入為基線；系統分享僅作能力偵測後的選用入口，取消或失敗保留原資料。App 無法確認外部傳送結果，不把匯出或系統分享回傳當成「已送達」。接收者先取得檔案，再人工確認影片配對；不把雲端分享頁當可直接播放的媒體來源。
 
-選擇此方案是為了讓核心功能不依賴供應商帳號、免費配額或後端維運。排除自建影片儲存／上傳中繼、供應商 API／OAuth 直連、自動同步及大型 ZIP 打包；前者增加憑證、權限與服務維護，後者增加手機記憶體壓力。若日後需要直連，另提規劃與授權；本次只更新設計，未宣稱已通過裝置驗收。
+選擇此方案是為了讓核心功能不依賴供應商帳號、免費配額或後端維運。#18 排除自建影片儲存／上傳中繼、供應商 API／OAuth 直連、自動同步及大型 ZIP 打包；前者增加憑證、權限與服務維護，後者增加手機記憶體壓力。2026-11-02 新需求另由 [#209 Web 雲端提案](docs/CLOUD_SYNC_SHARING.md) 規劃可選直連，不擴張 #18 的既有驗收，也不宣稱已通過裝置驗收。
 
 ## 5. 播放與相機
 

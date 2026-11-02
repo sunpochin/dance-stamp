@@ -18,6 +18,8 @@ Coverage 是最近一次 **main 完整成功量測**的行數／函式／分支�
 
 使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
 
+首頁新增選用的「個人雲端／影片連結」工程候選，可手動保存選定練習到 Google Drive、接續及管理獨立成品觀看連結；需網站擁有者先設定自己的 OAuth client。尚未取得真實雲端、匿名觀看與兩台實體裝置證據；設定與限制見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。未連接時可照常本機使用，影片不會自動上傳。
+
 `bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
 
 更新內容見 [版本更新紀錄](CHANGELOG.md) 與 [GitHub Releases](https://github.com/sunpochin/dance-stamp/releases)；版本號與里程碑整理方式見 [發布流程](docs/RELEASE.md#版本與更新說明)。Release 草稿仍待人工確認及發布。

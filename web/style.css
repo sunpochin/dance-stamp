@@ -42,6 +42,10 @@ canvas { width: 100%; background: #090c0e; border-radius: 8px; } progress { widt
 
 /* 原生 modal 保留鍵盤焦點；長預覽在框內捲動，取消始終可操作。 */
 dialog { overflow-wrap: anywhere; width: min(820px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; border: 1px solid #718087; border-radius: 12px; background: #141c20; color: inherit; padding: 20px; } dialog::backdrop { background: #000b; } #relink-preview { height: 220px; object-fit: contain; background: #000; } .check-label { flex-direction: row; align-items: center; } .check-label input { width: 24px; min-height: 24px; } #media-items { padding-left: 20px; } #media-items li { margin: 12px 0; overflow-wrap: anywhere; } #media-items button { margin: 6px 6px 0 0; }
+/* 雲端視窗有較長的帳號／版本文字；窄螢幕仍需看得到取消與逐支影片預覽。 */
+#cloud-dialog input:not([type=checkbox]), #cloud-dialog select { width: 100%; min-width: 0; }
+#cloud-dialog pre { max-height: 240px; overflow: auto; white-space: pre-wrap; }
+#cloud-close { position: sticky; bottom: -12px; background: #253238; }
 
 /* 選片與播放器固定同卡；窄版改上下排列，讓檔案名稱和手指操作仍有完整寬度。 */
 #controls > .players { margin-top: 12px; }
@@ -111,3 +115,5 @@ body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recov
 /* 長片會先被比較護欄拒絕；左片就緒就必須能縮短，不能等右片成功才提供解法。 */
 /* biome-ignore lint/complexity/noImportantStyles: 片段入口獨立於雙片完成階段，仍須覆蓋 fieldset 的版面規則。 */
 body[data-comparison-only]:not(:has(#reference-selection[data-source])) .segment-settings { display: none !important; }
+/* 放在共用播放器之後，避免較窄的預覽上限被其他播放器規則蓋過。 */
+#cloud-media-preview video, #cloud-share-preview { width: 100%; max-height: 240px; }

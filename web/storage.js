@@ -101,11 +101,13 @@ export async function readLibrary() {
   // 讀取不改寫正在錄製的 take；另一分頁可能仍握有錄影鎖，只有明確恢復才能 finalize。
   return result;
 }
-/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob}} [mediaChange] @param {AbortSignal} [signal] @param {{mediaIds: string[], chunkIds: string[]}} [cleanup] */
+/** @param {import('./types').Library} next @param {number} expectedRevision @param {{id: string, blob?: Blob} | Array<{id: string, blob?: Blob}>} [mediaChange] @param {AbortSignal} [signal] @param {{mediaIds: string[], chunkIds: string[]}} [cleanup] */
 export async function writeLibrary(next, expectedRevision, mediaChange, signal, cleanup) {
   validateBackup(next);
+  // 一份雲端快照可含兩側原片；沿同一交易批次落盤，quota／取消不能留下半份接續資料。
+  const mediaChanges = mediaChange ? Array.isArray(mediaChange) ? mediaChange : [mediaChange] : [];
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error('筆記版本無效，未寫入。');
-  if (mediaChange && !next.assets.some(a => a.id === mediaChange.id)) throw new Error('媒體沒有對應資料記錄，未寫入。');
+  if (mediaChanges.some(change => !next.assets.some(a => a.id === change.id)) || new Set(mediaChanges.map(c => c.id)).size !== mediaChanges.length) throw new Error('媒體沒有對應資料記錄或重複，未寫入。');
   if (cleanup) {
     const retained = new Set(next.assets.map(a => a.id));
     if ([...cleanup.mediaIds, ...cleanup.chunkIds].some(id => retained.has(id))) throw new Error('清理仍有關聯的資料遭拒，原資料保留。');
@@ -122,7 +124,7 @@ export async function writeLibrary(next, expectedRevision, mediaChange, signal, 
     if ((req.result?.revision || 0) !== expectedRevision) { failure = new Error('另一分頁已更新筆記。請先保留草稿，再重新開啟此頁。'); abort(); return; }
     try {
       store.put({ revision: expectedRevision + 1, data: next }, 'library');
-      if (mediaChange) mediaChange.blob ? tx.objectStore('media').put(mediaChange.blob, mediaChange.id) : tx.objectStore('media').delete(mediaChange.id);
+      for (const change of mediaChanges) change.blob ? tx.objectStore('media').put(change.blob, change.id) : tx.objectStore('media').delete(change.id);
       // metadata、失去關聯的副本及 chunks 同一交易；中斷不能留下半刪的筆記。
       if (cleanup) {
         for (const id of cleanup.mediaIds) tx.objectStore('media').delete(id);
@@ -137,6 +139,16 @@ export async function writeLibrary(next, expectedRevision, mediaChange, signal, 
 /** @param {string} id @returns {Promise<Blob | undefined>} */
 export async function readMedia(id) { const db = await openStore(); return request(db.transaction('media').objectStore('media').get(id)); }
 export async function readMediaKeys() { const db = await openStore(); return request(db.transaction('media').objectStore('media').getAllKeys()); }
+export async function readCloudWork(id) {
+  const db = await openStore(); return request(db.transaction('metadata').objectStore('metadata').get(`cloud-work:${id}`));
+}
+export async function saveCloudWork(id, work, signal) {
+  if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('雲端工作識別無效。');
+  const db = await openStore(); signal?.throwIfAborted();
+  const tx = db.transaction('metadata', 'readwrite'), { done } = completed(tx, signal);
+  // 工作採新增且不可改寫，另一分頁不會把已開始的快照改成不同來源；保留中斷工作供明確重試。
+  tx.objectStore('metadata').add(work, `cloud-work:${id}`); await done;
+}
 /** @param {string} id @param {number} index @param {Blob} blob */
 export async function saveChunk(id, index, blob) {
   if (!Number.isSafeInteger(index) || index < 0 || !(blob instanceof Blob) || !blob.size) throw new Error('錄影片段的順序或內容無效，未寫入。');

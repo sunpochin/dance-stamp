@@ -8,6 +8,7 @@ import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock, storageUnconfirmed, storageUnconfirmedMessage } from './storage.js';
 import { sourceCrop } from './follow.js';
 import { createFollowUI } from './follow-ui.js';
+import { createCloudUI } from './cloud-ui.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -615,7 +616,7 @@ $('self-file').addEventListener('change', () => operation(async signal => {
   if (pendingTakeId) { $('confirm-take').hidden = false; status('請播放預覽自拍原片，再確認連結到待恢復的 take。'); return; }
   activeTakeId = savedTake.id; $('rate').value = '1'; $('offset').value = '0';
   sessionMedia.set(savedTake.cameraAssetId, selected.file);
-  status(comparisonOnly ? '兩片已載入。設定同一個動作的起點，再一起預覽或輸出 VS。原片不會上傳。' : '兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
+  status(comparisonOnly ? '兩片已載入。設定同一個動作的起點，再一起預覽或輸出 VS。原片不會自動上傳。' : '兩片已載入，原片只在本次開啟。各自選起點，或直接共同預覽；需要重開自動取回時再保存副本。'); updateIntersection(); draw(recipe());
 }));
 $('camera-facing').addEventListener('change', () => {
   if (active) return;
@@ -982,7 +983,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) { status(comparisonO
 function hasUnsavedWork() {
   const video = state?.data.videos.find(value => value.id === currentVideoId);
   const metadataDirty = video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
-  return storageUnconfirmed() || active || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+  return storageUnconfirmed() || active || cloud.busy() || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
 }
 window.addEventListener('beforeunload', e => { if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -1904,6 +1905,44 @@ function updateAudioStatus() {
   const hasAudio = video.audioTracks ? video.audioTracks.length > 0 : (video.webkitAudioDecodedByteCount ?? 0) > 0 ? true : video.mozHasAudio;
   $('audio-status').textContent = hasAudio === false ? '老師影片未偵測到音軌，將輸出無聲影片；我的影片不混音。' : hasAudio === true ? '只播放老師影片的聲音，我的影片靜音。' : '只使用老師影片音訊；沒有音軌時輸出無聲。請下載後重播確認聲音。';
 }
+// 雲端沿用同一個取消／儲存鎖，避免下載套用期間與選片或合成互相覆寫。
+const cloud = createCloudUI({
+  operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort(),
+  revision: () => state.revision, media: getAvailableMedia,
+  shareFiles: () => [...(outputBlob ? [{ id: 'vs', label: '上次完成的 VS 成品（請預覽核對）', blob: outputBlob }] : []), ...following.completed()],
+  selection: async signal => {
+    await saveCurrentRecipe(undefined, signal);
+    return { data: state.data, revision: state.revision, videoId: currentVideoId, takeId: activeTakeId };
+  },
+  planImport: (data, signal) => planBackupImport(state.data, data, signal),
+  applyImport: async (plan, revision, media, signal) => {
+    for (const { id } of media) Object.assign(plan.data.assets.find(a => a.id === id), { state: 'ready', storageKind: 'indexeddb' });
+    state = await writeLibrary(plan.data, revision, media, signal); renderLibrary();
+  },
+  openTake: async (id, signal) => {
+    const take = state.data.takes.find(t => t.id === id); if (!take) throw new Error('找不到接續練習。');
+    if (takeBlob && activeTakeId !== id && !confirm('請先下載目前的原片與 VS。確定開啟這份已保存的比較？')) return false;
+    if (!await openVideoNotes(take.referenceVideoId, signal)) return false;
+    if (referenceDurationMs) await openTake(take, signal);
+    else {
+      // 缺片仍帶回原配方，後續人工重連才不會誤建另一組零偏移配對。
+      const row = state.data.recipes.find(r => r.takeId === id);
+      if (!row) throw new Error('接續練習缺少比較配方。');
+      pendingTakeId = id; existingMode = true; $('start').value = String(take.referenceStartMs / 1000); $('end').value = String(take.referenceEndMs / 1000); $('rate').value = String(take.rate);
+      $('offset').value = String(row.offsetMs / 1000); $('reference-mirror').checked = row.referenceMirror; $('self-mirror').checked = row.selfMirror;
+    }
+    return true;
+  },
+  validateMedia: async (file, asset, data, signal) => {
+    const video = document.createElement('video'), url = URL.createObjectURL(file);
+    video.muted = true; video.playsInline = true;
+    try {
+      const duration = await load(video, url, signal);
+      // 雲端內容已核對完整 hash，仍須真的解碼；老師原片不能短於已保存的比較終點。
+      if (asset.kind === 'reference' && data.takes.some(t => t.referenceVideoId === asset.videoId && t.referenceEndMs > duration)) throw new Error('下載原片短於比較終點，沒有套用。');
+    } finally { video.pause(); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(url); }
+  },
+});
 ready = (async () => {
   state = await readLibrary(); validateBackup(state.data);
   // 不自動改寫其他分頁可能仍在錄製的 take；恢復操作會先取得該 take 的互斥鎖。
