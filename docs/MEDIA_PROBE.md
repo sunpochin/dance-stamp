@@ -496,3 +496,26 @@ python3 scripts/check-safari-save-stop.py /absolute/path/to/local-receipts /abso
 核對器要求 metadata-only 準備／目標雙寫、一次 trusted Stop、真正 complete、完整舊欄位／媒體 SHA、三份實際 SaveAs 與 candidate bytes 相同、complete／reload 相同；輸入為本機合成資料，不公開 raw。UI 計時／JS drift 不取代聲畫量尺。
 
 最後關自己的產品視窗／主機，證明埠拒連及已知 PID 退出，再持自有鎖以專用 file 播放器自然到 ended。保留 error／dropped 原值、音訊樣本、全軌解碼與 hash；沒有音訊正值就明記原生出聲未驗，stderr 有警告就逐字保留，不能修檔或補 0 取得通過。nonce／PID／埠／自有視窗交叉收尾。普通軟體觀察不代替私人／實體離線／斷電／人耳／裝置或指定 review；不合併、發布或關票。
+
+## 私人 Safari：新 VS 自然保存續驗
+
+[7dede9f／27.2 的首次失敗與界線](evidence/issue-13-unconfirmed-storage.md#7dede9f-私人-safari-新-vs-保存前的首次拒絕)：只跑同普通 #214 的 3 秒、1×、A0–3／B0／offset0；首次被原 250ms 同步護欄拒絕，保存失敗／未確認救援尚未到達。先保留首次結果，禁止重跑到綠、裁片或放寬門檻。
+
+可重建的最小 QA：原始碼的[唯讀 loopback 主機（需連網）](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-private-rescue/scripts/serve-safari-private-rescue.ts)、[旁聽器（需連網）](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-private-rescue/tests/browser/safari-private-rescue-observer.js)及[只讀核對器（需連網）](https://github.com/sunpochin/dance-stamp/blob/codex/issue13-safari-private-rescue/scripts/check-safari-private-guard.py)。固定 Bun 1.4.4，在自己的乾淨工作樹建置；將上節已核對的兩份合成素材複製到本輪全新 output 子資料夾的 `fixtures/reference.mp4`、`fixtures/self.mp4`，另建 `results/`。主機拒絕既有收據及不同素材 SHA；鎖忙就等持有人自然釋放，不接管鎖。以下工具不操作 Safari 或擷取硬體：
+
+```sh
+bun run build
+bun --no-env-file scripts/serve-safari-private-rescue.ts output/private-run
+```
+
+主機印出新的 loopback origin。原生 File → New Private Window，保存 Private Browsing 可見證據，開此網址。按明示 QA metadata-only 預置、以可見 QA JSON 連結原生 SaveAs 保存 `results/preset-complete.json`，確認 trusted complete；同頁重整後從正常入口選兩片，不建立舊 VS／媒體副本、不碰隱藏產品工具。保存匯出前收據為 `results/before-export.json`，再只按一次可見輸出。旁聽不改 put 或錯誤預設行為，只在原生 active 回呼排入一次 metadata 快照，沒有 get hold；未確認或 busy 時快照不另查 DB。
+
+若先被護欄拒絕，立即原生 SaveAs 首次收據為 `results/first-product-guard-failure.json` 並停止產品重跑；本輪就是這個結果。可只讀核對，輸出明列 rescue-unverified，不能拿核對器 exit 0 當產品通過：
+
+```sh
+python3 scripts/check-safari-private-guard.py /absolute/path/to/own/output/private-run
+```
+
+若自然保存成功，就記真正 complete／reload；若成檔後才自然 UnknownError／未確認，沿既有救援契約由可見產品連結另存原片／新 VS／最後確認筆記，核對實際 bytes／SHA 與 JSON 不含未確認 candidate，再由可見原頁讀回及原生確認取得真正結果。未知時不另開 DB、推定回滾或改 Blob 格式。這兩條分支本輪未到，不能用上述保存前拒絕核對器代驗。
+
+收妥本機資料並逐檔讀回後，才按自有 QA 結束主機、關自己的私人視窗，核對 PID／埠／nonce。只有真的得到產品下載 VS，才沿既有獨立播放器在關站／埠拒連後自然播至 ended、保存原生 error／dropped／音訊原值及全軌解碼／hash；阻網和實體斷網分開，聽感不由 analyser 代簽。本機原始收據、媒體、profile 與操作識別不公開；上述最小 QA 原始碼可重建觀察方式。本輪工具只補收據能力，正式主機是受測主機的薄轉接，沒有另跑原生產品案例；產品與品質門檻不變。

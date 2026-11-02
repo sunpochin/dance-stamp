@@ -195,3 +195,50 @@ Stop 前後 recorder 皆 inactive、影格訂閱 0；被觀察的 1 video／2 au
 本次只交付匿名文件與 QA 工具，產品 runtime／schema／靜態版本不變。普通 Safari 的這筆成檔保存 Stop 已有直接保全觀察；**私人模式、pending chunks 直接快照、原生出聲／真人聽感、實體離線／斷電、裝置／iPhone、完整 G1–G7 及指定最終審查仍未驗**。#13／#3 保持開啟，沒有合併、發布或變更服務／帳務／權限。文件 head／正常 check 與 PR CI 另由本 PR 綁定，不把文件提交稱作重跑媒體。
 
 正常 `bun run check` 通過 **704 tests／3,806 expects／0 fail**、公開掃描、型別、原 lint 與 build；原 19 項 lint info 保留。首輪 703／1 的失敗是隨包指南指向未封裝 QA 原始碼，已改需連網來源連結，沒有擴充使用者包或弱化測試。只讀核對器正控制通過，將原片誤當舊 VS 的負控制會拒絕。正常 commit hooks 與最終 head CI 另綁。
+
+## 7dede9f 私人 Safari 新 VS 保存前的首次拒絕
+
+2026-11-02 Asia/Taipei，macOS **27.2／26B123**、原生 Safari **27.2**、Bun **1.4.4**。本輪重新 fetch 的 main 仍為 `7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca`。專用 managed worktree 從依賴 PR #214 的精確 head `14cdaefd8159b0b1939d1304df1033f08edded0e` 建自己的分支；其差異只有普通輪文件／QA，產品資源逐份等於 main，靜態 **80faff7573fa1d79**。不是重跑普通保存 Stop 或舊 Blob／ArrayBuffer 矩陣，也不改寫既有歷史來源的結果。
+
+白話結果：**影片還沒做好，就被原有同步保護擋下。因此還沒走到「新影片存不進去時，從本頁救出」那一步。** 只記首次失敗並停止產品重跑，沒有縮片、改起點或調寬門檻。本輪沒有產品修正，也不能宣稱私人影片保存或新 VS 救援通過。
+
+### 凍結來源與工具首錯
+
+只讀複製普通 PR #214 已用的兩份三秒色條／660Hz、880Hz 合成片：示範 **41,736 bytes**／SHA256 `4899551b4cec878137bca1e1d510cfbea00d5de1ae62799275cdcf04d8c689ae`，練習 **67,209 bytes**／`ae6db98e328a05a1a0cff319e30ee4651607af84b8b0bcf0d4204cd55777af9f`。配方從該輪原生基準收據取得：老師 **0–3000ms**、練習起點 **0**、**1×**、offset **0**、左右並排、兩側不鏡像。原配方、兩片 SHA 與全部產品資源均相符；沒有憑文件猜 A/B 或 offset。合成原始配方仍為 `make-export-fixtures.ts` 的八秒色條／音調，再由普通輪以 copy 取三秒；本輪只複製已核對的三秒檔，沒有另裁片。
+
+共用媒體鎖忙時只讀核對持有人 PID／cwd，等其自然釋放才原子取自己的鎖。透過 Safari **File → New Private Window** 建立自己的私人視窗，AX 與畫面均有 Private Browsing；只用全新 loopback origin，保留日常視窗、4193 使用者離線包／profile 及全部偏好。沒有呼叫相機、麥克風或畫面擷取。
+
+QA 準備輪先遇到可重現的選擇器錯誤：旁聽器用了不存在的 `select-reference-video`，真正 ID 是 `select-video`，`getComputedStyle` 因此報 TypeError。當時只有 metadata-only 預置，尚未選片或匯出。首錯工具、畫面與同頁讀回的 revision 1 筆記收據保留；修正後逐項核對所有觀察 ID 都在原 HTML，語法檢查通過。先另存準備輪資料、正常結束自有主機，再以修正工具及另一全新 origin 凍結本輪；沒有把工具首錯當產品失敗，也沒有重試任何產品匯出。
+
+受測旁聽器 SHA256 **`c66f766e8a0c37c85a9b5789e99f09709e3e1cf1811ae39047a7099c4f030508`**，本機主機 **`ee049d5d9cc6932b07e2bf967273571fadf0a7e7c7a626eb1b3e272af7ca532d`**。主機只提供原建置資源與 QA 腳本，不接受任何媒體／資料上傳；兩次自動審查拒絕的 Blob POST 方案沒有執行，改用可見 QA JSON 收據下載。媒體只在頁內算完整 SHA，不另造 QA 媒體下載冒充產品救援。
+
+### 唯一一次產品匯出
+
+| 時點 | 原生收據與實際結果 |
+| --- | --- |
+| QA 非空筆記基準 | 明示以原 storage API／schema 預置一則合成標記，真正 trusted metadata success／transaction complete，revision **1**、media keys／chunks 均空；不含舊 VS 或原片副本。 |
+| 正常可見選片 | 兩側以原生檔案選擇器選上述素材，兩筆 metadata-only trusted complete，revision **2→3**。原片 File 留本頁；沒有 Blob 保存。 |
+| 匯出準備 | 一次真正 trusted 輸出點按；原 `saveCurrentRecipe` metadata-only success／trusted complete，revision **3→4**，完整 data 與匯出前逐欄相同。這不是新 VS 保存。 |
+| 首次產品失敗 | 顯示「兩側偏移超過 250ms，請重新校正／降低負載。原片仍保留，可重試。」隨即停止產品重跑。`diagnostics.export=null`，VS 連結仍 hidden、沒有候選 Blob；exports／media keys／chunks 均空。沒有到 `persistExport` 的新 VS 交易，也未重現本版私人 Blob UnknownError。 |
+| 失敗後保全 | busy=false、unknown=false，原生三筆產品寫入皆只有 metadata success／trusted complete，沒有 abort／error。原片 URL、完整 bytes 指紋及非空筆記／配方相同；recorder inactive，觀察到的 video／audio tracks 全 ended，硬體 API 呼叫 0。 |
+
+旁聽只呼叫原生 transaction 並保留原回傳，在 metadata success 的 active 回呼加一次同交易 metadata 快照 get；**沒有 get hold**、put 替換、錯誤預設動作阻擋或偽造 complete／abort。這次是帶觀察器的首次失敗，不由它推定同步唯一根因。所有寫入均已真正 complete、unknown=false，才另做 readonly 收據；未知交易時不讀 DB 的規則保留。
+
+### 收據、界線與收尾
+
+只讀核對器確認：原生筆記／配方完整相同、revision 3→4、一次 trusted 匯出、空 keys／chunks／exports、兩份原片實檔與 URL 指紋相同。兩個負控制分別放入 media success 或 unknown=true，皆被拒絕，不能改標成保存前拒絕或救援通過。工具只讀本機合成收據，不啟動產品、瀏覽器或媒體鎖。
+
+| 本機原始收據 | SHA256 |
+| --- | --- |
+| QA metadata trusted complete | `ba4cf93d57c26011edb2aa0af226800dc8ac3a7d10f1f4da3ea8b0a200454d5b` |
+| 匯出前完整基準 | `f8ff8fead6fa68607eca4bf008aaf80147ab6971e24d9ad5b1eb2ff6392c6e68` |
+| 首次產品護欄失敗 | `dc8c08c3f363e89d94595826387a3d5c6737dff74d3d519af28d99679db0f16d` |
+| 逐檔核對結果 | `46e15665f7faf67d79d6c709facaf481265423e2237420816aa9874a83e82622` |
+| 負控制 | `ef9833702fe65df4de5a5f985a51410e8d31b68d0423561b62f264c8b3113424` |
+| 最終清理 | `4506b177d918121516b52ffe793ccad316206fc34c5350c056628488d971f9bb` |
+
+原片連結因尚未進入未確認救援而仍受一般介面簡化隱藏；沒有點隱藏工具、修改 CSS／data-deferred、另造下載或觸發不存在的可見救援入口。**新 VS 原生保存失敗／未確認、真正產品原片／新 VS／筆記救援下載、救援後同私人頁面讀回，以及真正新 VS 的離站播放／全軌解碼／音訊均未驗證**。沒有成功新檔，因此沒有啟動獨立播放器、拿普通輪檔案補驗或代簽聽感。非空筆記另封存的完整 QA JSON 明列為 QA 複本，不冒稱產品備份；不存在的舊 VS／媒體基準也不稱已驗保留。
+
+全部實際 JSON、合成輸入、工具來源與 AX／畫面均留本聊天 ignored output 逐檔讀回封存，不公開 raw、媒體或操作識別。資料另存並核對後才關本輪私人視窗。準備／正式兩個自有主機皆正常 exit 0、PID 已退出、原埠拒連，兩個 cleanup nonce 與 owner 相同且自己的鎖已釋放；原 Safari 視窗保留。
+
+本輪遵守首次護欄失敗即停的範圍，不改 runtime／schema／Blob 格式、時間映射、100ms／250ms 或任何期限。既有普通 #214、舊 Safari 27.0.1 Blob／雙表問題、原 130ms、實體離線／斷電、iPhone、人工聽感與 G1–G7 均各自保留來源與未驗範圍；不把本次 27.2 的保存前失敗當作舊引擎缺陷重現。#13／#3 保持開啟，待 Claude Code／使用者指定最終審查，未合併或發布。
