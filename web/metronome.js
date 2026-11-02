@@ -15,6 +15,7 @@ const progress = /** @type {HTMLProgressElement} */ (element('analysis-progress'
 /** @type {MediaElementAudioSourceNode | undefined} */ let mediaSource;
 /** @type {string | undefined} */ let sourceUrl;
 let bpm = 120, running = false, starting = false, analyzing = false, analysisStarting = false, generation = 0;
+/** @type {{generation:number, seek:boolean, rate:boolean} | undefined} */ let ownSourceChanges;
 let nextBeat = 0, beat = 0, ticker = 0, animation = 0, deadline = 0, startedAt = 0, playGeneration = 0;
 /** @type {number[]} */ let taps = [];
 /** @type {{at:number, beat:number}[]} */ let visual = [];
@@ -96,7 +97,7 @@ document.addEventListener('keydown', event => {
   if (event.key.toLowerCase() === 't') { event.preventDefault(); tap(); }
 });
 function cancelAnalysis(message = '已取消分析，可重新選擇位置。') {
-  generation++;
+  generation++; ownSourceChanges = undefined;
   if (analysisStarting) { source.pause(); say('analysis-status', message); }
   analysisStarting = false;
   if (analyzing) { analyzing = false; capture?.port.postMessage('cancel'); source.pause(); say('analysis-status', message); }
@@ -129,8 +130,14 @@ source.addEventListener('error', () => { cancelAnalysis(); analyze.disabled = tr
 source.addEventListener('play', () => { if (audio) void audio.resume().catch(() => say('analysis-status', '聲音啟動失敗，請暫停再播放。')); });
 source.addEventListener('ended', () => { if (analyzing) capture?.port.postMessage('stop'); });
 // 暫停、拖動、變速會破壞取樣時間，不能繼續把片段拼成貌似準確的 BPM。
-for (const name of ['seeking', 'ratechange']) source.addEventListener(name, () => { if (analyzing) cancelAnalysis('位置或速度已改變，請重新分析。'); });
-source.addEventListener('pause', () => { if (analyzing && !source.ended) cancelAnalysis('播放已暫停，請重新分析。'); });
+for (const name of ['seeking', 'ratechange']) source.addEventListener(name, () => {
+  // 片尾重播與回原速也會送原生事件；只消耗當次初始化預期的那一個，不放過使用者改段。
+  const own = ownSourceChanges?.generation === generation ? ownSourceChanges : undefined;
+  if (name === 'seeking' && own?.seek && source.currentTime === 0) { own.seek = false; return; }
+  if (name === 'ratechange' && own?.rate && source.playbackRate === 1) { own.rate = false; return; }
+  if (analysisStarting || analyzing) cancelAnalysis('位置或速度已改變，請重新分析。');
+});
+source.addEventListener('pause', () => { if ((analysisStarting || analyzing) && !source.ended) cancelAnalysis('播放已暫停，請重新分析。'); });
 analyze.addEventListener('click', async () => {
   if (analysisStarting || analyzing) return;
   stop(); cancelAnalysis(); analysisStarting = true; analyze.disabled = true; element('cancel-analysis').hidden = false; element('result').hidden = true;
@@ -145,8 +152,9 @@ analyze.addEventListener('click', async () => {
       capture.port.onmessage = event => result(event.data);
     }
     if (token !== generation || document.hidden) return;
-    if (source.ended) source.currentTime = 0;
-    source.playbackRate = 1;
+    ownSourceChanges = { generation: token, seek: source.ended, rate: source.playbackRate !== 1 };
+    if (ownSourceChanges.seek) source.currentTime = 0;
+    if (ownSourceChanges.rate) source.playbackRate = 1;
     await source.play();
     if (token !== generation) return;
     if (document.hidden) { source.pause(); return; }
