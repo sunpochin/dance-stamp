@@ -57,8 +57,20 @@ async page => {
     toggleFrames.push({ side, full, tracked, restored });
   }
   assert(JSON.stringify(await page.evaluate(() => ['reference', 'self'].map(side => document.getElementById(side + '-follow-download').href))) === JSON.stringify(resultLinks), '暫停／恢復更換了單側成品');
+  // 清空數字再失焦是實際輸入路徑；錯誤必須還原原選框，不能留下空值或污染已成功的追蹤。
+  await open('reference');
+  const draftBeforeInvalid = await page.evaluate(() => ({ values: [...document.querySelectorAll('#follow-dialog input[type=number]')].map(input => input.value), pixels: document.getElementById('follow-canvas').toDataURL() }));
+  const originalsBeforeInvalid = await page.evaluate(async () => JSON.stringify({ sources: ['reference', 'self'].map(id => { const video = document.getElementById(id); return [video.getAttribute('src'), video.currentTime]; }), library: (await (await import('/storage.js')).readLibrary()).data }));
+  await page.locator('#follow-width').fill(''); await page.locator('#follow-width').press('Tab');
+  const invalidBox = await page.evaluate(() => ({ values: [...document.querySelectorAll('#follow-dialog input[type=number]')].map(input => input.value), pixels: document.getElementById('follow-canvas').toDataURL(), message: document.getElementById('follow-message').textContent }));
+  assert(JSON.stringify(invalidBox.values) === JSON.stringify(draftBeforeInvalid.values) && invalidBox.pixels === draftBeforeInvalid.pixels && invalidBox.message.includes('選框不能太小'), '清空寬度後未還原原選框或遺失失敗原因');
+  assert(await page.locator('#follow-dialog').evaluate(dialog => dialog.open) && await page.locator('#follow-confirm').isEnabled(), '錯誤輸入關掉選框或阻止繼續操作');
+  // 同一視窗改回有效值，確認不是只留錯誤文字卻無法再畫框；Escape 後仍用原先成功的追蹤。
+  await page.locator('#follow-width').fill('50'); await page.locator('#follow-width').press('Tab');
+  assert(await page.locator('#follow-width').inputValue() === '50' && !(await page.locator('#follow-message').textContent()).includes('選框不能太小') && await page.locator('#follow-canvas').evaluate(canvas => canvas.toDataURL()) !== draftBeforeInvalid.pixels, '修正寬度後仍無法重新畫框');
   // Escape 必須走瀏覽器原生 dialog cancel，且把焦點還給原入口。
-  await open('reference'); await page.keyboard.press('Escape'); await idle();
+  await page.keyboard.press('Escape'); await idle();
+  assert(await page.evaluate(async () => JSON.stringify({ sources: ['reference', 'self'].map(id => { const video = document.getElementById(id); return [video.getAttribute('src'), video.currentTime]; }), library: (await (await import('/storage.js')).readLibrary()).data })) === originalsBeforeInvalid, '錯誤輸入／取消改動原片位置或既有資料');
   assert(!await page.locator('#follow-dialog').evaluate(dialog => dialog.open) && await page.locator('#reference-follow').evaluate(button => button === document.activeElement), 'Escape 未關閉選框或失去鍵盤焦點');
   assert((await difference('followTracked')).every(part => part.max <= 1), 'Escape 清掉舊追蹤');
   // 兩功能共存時，試看也必須取同一人物來源；用實際上衣位置／面積核對，而非只看滑桿值。
@@ -185,5 +197,5 @@ async page => {
   await open('self'); await page.locator('#follow-dialog').screenshot({ path: selectionScreenshot }); await page.locator('#follow-cancel').click();
   assert(requests.every(request => request.method === 'GET' && (request.url.startsWith(origin + '/') || request.url.startsWith('blob:'))), '人物分析有外部請求或寫入');
   assert(requests.some(request => request.url.endsWith('/person-model.tflite')), '未真正執行本機人物模型');
-  return { downloads, selectionScreenshot, bothSidesTracked: true, toggleFrames, cleared, clearChange, clearPreservesDownloadBytes: true, escapeRestoresFocus: true, adjustablePreviewSharesCropWithoutChangingOutput: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
+  return { downloads, selectionScreenshot, bothSidesTracked: true, toggleFrames, cleared, clearChange, clearPreservesDownloadBytes: true, escapeRestoresFocus: true, invalidBoxRecovered: true, adjustablePreviewSharesCropWithoutChangingOutput: true, pointerAndKeyboardSelection: true, cancelAndFailurePreserved: true, staleRangeBlocked: true, replaceSideOnly: true, localModel: true, requests: requests.length };
 }

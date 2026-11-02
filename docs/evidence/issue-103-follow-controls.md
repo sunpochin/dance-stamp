@@ -58,3 +58,26 @@ macOS arm64、Bun 1.4.4、Chromium 156.0.8078.76：乾淨主線的原案 17,781m
 整合後十四份產品 JS 逐 byte 等於該主線。`person-follow` 19,871ms、`follow-runtime` 40,847ms 通過，0 頁面例外；原公開開關／Escape／清除保全，以及十一種背景初始化／取消／載入失敗／同頁重試全部保留。這輪來源如實屬 `2caf2b3` 加尚未提交的 main 合併，產品與測試指紋另留收據，不改標原案的受測來源。
 
 本輪八份真下載在產品主機與原瀏覽器關閉後，另開離線 file 播放器均自然播到尾、error 0、有音訊、全軌解碼與完整指紋相符；並排 VS 獨立播放掉 1 格，其餘七份掉 0 格，原結果保留。自有程序與 nonce 鎖正常收尾。這是整合候選的新局部證據，完整 CI 另綁提交後的 head；原生 Safari／真人／真機與發行驗收仍按原缺口保留。
+
+## 2026-11-02 操作續審與無效輸入恢復
+
+本輪從精確 PR head `22fa0d4ea3b659eb2a4b7465973aa9035de17aea` 建專用工作樹續作，不帶入別條未合併變更。重新讀取 #103、PR #202、兩則留言、完整 diff、review 與 review threads；當時兩者仍開啟、沒有正式 review 或 inline threads。既有工具審查只對舊 head `2caf2b3`，不能當成此 head 的指定最終審查。
+
+原 CI #358 的三個 job 仍為 success，六檔封存逐檔核對共 564,880 bytes，manifest SHA-256 `fe7f75a917900e864e0ce4fd95d8c68eb98ac905f49c0f459708753a3e1acdba` 相符。該輪的 78 案、14 模組及 99.61%／97.37%／88.95% 保持原 head 歸屬；五份離站下載不是此次新補驗的產物。
+
+逐一追查公開控制與產品接線：
+
+- 開關透過真正 checkbox change 改變當側 enabled，再由 main 的 changed → draw → track 取用；原回歸比對完整畫面與裁切像素，也驗另一側不動。沒有直接呼叫內部 handler。
+- Escape 經原生 dialog cancel → closeDraft，關閉臨時播放器並回入口焦點；分析中的取消另由既有 cancelAnalysis／parent signal 與 finally 收尾保護。
+- 清除只移除該側 track、關閉 enabled 並增加 revision；保留 result URL，以過期提示區別舊成品。原案已真正下載清除前後的老師結果並核對完整 bytes／SHA。
+- 分析、製片失敗或取消在完整成功交換前退出；成功換片只使該側路徑過期，壞片則保留舊配對。原 person-follow、follow-results、follow-runtime 分別覆蓋對應操作；保留原範圍，沒有將同一測試名稱當成額外驗收。
+
+從該完整輪尚未執行的 `follow-ui.js` 第 114 行選一條使用者路徑：清空寬度欄位並按 Tab。沿原 person-follow 在已有雙側追蹤後操作，核對錯誤原因、全部數字恢復與選框真像素不變，再於同一視窗輸入有效寬度並確認實際重畫；Escape 後原片 URL／時間、完整 library 與成功追蹤仍相同。舊單側／VS 的清除及真下載檢查繼續執行。這是既有錯誤恢復的回歸補證，不是新產品功能，也未以派送假錯誤或另一套選框計算替代公開操作。
+
+只補這一條無效輸入／同頁修正／取消的路徑。其餘未覆蓋行屬準備失敗、postMessage 邊界與失去人物等不同情境，沒有為百分比製造注入。十四份產品 JS、CSP、所有期限／數值門檻、計數器分母及完整 78 案名稱／順序不變。
+
+本機最小輪：Bun 1.4.4、macOS arm64、Chromium 156.0.8078.76；`bun --no-env-file tests/app-coverage/run-app.ts person-follow` **1/1 通過，18,563ms、0 頁面例外**。收據標記為 `22fa0d4` 加未提交的測試／文件，不冒稱提交後重跑。第 114 行已實際命中；十四模組的來源 SHA 與 statementMap／fnMap／branchMap 逐一對上原整合輪，計數仍分開，不合計不同情境輪宣稱全 App 百分比。原有公開開關／取消／壞片／換片／清除保全均繼續通過，未重跑重複長矩陣。原 `bun run check` 亦通過 704 tests／0 fail／3804 assertions、公開掃描、型別／lint／build，靜態仍 `80faff7573fa1d79`。
+
+產品主機與原瀏覽器確實關閉後，本輪四份原始下載在新開的離線 file 原生播放器全部自然 ended／error 0／dropped 0／有音訊，完整影音軌解碼與 SHA 不變，沒有 HTTP 請求。清除前後老師結果同為 435,378 bytes、SHA-256 `9fd54f12df4856b68f4ad4ff1b23856f1d29774f04e0134c07b086e50d1240a9`。自有已知程序全部退出、nonce 核對後釋鎖；第一次獨立播放在啟動前遇到 Safari 持鎖的 EEXIST 原日誌保留，正常等待後才驗同一組原檔，不把鎖競爭當產品失敗。
+
+這次沒有重現需改 runtime 的缺陷，只增加原回歸與兩份文件。原取消／偵測失敗案例對舊追蹤的斷言主要是狀態、開關與結果連結，未對每種失敗逐格重比全段路徑；成功前不交換狀態的程式接線也已核對，不能把此唯讀審查稱作額外媒體驗收。新 head 的 CI 與原 #358 各自綁定，不搬用舊百分比。原生 Safari、真人／聽感／實體裝置、長片、完整 G1–G7 與 Claude Code／使用者指定最終審查仍未驗收，#103 保持開啟，沒有合併或發布。
