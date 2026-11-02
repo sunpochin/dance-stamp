@@ -11,6 +11,7 @@
 <body data-comparison-only><a class="skip-link" href="#controls">跳到選片與比較</a><main>
   <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看示範影片，對照練習影片。</h1>
     <p>先選示範影片，再選練習影片；對齊同一個動作，一起看、存成左右並排或疊影影片。</p>
+    <div class="actions"><button type="button" id="open-cloud">個人雲端／影片連結</button></div>
     <nav class="actions" aria-label="練習入口" data-deferred><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
     <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
     <p class="notice" data-deferred>桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
@@ -279,5 +280,23 @@
     <div class="actions follow-dialog-actions"><button id="follow-confirm" type="button" class="primary">確認選框並分析跟隨</button><button id="follow-cancel" type="button">取消，保留原設定</button></div>
     <p class="hint">只在本機分析目前比較片段，接著自動製作單側影片，約需片段長度，可隨時取消。完成後請在各自結果框播放檢查並匯出另存；修改鏡像後按「更新跟隨結果」。遮擋、轉身或多人交錯仍可能跟錯。結果與設定只留本頁，原片不變。</p>
   </dialog>
-  <footer data-deferred>免費 · 非商用 · 影片留在裝置</footer>
+  <dialog id="cloud-dialog" aria-labelledby="cloud-title">
+    <h2 id="cloud-title">個人雲端／影片連結</h2>
+    <p>本機功能免登入。只有明確選擇保存或分享的內容才會傳給 Google；連接不會自動上傳影片或筆記。</p>
+    <details><summary>Google Drive 連接設定</summary>
+      <p>由網站擁有者提供 Web OAuth client ID 與核准 origin。只需公開 client ID，請勿輸入 secret 或 token。</p>
+      <label>Web OAuth client ID<input id="cloud-client" autocomplete="off" spellcheck="false" maxlength="250"></label>
+      <label>核准的網站 origin<input id="cloud-origin" autocomplete="off" spellcheck="false" maxlength="500"></label>
+    </details>
+    <div class="actions"><button type="button" id="cloud-load">確認設定並載入 Google 工具</button><button type="button" id="cloud-connect" disabled>連接 Google Drive</button><button type="button" id="cloud-disconnect" disabled>中斷連接</button></div>
+    <p id="cloud-account" role="status">尚未連接；本機功能可照常使用。</p>
+    <label>私人資料夾<select id="cloud-root"><option value="">請先連接並讀取位置</option></select></label>
+    <div class="actions"><button type="button" id="cloud-roots" disabled>讀取私人位置</button><button type="button" id="cloud-create-root" disabled>建立新的私人位置</button></div>
+    <details><summary>合成小檔連線檢查</summary><p>只傳送工具產生的文字測試檔，不含影片、筆記或檔名。可在另一台裝置連接相同帳號、選同一位置後讀回。</p><div class="actions"><button type="button" id="cloud-probe" disabled>上傳並核對合成小檔</button><button type="button" id="cloud-read-probe" disabled>讀回合成小檔</button></div></details>
+    <p id="cloud-status" role="status" aria-live="polite">Google 連接與傳輸仍待真實帳號、兩台實體裝置驗收。</p>
+    <p class="hint">中斷連接會停止傳輸、清除當次憑證。雲端檔案及既有公開連結仍保留；撤銷 App 授權、刪除雲端檔案與停止公開分享是不同操作。</p>
+    <p><a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer">Google 授權管理</a> · <a href="https://drive.google.com/" target="_blank" rel="noopener noreferrer">前往 Drive 管理容量與檔案</a></p>
+    <button type="button" id="cloud-close">停止工作並關閉，保留原資料</button>
+  </dialog>
+  <footer data-deferred>免費 · 非商用 · 影片預設留在裝置</footer>
 </main></body></html>

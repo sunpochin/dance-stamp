@@ -143,6 +143,10 @@ Safari WebM 缺 format.duration 時，沿既有 v5 方法使用最後視訊 PTS 
 
 ## 1. 架構結論
 
+#209 的 Google 第一片以 `google-drive.js` 負責短效 token、API 帳號身分、私人位置與傳輸，`cloud-auth.js` 只接 GIS，`cloud-ui.js` 從現有雙片首頁進入並沿用操作／取消鎖。沒有新增會員後端或 runtime 依賴。設定僅保存公開 client ID 與精確 origin；token 與 upload session URL 只留記憶體，離頁清除。外部來源只開 GIS 指定路徑及 `www.googleapis.com`，SW 仍只收同源靜態白名單。
+
+分段上傳採預先配置檔案 ID、4 MiB 分塊與最多兩次進度查詢；重試讀同一 ID 核對，不覆寫既有內容。每段 SHA-256 與上傳後全部讀回核對避免整檔 hash 的瞬間記憶體峰值；首版 200 MiB 上限並多耗一次下載流量。排除用 HTTP 成功、同名或大小相同冒充內容一致。私人位置要求本人唯一 owner、非 shared drive、沒有其他讀者；同名位置全部列出，不自動選第一筆。設定、恢復與尚缺的真實驗收見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。
+
 第一候選：**TypeScript + Vite + Svelte，靜態 Web／PWA，原生媒體 API，IndexedDB（透過 Dexie）保存筆記。** 不需要 SSR、登入、SQL 雲端、付費影片平台或訂閱表。
 
 這是可驗證的選擇，並非因為「換框架就能解決錄影」。最先做的工作是用最小 Web 頁面驗證手機同時播放與錄影，以及 VS 影片匯出。若 iPhone Web 過不了門檻，保留 Web 筆記，先以 SwiftUI + AVFoundation 做 iOS 媒體功能，再考慮 Android。

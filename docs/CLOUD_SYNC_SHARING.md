@@ -188,3 +188,30 @@ Google 工作／學校帳號可能禁止外部分享；Dropbox 連結受傳輸�
 3. 產品操作以現行雙片首頁為入口；純邏輯與失敗案例用既有測試風格補驗，真正雲端／匿名觀看／實體手機與電腦另記來源、帳號授權及裝置證據，缺項標未驗證。首次小檔試驗失敗先診斷，不放寬資料保全或音畫標準。
 4. 每個可驗收切片執行原 `bun run check` 與必要測試，檢查完整 diff，commit、立即 push、開 PR。更新本文件及直接相關技術文件中的進度、設定方式、精確受測 commit、未驗證項與下一步；產品程式需繁體中文 why 註解。
 5. 文件交付不等於功能完成；本機測試不等於兩台實體裝置驗收；PR 與 CI 不等於合併或發布。不要因等待帳號設定就丟失已完成實作，也不應在缺真實證據時關閉完整驗收項目。
+
+## 11. Google 實作進度與設定
+
+2026-11-02：從 main `7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca` 建立 `codex/google-drive-cloud`。#210 尚未合併；以 cherry-pick 納入來源 `0c361130`、`3cab2d55` 兩個純文件提交，沒有合併原 PR。此分支是功能實作，原文件 PR 仍獨立。
+
+### A：連接與可核對傳輸
+
+已實作首頁「個人雲端／影片連結」、公開 client ID／origin 設定、按需載入 GIS、逐檔 scope、帳號由 Drive API 確認、拒絕／到期／切帳號／取消保護、私人位置建立與完整分頁、合成小檔上傳及另一頁讀回入口。上傳會分段核對完整內容，失敗不改本機資料、不清除雲端檔；固定工作 ID 可重試。這不是只顯示登入按鈕，已有真正 Drive REST 傳輸路徑；但沒有用實際帳號執行。
+
+執行時先展開連接設定，填寫 Web OAuth client ID 與當前頁面顯示的 origin，按「確認設定並載入 Google 工具」，再明確按「連接 Google Drive」。分成兩次點按是為了讓 popup 在原生使用者手勢中開啟。重新連接須再次選帳號；不靜默更新 token。可開啟 Google 授權管理撤銷 App，既有公開連結仍須另外停止分享。
+
+### 擁有者仍需提供的精確設定
+
+1. 自己控制的 Google Cloud 專案，啟用 Drive API，OAuth client 類型為 **Web application**；只需公開的 `…apps.googleusercontent.com` client ID。沒有 client secret、API key 或連接器 token 需求。
+2. 在 Authorized JavaScript origins 加入實際 origin（scheme＋host＋port、無路徑）。本機可使用 `http://localhost:4174`；若用其他埠或 127.0.0.1，須在 Console 核准相同 origin。手機必須使用核准 HTTPS origin，不能把電腦的 localhost 當手機可達的網站。
+3. GIS token popup 模式沒有應用 callback route／redirect URI；不需要編造 callback 網址。自架代理需保留本 repo `_headers` 的 Google CSP 例外；不改為 `*`。正式公開前由擁有者完成 consent branding、隱私頁、適用驗證，加入獲准測試帳號。
+4. 明確授權可使用的測試帳號與僅含合成素材的操作範圍。兩台 Web 各自授權，在同一私人位置上傳／讀回；不要在 issue／PR 留帳號、token 或真實分享網址。
+
+依據：[GIS token model](https://developers.google.com/identity/oauth2/web/guides/use-token-model)、[GIS 載入及 CSP 設定](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid)、[Drive resumable upload](https://developers.google.com/workspace/drive/api/guides/manage-uploads)。沒有操作 Console、帳號或私人資料。
+
+### 驗證與下一步
+
+`tests/unit/googleDrive.test.ts` 是合成 API／OAuth 回應：覆蓋精確 origin、scope 拒絕、API 帳號識別、分段與回應遺失恢復、固定 ID 重試、來源改變、私人位置被公開、錯誤 hash、端點限制、取消、切帳號、過期／401、完整分頁、晚到 callback。單元測試不代表 Google 真實傳輸或 popup 通過。
+
+A 切片同一來源執行 Bun 1.4.4 `bun run check`：713 tests／3864 expects／0 fail，typecheck、lint（原有 19 項 info）與 build 通過。受限環境第一次無法開啟測試 HTTP 主機／寫入建置產物，改在允許本機測試的環境完整重跑，未刪測試或改門檻。Chrome 的實際新入口檢查確認缺設定錯誤、未設定時連接停用、390×844 無橫向溢出、Escape 關閉回焦點、本機選片可用、尚未載入 Google 時零外部資源請求；不屬於手機真機或 OAuth 驗收。精確提交可由本段所在的 A 實作提交追溯，後續切片須重新驗證。
+
+下一片沿同一邊界加入 B 的選定練習快照及 C 的獨立成品分享。A 的真實 OAuth、兩台實體裝置讀回相同 bytes、Safari／手機、匿名播放全部**未驗證**；D／E 仍須等 Google B／C 穩定，不先做第二供應商或自動同步。

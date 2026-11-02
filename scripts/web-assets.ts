@@ -22,7 +22,7 @@ export function webAssetBytes(root: string, file: string) {
   // Emscripten 的虛擬家目錄不是使用者路徑；兩處同改為公開範例，保留原公開掃描強度。
   return ['vision-wasm.js', 'vision-simd.js'].includes(file) ? new TextEncoder().encode(bytes.toString().replaceAll(JSON.stringify(['', 'home', 'web_user'].join('/')), '"/home/example"')) : bytes
 }
-export const webFiles = ['index.html', 'style.css', 'main.js', 'timeline.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets)]
+export const webFiles = ['index.html', 'style.css', 'main.js', 'google-drive.js', 'cloud-auth.js', 'cloud-ui.js', 'timeline.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets)]
 export const notices = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 export function webNotice(file: string, source: string) {
   // 授權 Markdown 副本位於 dist/web；根文件保留原連結，副本須回到同一包根目錄找實際檔案。
@@ -32,8 +32,8 @@ export function webNotice(file: string, source: string) {
 export const webPaths = new Map([...webFiles, ...notices].map(file => [file === 'index.html' ? '/' : `/${file}`, file]))
 export const webHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
-  // WASM 只由本包同源載入；不開放 JavaScript eval、CDN 或任何影片上傳來源。
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+  // 逐一列出選用雲端所需來源；本機功能不主動載入 Google，也不放寬任意 CDN、eval 或影片來源。
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://accounts.google.com/gsi/ https://www.googleapis.com; frame-src https://accounts.google.com/gsi/; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
 }
 // 只有靜態主機解析這個設定；不把設定檔當成公開可讀路由。

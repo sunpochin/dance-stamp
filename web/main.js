@@ -8,6 +8,7 @@ import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock, storageUnconfirmed, storageUnconfirmedMessage } from './storage.js';
 import { sourceCrop } from './follow.js';
 import { createFollowUI } from './follow-ui.js';
+import { createCloudUI } from './cloud-ui.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -982,7 +983,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) { status(comparisonO
 function hasUnsavedWork() {
   const video = state?.data.videos.find(value => value.id === currentVideoId);
   const metadataDirty = video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
-  return storageUnconfirmed() || active || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+  return storageUnconfirmed() || active || cloud.busy() || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
 }
 window.addEventListener('beforeunload', e => { if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -1904,6 +1905,8 @@ function updateAudioStatus() {
   const hasAudio = video.audioTracks ? video.audioTracks.length > 0 : (video.webkitAudioDecodedByteCount ?? 0) > 0 ? true : video.mozHasAudio;
   $('audio-status').textContent = hasAudio === false ? '老師影片未偵測到音軌，將輸出無聲影片；我的影片不混音。' : hasAudio === true ? '只播放老師影片的聲音，我的影片靜音。' : '只使用老師影片音訊；沒有音軌時輸出無聲。請下載後重播確認聲音。';
 }
+// 雲端沿用同一個取消／儲存鎖，避免下載套用期間與選片或合成互相覆寫。
+const cloud = createCloudUI({ operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort() });
 ready = (async () => {
   state = await readLibrary(); validateBackup(state.data);
   // 不自動改寫其他分頁可能仍在錄製的 take；恢復操作會先取得該 take 的互斥鎖。
