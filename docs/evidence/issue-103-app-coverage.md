@@ -3,6 +3,32 @@
 
 
 
+## 2026-11-03 新頁恢復分享與停止失敗待確認（#238）
+
+白話：分享傳到一半失敗，新頁仍能選回同一件工作；錯一個byte的成品會拒絕，重新確認並選原成品才完成。停止連結若出錯，畫面說「待確認」；重新查到仍公開後，使用者再按停止才移除原權限，影片留著。首次既有流程即通過，本票只有測試／證據，未發現或修正產品缺陷。
+
+範圍先對照 [原雲端規格](../CLOUD_SYNC_SHARING.md) 的分享回應遺失／失敗恢復與停止不得誤報私人契約。#231固定完整80案報告的cloud-share-ui未覆蓋61–64、71；原core只是同頁PATCH收據遺失後重按publish，遠端影片已存在，不能替新頁recover或停止DELETE錯誤作證。經協調者先確認有界scope後建#238，只加第83案；沒有remote-only、剪貼簿、額外服務或其他擴張。
+
+本輪整合來源 `ccf922136834590955edf0505988ab80b32877d6`：正常保留 #237 `c7a75860414d725c09a136cfb798952ee0bcdc30` 及 #230／#231／#234 前置，再正常merge main `3cccbd27cec87bfafc23175e880e114fe8677222` 的純#13證據。受測為該來源加未提交測試，`trackedChanges=true`；全部 **24份web JS** SHA-256逐一相同，runtime零修改，CLI靜態仍 `07cdd7b66289af39`。沿237共用cloudWorkspace建立真雙片、1 take／1 recipe／1 export及舊VS；原片Blob SHA等於實際輸入，已存VS的完整bytes／SHA等於真下載。
+
+公開操作與請求邊界：
+
+- 首次publish在真正shared-video upload POST只回一次明示503，不轉交合成供應商；遠端files／bytes／grants全0。request method/path/id/operation/status與產品「分享狀態待確認」錯誤分階段落盤；不把錯誤當已交付，不宣稱真Google故障或自然斷網。
+- 保留原頁僅核對原片保全，另新頁有獨立全域且沒有兩側src、分享preview、draft或可選本頁成品。它讀同localStorage工作清單、明選同ID；公開確認預設false。選入實際下載VS的同name/size/MIME複本，只有最後1byte翻轉，再明確確認／按recover；精確內容錯誤拒絕，0新upload、遠端仍空，原工作及完整本機資料不變。沒有缺片、長度或MIME不同的混淆。
+- 換真正原下載VS，重新取消／勾選公開確認，再按recover；同id/operation/hashes只建立一成品副本及一grant，遠端完整bytes的SHA等於原VS。原片與筆記未傳送，未建立私人root或其他檔。
+- 真正DELETE `/files/<same-id>/permissions/<same-permission>` 只回一次503且不轉交供應商。UI明確「停止分享結果待確認」，沒有私人／權限已移除的文字；該非空grant、遠端metadata／全部bytes、同工作與完整本機資料保持。公開重新讀權限仍顯示同觀看連結，再明確retry才成功撤銷原permission；供應商只接到一個成功DELETE，沒有新upload，成品檔與bytes不刪。權限失敗收據另存，不以隱藏連結當作已私人。
+- 全程完整library、全部媒體鍵／SHA、原頁兩側真Blob URL／時間／paused／速率及舊VS連結不變，新頁持久資料也不變；結束再從原頁真下載舊VS，前後相同。沒有直接呼叫產品handler或為覆蓋率改產品判斷。
+
+正常 `bun run check`：**760 pass／0 fail／4,384 expects**，公開掃描／型別／lint／build通過，原19項lint info保留。獨立 `bun --no-env-file scripts/verify-cloud.ts share-recovery` 首次通過、0頁錯、自有程序exit0並依nonce釋鎖；獨立輪前後下載各36,699bytes／SHA `104cf4ad821ea23139e7df4a56655f841e23ae4e9c505357d1b02931ae38f9d5`，與插樁輪分開。
+
+Bun1.4.4／macOS arm64／Chrome156.0.8078.76 headless，原App runner選定83案 **1／1、4,917ms、0頁錯**，browserClosed／serverStopped=true、lockRetained=false。原82案名稱／順序與門檻保留，完整分母／來源／位置表守門不變。`coverage/app-nzEWPR/` 同來源單元／VM→加一公開案為行 **1,231／3,357（36.66%）→2,087／3,357（62.16%）**、函式 **418／1,127（37.08%）→621／1,127（55.10%）**、分支 **1,386／3,713（37.32%）→1,890／3,713（50.90%）**；這是選定單案，**不是完整83結果**，不與先前完整80案或其他局部案拼算。cloud-share-ui本輪57／60行、25／29函式、23／42分支，61–64／71已執行，原始報告仍列74–76等未覆蓋位置。
+
+新插樁輪前後真下載各 **36,990bytes**，同SHA `d28eb24c0bca946b85867d3cb8590a396e0db89d04e7c5fe369d74742b9ba4c7`。產品頁／主機已關閉後另做兩份FFmpeg -xerror全檔解碼，各exit0，H2641280×720／61 video frames、AAC93 audio frames；另建離線context拒絕HTTP，file:各播至 **2.033633秒 ended**、61frames／0dropped／0media error，0頁錯，正常關閉瀏覽器與nonce釋鎖。只證明本輪合成成品可讀且保留，不外推真人聽感或整套音畫矩陣。
+
+來源重跑：先原 `bun run check`，CLI如上；局部 `bun --no-env-file tests/app-coverage/run-app.ts cloud-share-recovery`，完整原 `bun run test:coverage:app`。run.json SHA `35e5622a817a81f9d126d296b2e0180351bc08237ddae68403f2db734a992b2d`、完整計數器 `66a92bbf6f2ee006a8cfd4916439b8a290073960a43dac19491b0be7f25edbcb`、入口 `fb674d5a0308926bcdde1f78f190e486cd9382d290d3f17f4941507abf9a8222`、helper `599083677f759213d7feb76b8c8d4d2053ef660bff3932fe2ca9233116d7b5aa`、離站收據 `7b796fddad9052b705b35386d5697f03db77e648120277adf2975f6272e0086c`。raw合成素材／request錯誤收據留ignored，不公開帳號或私人媒體；完整CI依本票提交head另記，不預勾。真OAuth／Google／匿名觀看、自然離線、Safari私人模式、實體跨裝置、人耳與完整G1–G7未驗證；前置產品指定終審／合併另依既有gate。
+
+本輪交接校正：#103原驗收是以有意義行為斷言朝100%補測、報前後基準及每檔缺漏，**不是自加「所有數字100%才可關票」**。本票及另一工作線當前任務交付後，先由協調者依原範圍、完整CI與實際剩餘風險／指定審查整體核對，不再逐行追分無限開票；#209真Google仍因未設定暫緩。本票的局部通過本身不代簽#103關票、真機或發布。
+
 ## 2026-11-03 合成小檔、斷開及同位置重連（#235）
 
 白話：先用工具產生的小文字檔檢查傳輸，再按中斷連接。之後重新按連接、選回原位置，仍能讀回同一份檔，再按上傳也不會多一份；原本練舞資料、兩支影片與比較成品都留下。既有流程首次即通過，本票只補回歸，沒有產品修正。
