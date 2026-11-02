@@ -16,13 +16,15 @@ Coverage 是最近一次 **main 完整成功量測**的行數／函式／分支�
 
 目前桌面 Web 預覽只開放兩支已錄影片的選片、校正、比較與單一 VS 下載；即時錄影、筆記與其他管理工具暫時隱藏，原有資料保留。依使用者本次決定，先做桌面 Web，iPhone／iOS 驗收不阻擋此預覽交付；未宣稱手機支援或完整 P0 驗收。詳見 [Web 使用說明](docs/WEB_PREVIEW.md)。
 
-使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出可自架的靜態 `dist/web/`，尚未對外發布。
+目前使用：左卡選示範、右卡選練習影片 → 用兩側「當下畫面設為起點」及老師的「設為結尾」按鈕選片段 → 共同預覽、微調 →「輸出單一 VS 影片」→ 下載後離開網站檢查畫面與聲音。一般 JSON 備份／匯入與資料管理入口暫藏；保存未確認時的救援仍會顯示，詳見 [保全與恢復](START_HERE.md#保存還原與更新)。
+
+使用 Bun 1.4.4，先執行 `bun install --frozen-lockfile --ignore-scripts`，再執行 `bun run dev`，在此電腦開啟 `http://127.0.0.1:4174/`。`bun run build` 產出可自架的靜態 `dist/web/`；這是所取來源版本的建置，不等於另一次版本發布或網站部署。
 
 首頁新增選用的「個人雲端／影片連結」工程候選，可手動保存選定練習到 Google Drive、接續及管理獨立成品觀看連結；需網站擁有者先設定自己的 OAuth client。尚未取得真實雲端、匿名觀看與兩台實體裝置證據；設定與限制見 [雲端交接](docs/CLOUD_SYNC_SHARING.md#11-google-實作進度與設定)。未連接時可照常本機使用，影片不會自動上傳。
 
-`bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。目前沒有正式發行檔或公開網站；CI 只驗證包，不自動上傳或部署。
+`bun run package:web` 可產生附校驗碼、使用說明與授權的獨立桌面候選包；取得已建置包後不需自行編譯，但仍需 Bun 啟動本機主機。見 [開始使用](START_HERE.md)／[發布準備與來源盤點](docs/RELEASE.md)。[v0.1.0](https://github.com/sunpochin/dance-stamp/releases/tag/v0.1.0) 已公開版本說明與來源，GitHub 自動產生的 source archive 不是這個預建置包；該 Release 沒有預建包附件。已有 HTTPS 預覽與 [固定來源證據](docs/evidence/issue-15-hosted-preview.md)，不代表正式來源／完整 P0 已驗收。CI 檢查包，不自動上傳發行包或部署。
 
-更新內容見 [版本更新紀錄](CHANGELOG.md) 與 [GitHub Releases](https://github.com/sunpochin/dance-stamp/releases)；版本號與里程碑整理方式見 [發布流程](docs/RELEASE.md#版本與更新說明)。Release 草稿仍待人工確認及發布。
+更新內容見 [版本更新紀錄](CHANGELOG.md) 與 [GitHub Releases](https://github.com/sunpochin/dance-stamp/releases)；版本號與里程碑整理方式見 [發布流程](docs/RELEASE.md#版本與更新說明)。v0.1.0 已發布；後續版本的草稿仍須各自審查與取得發布核准。
 
 ## 第一版要做到什麼
 

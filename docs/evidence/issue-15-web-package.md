@@ -139,3 +139,14 @@ CSS／NOTICE 的瀏覽器 body 與建置原 bytes 不同，仍精確符合 Windo
 首版 `f4f834252c2aac2f2de6e14c883e089a26a1420d` 的自動審查指出：一起等待 headers／body，會讓掛住的 body 拖住已取得的標頭，或丟掉另一項已拒絕的具體錯誤。精確路徑的原測試重現 2 pass／2 fail；另一次 Bun 以路徑模式搜尋時連本機舊快照也被選入，5 pass／2 fail 的原工具輸出保留，沒有將其冒稱為獨立七案例。
 
 續修只讓每項結果各自到達就保存，保留逾時後不再改寫的護欄。最終四個回歸也核對成功標頭／body 與具體錯誤在另一項掛住時仍留下。上述唯一 hosted cohort、70 份收據、兩份下載及失敗狀態只屬首版工具 SHA；最終續修另跑正常 check／hook 與乾淨包校驗，不重跑產品、不移記成新工具的瀏覽器通過。自動審查不代替指定的 Claude Code／使用者最終審查。
+
+
+## 2026-11-03 發行與目前操作指南一致性（#15）
+
+小朋友版：版本已放上書架，但原始碼不是打開就能用的服務包；說明也要帶你按目前真的看得到的按鈕。
+
+從同步 main `ff83c11c2f2a835b31afb4dd80a71353e54b6d93` 的獨立分支，只修六份既有文件。公開 GitHub Release API 核對 v0.1.0：2026-10-31 21:27:38 UTC 已公開、來源 `22bd3411133746d94dbe6b8d0bc96172ee1d92f3`、附件清單空；保留該版 60 秒功能紀錄，區分版本／說明／自動原始碼下載與預建置 Bun 服務包。目前來源的首次流程沿兩側選片、原起點／結尾按鈕、共同預覽與輸出 VS；暫藏的一般筆記／相機／JSON 管理與仍可見的保存未確認救援分開說明。
+
+來源核對為 `web/index.html` 的 `data-comparison-only`／`data-deferred` 及實際控制文字、package／release manifest；沒有操作畫面或重跑媒體。技術設計、產品／測試／workflow／版本設定、打包白名單、Release 物件、tag 與服務均未變。既有恢復、安全更新、正式來源、真人／真機與發布核准條件保留，#15 不因這份指南修正結案；本輪 Codex 獨立審查已獲使用者授權。
+
+Bun 1.4.4 原 `bun run check` 通過：760 pass／0 fail／4,385 expects，51 個 harness 指紋、482 個公開檔、型別／lint／build 通過，保留原 19 項 info，產品靜態仍 `07cdd7b66289af39`。`package:web`／`check:package` 通過，95 檔、11,994,086 bytes，archive SHA256 `ac2493df71ac0db4243896515b57a71e4b67b2212abe33860a182141ceafb7e5`。這份本機包在文件尚未提交時生成，sourceRevision 為上述 ff83c11c、trackedChanges=true，不是正式 clean-head 發行包，也未上傳附件。正常 hook 與最終提交／PR 的精確來源另綁；本機檢查與下載包校驗不代替新使用者 P0 或真機驗收。
