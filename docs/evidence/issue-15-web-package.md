@@ -97,3 +97,45 @@ Bun 1.4.4 的實際完整 CLI 回歸在修正前失敗：archive 是連到合成
 seal／verify 的共用 owner 現在直接核對傳入包內所有 Markdown bytes 的既有 inline 本機連結。回歸包含原五處漏檢、真正建置的授權副本與 SW manifest 全 bytes hash 相同、完整 Markdown payload 的實際 archive 往返與 checker，保留原路徑／完整性／公開掃描負向測試；此檔 **6 tests／176 expects／0 fail**。真正 CLI 亦會以文件連結缺目標拒絕原基線包，而非讀 repo 的已修文件取得假成功。
 
 修正工作樹重新沿原入口打包與校驗後，獨立查核實際包的 **36 份 Markdown／119 個本機連結，0 斷鏈**。原完整 `bun run check` 通過 **410 tests／1631 expects／0 fail**、236 檔公開掃描、型別、原 lint 與 build；19 項原 lint info 保留。提交／推送 hooks、最終乾淨 head／包的 sourceRevision、checksum 與 CI 由交付 PR 綁定；工作樹包不冒稱乾淨最終提交。這是檔案與既有連結格式的工程證據，不含新 HTTP／原生瀏覽器、媒體或裝置驗收；Claude Code／使用者最終審查及所有原未驗收條件保留，iPhone 暫緩，未合併、部署、發布或關票。
+
+## 2026-11-02 託管操作的逐筆回應收據
+
+小朋友版：每份收到的東西都貼上不同號碼。拿不到內容也留下原因，再把真正下載帶離網站打開；不把失敗的作業改寫成成功。
+
+### 來源與範圍
+
+本分支從同步 main `7dede9f41ac7fc4be31a59bdd38c98ce487ae5ca` 建立，依賴 [PR #204](https://github.com/sunpochin/dance-stamp/pull/204) head `354c0d5d867d8a0ed8918fa182f026537b3d35b9` 的[既有來源與舊失敗紀錄](https://github.com/sunpochin/dance-stamp/blob/354c0d5d867d8a0ed8918fa182f026537b3d35b9/docs/evidence/issue-15-hosted-preview.md)。沒有複製其未合併文件或推送原分支。只增加 QA 收據工具／測試與匿名說明；十四份產品 JS、原 `person-follow.js`／`download-playback.js`、靜態 `80faff7573fa1d79` 及所有驗收門檻不變。
+
+macOS 27.2／Bun 1.4.4／獨立 headless Chrome 156.0.8078.76；預覽只用 GitHub 部署留言可核對上述 head 的既有不可變網址。24 檔／48 次直接 GET、HEAD 皆 200、無轉址，完整 bytes、HEAD 空 body 與共用回應政策相符。模型原始 4,602,795 bytes／SHA256 `0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb`，未送 Content-Type 仍保留。沒有登入控制台、部署、服務／帳務／權限變更或合成影片上傳；媒體鎖等原持有人自然釋放才取得。
+
+### 原因、修正與保留的失敗
+
+原工具在 body 讀取成功後才建立收據，並以一個 `responseError` 覆寫所有錯誤；同名 body 只存第一次，失敗請求沒有獨立來源，不能回推原輪唯一根因。原函式沒有關頁／context，故不能直接歸咎於 browser.close 太早。舊整輪 failed、原兩份影片與原 74 檔封存維持不變。
+
+最小控制探測在 Worker 活著時讀得完整模型，先結束 Worker 再讀則回 `Response body is unavailable`，當時頁面、context、browser 仍活著。另一個「讀取中結束 Worker」探測未返回，原本機診斷漏加期限；保留失敗，僅正常終止已核對自有 Chrome，確認全部已知程序退出才釋放自有 nonce。工具檔另一次括號解析失敗發生於瀏覽器啟動前，也保留，沒有執行產品後挑成功重跑。
+
+新工具同步編號與登記 pending；每個回應保存獨立 headers、body 或明確錯誤，檔名含收據號碼。關閉前有界 drain，期間新到回應也包含；錯誤一律讓 drain 拒絕，逾時後禁止遲到資料改寫收據。三個回歸測試覆蓋重複 URL／新增 pending、讀取與寫檔錯誤，以及逾時保全。這只修正 QA 可追查性，不改產品釋放 Worker 的順序。
+
+### 唯一新 hosted cohort
+
+2026-11-02 19:42:46–19:43:15（Asia/Taipei）只執行一次原 person-follow 完整函式，合成素材與原函式／播放器 SHA256 均符合舊輪：雙側分析、框選／裁切／鏡像像素、兩種輸出、取消／失敗保全、範圍／換片與窄版斷言全部完成，0 頁面例外。74 次請求皆同來源 GET 或本機 Blob。
+
+**整輪仍為 failed**：70 個實際回應全部有終態收據，69 筆 body 完成、1 筆模型 body 保留 `Target page, context or browser has been closed`。新輪最後一次「未找到人物」測試的模型回應 200／fromServiceWorker=true；其 request-finished 後約 0.728ms Worker 結束。drain 開始、結束時頁面未關、browser 仍連線，之後才關頁／context／browser；這一輪已定位到 Worker target 生命週期，不是最後 browser.close 提早。既有 Playwright 1.64.1 的 body 讀取須等待請求完成，再向原 target session 取 body，Worker 結束會使該來源不可用。原輪缺這些逐筆訊號，其唯一原因仍未解；沒有吞錯、補讀另一請求冒充或再跑一輪補綠。
+
+CSS／NOTICE 的瀏覽器 body 與建置原 bytes 不同，仍精確符合 Windows-1252 文字解碼後以 UTF-8 返回的表示；直接 HTTP 原 bytes 已各自核對相符。原始傳輸 bytes 與瀏覽器 body 是兩種證據，不以轉碼覆寫原收據或下載。
+
+產品與全部已知程序退出後，兩份本輪真下載在全新、導覽前已離線的 file 播放器自然 ended。原值如下，兩份各有一個視訊／音訊軌，全軌 FFmpeg 解碼 exit 0／stderr 空，重播後完整 hash 不變；程序與自有 nonce 已收尾。
+
+| 輸出 | bytes | 原生秒數 | frames／dropped／error | audioBytes | SHA256 |
+| --- | ---: | ---: | --- | ---: | --- |
+| 並排 | 796,394 | 2.9783 | 90／0／0 | 9,727 | `b5e864a88bd7a815ed6bc04e02fc4a1e55c7803c92e5321fbf345cf0303b3975` |
+| 疊影 | 618,719 | 3.003267 | 95／0／0 | 10,980 | `b2e74b07876c1e0f316b80ef748a9895e717ecbca250ea0f30e451cbd20aff18` |
+
+原 CI #360 的 78 情境／14 模組與五份下載未重做；本輪與舊輪各自保留來源。本機完整 check、正常 hooks 與最終來源由本次 PR 綁定。原始日誌、HTTP／瀏覽器收據、合成素材、畫面與影片只留本機，不納入 Git 或下載包。完整 P0、新使用者、原生 Safari、真人聽感、實體裝置、跨裝置／恢復、長片與 G1–G7 未由此驗收；#15 保持開啟，待 Claude Code／使用者審查，未合併或正式發布。
+
+
+### PR #211 審查續修：先保存已完成的訊號
+
+首版 `f4f834252c2aac2f2de6e14c883e089a26a1420d` 的自動審查指出：一起等待 headers／body，會讓掛住的 body 拖住已取得的標頭，或丟掉另一項已拒絕的具體錯誤。精確路徑的原測試重現 2 pass／2 fail；另一次 Bun 以路徑模式搜尋時連本機舊快照也被選入，5 pass／2 fail 的原工具輸出保留，沒有將其冒稱為獨立七案例。
+
+續修只讓每項結果各自到達就保存，保留逾時後不再改寫的護欄。最終四個回歸也核對成功標頭／body 與具體錯誤在另一項掛住時仍留下。上述唯一 hosted cohort、70 份收據、兩份下載及失敗狀態只屬首版工具 SHA；最終續修另跑正常 check／hook 與乾淨包校驗，不重跑產品、不移記成新工具的瀏覽器通過。自動審查不代替指定的 Claude Code／使用者最終審查。
