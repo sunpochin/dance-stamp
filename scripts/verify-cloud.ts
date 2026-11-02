@@ -3,22 +3,20 @@ import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createHash } from 'node:crypto'
-import { chromium, type BrowserContext } from 'playwright-core'
+import { chromium, type Browser, type BrowserContext } from 'playwright-core'
 import { cloudDriveFixture } from '../tests/fixtures/cloud-drive'
 import { webHeaders, webPaths } from './web-assets'
-const root = resolve(import.meta.dir, '..'), out = resolve(root, 'output/playwright/cloud')
+const root = resolve(import.meta.dir, '..')
+
+// 同一份公開操作同時供獨立驗證與全 App 插樁使用，避免兩套斷言逐漸分歧。
+export async function runCloudScenario(browser: Browser, origin: string, out: string, buildVersion?: string) {
 mkdirSync(out, { recursive: true })
 for (const [name, color] of [['reference', 'blue'], ['self', 'red']]) {
   const result = Bun.spawnSync(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', `color=c=${color}:s=160x120:r=30:d=2`, '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:v', 'libvpx', '-c:a', 'libopus', '-shortest', resolve(out, `${name}.webm`)], { stdout: 'pipe', stderr: 'pipe' })
   assert.equal(result.exitCode, 0, result.stderr.toString())
 }
-const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
-  const file = webPaths.get(new URL(request.url).pathname)
-  return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
-} })
 const fixture = cloudDriveFixture(), errors: string[] = [], contexts: BrowserContext[] = []
 let failShareReceipt = false
-const browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
 async function page() {
   const context = await browser.newContext({ serviceWorkers: 'block' }); contexts.push(context)
   await context.route('https://accounts.google.com/gsi/client', route => route.fulfill({ contentType: 'text/javascript', body: `window.google={accounts:{oauth2:{hasGrantedAllScopes:()=>true,initTokenClient:config=>({requestAccessToken:()=>{window.syntheticOAuthReturn=()=>config.callback({access_token:'owner-a',expires_in:3600,scope:'https://www.googleapis.com/auth/drive.file'});if(!window.syntheticHoldOAuth)queueMicrotask(window.syntheticOAuthReturn)}})}}};` }))
@@ -34,7 +32,7 @@ async function page() {
     } catch (error) { console.log('synthetic route failure', error instanceof Error ? error.message : 'unknown'); await route.abort('failed') }
   })
   const result = await context.newPage(); result.setDefaultTimeout(15000); result.on('pageerror', error => errors.push(error.message))
-  await result.goto(`http://127.0.0.1:${server.port}/`); await result.waitForFunction(() => !document.getElementById('select-video')?.matches(':disabled'))
+  await result.goto(origin); await result.waitForFunction(() => !document.getElementById('select-video')?.matches(':disabled'))
   return result
 }
 async function idle(p) { await p.waitForFunction(() => document.getElementById('controls')?.getAttribute('aria-busy') !== 'true') }
@@ -55,7 +53,7 @@ async function connect(p) {
 const evidence: any = {
   simulatedProvider: true, realOAuth: '未驗證', physicalDevices: '未驗證', anonymousPlayback: '未驗證', authSurvivesSimulatedProviderBackground: true,
   sourceBase: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(),
-  buildVersion: readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([^']+)'/)?.[1],
+  buildVersion,
 };
 try {
   const first = await page()
@@ -148,5 +146,26 @@ try {
   Object.assign(evidence, { browser: browser.version(), noUnsolicitedRemote: true, realUIUploadAndReadback: true, separateBrowserContextImport: restored, narrowNoOverflow: true, escapeFocusReturn: true, errors })
   assert.deepEqual(errors, [])
   evidence.sourceHashes = Object.fromEntries(['web/main.js', 'web/storage.js', 'web/library.js', 'web/cloud-ui.js', 'web/cloud-practice-ui.js', 'web/cloud-snapshot.js', 'web/cloud-share-ui.js', 'web/cloud-sharing.js', 'web/google-drive.js', 'web/cloud-auth.js', 'web/follow-ui.js'].map(file => [file, createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex')]))
-  writeFileSync(resolve(out, 'result.json'), JSON.stringify(evidence, null, 2)); console.log(JSON.stringify(evidence))
-} finally { await Promise.all(contexts.map(context => context.close())); await browser.close(); fixture.drive.disconnect(); server.stop(true) }
+  writeFileSync(resolve(out, 'result.json'), JSON.stringify(evidence, null, 2)); return evidence
+} finally {
+  // 一個 context 關閉失敗仍要收尾其餘頁面；瀏覽器／主機由建立它們的入口負責。
+  const closed = await Promise.allSettled(contexts.map(context => context.close()))
+  fixture.drive.disconnect()
+  for (const result of closed) if (result.status === 'rejected') throw result.reason
+}
+}
+
+if (import.meta.main) {
+  const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
+    const file = webPaths.get(new URL(request.url).pathname)
+    return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
+  } })
+  let browser
+  try {
+    browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
+    const buildVersion = readFileSync(resolve(root, 'dist/web/sw.js'), 'utf8').match(/const version = '([^']+)'/)?.[1]
+    console.log(JSON.stringify(await runCloudScenario(browser, `http://127.0.0.1:${server.port}`, resolve(root, 'output/playwright/cloud'), buildVersion)))
+  } finally {
+    try { await browser?.close() } finally { await server.stop(true) }
+  }
+}
