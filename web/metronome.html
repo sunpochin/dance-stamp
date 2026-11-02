@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- 檔案用途：獨立本機節拍器與人聲數拍估算入口。所在層：Web 頁面。主要關聯：metronome.js、tempo.js。 -->
+<html lang="zh-Hant"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dance Stamp · 節拍器</title><link rel="icon" href="data:,"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/metronome.css">
+<script type="module" src="/metronome.js"></script>
+</head><body><main class="metronome">
+<!-- 直接開頁沒有原工作台；此連結只開新首頁，不假裝能還原另一分頁的原片。 -->
+<header><a href="/">開啟練舞工作台</a><p class="hint">從工作台另開時，影片仍在原分頁；切回原分頁即可繼續比較。</p><p class="eyebrow">DANCE STAMP / METRONOME</p><h1>找到速度，<br>跟著八拍練。</h1><p>直接開始打拍，或選一段人聲數拍，找出適合的速度。</p></header>
+<section aria-labelledby="tempo-title"><h2 id="tempo-title">我的練習速度</h2>
+<div class="tempo-number"><button id="slower" type="button" aria-label="慢 1 BPM">−</button><label>BPM<input id="bpm" type="number" min="20" max="300" step="0.1" value="120" inputmode="decimal"></label><button id="faster" type="button" aria-label="快 1 BPM">＋</button></div>
+<label class="sr-only" for="tempo-slider">調整速度</label><input id="tempo-slider" type="range" min="20" max="300" step="0.1" value="120">
+<div class="actions"><button id="half" type="button">÷ 2 半速</button><button id="double" type="button">× 2 倍速</button><button id="tap" type="button">跟著點拍（T）</button><button id="reset-taps" type="button">重新點拍</button></div><p id="tap-status" class="hint" role="status">跟著每一拍點至少 3 次；停超過 3 秒會重新計算。</p>
+<div id="pulse" aria-hidden="true">—</div><div id="beat-dots" class="beat-dots" aria-hidden="true"></div>
+<div class="settings"><label>重音循環<select id="meter"><option value="8">8 拍</option><option value="4">4 拍</option><option value="3">3 拍</option><option value="1">每拍相同</option></select></label><label>提示音量<input id="volume" type="range" min="0" max="100" value="50"></label></div>
+<button id="toggle" type="button" class="primary" aria-pressed="false">開始節拍器</button><p id="play-status" role="status">尚未開始。空白鍵可開始／停止；切到背景會自動停止。</p>
+</section>
+<section aria-labelledby="detect-title"><h2 id="detect-title">從人聲數拍找 BPM</h2><p>選音訊或影片，拖到數拍清楚的位置，再分析最多 20 秒。檔案留在裝置，不會上傳。</p>
+<label>選擇本機音訊／影片<input id="source-file" type="file" accept="audio/*,video/*,.mov,.m4a,.mp4,.wav,.mp3"></label>
+<!-- biome-ignore lint/a11y/useMediaCaption: 使用者自選本機素材沒有隨附字幕；數拍結果另以文字呈現。 -->
+<video id="source" controls playsinline preload="metadata" hidden></video>
+<div class="actions"><button id="analyze" type="button" disabled>從目前位置分析 20 秒</button><button id="cancel-analysis" type="button" hidden>取消分析</button></div><progress id="analysis-progress" max="20" value="0" hidden aria-label="分析進度"></progress>
+<p id="analysis-status" role="status">人聲需大致穩定、一個數字對應一拍。閒聊、停頓或雜音可能無法判斷。</p>
+<div id="result" hidden><p id="result-text"></p><div id="candidates" class="actions"></div><p class="hint">這是速度建議，不會辨認數字或第一拍。可用半速／倍速校正，或暫停分析後跟著原聲點拍。也可播放原聲一起試拍；節拍器從你按下開始時起拍，起拍位置需自己對準。</p></div>
+</section><footer>速度設定只在此頁使用。要用於工作台錄影倒數，請將確認的 BPM 填入影片的拍點設定。</footer>
+</main></body></html>

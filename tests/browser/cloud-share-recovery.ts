@@ -1,0 +1,105 @@
+/* 檔案用途：驗證新頁以同成品恢復分享與停止故障不誤報私人。所在層：公開雲端合成回歸。主要關聯：verify-cloud.ts、cloud-share-ui.js、cloudWorkspace、#238。 */
+import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { cloudWorkspace } from './cloud-pending-recovery'
+
+export async function cloudShareRecovery({ page, connect, idle, fixture, out, errors, failures, failUpload, failStop }) {
+  const { first, record, download, snapshot, beforeDownload } = await cloudWorkspace({ page, idle, out })
+  const before = await snapshot(first), original = readFileSync(beforeDownload.path)
+  const hash = bytes => createHash('sha256').update(bytes).digest('hex')
+  assert.equal(before.library.data.takes.length, 1); assert.equal(before.library.data.recipes.length, 1); assert.equal(before.library.data.exports.length, 1)
+  const vs = before.library.data.exports[0].assetId
+  assert.deepEqual(before.media.find(row => row.id === vs), { id: vs, bytes: original.length, sha256: hash(original) })
+  assert(before.sources.every(source => !source.revoked && source.bytes > 0))
+  for (const [index, name] of ['reference.webm', 'self.webm'].entries()) assert.equal(before.sources[index].sha256, hash(readFileSync(resolve(out, name))))
+  const mime = await first.evaluate(href => (window as any).__cloudRecoverySources.blobs.get(href).type, before.output)
+  const localJob = async p => p.evaluate(() => {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('dance-stamp-cloud-share:owner-a:'))
+    if (keys.length !== 1) throw new Error('沒有唯一分享工作')
+    return JSON.parse(localStorage.getItem(keys[0])!)
+  })
+  const uploads = () => fixture.calls.filter(call => call.init.method === 'POST' && call.url.pathname.startsWith('/upload')).length
+  const remote = async () => ({
+    files: JSON.parse(JSON.stringify([...fixture.files.values()])), grants: JSON.parse(JSON.stringify([...fixture.grants])),
+    bytes: await Promise.all([...fixture.bytes].map(async ([id, blob]) => ({ id, bytes: blob.size, sha256: hash(Buffer.from(await blob.arrayBuffer())) }))),
+  })
+  record('before-share', before)
+  await connect(first); await first.locator('#cloud-share-refresh').click(); await first.locator('#cloud-share-source').selectOption('vs')
+  await first.locator('#cloud-public-confirm').check(); failUpload()
+  await first.locator('#cloud-share-publish').click(); await idle(first)
+  const initialError = await first.locator('#cloud-status').innerText(), pending = await localJob(first)
+  assert.match(initialError, /分享狀態待確認/); assert.equal(await first.locator('#cloud-watch').isVisible(), false)
+  assert.equal(pending.size, original.length); assert(mime.startsWith('video/'))
+  assert.equal(failures.length, 1); assert.equal(failures[0].id, pending.id); assert.equal(failures[0].operation, pending.operation)
+  assert.equal(fixture.files.size, 0); assert.equal(fixture.bytes.size, 0); assert.equal(fixture.grants.size, 0); assert.equal(uploads(), 0)
+  assert.deepEqual(await snapshot(first), before)
+  record('upload-not-delivered', { error: initialError, request: failures[0], pending, remote: await remote() })
+  // 原頁只留作原片保全核對；新頁是另一份全域，沒有draft或session原檔可替錯檔兜底。
+  const fresh = await first.context().newPage(); fresh.setDefaultTimeout(15000); fresh.on('pageerror', error => errors.push(error.message))
+  await fresh.goto(first.url()); await fresh.waitForFunction(() => !document.getElementById('select-video')?.matches(':disabled'))
+  const reopened = await snapshot(fresh, false)
+  assert.deepEqual(reopened.library, before.library); assert.deepEqual(reopened.media, before.media)
+  for (const id of ['reference', 'self', 'cloud-share-preview']) assert.equal(await fresh.locator('#' + id).getAttribute('src'), null)
+  await connect(fresh); await fresh.locator('#cloud-list-shares').click(); await idle(fresh)
+  assert.equal(await fresh.locator('#cloud-shares option').count(), 2); await fresh.locator('#cloud-shares').selectOption(pending.id)
+  assert.equal(await fresh.locator('#cloud-public-confirm').isChecked(), false)
+  assert.equal(await fresh.locator('#cloud-share-source option').count(), 0)
+  await fresh.locator('summary').filter({ hasText: '分享中斷／權限回應遺失' }).click()
+  // 正確檔先保持未確認，讓刪掉同意guard也必須失敗；不能只看checkbox預設值。
+  await fresh.locator('#cloud-share-retry-file').setInputFiles({ name: pending.name, mimeType: mime, buffer: original })
+  const beforeConsentCalls = fixture.calls.length
+  await fresh.locator('#cloud-share-recover').click(); await idle(fresh)
+  const consentError = await fresh.locator('#cloud-status').innerText()
+  assert.equal(consentError, '完成分享仍會公開這份副本，請重新確認公開範圍。')
+  assert.equal(await fresh.locator('#cloud-public-confirm').isChecked(), false)
+  assert.equal(uploads(), 0); assert.equal(fixture.calls.length, beforeConsentCalls)
+  assert.equal(fixture.files.size, 0); assert.equal(fixture.bytes.size, 0); assert.equal(fixture.grants.size, 0)
+  assert.deepEqual(await localJob(fresh), pending); assert.deepEqual(await snapshot(first), before); assert.deepEqual(await snapshot(fresh, false), reopened)
+  record('public-consent-required', { error: consentError, pending, remote: await remote() })
+  const changed = Buffer.from(original); changed[changed.length - 1] ^= 1
+  await fresh.locator('#cloud-share-retry-file').setInputFiles({ name: pending.name, mimeType: mime, buffer: changed })
+  await fresh.locator('#cloud-public-confirm').check(); await fresh.locator('#cloud-share-recover').click(); await idle(fresh)
+  const wrongError = await fresh.locator('#cloud-status').innerText()
+  assert.match(wrongError, /來源內容已改變/)
+  assert.equal(uploads(), 0); assert.equal(fixture.files.size, 0); assert.equal(fixture.bytes.size, 0); assert.equal(fixture.grants.size, 0)
+  assert.deepEqual(await localJob(fresh), pending); assert.deepEqual(await snapshot(first), before); assert.deepEqual(await snapshot(fresh, false), reopened)
+  record('wrong-vs-rejected', { error: wrongError, name: pending.name, mime, bytes: original.length, originalSha256: hash(original), oneByteChangedSha256: hash(changed), pending })
+  await fresh.locator('#cloud-share-retry-file').setInputFiles({ name: pending.name, mimeType: mime, buffer: original })
+  await fresh.locator('#cloud-public-confirm').uncheck(); await fresh.locator('#cloud-public-confirm').check()
+  await fresh.locator('#cloud-share-recover').click(); await idle(fresh)
+  assert.equal(await fresh.locator('#cloud-watch').isVisible(), true)
+  const link = await fresh.locator('#cloud-watch').getAttribute('href'), recovered = await localJob(fresh)
+  assert.equal(recovered.id, pending.id); assert.equal(recovered.operation, pending.operation); assert.deepEqual(recovered.hashes, pending.hashes)
+  assert.equal(fixture.files.size, 1); assert.equal(fixture.bytes.size, 1); assert.equal(uploads(), 1)
+  assert.equal(hash(Buffer.from(await fixture.bytes.get(pending.id).arrayBuffer())), beforeDownload.sha256)
+  const grant = fixture.grants.get(pending.id)
+  assert.equal(grant.length, 1); assert.equal(grant[0].id, recovered.permissionId)
+  const accepted = await remote(), writes = uploads()
+  failStop(); await fresh.locator('#cloud-share-stop').click(); await idle(fresh)
+  const stopError = await fresh.locator('#cloud-status').innerText()
+  assert.match(stopError, /停止分享結果待確認/); assert.doesNotMatch(stopError, /權限移除|未偵測到公開權限|完全私人/)
+  assert.equal(await fresh.locator('#cloud-watch').isVisible(), false)
+  assert.equal(failures.length, 2); assert.equal(failures[1].method, 'DELETE')
+  assert.equal(failures[1].path, `/drive/v3/files/${pending.id}/permissions/${recovered.permissionId}`)
+  assert.deepEqual(await remote(), accepted); assert.deepEqual(await localJob(fresh), recovered)
+  assert.deepEqual(await snapshot(first), before); assert.deepEqual(await snapshot(fresh, false), reopened)
+  record('stop-not-delivered', { error: stopError, request: failures[1], remote: await remote(), recovered })
+  await fresh.locator('#cloud-share-state').click(); await idle(fresh)
+  assert.match(await fresh.locator('#cloud-status').innerText(), /唯讀觀看連結已核對/)
+  assert.equal(await fresh.locator('#cloud-watch').getAttribute('href'), link); assert.equal(await fresh.locator('#cloud-watch').isVisible(), true)
+  await fresh.locator('#cloud-share-stop').click(); await idle(fresh)
+  assert.match(await fresh.locator('#cloud-status').innerText(), /已重查並確認這項連結權限移除/)
+  assert.equal(await fresh.locator('#cloud-watch').isVisible(), false); assert.equal(fixture.grants.get(pending.id).length, 0)
+  const deletes = fixture.calls.filter(call => call.init.method === 'DELETE')
+  assert.equal(deletes.length, 1); assert.equal(deletes[0].url.pathname, failures[1].path)
+  assert.equal(uploads(), writes); assert.equal(fixture.files.size, 1)
+  const stopped = await remote(); assert.deepEqual(stopped.files, accepted.files); assert.deepEqual(stopped.bytes, accepted.bytes)
+  assert.deepEqual(await snapshot(first), before); assert.deepEqual(await snapshot(fresh, false), reopened)
+  record('recovered-then-stopped', { job: await localJob(fresh), remote: stopped, requestFailures: failures })
+  await fresh.close(); await first.locator('#cloud-close').click()
+  const afterDownload = await download(first, 'after-share-recovery-vs.bin')
+  assert.equal(afterDownload.bytes, beforeDownload.bytes); assert.equal(afterDownload.sha256, beforeDownload.sha256)
+  return { uploadNotDelivered: true, freshPageWithoutSessionFallback: true, oneByteWrongVsRejected: true, sameCopyRecovered: true, stopFailureStayedUnconfirmed: true, publicReadbackBeforeExplicitStop: true, samePermissionRemovedWithoutUpload: true, localDataAndOriginalsPreserved: true, downloads: [beforeDownload, afterDownload] }
+}

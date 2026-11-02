@@ -1,0 +1,13 @@
+/* 檔案用途：獨立節拍器的速度與八拍視覺。所在層：Web 樣式。主要關聯：metronome.html、style.css。 */
+.metronome { max-width: 760px; } a { color: #b9f2c8; } header a { display: inline-block; padding: 10px 0; min-height: 44px; }
+.tempo-number { display: flex; justify-content: center; align-items: center; gap: 16px; }
+.tempo-number label { text-align: center; color: #b9f2c8; font-size: .8rem; }
+.tempo-number input { width: 180px; font-size: 3rem; text-align: center; font-weight: 700; padding: 0; }
+.tempo-number button { font-size: 1.5rem; } #pulse { font-size: 4rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; color: #b9f2c8; }
+.beat-dots { display: flex; gap: 10px; justify-content: center; min-height: 28px; margin-bottom: 20px; }
+.beat-dots span { width: 16px; height: 16px; border: 1px solid #8c9ca2; border-radius: 50%; }
+.beat-dots span.current { background: #b9f2c8; box-shadow: 0 0 0 4px #b9f2c825; }
+#toggle { width: 100%; } #source { max-height: 300px; margin: 12px 0; } #result-text { font-size: 1.2rem; color: #b9f2c8; }
+/* 隱藏標籤仍讓螢幕閱讀器知道滑桿用途；拍點動畫不依賴閃光或位移。 */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 380px) { .tempo-number { gap: 8px; } .tempo-number input { width: 140px; } .beat-dots { gap: 8px; } }
