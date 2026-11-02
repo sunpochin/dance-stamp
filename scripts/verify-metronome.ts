@@ -10,10 +10,35 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
 } })
 const browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
 try {
-  const page = await browser.newPage({ viewport: { width: 320, height: 800 } }), errors: string[] = []
+  const workspace = await browser.newPage({ viewport: { width: 320, height: 800 } }), errors: string[] = []
+  workspace.on('pageerror', error => errors.push(error.message))
+  await workspace.addInitScript(() => Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined }))
+  await workspace.goto(String(server.url))
+  const idle = () => workspace.waitForFunction(() => document.querySelector('#storage-status')!.textContent !== '正在開啟本機筆記…' && document.querySelector('#library-panel')!.getAttribute('aria-busy') !== 'true')
+  await idle()
+  // 真正選取未保存的雙片後開工具；只驗空白首頁會漏掉切頁丟失當次原片。
+  const video = Bun.spawnSync(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=red:s=160x90:r=30', '-t', '3', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov', 'pipe:1'])
+  assert.equal(video.exitCode, 0, video.stderr.toString())
+  const fixture = { name: 'synthetic.mp4', mimeType: 'video/mp4', buffer: Buffer.from(video.stdout) }
+  await workspace.locator('#reference-file').setInputFiles(fixture)
+  await idle()
+  await workspace.waitForFunction(() => document.querySelector<HTMLVideoElement>('#reference')!.readyState >= 2 && !document.querySelector<HTMLButtonElement>('#select-self-video')!.disabled)
+  await workspace.locator('#self-file').setInputFiles(fixture)
+  await idle()
+  await workspace.waitForFunction(() => document.querySelector<HTMLVideoElement>('#self')!.readyState >= 2)
+  const snapshot = () => workspace.evaluate(async () => ({
+    library: JSON.stringify(await (await import('/storage.js')).readLibrary()),
+    sources: ['reference', 'self'].map(id => document.querySelector<HTMLVideoElement>('#' + id)!.src),
+  }))
+  const before = await snapshot()
+  assert(before.sources.every(Boolean))
+  const popup = workspace.waitForEvent('popup', { timeout: 5000 })
+  await workspace.getByRole('link', { name: /節拍器／偵測 BPM/ }).click()
+  const page = await popup
   page.on('pageerror', error => errors.push(error.message))
-  await page.goto(String(server.url))
-  await page.getByRole('link', { name: '節拍器／偵測 BPM →' }).click()
+  await page.waitForLoadState()
+  assert.equal(await page.evaluate(() => window.opener), null)
+  assert.deepEqual(await snapshot(), before, '開節拍器改掉原工作台的原片或配方')
   // 用已知 120 BPM 的音節狀包絡走原生檔案解碼和 AudioWorklet；不只呼叫估算函式。
   const wav = Buffer.alloc(44 + 16000 * 21 * 2)
   wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVEfmt ', 8); wav.writeUInt32LE(16, 16)
@@ -51,6 +76,18 @@ try {
     assert.match(await page.locator('#analysis-status').innerText(), /取消/)
     assert.equal(await page.locator('#source').evaluate((video: HTMLVideoElement) => video.paused), true)
   }
+  await page.close()
+  assert.deepEqual(await snapshot(), before, '關閉節拍器後原片或配方未保留')
+  const standalone = await browser.newPage()
+  standalone.on('pageerror', error => errors.push(error.message))
+  await standalone.goto(new URL('/metronome.html', server.url).href)
+  assert.equal(await standalone.evaluate(() => window.opener), null)
+  assert.equal(await standalone.getByRole('link', { name: '開啟練舞工作台' }).getAttribute('href'), '/')
+  await standalone.locator('#toggle').click()
+  await standalone.waitForFunction(() => document.querySelector('#toggle')!.getAttribute('aria-pressed') === 'true')
+  await standalone.locator('#toggle').click()
+  assert.equal(await standalone.locator('#toggle').getAttribute('aria-pressed'), 'false')
+  await standalone.close()
   assert.deepEqual(errors, [])
-  console.log('PASS: 120 BPM 原生分析、套用、半速／倍速、無效輸入、播放／停止、背景處理、320px、取消重試；無頁面錯誤。')
+  console.log('PASS: 原工作台雙片／配方保全、獨立直開、120 BPM 原生分析、套用、半速／倍速、無效輸入、播放／停止、背景處理、320px、取消重試；無頁面錯誤。')
 } finally { await browser.close(); await server.stop() }
