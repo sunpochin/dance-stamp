@@ -17,6 +17,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: request => {
   return file ? new Response(Bun.file(resolve(root, 'dist/web', file)), { headers: webHeaders }) : new Response('missing', { status: 404 })
 } })
 const fixture = cloudDriveFixture(), errors: string[] = [], contexts: BrowserContext[] = []
+let failShareReceipt = false
 const browser = await chromium.launch({ executablePath: process.env.DANCE_STAMP_CHROMIUM || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true })
 async function page() {
   const context = await browser.newContext({ serviceWorkers: 'block' }); contexts.push(context)
@@ -25,6 +26,8 @@ async function page() {
     const request = route.request(), headers = await request.allHeaders(), raw = request.postDataBuffer()
     if (request.method() === 'OPTIONS') { await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type,content-range,range,x-upload-content-type,x-upload-content-length', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS' } }); return }
     const init = { method: request.method(), headers: { ...headers, Authorization: headers.authorization, Range: headers.range, 'Content-Range': headers['content-range'] }, body: raw && (request.method() === 'PUT' ? new Blob([raw]) : raw.toString()) }
+    // 模擬請求未送達，而不是假裝遠端已保存；重試必須補齊另一裝置可讀的收據。
+    if (failShareReceipt && request.method() === 'PATCH') { failShareReceipt = false; await route.abort('failed'); return }
     try {
       const response = await fixture.fetcher(request.url(), init)
       await route.fulfill({ status: response.status, headers: { ...Object.fromEntries(response.headers), 'Access-Control-Allow-Origin': '*', 'Access-Control-Expose-Headers': 'Location,Range,Content-Length' }, body: Buffer.from(await response.arrayBuffer()) })
@@ -67,6 +70,21 @@ try {
   await first.locator('#cloud-save-practice').click(); await idle(first)
   assert.match(await first.locator('#cloud-status').innerText(), /完整快照/)
   const complete = [...fixture.files.values()].filter(f => f.appProperties.dsKind === 'snapshot-v1'); assert.equal(complete.length, 1)
+  // 兩支原片目前只在 session；接續同一份快照也必須真正保存，不能因畫面可播就略過落盤。
+  await first.locator('#cloud-list-snapshots').click(); await idle(first)
+  const firstSnapshot = await first.locator('#cloud-snapshots option').nth(1).getAttribute('value'); assert.ok(firstSnapshot)
+  await first.locator('#cloud-snapshots').selectOption(firstSnapshot); await first.locator('#cloud-preview-snapshot').click(); await idle(first)
+  for (const input of await first.locator('#cloud-remote-assets input').all()) await input.check()
+  await first.locator('#cloud-download-media').click(); await idle(first); await first.locator('#cloud-restore-confirm').check()
+  await first.locator('#cloud-apply-snapshot').click(); await idle(first)
+  const fresh = await first.context().newPage(); await fresh.goto(first.url()); await idle(fresh)
+  const savedHashes = await fresh.evaluate(async () => {
+    const storage = await import('/storage.js'), hashes = []
+    for (const id of await storage.readMediaKeys()) { const bytes = await (await storage.readMedia(id)).arrayBuffer(); hashes.push(Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('')) }
+    return hashes.sort()
+  })
+  assert.deepEqual(savedHashes, ['reference', 'self'].map(name => createHash('sha256').update(readFileSync(resolve(out, name + '.webm'))).digest('hex')).sort())
+  await fresh.close(); evidence.sessionOnlyRestorePersistsAfterNewPage = true
   await first.locator('#cloud-close').click(); await first.locator('#export').click(); await idle(first)
   assert.equal(await first.locator('#output-download').isVisible(), true)
   await first.locator('#open-cloud').click(); await first.locator('#cloud-share-refresh').click()
@@ -74,7 +92,13 @@ try {
   await first.locator('#cloud-share-source').selectOption('vs')
   const beforeShare = fixture.files.size
   await first.locator('#cloud-share-publish').click(); await idle(first); assert.equal(fixture.files.size, beforeShare)
+  failShareReceipt = true
   await first.locator('#cloud-public-confirm').check(); await first.locator('#cloud-share-publish').click(); await idle(first)
+  assert.equal(await first.locator('#cloud-watch').isVisible(), false)
+  const pendingShare = [...fixture.files.values()].find(f => f.appProperties.dsKind === 'shared-video-v1'); assert.ok(pendingShare)
+  assert.equal(pendingShare.appProperties.dsPermission, undefined)
+  await first.locator('#cloud-share-publish').click(); await idle(first)
+  assert.equal(pendingShare.appProperties.dsPermission, 'public-reader'); evidence.shareReceiptRetryPersistsRemotely = true
   assert.equal(await first.locator('#cloud-watch').isVisible(), true)
   const shared = [...fixture.files.values()].find(f => f.appProperties.dsKind === 'shared-video-v1'); assert.ok(shared)
   assert.equal(shared.parents.includes(rootId), false); assert.equal(fixture.grants.has(rootId), false)
@@ -107,7 +131,13 @@ try {
   const newest = [...fixture.files.values()].filter(f => f.appProperties.dsKind === 'snapshot-v1').at(-1)!
   const envelope = JSON.parse(await fixture.bytes.get(newest.id)!.text())
   assert.equal(envelope.parent, snapshot); assert.equal(envelope.media.every(m => m.fileId === null), true)
-  await second.locator('#cloud-snapshots').selectOption(envelope.snapshot); await second.locator('#cloud-preview-snapshot').click(); await idle(second)
+  // 確認 A 後改選 B，舊預覽及確認須失效，不能顯示 B 卻套用 A。
+  await second.locator('#cloud-snapshots').selectOption(snapshot); await second.locator('#cloud-preview-snapshot').click(); await idle(second)
+  await second.locator('#cloud-restore-confirm').check(); await second.locator('#cloud-snapshots').selectOption(envelope.snapshot)
+  assert.equal(await second.locator('#cloud-restore-confirm').isChecked(), false)
+  assert.equal(await second.locator('#cloud-remote-assets input').count(), 0)
+  assert.equal(await second.locator('#cloud-remote-preview').innerText(), ''); evidence.snapshotChangeInvalidatesPreview = true
+  await second.locator('#cloud-preview-snapshot').click(); await idle(second)
   assert.equal(await second.locator('#cloud-remote-assets input:disabled').count(), 2)
   await second.locator('#cloud-close').click()
   Object.assign(evidence, { nextVersionKeepsParent: true, mediaSelectionDefaultsEmpty: true, missingMediaStaysDisabled: true })

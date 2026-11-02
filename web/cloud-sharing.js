@@ -38,6 +38,7 @@ export async function publishVideoShare(drive, job, blob, persist, signal, progr
   else if (!existing.ok) throw new Error('成品副本狀態待確認，請先重新讀取。');
   else await drive.download(job.id, job.size, job.hashes, signal);
   let state = await videoShareState(drive, job, signal);
+  if (state.grant) job.permissionId = state.grant.id;
   if (!state.grant) {
     if (job.intent && state.publicPermissions.length === 1 && !state.permissions.some(p => p.role !== 'owner' && !publicReader(p))) {
       // 已記錄「原本私人→建立這個連結」的意圖，但收據回應遺失；先讀同一副本再恢復收據。
@@ -48,6 +49,9 @@ export async function publishVideoShare(drive, job, blob, persist, signal, progr
       const permission = await drive.json(`files/${driveId(job.id)}/permissions?fields=id,type,role,allowFileDiscovery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'anyone', role: 'reader', allowFileDiscovery: false }) }, signal);
       job.permissionId = driveId(permission.id);
     }
+  }
+  // 本機已知權限不代表遠端收據已到；回應失敗後重試也須補齊跨裝置撤銷所需資料。
+  if (!state.grant || state.file.appProperties.dsPermission !== job.permissionId) {
     await receipt(drive, job, persist, signal); state = await videoShareState(drive, job, signal);
   }
   if (!state.grant || state.otherAccess || !state.link) throw new Error('分享狀態待確認；請重新讀取這份副本的權限。');

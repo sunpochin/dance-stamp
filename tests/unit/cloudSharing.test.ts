@@ -67,3 +67,24 @@ test('檔名、觀看頁與來源有界，不把任意 URL 或 API token 帶到�
     expect(driveViewLink({ id: 'file-1', webViewLink: 'https://drive.google.com/file/d/file-1/view?access_token=synthetic&resourcekey=synthetic' })).toBe('https://drive.google.com/file/d/file-1/view?resourcekey=synthetic')
   } finally { f.drive.disconnect() }
 })
+
+test('遠端收據 PATCH 失敗後重試必須補存，另一裝置才能讀取及停止分享', async () => {
+  const f = cloudDriveFixture()
+  try {
+    await f.drive.authorize(cloudToken()); const blob = video(), job = await prepareVideoShare(f.drive, blob, 'dance-video.webm')
+    const json = f.drive.json.bind(f.drive); let fail = true
+    // 故障發生在 Drive 收到 PATCH 前；本機已有 permissionId 不能代替遠端收據。
+    f.drive.json = async (path, init = {}, signal) => {
+      if (init.method === 'PATCH' && fail) { fail = false; throw Error('synthetic receipt not delivered') }
+      return json(path, init, signal)
+    }
+    await expect(publishVideoShare(f.drive, job, blob, () => {})).rejects.toThrow('not delivered')
+    expect(job.permissionId).toBe('public-reader'); expect(f.files.get(job.id).appProperties.dsPermission).toBeUndefined()
+    await publishVideoShare(f.drive, job, blob, () => {})
+    const remote = (await listVideoShares(f.drive))[0]
+    expect((await videoShareState(f.drive, remote)).grant?.id).toBe('public-reader')
+    await stopVideoShare(f.drive, remote, () => {})
+    expect(f.grants.get(job.id)).toEqual([])
+    expect(f.calls.filter(c => c.init.method === 'POST' && c.url.pathname.endsWith('/permissions'))).toHaveLength(1)
+  } finally { f.drive.disconnect() }
+})

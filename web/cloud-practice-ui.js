@@ -11,11 +11,17 @@ export function createCloudPracticeUI({ drive, root, run, message, hooks }) {
   function setBinding(video, value) { localStorage.setItem(bindingKey(video), JSON.stringify(value)); }
   function pause() { for (const video of $('cloud-media-preview').querySelectorAll('video')) video.pause(); }
   function clearMedia() { pause(); for (const video of $('cloud-media-preview').querySelectorAll('video')) { video.removeAttribute('src'); video.load(); } for (const url of urls) URL.revokeObjectURL(url); urls = []; $('cloud-media-preview').replaceChildren(); }
-  function invalidate() {
-    draft = undefined; incoming = undefined; restoredTake = undefined; snapshots = []; clearMedia();
-    $('cloud-local-assets').replaceChildren(); $('cloud-remote-assets').replaceChildren(); $('cloud-snapshots').replaceChildren();
-    $('cloud-save-confirm').checked = false; $('cloud-restore-confirm').checked = false; $('cloud-practice-preview').textContent = ''; $('cloud-remote-preview').textContent = '';
+  function clearIncoming() {
+    // 版本選單與確認內容必須一起失效，避免畫面選 B 卻仍套用先前預覽的 A。
+    incoming = undefined; clearMedia(); $('cloud-remote-assets').replaceChildren();
+    $('cloud-restore-confirm').checked = false; $('cloud-remote-preview').textContent = '';
   }
+  function invalidate() {
+    draft = undefined; restoredTake = undefined; snapshots = []; clearIncoming();
+    $('cloud-local-assets').replaceChildren(); $('cloud-snapshots').replaceChildren();
+    $('cloud-save-confirm').checked = false; $('cloud-practice-preview').textContent = '';
+  }
+  $('cloud-snapshots').addEventListener('change', clearIncoming);
   function choices(container, assets, available) {
     container.replaceChildren();
     for (const asset of assets) {
@@ -72,7 +78,7 @@ export function createCloudPracticeUI({ drive, root, run, message, hooks }) {
     message('先前工作的完整快照已核對；沒有建立重複快照。請從版本清單預覽、選擇要接續的版本。');
   }));
   $('cloud-list-snapshots').addEventListener('click', () => run(async signal => {
-    snapshots = await listSnapshots(drive, root(), signal); $('cloud-snapshots').replaceChildren(new Option('請明確選版本，不依時間覆寫', ''));
+    snapshots = await listSnapshots(drive, root(), signal); clearIncoming(); $('cloud-snapshots').replaceChildren(new Option('請明確選版本，不依時間覆寫', ''));
     for (const item of snapshots) {
       const heads = snapshotBranches(snapshots.filter(s => s.dataset === item.dataset));
       $('cloud-snapshots').add(new Option(`${item.data.videos[0].title} · ${item.snapshot.slice(-8)}${heads.length > 1 ? '（有分支，各版保留）' : ''}`, item.snapshot));
@@ -113,7 +119,8 @@ export function createCloudPracticeUI({ drive, root, run, message, hooks }) {
     for (const [id, blob] of incoming.media) {
       const mapped = incoming.plan.mapping.assets[id], existing = await hooks.media(mapped), hashes = incoming.value.media.find(m => m.assetId === id).hashes;
       if (existing && JSON.stringify(await chunkHashes(existing, signal)) !== JSON.stringify(hashes)) throw new Error('本機已有不同內容的影片，沒有覆寫。請保留原片並另開資料集接續。');
-      if (!existing) changes.push({ id: mapped, blob });
+      // 可用原片也可能只在本頁記憶體；核對相同後仍把下載檔放進原子交易，重開才不會缺片。
+      changes.push({ id: mapped, blob });
     }
     await hooks.applyImport(incoming.plan, incoming.revision, changes, signal);
     const videoId = incoming.plan.mapping.videos[incoming.value.data.videos[0].id];
