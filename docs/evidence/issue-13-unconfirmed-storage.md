@@ -453,3 +453,45 @@ served main `1ec122320d014b31443ffda270179618e9b5981680ffe926b66ac40cbe03c0e0` �
 本案實際GET已核對，非空metadata基準及兩素材載入、匯出前收據保存完成，**0 export／0 play**；trusted可見checkpoint尚未完成，沒有完整曝光前提。前置多次出現工具app-change警告，並觀察到原測試視窗新增來源不明分頁，不能宣稱全程獨占視窗；未切換／讀取／關閉未知分頁。協調者已詢問是否有其他Safari操作，沒有把等待回覆當作原生測試。暫停新畫面輸入，僅以匹配自有nonce正常停止主機（POST200／exit0、程序退出／鎖不存在），保留分頁，待確認操作前提後才決定如何續驗；不從此案推論任何同步／成品結果，也沒有重建case挑成功。最終19項manifest `6a9378037d668fc5129005ef3e5e2cf5fd649589b14113080980114bde155d9f` 由root全部重算相符，summary SHA `fbb1ef31ee3bdc5d37c6757659e554a097d54798c15ac9c2f7fdce72a68da0cd`；本機check只在沒有播放／匯出的前置期執行，未與原生計時媒體重疊。
 
 本文件分支從同步main `ff83c11c2f2a835b31afb4dd80a71353e54b6d93` 建立，沒有產品／測試／格式／CSP變更。首次本機check因子命令取得Bun1.4.2而在版本前置停止；固定PATH後的受限環境又有6個loopback listen失敗（754 pass／6 fail），沒有改測試。在固定Bun1.4.4、可建立本機連線的環境重跑原完整check，760 pass／0 fail／4,384 expects，公開掃描、型別、lint／build通過，原19項info與靜態07cdd7b66289af39保持。正常hook及遠端CI另綁最後提交；上述環境失敗及原生前置停止不改記為產品已修好。
+
+## 2026-11-03 恢復畫面操作後：單次啟播與無效的雙側原聲對照
+
+白話：使用者確認現在能繼續操作Safari後，先前只準備好的「正式播放一次」測試真正執行了，仍因兩片錯位而停止。另一輪在準備時誤觸匯出，沒有完成原定檢查，因此保留失誤、不拿來判斷原因。原片與筆記都有保留，尚無可放進產品的修正。
+
+受測仍固定乾淨 `83220edabd90cab274532900763c4ff696dffdc5`／基底build `83a29a61027b205d`，Safari27.2（22625.2.8.11.9）／macOS27.2（26B123），新自有私人視窗及新origin；沿前節相同三秒雙片、配方及固定原匯出按鈕CSS39216281。這不是當前main `acea4b9d52ad1b7aaa7db2ba1e5b8c070a567b74` 的原生驗收：六份核心JS與原style逐byte相同，但HTML已增加節拍器連結，另有新頁面檔案，不能稱整包相同。未改設定、音量、原門檻或真人資料，無相機／麥克風。
+
+### 單次啟播真正執行：仍被原250ms拒絕
+
+沿前節 `1ec12232` 變體、原observer97fb及非hold配置，實際GET核對固定資源後只按一次原生匯出，0重試。trusted曝光checkpoint在匯出前，15筆正式rAF雙來源rect均1、focused=true／hidden=false／AudioContext running，正式期無scroll；79rows／0drop。click123ms，指定5,005ms靜默等待，首次AX實際在click完成12,890ms後呼叫；不把要求等待當作實際五秒觀察。兩側各一次正式play-call皆在`BufferSource.start()`呼叫後，當時尚未到排程音訊起點，沒有暖機play。
+
+reference到0.523182958秒、self近0，原250ms守門拒絕，PCM／reference相位26.817–29.110ms。首個非1速率寫入後的後續樣本self近0，但時間先後不是唯一根因證明；15筆正式rate寫入全部轉交，包括1筆同值1。僅一筆正式self rVFC回mediaTime0，不代表像素已正確跟上。未到舊reference約0.63秒停滯窗，不能說100ms問題已避免。移除暖機／回零不足以修好，且移除了原export-ready屏障，仍不可採為產品修正。
+
+沒有VS Blob／下載／media雙put；原完整data、retained、原片URL及hash相同，revision3→4、三筆metadata-only原生complete。原250ms checker exit0只支持guard／保全；recorder inactive、tracks ended、硬體0／頁錯0，自有視窗／主機exit0／匹配nonce均收尾，舊及未知分頁保留。28項manifest含兩素材由協調者全部重算相符：manifest `f1ede1d1e571c329e787e52eff40342d3eeb93c454fd7bba6d00288043401f7e`，summary `b0cc8e2a93ec92b3827e5ffa46afddc103495751561799c7bf5b6368daf4ff0f`。
+
+### 雙側原聲準備時誤觸：程序無效，不列因果對照
+
+此served變體 `1d1230e961e628bae9878fbf8e7b3bb35c1f49dd8fede879eb189063cbc93498` 相對原聲C（14b7481b）只多改self.muted=false及原因註解；相對stock則兩側mute值皆不同。原暖機／回零／兩次play、PCM、manual0／Recorder、微調與100／250ms／片長守門全部保留。衍生observer `0d6c52577da5372ff42d6f2225f004da14c904b15ec6b359d16472199902192d` 僅在既有snapshot多讀兩側muted／volume四值；正式callback、clock／240上限及未知保存保護均未改，反向可完整還原97fb。快照不代表全程可聽或人工聽感。
+
+操作工具的截圖像素被誤當原生點按座標，準備取得焦點時誤中原export。唯一trusted匯出後144ms才做checkpoint、161ms後scroll，38筆正式rAF兩來源rect全部0；184rows／0drop，指定5,005ms靜默流程未執行。`procedureValid=false`：匯出後的rect1不能補作匯出前提，這輪不判斷雙側原聲是否消除失敗。原250ms拒絕時reference1.376915秒／self近0，也不能以超過舊窗口就宣稱100ms已解。
+
+無VS／下載／雙put；完整舊資料、retained與原片URL／hash保持，revision3→4、三metadata complete；原250ms checker exit0仍只支持guard／保全，原checker的`--help`工具誤用exit1亦保留。資源inactive／ended、硬體0／頁錯0，自有主機與匹配nonce正常停止，只關本輪自有分頁。隱私提示未點降低保護或重新載入；未改Safari設定。31項manifest含兩素材由協調者及獨立審查者全數重算相符：manifest `acde1957770947cf924ee22e5a62ae3344c1afb70111472b7536b320ada5d90a`，summary `b98fa55778d4c35f950ec7b72aad09db9d2dc465d50227edde01aee2ce142de2`。
+
+下一次須使用新cohort並明列「QA操作方法修正」，保存本次失誤。原生AX按鈕名稱／fresh index代替手填座標；所有收據保存、回到頁面及捲動先完成，最後trusted checkpoint確認雙rect1，再用fresh AX唯一原匯出按鈕點按，接著獨立靜默階段並分記實際時間。前提不符即停止，不以同輪重試挑成功。上述靜態色條／連續音素材沒有影格碼或閃光／提示音配對，不能量首中尾G2、動態停格或完整G1–G7；#229／#13仍開啟，raw與素材只留本機。
+
+### 修正操作方法後的獨立新案：仍未建立全程曝光
+
+白話：改用按鈕名稱能避免誤按，但Safari接著把頁面捲到下面，來源畫面又不在可見範圍；這仍不是合格的原因對照，因此停止追加，不挑一輪成功蓋過失敗。
+
+全新cohort保持上一案main1d1230／observer0d6c／CSS392及兩素材逐byte相同，實際34個GET核對相符。所有保存先完成，以原skip-link取得頁面焦點；最後trusted checkpoint雙rect1，同call fresh AX確認唯一原匯出並原生index click，93ms後獨立指定5,005ms靜默（工具回報5,008.6ms），首次AX實際於click完成13,858ms後呼叫，期間無AX／輸入／wheel／快捷鍵。
+
+原始事件排序卻是checkpoint69,889→scroll69,891（雙rect0）→scroll70,320→trusted export-click70,409→scroll70,437→BufferSource70,705；第一scroll在checkpoint後2ms、匯出click前518ms。不能以先完成checkpoint就推定點按時或播放時仍可見，也未從這個順序判定AX、點按、keydown或狀態更新的唯一捲動機制。38筆正式rAF兩側全部rect0，187rows／0drop；`operationOrderComplied=true`，但`procedureValid=false`。兩次不同操作缺陷各自保留，沒有完成有效雙側原聲控制。
+
+原250ms拒絕時reference1.366555秒／self近0，PCM／reference相位34.844–37.158ms。無VS／下載／雙put；完整data、retained、原片URL／hash保持，revision3→4／三metadata-only complete。原250ms checker exit0僅支持守門／保全，recorder inactive／tracks ended、硬體0／頁錯0；自有主機exit0／origin拒絕／匹配nonce釋放，只關本輪自有分頁。新視窗起始頁已有跨站追蹤防護關閉訊息，沒有按開啟或改設定；先前設定未留指紋，不宣稱中斷前後環境完全相同。30項manifest含兩素材經協調者全部重算相符：manifest `b7696220f5f0d022c0948d4c4af6b8b638bc2e13d5ba9c1e0fd538f52bb0c144`，summary `bfc99ef75edc3162c9a3986a0caae904ca6badf055e817e3b674af6ded943a23`。
+
+### 下一步的來源線索與邊界
+
+先解決QA曝光前提，再選單一可分辨控制，不直接採用上述任何變體。固定公開WebKit提交 `49e831c38e05d4099861ea284b017a4a5603ad38` 的[速率設定](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/html/HTMLMediaElement.cpp#L4471)在requested-rate相等判斷前仍轉交native；故舊hold控制保留的同值1寫入不能假定無作用。[音高選擇器](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/platform/audio/cocoa/MediaSessionManagerCocoa.mm#L250)在不保持音高、0或1×時選Varispeed，其他速率按設定選Spectral／TimeDomain；[AVFoundation速率路徑](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm#L1716)會先指定音高演算法再設速率。產品align只將reference.preservesPitch=false，沒有設定self；self首個非1微調與之後近0讀值可作新候選線索，但舊raw未讀self音高getter，這份公開來源亦未對應本機Safari binary。
+
+可評估回原mute／暖機／PCM／manual0／微速率流程、只在play前讓self保持自然變調的單變量診斷；目前僅只讀審查，尚未準備或執行，更不是已採用修正。它不能單獨解釋已自然變調的reference約0.63秒停滯，或D案沒有非1微調仍後期plateau；舊27.0.1 reference音高回跳亦不能代簽27.2 self根因。不刪速率修正、不補固定延遲、不換codec或放寬守門。公開[可聽性路徑](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm#L2334)也把volume0視為不可聽，故不能把音量歸零當作原聲開啟的安靜等價控制；沒有新增聲路或產品依賴。
+
+本次兩份文件交接從同步main acea4b9建立，原生全部收尾後才執行正常`bun run check`：Bun1.4.4、760 pass／0 fail／4,385 expects，公開掃描、型別、lint／build通過，原19項lint info與靜態07cdd7b66289af39保持。獨立來源／收據審查已修正「BufferSource開始」為實際start()呼叫與未到排程起點；正常提交hook及遠端CI另綁交付head，不把文件檢查當原生產品通過。
