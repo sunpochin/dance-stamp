@@ -7,6 +7,12 @@
 
 技術決策：靜態 Web 先用 GIS OAuth token model／後續 Dropbox PKCE 直接連接個人空間，區分身分登入、檔案授權與同步；首版不建自有帳號後端。先以選定資料、不可覆寫快照及明確衝突選擇完成手動接續，再評估前景自動同步。分享只對獨立成品副本建立供應商唯讀連結，匿名觀看先用供應商頁面。排除整庫默默上傳、單檔最後寫入覆蓋、公開私人同步根目錄及將分享頁假當媒體 CDN。權限、資料封套、失敗保全、成本與驗收只在上述文件維護；既有本機交換格式維持相容，新增雲端 runtime 與未驗證界線見該文件第 11 節。
 
+#11／#229 的共用影格 renderer（2026-11-03）：像把排照片的規則留在同一張桌子上，現在的影片畫面仍照原樣排成左右或疊影；未來的解碼照片可用同一張桌子，不必重寫鏡像、人物裁切與文字。此輪只抽取畫圖程式，沒有接入 WebCodecs／Worker，沒有修好 Safari 聲畫失步，也未改預覽／匯出的時間、PCM、Recorder、取消、保存與原品質護欄。
+
+技術上，[comparison-renderer.js](web/comparison-renderer.js) 接受 `{width,height,time,draw(context,sx,sy,sw,sh,dx,dy,dw,dh)}`，透過 `frameCrop` 重用來源秒數的跟隨插值；並排維持 1280×720、兩個 640×672 半框、靠中線與非鏡像標籤，疊影維持自己先畫／老師覆蓋，調整側仍複用原畫布並限縮在各自半框。現有 `videoFrame` 只轉交原 `drawImage(video,...)`，時間採 getter 且無跟隨時不讀，避免純抽取額外碰原生時間快取；不假稱是固定 PTS 快照。主畫面仍擁有 UI／來源／跟隨狀態，單側跟隨沿原 `sourceCrop` adapter。排除複製另一套新引擎專用 renderer、假 video 物件與為新介面重新排版；新模組納入原同源白名單、建置／離線 hash 及下載包。驗證記錄於本次 PR；原生 Safari、實體裝置與完整 G1–G7 本次未驗證，不能由像素回歸替代。
+
+本次以 f5a4753 為基底的工作樹驗證：renderer SHA256 `782195d8f6745f60b75704edc9fbe66a770e5e8523d7822a40bd58046804c757`；直接 frame／follow 單元 6/6、完整 `bun run check` 764/0、4,424 斷言，build `f93e85db5c676d0a`（19 項既有 info）。首次完整檢查因新檔未 stage、harness 的 git-ls-files 複本缺檔而失敗，正常暫存後原檢查通過，未改測試。既有 `comparison-appearance`、`comparison-overlay-layout`、`adjusted-side-preview`、`person-follow`、`overlay-export` 五案全過、0 頁面例外；本機原始收據 `coverage/app-39aiQM/run.json` 記 browserClosed／serverStopped=true、lockRetained=false。這是選定合成回歸，非全 App／真機驗收。
+
 #11 的 [30fps 繪圖預算修正](docs/evidence/issue-11-paint-budget.md)像「一個拍點用過就不能再用」：沿用原 1ms 容差接受畫圖後，至少消耗一格；長 gap 取餘數落在前一格時，再消耗已到期的一格而不補畫，保留相位。只修共用 paint 的預算更新，不改音訊或同步門檻；乾淨 f8621e8 的單次原生 Safari 0.75×／60秒真正下載，原量尺最大聲畫差78ms、兩側差44.444ms、停格112ms；關站後自然 ended／error0／dropped0。這些結果另綁受測提交，不能據此宣稱原130ms已修復。
 
 #11診斷工具的[生命週期修復與可重建入口](docs/evidence/issue-11-capture-lifecycle.md)把第一個錯誤與逐項收尾錯誤分開；先供應首格再等play，保留原2／5／2秒期限。QA helper／合成頁／本機nonce主機／獨立原檔分析器隨Git提供，不進產品包；工具回歸與原生短案分開。排除吞例外或延長期限，原130ms與原Worker gate不改。

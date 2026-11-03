@@ -6,7 +6,7 @@ import { startOffline } from './offline.js';
 import { safariAudio, decodeLocalAudio } from './local-audio.js';
 import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './beats.js';
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock, storageUnconfirmed, storageUnconfirmedMessage } from './storage.js';
-import { sourceCrop } from './follow.js';
+import { videoFrame, drawSideBySide, drawOverlay as renderOverlay, drawAdjustedSide as renderAdjustedSide } from './comparison-renderer.js';
 import { createFollowUI } from './follow-ui.js';
 import { createCloudUI } from './cloud-ui.js';
 
@@ -366,62 +366,22 @@ function resetAdjustedSide(repaint = true) {
   }
   if (repaint && !adjustedSide.hidden) drawAdjustedSide(recipe());
 }
-/** @param {import('./types').OverlayPresentation['reference']} layer */
-function drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha = 1, anchor = 0.5) {
-  if (video.readyState < 2) return;
-  // 所有試看先使用同一人物裁切，再做各框自己的縮放與鏡像，避免新框退回未跟隨的原畫面。
-  const crop = sourceCrop(video, following.track(video === reference ? 'reference' : 'self'));
-  const rect = contain(crop.width, crop.height, width, height);
-  targetContext.save();
-  // 平移在鏡像／縮放之外，向右仍是向右；失敗也還原，避免下一幀累加變換。
-  try {
-    targetContext.globalAlpha = alpha;
-    targetContext.translate((width - rect.width) * anchor + rect.width / 2 + layer.x * width, height / 2 + layer.y * height);
-    targetContext.scale(layer.scale * (mirror ? -1 : 1), layer.scale);
-    targetContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, -rect.width / 2, -rect.height / 2, rect.width, rect.height);
-  } finally { targetContext.restore(); }
+function comparisonSources() {
+  return {
+    reference: { frame: videoFrame(reference), track: following.track('reference') },
+    self: { frame: videoFrame(self), track: following.track('self') },
+  };
 }
 function drawOverlay(value, target = overlay, targetContext = overlayContext, presentation = overlayPresentation()) {
-  const width = target.width, height = target.height;
-  targetContext.fillStyle = '#080c0e'; targetContext.fillRect(0, 0, width, height);
-  // ponytail: 重用兩個已解碼的 video，不新增播放器或時鐘，疊影才能跟共同時間線一起停與走。
-  // 自己當底圖、老師最後半透明覆蓋，避免不透明自拍把老師完全擋住。
-  for (const [video, mirror, alpha, layer] of [
-    [self, value.selfMirror, 1, presentation.self],
-    [reference, value.referenceMirror, presentation.opacity, presentation.reference],
-  ]) {
-    drawVideoLayer(targetContext, video, width, height, mirror, layer, alpha);
-  }
+  renderOverlay(targetContext, target.width, target.height, comparisonSources(), value, presentation);
 }
 function drawAdjustedSide(value) {
   if (adjustedSide.hidden) return;
-  const target = adjustedSideContext, values = adjustedSideFields.map(([input]) => Number($(input).value) / 100);
-  // 未調整側沿用原並排像素，避免直式／鏡像另畫的原生色彩捨入，也省去重複影片繪圖。
-  target.drawImage(canvas, 0, 0);
-  // 共用已解碼的兩片與疊影變換；各裁在自己的半框，不能把老師拖到右邊蓋住自己。
-  for (const [video, x, mirror, index] of [[reference, 0, value.referenceMirror, 0], [self, 640, value.selfMirror, 3]]) {
-    const [scale, dx, dy] = values.slice(index, index + 3);
-    if (scale === 1 && dx === 0 && dy === 0) continue;
-    target.save();
-    try {
-      target.beginPath(); target.rect(x, 48, 640, 672); target.clip(); target.translate(x, 48);
-      target.fillStyle = '#080c0e'; target.fillRect(0, 0, 640, 672);
-      drawVideoLayer(target, video, 640, 672, mirror, { scale, x: dx, y: dy }, 1, x === 0 ? 1 : 0);
-    } finally { target.restore(); }
-  }
+  const values = adjustedSideFields.map(([input]) => Number($(input).value) / 100);
+  renderAdjustedSide(adjustedSideContext, canvas, comparisonSources(), value, values);
 }
 function draw(value, withOverlay = true) {
-  context.fillStyle = '#080c0e'; context.fillRect(0, 0, 1280, 720);
-  for (const [video, x, mirror, label] of [[reference, 0, value.referenceMirror, '示範'], [self, 640, value.selfMirror, '我']]) {
-    if (video.readyState < 2) continue;
-    const crop = sourceCrop(video, following.track(video === reference ? 'reference' : 'self'));
-    const rect = contain(crop.width, crop.height, 640, 672);
-    // 全身等比保留，留白移到外側；只翻影片本身，鏡像後仍須貼著共同中線。
-    const imageX = x === 0 ? 640 - rect.width : 0;
-    context.save(); context.translate(x + imageX + (mirror ? rect.width : 0), 48); context.scale(mirror ? -1 : 1, 1);
-    context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, rect.y, rect.width, rect.height); context.restore();
-    context.fillStyle = '#e8f2ed'; context.font = '24px sans-serif'; context.fillText(label, x + 22, 33);
-  }
+  drawSideBySide(context, comparisonSources(), value);
   // 合成時只畫輸出來源，額外試看框不增加編碼期間的繪圖負擔。
   if (withOverlay) { drawOverlay(value); drawAdjustedSide(value); }
 }
