@@ -40,7 +40,7 @@
 | [#18](https://github.com/sunpochin/dance-stamp/issues/18) | M4／P1 | 選定筆記與影片檔的可攜分享流程 | [#12](https://github.com/sunpochin/dance-stamp/issues/12)、[#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 | [#19](https://github.com/sunpochin/dance-stamp/issues/19) | M4／P1 | Salsa 八拍、手動 BPM 與錄影倒數 | [#15](https://github.com/sunpochin/dance-stamp/issues/15) | 後續估算 |
 | [#209](https://github.com/sunpochin/dance-stamp/issues/209) | P1／Google 工程候選 | Google A／B／C 已實作，待真實帳號／匿名／實體裝置驗收；Dropbox／前景同步待 Google 穩定 | 復用 #5／#10／#12／#13；公開發布另依 #15；iOS 非前置 | 尚無帳號設定，外部驗收待安排 |
-| [#259](https://github.com/sunpochin/dance-stamp/issues/259) | P1 提案 | [課後練習計畫](PRACTICE_PLANS.md)，從老師片段建立一週自主練習 | 沿用 #7／#8 選段與播放、#12 備份及重連 | 待評審，未排期 |
+| [#259](https://github.com/sunpochin/dance-stamp/issues/259) | P1 提案 | [自主練習回合](PRACTICE_SESSIONS.md)，觀察、跟跳、回顧，再選下次要練的片段 | 沿用 #7／#8 選段與播放、#9 選錄、#12 備份及重連 | 待評審，未排期 |
 
 #18 第一版限於檔案匯出／匯入與影片重新連結：選定筆記檔與影片分開，使用者自行透過 Google Drive、Dropbox、iCloud Drive 或 AirDrop 分享。不提供自己的影片儲存服務，不做雲端 API／OAuth 直連、同步或連結串流；未使用雲端仍可交換本機檔案。依賴仍為 #12、#15，維持 M4／P1。2026-10-28 使用者當次授權先做可獨立交付的 P1 工程；#18 桌面本機選取／預覽／分享檔及匯入已實作，沿用 main 的 #12 基礎，未合併 #48 或其他候選。驗證與缺口見 [#18 證據](evidence/issue-18-sharing.md)；不把此授權當作 P0、#15、真實裝置或發布 gates 通過。完整流程見 [DATA_FORMAT.md](DATA_FORMAT.md#6-分享格式p1)，驗收見 [ACCEPTANCE.md](ACCEPTANCE.md#8-p1-檔案分享18)。
 
