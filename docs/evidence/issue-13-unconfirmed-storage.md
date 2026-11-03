@@ -577,3 +577,37 @@ observer `c927cbd9c5676c8b4929a46eb22e576b4be1b3c7c8fccfa967421dda6dc5053d` 從3
 本案42項manifest entry含素材，由協調者與獨立審查者逐一重算bytes／SHA且核對原始收據，無finding：manifest `44b4bf9642752a3443697e7db1ee6c0bf01336196fccd5bea3c8660cae880a63`，summary `7676d78240a2c4e529fcdc5c915e9cc6bf263ac17facbb11133c7900dd62b07e`，decision `240501d2a57b8296a74b92b8acbb3a8de84d69ca5a44deb62027aa90bbd6558c`；前置manifest `23aac54d20a3535921f42e059f6ea50415cda6f04ef7c02325fbfaa2be675b99`另存。只支持「移除這批連續探針仍未消除此新案失敗」，不回填前案、判定快取唯一因果或宣稱新主線已原生受測。原始收據／素材／本機識別不公開，靜態色條仍不能量動態停格或完整G2／G3。
 
 來源續查確認`updateSourceTimelines`在active的timeupdate／seeked仍讀兩側currentTime並刷新DOM；`renderBeatPosition`亦另讀reference。它們不寫seek／rate／play，正式匯出時練習繪圖已有active保護。略過這些UI更新會同時改讀值與DOM工作，且timeline自身仍每rAF讀時鐘／寫self速率，無法單獨證快取機制；目前未採這個猜測或再開原生變體。下一個有效診斷須先補可區分實際呈現與推算時鐘的證據，避免繼續堆疊未證實旗標。#229／#13維持open，尚無產品修正、成品保存救援或完整G1–G7結論。
+
+## 2026-11-03 錄製與畫布擷取的流程分界
+
+白話：先保留播放與聲音、只不啟動錄製，仍失敗；再不建立畫布擷取，時間線才走完。接著保留真正擷取、拿掉測試包裝，仍失敗；改畫布讀取提示也沒有成品。這把範圍縮到擷取相關流程，還沒有證明唯一原因，也沒有把診斷版本當成修好。
+
+四案均新自有私人視窗／origin、首次export且0重試；來源83220ed／build83a29a、Safari27.2／macOS27.2、相同三秒合成素材／配方、CSS0acf／HTML78e不變。每個精確static plan先經兩路核對再授權單案；沒有產品repo改碼。main023相對前節3870僅三處：localAudio不建立／啟動實際Recorder，只有recording存在才接done；若原timeline自然完成，將原measured三scalar與producedVs:false存進既有diagnostics，再標示「QA無編碼流程完成，非VS」並在Blob驗證／保存前return。無dummy API／Promise／Blob／事件；原PCM、目的端／克隆音軌、capture、暖機回零、兩次play、微速率、100／250ms／片長／停滯與finally全保留。限定原bounded-aac-v1，其他模式不作本案重測。
+
+| 單次控制／直接比較 | 實際首結果 | 推論界線 |
+| --- | --- | --- |
+| main `0231332a9390beceb27b973223fef7a15c4aae2f78a79a2ace89e598a25fb949`／observer c927：僅不啟動Recorder，對前節3870 | 原100ms：reference elapsed637.1296249853913／audio742ms，差104.87037501460873ms；self判定後約0.000002239秒 | 此受控失敗不需要實際Recorder建立／啟動；不等於所有編碼問題已排除。stream沒有消費者亦改變背壓／調度。 |
+| main `d6999a6d51cddafdd1f697fb055c163b5fd7003dc6016c483fcdc72939a662f1`／c927：相對023唯一擷取建立區塊換原生new MediaStream | 原timeline自然完成，elapsed2998ms／observedMaxDrift35ms／maxRenderGap18ms，producedVs:false／first100=null | 真繪圖、rAF／rVFC、30fps budget、PCM音軌仍保留；沒有影片擷取／編碼／成品。只支持擷取建立、調度及資源這組差異相關，JS測量不是成品fps／G2／G3。 |
+| main精確023／observer `ea508f9b325f781504eafa41e25142853d199350c7c66a6ecb97f72037d5a621`：對第一案只移除captureStream包裝及強引用 | 原100ms：644.9276666680817／752.6666666666666ms，差107.73899999858497ms；self約0.000003240秒 | 真擷取恢復，直接用原生方法；QA包裝不是重現此案的必要條件，不直接證GPU。 |
+| main `c9766e3b818d43f74d981f37767b20516b3085b073b0b4dc09caecff5a50cc9e`／ea508：對第三案只改原輸出canvas第一次context的讀取提示 | 原100ms：704.4371250085533／811.3333333333334ms，差106.8962083247801ms；self約0.000033218秒 | 提示不足以消除此新案失敗；未量提示是否採用或實際backend，不能稱較晚失敗是效能改善或排除GPU。 |
+
+第二案保留原let canvasTrack，只有captureStream(0)／能力檢查／fallback30整段改原生空MediaStream承接原PCM克隆音軌；原optional requestFrame因沒有videoTrack而不呼叫，並非假影格。第三案的ea508相對c927只刪`capture.apply(this,args)→streams.push→return`那一個賦值、換why；原unused capture常數及其他旁聽不動，反向全文精確還原。第四案僅原id=canvas取得alpha:false＋willReadFrequently:true；其他預覽／練習canvas仍只有alpha:false，沒有新畫布或複製架構。
+
+讀取提示由固定公開[HTMLCanvasElement.cpp L864](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/html/HTMLCanvasElement.cpp#L864)的2D全畫布BGRA8回讀，以及[CanvasRenderingContext2DBase.cpp L3913](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/html/canvas/CanvasRenderingContext2DBase.cpp#L3913)的配置分支提供候選理由。公開版本讓willReadFrequently參與accelerated／unaccelerated選擇，仍有testing override；未映射安裝binary／實際後端，軟體繪圖也會改CPU與調度。這不是已證根因，第四案亦未新增context屬性讀回或後端getter；沒有採這個產品補丁。
+
+四案clock皆null，不代表零native setter／callback／drop；只有前後1774×835→1774×882、雙ratio1的手動快照，正式全程可見未觀測。唯一原生click各101／131／97／104ms，指定5,005ms靜默、實際5,009.0／5,009.5／5,009.2／5,009.7ms；首AX距click完成12,376／12,096／12,034／13,068ms，期間無AX／其他輸入／CtrlShiftP，沒有延長產品期限。第二案匯出前唯讀Python的lexical SyntaxWarning原樣保存、assert皆過；四案均無UI工具錯誤，其餘無工具警告。三個100案的四個ended／paused皆false，判定後DOMscalar仍非原子PTS；自然完成案沒有製造100收據。
+
+每案實際34 GET逐項核對；完整data、retained、原片URL與完整bytes／SHA相同，revision3→4／三metadata-only complete，無VS Blob／下載／media雙put、硬體與頁錯0。第一案c927觀察到recorders=[]／兩軌ended；第二案沒有capture引用、後兩案刪除包裝，故三者tracks=[]明列**未觀測**，不能當作無音軌或全部ended。原finally停止buffer／目的端音軌／stream音軌原碼保持、錯誤處理與final report返回，與直接原生track getter驗證分開記。自有主機exit0／PID退出／origin拒絕／匹配nonce釋放，只關各自新視窗；舊及未知日常分頁、設定與音量不動，沒有新player／encoder仍在測量。
+
+| 單案封存（entry數） | manifest SHA-256 | summary SHA-256 |
+| --- | --- | --- |
+| 不啟動Recorder（36） | `2dc810aba3be41357eac8f11ace9a8f2343cfdfec503a6693618c70a825dc32b` | `6d6aa29ff74e433ff439bab2f0fa3de66dd5954fdf83516e93166c20109ae830` |
+| 再無畫布擷取（35） | `0c3198794dc42f5d327cb719d0f08a092f652e4863af7e8dc1b6ec9dc2607038` | `cf5333bd7320992e3a12a77a247ba0f8c7f30943880c503eead58c8b2dbb6727` |
+| 真擷取去QA包裝（35） | `1c81982955b4950dea57d0c8b3e558333ee61bd82ff15b86ff37c0d317087dee` | `710cb2765881282a480b8c4d4e5cb209f34a7016bfe6949778841d55d4a6f5c7` |
+| 輸出讀回提示（35） | `9e3ed53a64902d31cbde868efbc8966ca29b2c04f10030a1d798cb676d79b5ba` | `ff94f25a3d7fcdbabf51acf772485afaa80db4d9945a781fe978eec33740060c` |
+
+141項entry含素材均由協調者與獨立審查者逐一重算bytes／SHA、核對raw與限制。三個首100獨立decision SHA依序為`821a1b5a5f4e721c0c206db63661bff05c0bf5ec9bad853409e89bf3b7a95d8a`、`b9986ec70204311d82b2468562e8f36c4d6ef68cc7e6dc5889b6bb5b4da1f6a2`、`e8edc2ddf5feb8eca05647964ff156c791a8fcf97345a37436f4d5011dee34e1`；自然完成收據SHA `f5c815c1e090120b364f0afd6ee01395bbeab28fe4c7aa4841bc65aafa9442ad`。原始收據、素材及本機識別不公開；不是141份獨立測量。
+
+原250ms checker四案exit1均保留：自然案先因guard收據檔名不符，三個100案因文案前提不同。獨立局部保全copy分別改2／5／3／3處並保存exact diff：第一案精確100文案＋recorders=[]；自然案改收據名、精確QA狀態、recorders=[]、tracks=[]未觀察與結果標籤；後兩案為100文案、recorders=[]、tracks=[]未觀察。它們exit0只支持對應保全，沒有改原checker或將空清單當全軌ended，也沒有放寬產品守門。四案都不驗私人VS保存／救援或完整G1–G7。
+
+本交接從同步main `6f605e5871c48b23e4e6e732a6563edde331df5e` 建分支；前節42項已由[#253](https://github.com/sunpochin/dance-stamp/pull/253)在精確a727獨立審查、CI41583519674必要四項成功、83情境／0FAIL及12真下載全解碼／自然播放後合併，只2docs28+/0。原01a0995主線自己的CI41581193940五項亦全成功；新6f605e5自己的push檢查另待實際結果。以上是文件工程檢查，不能代簽原生品質。本次仍未找到可採產品修正，#229／#13保持open；接續優先補實際畫格識別，避免再以getter或靜態色條推斷像素停住。
