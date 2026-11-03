@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/github/spec-kit",
+  "tag": "v1.2.6",
+  "commit": "9eacc24ffe47eadf035a3af601e4dabfb15b8fde",
+  "cli_version": "1.2.6",
+  "preset_version": "1.0.0",
+  "files": {
+    "pyproject.toml": "830dc3e27439c4c3911972652ce7b09b896efe968457d591dbc36c3a1d305981",
+    "presets/lean/preset.yml": "d316b3ad5f41988d51fe2b7faedab9c942edc68b44cf6970d5e26ef5a8522751",
+    "presets/lean/commands/speckit.specify.md": "9d68997ce418cc3293f66f946681bed0a33328c64a05757c0554ded19eec0ce2",
+    "presets/lean/commands/speckit.plan.md": "d4dbd594dc8ea9853583353cfc556ac419ffedf2300c207d4ce75c24debe2ab9",
+    "presets/lean/commands/speckit.tasks.md": "b363acd5cdbc3312b2fa03c763913515947feb214702281fe13355401ebd0210",
+    "presets/lean/commands/speckit.implement.md": "d50654ebfad997092a939d7020e546c48be47aa676c7ddeb90eb70b5cf20767c"
+  }
+}

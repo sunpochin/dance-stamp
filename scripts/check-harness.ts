@@ -30,7 +30,10 @@ for (const file of manifests.flatMap(manifest => manifest.files)) {
   if (!path.startsWith(`${root}/`)) continue
   if (!existsSync(path)) { errors.push(`缺少匯入檔：${file.destination}`); continue }
   const digest = createHash('sha256').update(readFileSync(path)).digest('hex')
-  check(digest === file.sha256, `來源副本已改變，請記錄適配與指紋：${file.destination}`)
+  // AWM 是已審固定副本，不能以改本地指紋取代上游修正；其他來源仍沿用各自的適配規則。
+  check(digest === file.sha256, file.destination.startsWith('vendor/agent-work-methods/')
+    ? `AWM 固定副本已改變，請回上游修正，再以升版 PR 採用已審版本（見 docs/agents/work-methods.md）：${file.destination}`
+    : `來源副本已改變，請記錄適配與指紋：${file.destination}`)
 }
 
 // 只收完整固定副本；清單以外的追蹤檔也拒絕，避免更新時夾帶另一版內容。
