@@ -51,10 +51,16 @@ export function smoothTrack(samples) {
     return { time: sample.time, ...validBox({ x: mean('x'), y: mean('y'), width: mean('width'), height: mean('height') }) };
   });
 }
+/** @param {number} width @param {number} height @param {number} time @param {Track | null} track */
+export function frameCrop(width, height, time, track) {
+  const box = track ? cropAt(track, time) : { x: 0, y: 0, width: 1, height: 1 };
+  return { x: box.x * width, y: box.y * height, width: box.width * width, height: box.height * height };
+}
 /** @param {HTMLVideoElement} video @param {Track | null} track */
 export function sourceCrop(video, track) {
-  const box = track ? cropAt(track, video.currentTime) : { x: 0, y: 0, width: 1, height: 1 };
-  return { x: box.x * video.videoWidth, y: box.y * video.videoHeight, width: box.width * video.videoWidth, height: box.height * video.videoHeight };
+  // 單側既有影片入口保留；無跟隨時仍不讀 currentTime。
+  const time = track ? video.currentTime : 0;
+  return frameCrop(video.videoWidth, video.videoHeight, time, track);
 }
 /** @param {HTMLVideoElement} video @param {Track} track */
 export function followSize(video, track) {
