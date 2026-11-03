@@ -1,0 +1,197 @@
+[
+  {
+    "path": ".agents/skills/speckit-analyze/SKILL.md",
+    "sha256": "0b3261b13cc33537f24b3e1f6d5320694c348302c385d0046dc6b958cf2db6cb",
+    "bytes": 12035
+  },
+  {
+    "path": ".agents/skills/speckit-checklist/SKILL.md",
+    "sha256": "7ac5cba31a27151a1a7b73f691bd478d42750ce2dd734701a07eb0e235ffbd94",
+    "bytes": 22652
+  },
+  {
+    "path": ".agents/skills/speckit-clarify/SKILL.md",
+    "sha256": "f6acfbc82c96c0d91b2429fd0b51ce7df7f94b003d1b73acc54470d48bcc455e",
+    "bytes": 19703
+  },
+  {
+    "path": ".agents/skills/speckit-constitution/SKILL.md",
+    "sha256": "1d1e7309b160d58ca45550e7afd2ec363fbeae6ff878daa775519b359e4cb966",
+    "bytes": 1547
+  },
+  {
+    "path": ".agents/skills/speckit-converge/SKILL.md",
+    "sha256": "5859c9780ddc012f600e7d35a5691e032fe05861296f226b5665a0ec03135ccd",
+    "bytes": 13455
+  },
+  {
+    "path": ".agents/skills/speckit-implement/SKILL.md",
+    "sha256": "067b84a7cf042d9e5d9103735e237a814acf3da21a622dd9eecf6cd709220d0e",
+    "bytes": 859
+  },
+  {
+    "path": ".agents/skills/speckit-plan/SKILL.md",
+    "sha256": "5a5b0f811e49c55d3643f9a3915d03990fa8d308f13f6a3017101c2772742762",
+    "bytes": 646
+  },
+  {
+    "path": ".agents/skills/speckit-specify/SKILL.md",
+    "sha256": "4b9a371177b4b1ad60ea8204b62a6da3cb6ca375bae0f92cd08888de87a4ba04",
+    "bytes": 799
+  },
+  {
+    "path": ".agents/skills/speckit-tasks/SKILL.md",
+    "sha256": "1ce843e74629c61f49d82f13f59ca1624e6d86c74ab5e35b8ae59b33e5d7362c",
+    "bytes": 782
+  },
+  {
+    "path": ".agents/skills/speckit-taskstoissues/SKILL.md",
+    "sha256": "e149b5b337bfaf1d232af7304916bbe75f357c67c271f5e753f7a0179de240b1",
+    "bytes": 8635
+  },
+  {
+    "path": ".specify/.gitignore",
+    "sha256": "0a61c5378b0bb2e0f85babff99c8b166f2170a2c12378cd17d929aa19296ec88",
+    "bytes": 586
+  },
+  {
+    "path": ".specify/feature.json",
+    "sha256": "a726f0bddeb144c3b0b3ab61cca3eb1e6b1c5a13f04b8f8d57e81145ea6f3fe1",
+    "bytes": 61
+  },
+  {
+    "path": ".specify/init-options.json",
+    "sha256": "050f4273b9fe7300a20b8cb5dd8ad1579a739c6a242b704ae77095fee240c689",
+    "bytes": 195
+  },
+  {
+    "path": ".specify/integration.json",
+    "sha256": "26297e422b0f77896d5fb8b2d247d354a2e38fb2446fa638c8726f00773a15ab",
+    "bytes": 371
+  },
+  {
+    "path": ".specify/integrations/codex.manifest.json",
+    "sha256": "71d4c9403b77fc34ec0fb0680c6ae30c9bcdf07885afd85c79b8e86b19f1f776",
+    "bytes": 1283
+  },
+  {
+    "path": ".specify/integrations/speckit.manifest.json",
+    "sha256": "4ae29ec542dd3272866b907744d9f8cfc1ed4712cf218c3333ecc91ef0a596f6",
+    "bytes": 1474
+  },
+  {
+    "path": ".specify/memory/.constitution-template.json",
+    "sha256": "8fc4b39294bae0c10d59547ad7d415b6f0e890d656cbf7171dd567f4e9054711",
+    "bytes": 103
+  },
+  {
+    "path": ".specify/memory/constitution.md",
+    "sha256": "de4c45d0b7708a8202ac793a11ef94ca009d7ffecab994b3d7a0c8b9c0aa8da5",
+    "bytes": 620
+  },
+  {
+    "path": ".specify/presets/.registry",
+    "sha256": "6a0adc185faaebba83125f41eb3ac50feb4305b4b8a16e058eac3978c930ec50",
+    "bytes": 748
+  },
+  {
+    "path": ".specify/presets/lean/README.md",
+    "sha256": "7f7291892edc0fadcc18a027c7bc06ff6767ce08f21039876cd7f455be200536",
+    "bytes": 1441
+  },
+  {
+    "path": ".specify/presets/lean/commands/speckit.constitution.md",
+    "sha256": "56ca2ffc2938d04285adc8e0a7cc33164d7f0b8538d5b8aa70791de6ddb9f0a0",
+    "bytes": 1367
+  },
+  {
+    "path": ".specify/presets/lean/commands/speckit.implement.md",
+    "sha256": "d50654ebfad997092a939d7020e546c48be47aa676c7ddeb90eb70b5cf20767c",
+    "bytes": 674
+  },
+  {
+    "path": ".specify/presets/lean/commands/speckit.plan.md",
+    "sha256": "d4dbd594dc8ea9853583353cfc556ac419ffedf2300c207d4ce75c24debe2ab9",
+    "bytes": 471
+  },
+  {
+    "path": ".specify/presets/lean/commands/speckit.specify.md",
+    "sha256": "9d68997ce418cc3293f66f946681bed0a33328c64a05757c0554ded19eec0ce2",
+    "bytes": 618
+  },
+  {
+    "path": ".specify/presets/lean/commands/speckit.tasks.md",
+    "sha256": "b363acd5cdbc3312b2fa03c763913515947feb214702281fe13355401ebd0210",
+    "bytes": 605
+  },
+  {
+    "path": ".specify/presets/lean/preset.yml",
+    "sha256": "d316b3ad5f41988d51fe2b7faedab9c942edc68b44cf6970d5e26ef5a8522751",
+    "bytes": 1385
+  },
+  {
+    "path": ".specify/scripts/bash/check-prerequisites.sh",
+    "sha256": "47cddf0ee476a1a5201927260666364490b7c602a52fdd8466160802925f995b",
+    "bytes": 8406
+  },
+  {
+    "path": ".specify/scripts/bash/common.sh",
+    "sha256": "e3f72d571b8d27088a0aa6a96068eb6583175fbfa7a48bad465be62b9898f09c",
+    "bytes": 39506
+  },
+  {
+    "path": ".specify/scripts/bash/create-new-feature.sh",
+    "sha256": "972f03ed8ca5ee17b7baad6d56d821d46269d77abc337496beafb0fe85a725f2",
+    "bytes": 19427
+  },
+  {
+    "path": ".specify/scripts/bash/resolve-template.sh",
+    "sha256": "829e227096abc8bf0889889ec9f792f503ca5d395b7836a8a7eb739ee75214e7",
+    "bytes": 1547
+  },
+  {
+    "path": ".specify/scripts/bash/setup-plan.sh",
+    "sha256": "d378ec66ba20d2da01c71dad8935062c1c27f0bba890be9a6d3dda52ea056a4e",
+    "bytes": 2838
+  },
+  {
+    "path": ".specify/scripts/bash/setup-tasks.sh",
+    "sha256": "0350b2def158c4dc333cd888fc5a3b10785b3d5c2cf936f93e910242ea9d507d",
+    "bytes": 3551
+  },
+  {
+    "path": ".specify/templates/checklist-template.md",
+    "sha256": "70bbc48e884fab372ffb09e83e78ff983e28b69caebf8cd9964a02b6836683ac",
+    "bytes": 2033
+  },
+  {
+    "path": ".specify/templates/constitution-template.md",
+    "sha256": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
+    "bytes": 2346
+  },
+  {
+    "path": ".specify/templates/plan-template.md",
+    "sha256": "a828ad6206526574ab3fc99be6d0154588cb1c9774c5919d71b81ab5b2dbffa0",
+    "bytes": 3682
+  },
+  {
+    "path": ".specify/templates/spec-template.md",
+    "sha256": "3945437fc35cd30a5b2bf7beea680337c3516826d3efa5a6b92c4a7eca1ba28e",
+    "bytes": 4556
+  },
+  {
+    "path": ".specify/templates/tasks-template.md",
+    "sha256": "b0f527d41e546af0c31903e04f9b20965b6b497b573792198f663a64ce128863",
+    "bytes": 9171
+  },
+  {
+    "path": ".specify/workflows/speckit/workflow.yml",
+    "sha256": "177761c5e7df28126beea043b5cb45aeaf7958090c022dc11ac71399422fcfbc",
+    "bytes": 2118
+  },
+  {
+    "path": ".specify/workflows/workflow-registry.json",
+    "sha256": "780df59ec2d752cfe492a2fee5888c024daf5fbf4c4288b5af0be076d0e5e871",
+    "bytes": 369
+  }
+]

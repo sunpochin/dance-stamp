@@ -402,6 +402,8 @@ FFmpeg.wasm 官方也指出與原生效能差距、多執行緒資源需求及�
 
 ## 9. AI harness 與開發流程
 
+#249 的 [AWM 漂移指引與固定 Spec Kit Lean 試用](docs/evidence/issue-249-spec-kit-lean.md)只調整 AWM 路徑的錯誤提示：回上游修正，再用升版 PR 採用已審版本；其他來源沿原適配規則。保留全部指紋與失敗護欄，未改固定副本、lock 或入口；局部工具試用沒有成為產品必要依賴。
+
 - [AI 協作憲法](AGENTS.md)：唯一規則來源；工具入口保持薄轉接。
 - [開發工作流程](docs/agents/workflow.md)：issue → 獨立分支 → 本機檢查／真機證據 → PR；AI 開票的標題標示實際開票廠商與模型 → 明確核准後發布。
 - [Harness 說明](docs/ai/HARNESS.md)：本 repo 自足的工具、方法、使用與相依邊界。

@@ -1,0 +1,4 @@
+<!-- 檔案用途：讓本輪 Lean 讀取產品原有規則，不建立另一套政策。所在層：局部試用設定。主要關聯：AGENTS.md、docs/agents/workflow.md、docs/agents/work-methods.md、docs/agents/skill-security.md。 -->
+# Owning rules
+
+Read and follow [AGENTS.md](../../AGENTS.md), [workflow](../../docs/agents/workflow.md), [work methods](../../docs/agents/work-methods.md), and [tool boundary](../../docs/agents/skill-security.md). These owning files and the current user authorization are the only policy sources; this file is a navigation pointer. Scope and acceptance are in the feature spec.
