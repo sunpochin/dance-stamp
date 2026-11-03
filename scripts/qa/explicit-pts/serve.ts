@@ -8,10 +8,12 @@ const lock = '/private/tmp/dance-stamp-p0-media-test.lock', nonce = randomUUID()
 const args = Bun.argv.slice(2), options = new Map<string, string>();
 for (let index = 0; index < args.length; index += 2) {
   const key = args[index], value = args[index + 1];
-  if (!['--output', '--fixture'].includes(key) || !value || options.has(key)) throw Error('usage: --output output/<freshfolder> [--fixture output/<synthetic.mp4>]');
+  if (!['--output', '--fixture', '--variant'].includes(key) || !value || options.has(key)) throw Error('usage: --output output/<freshfolder> [--fixture output/<synthetic.mp4>] [--variant window|worker]');
   options.set(key, value);
 }
-const outputArgument = options.get('--output');
+const outputArgument = options.get('--output'), variant = options.get('--variant') ?? 'window';
+if (!['window', 'worker'].includes(variant)) throw Error('--variant must be window or worker');
+const workerVariant = variant === 'worker', assetFolder = workerVariant ? resolve(folder, 'worker') : folder;
 // 首份現場不能被舊目錄或符號連結導向覆寫；只接受 repo output 的全新直屬資料夾。
 if (!outputArgument || !/^output\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(outputArgument)) throw Error('--output must name a fresh output/<folder>');
 const outputRoot = resolve(repoRoot, 'output');
@@ -27,18 +29,26 @@ if (packageJson.version !== '1.65.0') throw Error('fixed library version require
 const fixture = readFileSync(source);
 if (fixture.length !== 1789027 || hash(fixture) !== '3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548') throw Error('synthetic fixture mismatch');
 const assets = new Map<string, { bytes: Buffer; mime: string }>();
-for (const [url, path, mime] of [
+// 只切換QA資產位置；URL保持凍結Worker版原路徑，預設window不換入口或協定。
+const codeAssets: [string, string, string][] = workerVariant ? [
+  ['/', 'index.html', 'text/html; charset=utf-8'], ['/probe.js', 'probe.js', 'text/javascript'],
+  ['/worker.js', 'entry.js', 'text/javascript'], ['/worker-core.js', 'core.js', 'text/javascript'],
+] : [
   ['/', 'index.html', 'text/html; charset=utf-8'], ['/probe.js', 'probe.js', 'text/javascript'], ['/spike.js', 'spike.js', 'text/javascript'],
+];
+for (const [url, path, mime] of [...codeAssets,
   ['/mediabunny.mjs', 'node_modules/mediabunny/dist/bundles/mediabunny.mjs', 'text/javascript'],
-] as const) assets.set(url, { bytes: readFileSync(resolve(path.startsWith('node_modules/') ? repoRoot : folder, path)), mime });
+] as const) assets.set(url, { bytes: readFileSync(resolve(path.startsWith('node_modules/') ? repoRoot : assetFolder, path)), mime });
+// Worker控制沿用受測bundle的拒絕界線；原window只記指紋，不藉搬入改它的支援範圍。
+if (workerVariant && hash(assets.get('/mediabunny.mjs')!.bytes) !== '65a111aadcb9a8b45e585f128d11daf3c972289bf6c58b2e795ba6073ee13363') throw Error('fixed worker bundle fingerprint mismatch');
 for (const side of ['reference', 'self']) assets.set(`/fixtures/${side}.mp4`, { bytes: fixture, mime: 'video/mp4' });
 const head = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: repoRoot });
 if (head.exitCode !== 0) throw Error('source commit unavailable');
 // 新主機不能沿用暫存Chrome版的來源標籤；保存本次Git來源與實際主機bytes。
-const config = { nonce, sourceHead: head.stdout.toString().trim(), trackedChanges: Bun.spawnSync(['git', 'status', '--porcelain'], { cwd: repoRoot }).stdout.toString().trim() !== '', hostSha256: hash(readFileSync(resolve(folder, 'serve.ts'))), library: { name: 'mediabunny', version: packageJson.version, license: 'MPL-2.0', bundleSha256: hash(assets.get('/mediabunny.mjs')!.bytes) }, assets: Object.fromEntries([...assets].map(([path, item]) => [path, { bytes: item.bytes.length, sha256: hash(item.bytes) }])), syntheticOnly: true, prototypeOnly: true };
+const config = { nonce, variant, workerVariant, baseEngineCommit: workerVariant ? '3ed5fee7d2917d1aa4ff6561a1689a913e267da6' : undefined, sourceHead: head.stdout.toString().trim(), trackedChanges: Bun.spawnSync(['git', 'status', '--porcelain'], { cwd: repoRoot }).stdout.toString().trim() !== '', hostSha256: hash(readFileSync(resolve(folder, 'serve.ts'))), library: { name: 'mediabunny', version: packageJson.version, license: 'MPL-2.0', bundleSha256: hash(assets.get('/mediabunny.mjs')!.bytes) }, assets: Object.fromEntries([...assets].map(([path, item]) => [path, { bytes: item.bytes.length, sha256: hash(item.bytes) }])), syntheticOnly: true, prototypeOnly: true };
 // mkdir 與每份 wx 收據都拒絕舊現場；只有自己的 browser 已確認停止才釋放自己的 nonce。
 mkdirSync(receiptFolder);
-writeFileSync(lock, JSON.stringify({ owner: 'issue11-explicit-pts-spike', pid: process.pid, cwd: folder, nonce }), { flag: 'wx' });
+writeFileSync(lock, JSON.stringify({ owner: workerVariant ? 'issue11-explicit-pts-worker-spike' : 'issue11-explicit-pts-spike', pid: process.pid, cwd: folder, nonce }), { flag: 'wx' });
 let server: ReturnType<typeof Bun.serve> | undefined, ended = false, timer: ReturnType<typeof setTimeout>;
 const saved = new Set<string>();
 async function stop(reason: string, browserStopped: boolean) {
@@ -69,7 +79,7 @@ async function body(request: Request, maximum: number) {
 try {
   server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
     const url = new URL(request.url);
-    const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Permissions-Policy': 'camera=(), microphone=(), display-capture=(), geolocation=()', 'Content-Security-Policy': "default-src 'none'; script-src 'self'; connect-src 'self'; media-src blob:; img-src 'self' data: blob:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'" };
+    const headers = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Permissions-Policy': 'camera=(), microphone=(), display-capture=(), geolocation=()', 'Content-Security-Policy': `default-src 'none'; script-src 'self';${workerVariant ? " worker-src 'self';" : ''} connect-src 'self'; media-src blob:; img-src 'self' data: blob:; base-uri 'none'; frame-ancestors 'none'; form-action 'none'` };
     if (ended) return new Response('ended', { status: 410, headers });
     if (request.method === 'GET' && url.pathname === '/config') return Response.json(config, { headers });
     if (request.method === 'GET' && assets.has(url.pathname)) { const item = assets.get(url.pathname)!; return new Response(item.bytes, { headers: { ...headers, 'Content-Type': item.mime } }); }

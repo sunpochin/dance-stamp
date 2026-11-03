@@ -1,6 +1,15 @@
 <!-- 檔案用途：依既有驗收條件核對可結案與尚未實作的 issue，避免重做已交付功能。所在層：版本固定的工程盤點。主要關聯：ROADMAP.md、AGENTS.md、GitHub issue #1。 -->
 # 開啟 issues 的工程與驗收盤點
 
+## 2026-11-03 原生Safari逐PTS首檔與產品接續
+
+白話：Safari的第一份固定三秒原型也把90格照片和三組提示音排對了；這是可繼續實作的證據，還沒有換掉產品或新增可結案票。原生視窗、第一次實檔、兩路分析與清理範圍見[同一份證據](issue-11-explicit-pts-spike.md#原生-safari-首檔同引擎固定三秒通過2026-11-03)。
+
+QA工具[#261](https://github.com/sunpochin/dance-stamp/pull/261)在精確3ed5fee獨立Codex審查／正常check與hook761/0/4404、CI41619627696必要四項成功後，正常merge為481889bb2bf85597049199457a3d29132fb78100；真實parents為f5a4753與3ed5fee，相對第一parent11檔544+/0。App原log83不同PASS／0FAIL、12真下載全解碼／自然播放已核對；PR badge依條件skipped，本節記錄時新main自己的CI41623386519另在進行，不能移記。該PR沒有產品匯出改動。
+
+原生Safari27.2的固定window首檔193981B／9ab，兩路原v5與RGB核90格0→89／3.006667秒／平均29.933fps，三組AV在10ms量尺最大0ms；本機POST非原生下載。只關自有context、共用Safari保留，公開清理返回不等實體codec已停；SIGINT留鎖exit1／browserStopped=false及後續own-nonce audit各自保留。原17張票已再次核對closed/completed；#11／#229／#13維持open，Google209仍依使用者尚未設定暫緩，原真人／實體離線／跨裝置／發布條件不改。另驗真正Module Worker首次195333B／957，document／AudioBuffer為undefined，OffscreenCanvas＋raw AudioSampleSource實編碼後兩路原v5／RGB同樣核90格、3.006667秒、10ms量尺AV0ms；55項封存與舊42項分開。成功後只終止自己的Worker，不把它稱途中取消或physical資源驗收；新repo adapter另做Worker17／預設window16個HTTP-only請求與2個variant拒絕，雙主機／own鎖正常收尾，不移記原生結果。下方「尚未Safari」為先前Chrome階段歷史。
+
+
 ## 2026-11-03 逐PTS匯出原型的第一份Chrome成品
 
 白話：新的小原型先替畫面和聲音排好時間，第一份三秒檔在原量尺通過；這比繼續調整即時播放器更值得往下驗，但還沒有換掉產品，也沒有新增可關的票。
