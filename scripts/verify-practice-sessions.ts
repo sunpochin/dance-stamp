@@ -159,6 +159,12 @@ try {
   assert.deepEqual(await page.evaluate(() => ({ self: document.querySelector<HTMLVideoElement>('#self')!.src, start: (document.getElementById('start') as HTMLInputElement).value, end: (document.getElementById('end') as HTMLInputElement).value })), beforeReplay)
   assert(await page.evaluate(() => (window as any).cameraTracks.every(t => t.readyState === 'ended')))
   checks.shortCaptureDeniedAndFiveHistoryTakes = { first: !!five[0].takeId, fifth: !!five[4].takeId, distinct: true, noBorrowedSelf: true, tracksStopped: true }
+  // 手選仍存在時下載，否則只驗空陣列不能證明下次選擇也能往返。
+  await page.locator('#backup').evaluate(el => { for (let parent = el.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true })
+  const [download] = await Promise.all([page.waitForEvent('download'), click('backup')])
+  const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'))
+  assert.equal(backup.schemaVersion, 3); assert.equal(backup.sessions.length, 6); assert.equal(backup.practiceChoices.length, 1)
+  assert(!JSON.stringify(backup).includes('blob:'))
   assert.match(await page.locator('#session-suggestion').innerText(), /你選/)
   await click('session-skip'); assert(await page.locator('#session-suggest').isDisabled())
   await click('session-auto'); assert.match(await page.locator('#session-suggestion').innerText(), /最新/)
@@ -170,17 +176,17 @@ try {
   assert(await page.locator('#session-suggest').isEnabled()); checks.latestAssessmentManualAndSkip = true
   await page.locator('#practice-sessions').screenshot({ path: resolve(out, 'desktop.png') })
   console.log('PASS: shortCaptureDeniedAndFiveHistoryTakes')
-  // 真實下載 JSON，再隔離環境還原；原片另存，不將 Blob 放進 JSON。
-  await page.locator('#backup').evaluate(el => { for (let parent = el.parentElement; parent; parent = parent.parentElement) if (parent instanceof HTMLDetailsElement) parent.open = true })
-  const [download] = await Promise.all([page.waitForEvent('download'), click('backup')])
-  const backup = JSON.parse(readFileSync((await download.path())!, 'utf8'))
-  assert.equal(backup.schemaVersion, 3); assert.equal(backup.sessions.length, 6)
-  assert(!JSON.stringify(backup).includes('blob:'))
+  // 真實下載的 JSON 在隔離環境還原；原片另存，不將 Blob 放進 JSON。
   const restoredContext = await browser.newContext(), restored = await restoredContext.newPage(); restored.on('dialog', d => d.accept())
   await restored.goto(String(server.url)); await idle(restored); await click('session-notes', restored)
   await restored.locator('#note-tools > summary').click()
   await restored.locator('#restore').setInputFiles({ name: 'synthetic-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) }); await idle(restored)
   await click('import-confirm', restored); assert.equal((await read(restored)).data.sessions.length, 6)
+  assert(await restored.evaluate(async expected => {
+    const { tables, validateBackup } = await import('/library.js'), { readLibrary } = await import('/storage.js')
+    const actual = validateBackup((await readLibrary()).data), original = validateBackup(expected)
+    return actual.sourceLibraryId === original.sourceLibraryId && tables.every(table => JSON.stringify(actual[table]) === JSON.stringify(original[table]))
+  }, backup), '完整備份還原遺失片段、自評、下次選擇或錄影關聯')
   await restored.locator('#session-source').selectOption('segment:' + segmentId)
   await click('session-start', restored); assert.match(await restored.locator('#status').innerText(), /重連|連結/)
   assert.equal((await read(restored)).data.sessions.length, 6)
@@ -200,6 +206,25 @@ try {
   await restored.getByRole('button', { name: '回看第 5 回', exact: true }).click(); await idle(restored)
   assert(await restored.locator('#session-video').isHidden()); assert(await restored.locator('#media-dialog').evaluate((d: HTMLDialogElement) => d.open))
   await click('relink-cancel', restored)
+  // 重連老師片後真正重新開始；只有「缺片時拒絕」不能證明還原流程完成。
+  await restored.locator('#reference-file').setInputFiles(fixture); await idle(restored)
+  assert(await restored.locator('#confirm-link').isVisible()); await click('confirm-link', restored)
+  await start(restored); await click('session-exit', restored)
+  assert.equal((await read(restored)).data.sessions.length, 6)
+  const originalSegment = (await read(restored)).data.segments.find(s => s.id === segmentId)
+  await restored.locator('#session-source').selectOption('')
+  await restored.locator('#session-title').fill(originalSegment.title); await restored.locator('#session-a').fill('30'); await restored.locator('#session-b').fill('32')
+  await start(restored); await click('session-exit', restored)
+  assert.equal(await restored.locator('#session-history li').count(), 0, '同名不同 A/B 混入原段歷史')
+  await restored.locator('#session-source').selectOption('segment:' + segmentId)
+  assert.equal(await restored.locator('#session-history li').count(), 5)
+  const countBeforeDelete = (await read(restored)).data.sessions.length
+  await restored.locator(`#markers [data-focus-key="marker:${originalSegment.markerId}:delete"]`).click(); await idle(restored)
+  assert.match(await restored.locator('#session-history-hint').innerText(), /來源標記已修改或刪除/)
+  assert.equal((await read(restored)).data.sessions.length, countBeforeDelete)
+  const preservedSegment = (await read(restored)).data.segments.find(s => s.id === segmentId)
+  assert.equal(preservedSegment.startMs, 18000); assert.equal(preservedSegment.endMs, 26000)
+  checks.referenceRelinkSameNameAndMarkerSnapshot = true
   await restoredContext.close(); checks.fullJsonRoundTripMissingReferenceAndExactTakeRelink = true
   // 原頁重開不計新回合，改標記保留快照；真正競寫與 quota／取消在同一 IDB 檢查。
   await page.reload(); await idle(); assert.equal((await read()).data.sessions.length, 6)
