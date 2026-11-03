@@ -495,3 +495,65 @@ reference到0.523182958秒、self近0，原250ms守門拒絕，PCM／reference�
 可評估回原mute／暖機／PCM／manual0／微速率流程、只在play前讓self保持自然變調的單變量診斷；目前僅只讀審查，尚未準備或執行，更不是已採用修正。它不能單獨解釋已自然變調的reference約0.63秒停滯，或D案沒有非1微調仍後期plateau；舊27.0.1 reference音高回跳亦不能代簽27.2 self根因。不刪速率修正、不補固定延遲、不換codec或放寬守門。公開[可聽性路徑](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm#L2334)也把volume0視為不可聽，故不能把音量歸零當作原聲開啟的安靜等價控制；沒有新增聲路或產品依賴。
 
 本次兩份文件交接從同步main acea4b9建立，原生全部收尾後才執行正常`bun run check`：Bun1.4.4、760 pass／0 fail／4,385 expects，公開掃描、型別、lint／build通過，原19項lint info與靜態07cdd7b66289af39保持。獨立來源／收據審查已修正「BufferSource開始」為實際start()呼叫與未到排程起點；正常提交hook及遠端CI另綁交付head，不把文件檢查當原生產品通過。
+
+## 2026-11-03 固定來源版面的基準與設定對照
+
+白話：原生點按會把頁面捲走，因此這次只在測試版面把原有兩支影片也固定在畫面內，先重新測原版。兩片確實都可見，但原版、只改右片音高、暫停轉交右片速度設定，以及讓兩片播放原聲，都沒有做出VS；這些設定尚不能放進產品。每案只做第一次匯出，失敗、原片與筆記都保留。
+
+四案均固定原83220ed／83a29a基底、Safari27.2／macOS27.2、相同三秒合成素材與配方，以新自有私人視窗／origin執行，不冒稱本輪交接基線main `cba924ef2893d0809b4f68eda6eb0e0a5ac8aa2d` 已原生受測。QA CSS `0acf3c350902ceaa6eb459dc13df3b0dc4c01c5b31246eb81397c57b9a5486ea` 保留原export392定位，再將原reference／self固定為436×300、top160、left416.5／904.5；沒有新增播放器或代理按鈕。文件仍自動捲動，以下正式樣本在1774×882視窗內雙rect均1、visible／opacity1、focused=true／hidden=false／AudioContext running。這改變normal flow、繪圖及合成層，只建立這個QA版面的對照，不是原介面或與舊C的嚴格2×2比較，幾何亦不等於逐像素遮擋證明。
+
+共用QA HTML SHA `78e228c28e675e0e09712498bc382ee31cacc23bb4ab1d718c012fe98c4a858a` 只在原HTML加同源CSS／observer，原CSP與模組不變。前兩案observer `64a022760f8f72feee3eaf1d462c918a0c65c0c670488d6ec9042f53b937dde1` 相對97fb僅在既有snapshot增加兩側muted／volume／preservesPitch六個唯讀getter及why，反向可完整還原；正式callbacks／240筆上限與未知保存保護不變。初始快照實量self preservesPitch=true；快照不是正式全程音高或本機演算法測量。
+
+| 首次0重試控制 | 正式收據與首結果 | 能支持的結論 |
+| --- | --- | --- |
+| stock main728ef885逐byte等git832 | 114rows／0drop，20正式rAF雙rect1；reference0.624402542／self近0，PCM相位29.221–104.264ms，原100ms拒絕 | 固定來源幾何不足以修好；仍重現首個非1微速率寫入後下一樣本self近0。 |
+| main `d537fb0cab5041d4ac4026aab3fde49b59fc51f1dc7eace0602eadc71b27b3c4` 僅在align原reference設定旁加self.preservesPitch=false與why | 94rows／0drop，15正式rAF雙rect1；reference0.515458875／self0.042928375，PCM相位29.208–31.845ms，原250ms拒絕 | self快照true→false，但首非1後下一樣本仍近0，之後才回0.042928並停住；不稱回零已避免。較早拒絕、未到基準100ms窗口，不是改善或100ms修復。 |
+| stock main728，明示抑制全部BufferSource期間self速度setter | 121rows／0drop，22正式rAF雙rect1；21次請求全ignored（同值1一筆、非1二十筆），實際getter均1。reference0.714827833／self0.750813958，相位27.854–101.839ms，原100ms拒絕 | 本輪self未早期回近0，但完整抑制仍未成檔；不能直接刪除產品漂移修正，亦非唯一根因證明。 |
+| main1d1230僅兩側mute=false，原微速率全部轉交 | 179rows／0drop，36正式rAF雙rect1；36次self速度請求均原生forward（同值1一筆、非1三十五筆），ignored0。reference1.290162375／self近0，相位37.561–40.048ms，原250ms拒絕 | reference在這一案越過基準0.624秒窗口，仍因self偏差拒絕且無VS；不稱100ms已修、同步改善或唯一可聽性根因。 |
+
+第三案observer `07f6d3e70b3dc70a126f3aa357907fc11fcfe96ddfa4ea0424c1a716d5f77909` 相對64a僅將明示flag改為`hold-all-self-rate-writes`、刪除原`value!==1`例外及改why註解，反向全文相同。原微速率計算、100／250ms／片長守門、暖機／回零兩次play、manual0擷取、PCM／真Recorder全保留；這是行為抑制，不是純旁聽或產品修正。生命週期仍為原wrapper先設定startedAt再轉交native start，至buffer.stop wrapper設定ended；不是實際音訊起點或成功start證明。成功路徑pause後但buffer.stop前的同值1尾段也可能被抑制；本次錯誤路徑實際尾段self及stop後self寫入皆0筆，不稱測過。開始前兩側各一筆1原生forward，stop後只觀察到reference一筆1 forward；每次requested／previous／getter／ignored及row-order ledger完整保留。舊D僅抑制非1，與本案分開。
+
+第四案全文為前節已核 `1d1230`，observer回到相同64a、config明示NONHOLD；沒有疊07f6、自然變調或其他變體。直接比較本節stock基準38項封存，不把全抑制案或前兩次曝光失敗當作直接negative control。這是兩個mute值的可聽性介入包，不是只改self一值；before ref false／self true、結果both false，兩volume均1／音高快照true，編碼聲路仍只取原reference PCM。沒有新聲路或音量／系統設定改動，亦不以快照證明正式全程可聽或演算法選擇。
+
+四案原生click分別115／106／99／126ms，均在事前trusted checkpoint後只按一次原export；之後獨立要求5,005ms無輸入，工具實際等待5,009.4／5,010.2／5,009.8／5,009.7ms，首AX距click完成實際為14,848／18,572／13,010／15,101ms。期間無AX／其他輸入，不把指定等待當作實際五秒觀察，也不延長任何產品期限。基準前置曾因舊helper閉包與不可能成立的sheet UUID斷言停止，均在0export／0clock時；核對本cohort頁面與自己剛開的原生panel歸屬後修正helper，原錯誤保存，不算產品失敗或匯出重試。後三案沒有工具錯誤。
+
+| 控制 | 最終manifest SHA-256（entry數） | summary SHA-256 |
+| --- | --- | --- |
+| 新版面stock基準 | `27a5f07cbfeca3f54e8a389f5275d0600e15aa2fb1cbe91c25d10a15203b52b4`（38） | `d324b291751b00cca7def8e3928aa40e3252c58186fbe576463e7e10fc11d34d` |
+| self自然變調 | `48a95b24e262f0e914fdbd028da9abf989f4c6ee5960ce4cadab7ed984fa9fb6`（36） | `9ee327edefee68259298ebee1f69aa0b020a0379ea62e8f9290a991319782508` |
+| 全部self速度寫入抑制 | `a5e45f2885a06143604f1a962674beee218058c3dba60e2cd9bd49fc592ef5f6`（40） | `a25bd8daf669d5c781baf2074c77cf26916cc81bbd938fdd27712a6012e5e555` |
+| 雙側原聲、原微速率 | `0e7a6380d86db55f3a37f2d08195d8b19402ff3d1eef5d171040bc72f8c1cb4c`（37） | `d9589f1e324ca8e66708cd95dbee638ebb16113669203f3961d9d012e716bff5` |
+
+151項entry含各案兩素材，協調者及獨立審查者逐一重算bytes／SHA相符。每案實際34個GET核對原白名單與QA資源：31個原路徑含已修改root，加observer／CSS／config三路；若分列四件QA產物，root是重疊項，不能聲稱35個獨立GET。四案完整data、retained、原片URL／完整hash保持，revision3→4／三metadata-only原生complete；無VS Blob／下載／media雙put／keys／chunks，硬體呼叫與頁錯0、Recorder inactive／tracks ended。自有視窗／主機exit0／origin拒絕／匹配nonce釋放均收尾，舊及未知分頁、Safari設定與音量保留；raw及素材只留本機。
+
+原250ms checker在基準與全抑制案皆因status前提不同exit1，原錯誤保留；只改status字串精確綁100ms的局部保全copy另exit0，其餘斷言不變。自然變調與雙側原聲案原250ms checker未改exit0；四者都不代表同步品質或私人新VS保存／救援。固定色條與連續音仍不能量首中尾G2／動態停格或完整G1–G7；rVFC metadata／currentTime亦不能代替成品像素。
+
+### 補足組合缺格：仍100ms，超出紀錄上限後的首錯時間未知
+
+白話：兩個設定一起試，仍沒有成品。像筆記本寫滿後就沒再記，不能拿最後一行當作最後發生的事；失敗文案與資料保全有收據，尾段時鐘則維持未驗證。
+
+最後組合保持有效雙側原聲案的main1d／CSS0acf／HTML78e／素材，只換已核observer07及精確`hold-all-self-rate-writes`配置；直接對照前述雙側原聲37項，全抑制40項僅輔助比較可聽性介入包。原微速率仍計算，100／250ms／片長守門與其他流程不改，沒有新增音路、自然變調或其他旗標。這是在已各自測過的兩因素補一個有界組合，不是嚴格自然時序2×2、兩個唯一根因或可採產品修正。
+
+唯一trusted原export click82ms，指定5,005ms靜默（實際5,009.7ms），首AX於click完成17,921ms後，期間無AX／其他輸入。首結果原100ms拒絕、無VS。clock到原240筆上限、28dropped／exposureDropped0；53筆已記正式rAF雙rect1、focused／visible／context running，已記PCM相位35.333–38.104ms。最後已記rAF reference1.898757250／self1.898744542秒；buffer.stop、首100ms當時時鐘與尾段restore已超cap，**不能用約1.899秒或38ms當作首錯位置／相位**。全程曝光與完整gate ledger未驗證，沒有提高cap、補測或由結果畫面補造尾段。
+
+已記gate內53次self速度請求全ignored（同值1一筆／非1五十二筆），實際getter均1，開始前兩側各一筆1原生forward；cap後尾段／stop後實際請求皆未知，不能寫成0或已測。原250ms checker因status前提exit1保留，only-status100ms局部保全copy另exit0。完整data、retained與原片URL／hash保持、revision3→4／三metadata-only complete，無VS／雙put／keys／chunks、硬體與頁錯0，post-result Recorder inactive／tracks ended；自有主機exit0／origin拒絕／nonce釋放，只關本案自有分頁，舊及未知分頁不動。
+
+43項manifest含素材由協調者全部重算bytes／SHA相符：manifest `8be1d0e36f7c9d7028240810f3a1fe44770d748ec67a552cb0e08264980d3d94`，summary `fa8e09fac67e04e0854e803857eb3f37ec14f004f898d3a61e37db44463ed5be`。開主機前兩個舊文件glob未匹配exit1，以及收尾組裝manifest時bytes helper的AttributeError皆保存；後者發生raw／summary寫妥之後、manifest產生之前，只修正封存組裝，沒有改原收據、重啟測量或變更產品結果。仍無成品可下載／解碼，也沒有#229／#13結案或發布結論。
+
+### 單筆首錯收據：新案在約2.009秒超過100ms
+
+白話：不加大筆記本，只在原本已判定失敗的那一刻多留一張小紙條。這次知道影片走到約2.009秒時，聲音時鐘已到2.118秒，差約108.6ms；不是影片做完了，也還沒有找出可採用修正。這張紙條只屬於新的一次，不能替前一案填空。
+
+新自有私人cohort維持上述組合、CSS0acf／HTML78e／素材／配方／精確allhold配置；served main `d73707ad0a2f558b348c0ba45db5cfdfd07c10912971f1d0a4c4003d8c5cfd56` 相對1d只把原100ms條件展成block，條件完全相同且已求值true後，才try保存原判定用elapsedMs／audioElapsedMs／durationMs等12個固定scalar。八個數值依number|string保存非有限值，避免JSON將Infinity悄轉null；catch僅留固定qaRecordError，連診斷寫入再失敗也由finally執行原finish／原錯誤文案。沒有新AudioClock、callback、timer、rAF、listener、停止策略、門檻或補償。
+
+observer `3200214a7c13edea399168aa51a947db831fc713e24aee94dcb2ca30718f61ef` 相對07僅在既有snapshot複製這個小收據及why；兩檔反向可全文還原1d／07，原240cap、allhold及未知保存保護不變。前置18項封存兩路核對後才開始；這是新QA原始碼hash，不能仍稱原1d／07逐byte相同，也不能拿這次的後置記錄回推前一案。診斷成本與自然時序差明列，不是重試挑成功或產品修正。
+
+唯一首匯出仍原100ms拒絕、無VS。before小收據為null；原決定用elapsedMs＝2009.3952083261684、audioElapsedMs＝2118、durationMs＝3000、rate＝1、兩來源起點0；兩者差108.60479167383164ms。其餘讀值為self.currentTime＝1.971334250003565秒、兩側ended／paused四旗標全false；八數值本案皆finite number、無qaRecordError。at＝74014是判定後performance.now，self時間與旗標亦是判定後非原子快照，不是硬體PTS或全程像素證據；非有限值與診斷失敗fallback本次未實際觸發。
+
+clock仍240筆／27dropped，53已記正式rAF雙rect1；已記53次self setter全held（同值1一筆／非1五十二筆）、getter均1，初始兩筆forward。最後clock at73831至小收據相差183ms，中間時鐘／末段曝光、buffer.stop與完整尾段ledger仍未驗，不能由這一張收據補回。原生click112ms，指定5,005ms靜默（實際5,009.3ms），首AX距click完成14,373ms，期間無AX／其他輸入，0重試／工具錯誤；實際34個GET精確核對新main／observer與其他固定資源。
+
+原250ms checker前提exit1保留，only-status100ms局部保全copy另exit0；完整data、retained與原片URL／hash保持、revision3→4／三metadata-only complete，無VS／雙put／keys／chunks／硬體／頁錯，Recorder inactive／tracks ended；自有主機exit0／origin拒絕／nonce釋放，只關新自有分頁，舊及未知分頁、音量與設定不動。42項manifest含素材由協調者全數重算bytes／SHA相符：manifest `00e34d785587705a2cd175b687de2d46e9041214eee978edb9f40f20e35b40ff`，summary `f3b5ad1ea204af9ad111830029c7dba1d4af0edcf279f728311741dbd9dbabf8`，獨立first100-decision SHA `b224cf4cba3d08e9a1ef98d0cd5cf4edd21923812f260605bd3b80d4bcebab89`。舊43項及其封存工具錯誤原hash保持；raw、合成素材與本機識別不公開。
+
+本次只補原守門的失敗輸入與位置；不能從108.6ms、缺callback或靜態圖樣判定編碼器、音高、可聽性或速率API的唯一根因。下一步回查此精確局部值所對應的來源時鐘與原生播放邊界，尚未選定新的產品修正；不放寬原門檻、不補固定延遲、不裁片，成品品質與私人VS保存／救援仍各自未驗。
+
+本分支僅更新既有兩份交接文件，未改產品／測試／格式／CSP。首錯觀測前、無原生播放時的正常`bun run check`為Bun1.4.4、760 pass／0 fail／4,385 expects，公開掃描／型別／lint／build通過，原19項info與build07cdd7b66289af39保持；其退出後才做最後觀測，全部原生收尾後才走正常提交hook。兩路獨立來源／收據審查與六案236項封存分開，hook及遠端CI另綁最終head；基線main cba自己的push CI41573086864 attempt1五項全成功，也只屬該文件版本工程檢查，不能代簽上述失敗案或新版本原生品質。
