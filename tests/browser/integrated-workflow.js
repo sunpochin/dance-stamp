@@ -19,14 +19,14 @@ async page => {
   await page.locator('#copy-reference').click(); await idle(page); await page.locator('#copy-self').click(); await idle(page); await page.locator('#export').click(); await idle(page);
   assert((await page.locator('#status').textContent()).includes('已成檔'), '共同流程未成檔');
   const data = await read(page), beat = data.videos[0].beatGrid, marker = data.markers[0], artifact = data.exports.at(-1);
-  assert(data.schemaVersion === 2 && beat.bpm === 120 && beat.firstBeatMs === 350 && marker.moveId === moveId && data.moves[0].status === 'wanted', '成檔遺失拍點／動作或自動改狀態');
+  assert(data.schemaVersion === 3 && beat.bpm === 120 && beat.firstBeatMs === 350 && marker.moveId === moveId && data.moves[0].status === 'wanted', '成檔遺失拍點／動作或自動改狀態');
   assert(await page.getByRole('button', { name: '開啟這次比較配方', exact: true }).count() >= 1, '動作歷史沒有此次比較');
   const outputWait = page.waitForEvent('download'); await page.locator('#output-download').click(); const outputFile = await outputWait; await outputFile.saveAs('output/web-candidate-validation/integrated-vs.' + outputFile.suggestedFilename().split('.').pop());
   await page.locator('#note-tools').evaluate(d => { d.open = true; });
   await page.locator('#share-notes').click(); await idle(page);
   for (const [table, id] of [['markers',marker.id],['exports',artifact.id]]) await page.locator(`#share-items input[data-table="${table}"][value="${id}"]`).check();
   await page.locator('#share-preview').click(); await idle(page); const shared = JSON.parse(await page.locator('#share-content').textContent());
-  assert(shared.schemaVersion === 2 && shared.moves.length === 0 && !JSON.stringify(shared).includes('moveId') && !JSON.stringify(shared).includes('beatGrid') && !JSON.stringify(shared).includes('合成私人正文'), '共同分享外流未選資料');
+  assert(shared.schemaVersion === 3 && shared.moves.length === 0 && !JSON.stringify(shared).includes('moveId') && !JSON.stringify(shared).includes('beatGrid') && !JSON.stringify(shared).includes('合成私人正文'), '共同分享外流未選資料');
   assert(shared.takes.length === 1 && shared.exports.length === 1 && shared.recipes[0].takeId === shared.takes[0].id, '共同分享閉包損壞');
   await download('share-download', 'integrated-share.dance-stamp.json'); await page.locator('#share-cancel').click(); await idle(page);
   await download('backup', 'integrated-backup.dance-stamp.json');

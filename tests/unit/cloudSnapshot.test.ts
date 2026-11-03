@@ -15,10 +15,19 @@ function practice() {
 test('只帶選定練習；筆記與影片逐項選擇，缺片不能冒充已保存', async () => {
   const p = practice(), f = cloudDriveFixture()
   try {
+    const segmentId = crypto.randomUUID()
+    p.data.segments.push({ id: segmentId, videoId: p.video, title: '私人練習片段', startMs: 0, endMs: 1000 })
+    p.data.sessions.push({ id: crypto.randomUUID(), segmentId, startedAt: '2026-11-03T00:00:00Z', completedAt: '2026-11-03T00:01:00Z', followed: true, rate: 1, assessment: 'unfamiliar', takeId: p.take, revision: 1 })
+    p.data.practiceChoices.push({ id: p.data.sourceLibraryId, mode: 'selected', segmentId, updatedAt: '2026-11-03T00:01:00Z', revision: 1 })
     const selected = selectedPractice(p.data, p.video, p.take, false)
     expect(selected.videos).toHaveLength(1); expect(selected.markers).toHaveLength(0); expect(p.data.videos).toHaveLength(2)
+    expect(selected.segments).toEqual([]); expect(selected.sessions).toEqual([]); expect(selected.practiceChoices).toEqual([])
     await f.drive.authorize(cloudToken()); const root = await f.drive.createRoot()
     const work = await prepareSnapshot(f.drive, selected, new Set(), p.files, { root: root.id })
+    const privateEnvelope = structuredClone(work.envelope)
+    // 真正合法的快照封套夾帶回報也須拒收，不能只驗出站時沒有欄位。
+    for (const key of ['segments', 'sessions', 'practiceChoices'] as const) privateEnvelope.data[key] = p.data[key] as any
+    expect(() => validateSnapshot(JSON.stringify(privateEnvelope))).toThrow('未選練習')
     expect(work.jobs).toHaveLength(0); expect(work.envelope.media.every(m => m.fileId === null)).toBe(true)
     await saveSnapshot(f.drive, work, id => p.files.get(id))
     expect((await listSnapshots(f.drive, root.id))).toHaveLength(1)

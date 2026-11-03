@@ -117,3 +117,8 @@ body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recov
 body[data-comparison-only]:not(:has(#reference-selection[data-source])) .segment-settings { display: none !important; }
 /* 放在共用播放器之後，避免較窄的預覽上限被其他播放器規則蓋過。 */
 #cloud-media-preview video, #cloud-share-preview { width: 100%; max-height: 240px; }
+/* 回合文案與段名可很長；窄畫面仍保留完整控制與明顯焦點。 */
+#practice-sessions { border: 1px solid #718087; border-radius: 10px; padding: 18px; margin: 20px 0; }
+#session-history { padding-left: 24px; } #session-history li { border-bottom: 1px solid #455258; padding: 12px 0; overflow-wrap: anywhere; }
+#session-history button, #session-history select { margin: 4px; } #session-stage { font-weight: bold; }
+#session-video { width: 100%; max-height: 540px; } #session-selection input, #session-selection select { min-width: 0; max-width: 100%; }

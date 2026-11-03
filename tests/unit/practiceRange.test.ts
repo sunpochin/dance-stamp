@@ -6,6 +6,8 @@ import { runInNewContext } from 'node:vm'
 const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8').match(/function practiceRange\(\) \{[^]*?\n\}/)![0]
 const range = (start: string, end: string, durationMs = 65001) => runInNewContext(source + '\npracticeRange()', {
   $: (id: string) => ({ value: id === 'start' ? start : end }), referenceDurationMs: durationMs,
+  // 本測試維持一般 A/B 路徑；回合的獨立範圍由瀏覽器驗證。
+  sessions: { range: () => undefined },
 })
 
 test('完整片長新載入或重開後，毫秒邊界不受秒數浮點往返影響', () => {

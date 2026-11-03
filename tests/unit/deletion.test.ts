@@ -54,7 +54,7 @@ test('刪整份筆記保留另一份筆記及共用自己原片；回報完整�
   expect(plan.data.videos).toEqual(second.videos); expect(plan.data.takes).toEqual(second.takes)
   expect(plan.data.assets.some(a => a.id === assetId)).toBe(true)
   expect(plan.mediaIds).toEqual([data.assets[0].id, data.assets[2].id])
-  expect(plan.counts).toEqual({ videos: 1, markers: 1, takes: 1, recipes: 1, exports: 1 })
+  expect(plan.counts).toEqual({ videos: 1, markers: 1, takes: 1, recipes: 1, exports: 1, segments: 0, sessions: 0, practiceChoices: 0 })
 })
 test('未知 ID／種類與無效庫原子拒絕，無刪庫捷徑', () => {
   const data = graph(), before = structuredClone(data)

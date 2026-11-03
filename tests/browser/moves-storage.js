@@ -18,7 +18,7 @@ async (root) => {
     const raw = p => p.evaluate(async () => { const db = await (await import('/storage.js')).openStore(); return await new Promise((resolve, reject) => { const req = db.transaction('metadata').objectStore('metadata').get('library'); req.onsuccess = () => resolve(req.result); req.onerror = reject; }); });
     const before = await raw(page);
     const read = await page.evaluate(async () => await (await import('/storage.js')).readLibrary());
-    assert(read.data.schemaVersion === 2 && JSON.stringify(await raw(page)) === JSON.stringify(before), '讀取升版暗中寫入');
+    assert(read.data.schemaVersion === 3 && JSON.stringify(await raw(page)) === JSON.stringify(before), '讀取升版暗中寫入');
     // 複製品是合成不可解碼 sentinel；移除其媒體描述的本機可用狀態並不刪 bytes。
     await page.reload(); await idle(page); await page.locator('#library').selectOption(fixture.videoId); await page.locator('#open-library').click(); await idle(page);
     // 不靠播放器成功驗證 metadata：即使缺片或壞片，分類／筆記仍可編輯。
@@ -31,7 +31,7 @@ async (root) => {
     await other.locator('#video-title').fill('另一頁草稿');
     await page.locator('#save-title').click(); await idle(page);
     const after = await raw(page);
-    assert(after.data.schemaVersion === 2 && after.revision === 2 && after.data.videos[0].teacher === '合成老師' && JSON.stringify(after.data.markers) === JSON.stringify(fixture.data.markers), '成功升版未保留筆記或分類');
+    assert(after.data.schemaVersion === 3 && after.revision === 2 && after.data.videos[0].teacher === '合成老師' && JSON.stringify(after.data.markers) === JSON.stringify(fixture.data.markers), '成功升版未保留筆記或分類');
     await other.locator('#save-title').click(); await idle(other);
     assert((await other.locator('#status').textContent()).includes('另一分頁') && await other.locator('#video-title').inputValue() === '另一頁草稿' && JSON.stringify(await raw(page)) === JSON.stringify(after), '舊版分頁覆蓋新資料或遺失草稿');
     const failureChecks = await page.evaluate(async ({ assetId }) => {

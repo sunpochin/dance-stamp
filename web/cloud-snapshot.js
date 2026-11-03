@@ -1,7 +1,7 @@
 /* 檔案用途：選定練習的不可覆寫雲端快照與 ID 映射。所在層：Web 純資料／傳輸。主要關聯：library.js、google-drive.js、DATA_FORMAT.md。 */
 import { validateBackup, parseBackup, tables } from './library.js';
 import { chunkHashes, driveId, cloudChunkSize, cloudMediaLimit } from './google-drive.js';
-const relations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos', moveId: 'moves' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {} };
+const relations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos', moveId: 'moves' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {}, segments: {}, sessions: {}, practiceChoices: {} };
 function rewrite(data, mapping, reverse = false) {
   const maps = Object.fromEntries(tables.map(t => [t, new Map(Object.entries(mapping[t] || {}).map(([a, b]) => reverse ? [b, a] : [a, b]))]));
   const result = structuredClone(data);
@@ -14,6 +14,8 @@ function rewrite(data, mapping, reverse = false) {
 export function selectedPractice(library, videoId, takeId, notes, binding) {
   const data = validateBackup(library), selected = data.takes.find(t => t.id === takeId && t.referenceVideoId === videoId && t.state === 'ready');
   if (!selected) throw new Error('請先完成兩片比較配對，再保存選定練習。');
+  // 雲端續作只包含選定比較；私人自評與下次選擇不跟著影片或筆記離開裝置。
+  data.segments = []; data.sessions = []; data.practiceChoices = [];
   data.videos = data.videos.filter(v => v.id === videoId); data.takes = [selected];
   data.recipes = data.recipes.filter(r => r.takeId === takeId);
   data.exports = data.exports.filter(e => e.state === 'ready' && data.recipes.some(r => r.id === e.recipeId));
