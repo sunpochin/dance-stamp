@@ -1,7 +1,7 @@
 {
-  "sourceHead": "e55bd047c7737f0b4961f238332973378a7e9722",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41600565140",
-  "generatedAt": "2026-11-03T08:27:58.313Z",
+  "sourceHead": "9af33dba809f02c4b26cf0044c87683c6ccc27df",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41609308015",
+  "generatedAt": "2026-11-03T09:39:33.834Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -24,7 +24,7 @@
     "web/person-worker.js": "c1d9138d81c0a139a9e0bf8077d40abebf8f4a064fc2860ef3441448b824c7da",
     "web/recorder.js": "f1e217b85e8fa8c068fc024a552da6ae939d8da5dec6b0c585b670b613c4deb7",
     "web/storage.js": "3a73a0da0af0fe1aed3220a46f386eddc2c0781a0c879b54c72fb286aaae265d",
-    "web/sw.js": "8e60a3ad3c5e50aaf7618245c08f91b573af83e7a52e0c0579679fb1c0f11d88",
+    "web/sw.js": "c5034c42dab9d294a26c05622341b1867463e71a6aea11848dca783d103a3157",
     "web/tempo-worklet.js": "06a12d1398fe10f61d887b2e6348b68dbd5d0ebef02b46356612ad22066e87ea",
     "web/tempo.js": "922670fb4234056853aefd492f31ea8c9baee8c6251955e9c4235aacccb1cc13",
     "web/timeline.js": "29f13d156675d17acdd06d0211faffe95f471b52b8bd8c3ed96498b15fa95d1b"
@@ -32,28 +32,28 @@
   "scenarios": 83,
   "total": {
     "lines": {
-      "total": 3357,
-      "covered": 3335,
+      "total": 3358,
+      "covered": 3336,
       "skipped": 0,
       "pct": 99.34
     },
     "statements": {
-      "total": 6291,
-      "covered": 5908,
+      "total": 6292,
+      "covered": 5910,
       "skipped": 0,
-      "pct": 93.91
+      "pct": 93.92
     },
     "functions": {
-      "total": 1127,
-      "covered": 1084,
+      "total": 1128,
+      "covered": 1085,
       "skipped": 0,
       "pct": 96.18
     },
     "branches": {
-      "total": 3713,
-      "covered": 3222,
+      "total": 3717,
+      "covered": 3228,
       "skipped": 0,
-      "pct": 86.77
+      "pct": 86.84
     },
     "branchesTrue": {
       "total": 0,
@@ -418,9 +418,9 @@
       },
       "branches": {
         "total": 259,
-        "covered": 217,
+        "covered": 218,
         "skipped": 0,
-        "pct": 83.78
+        "pct": 84.16
       },
       "uncoveredLines": [
         177,
@@ -579,15 +579,15 @@
       },
       "statements": {
         "total": 2528,
-        "covered": 2372,
+        "covered": 2373,
         "skipped": 0,
-        "pct": 93.82
+        "pct": 93.86
       },
       "branches": {
         "total": 1478,
-        "covered": 1262,
+        "covered": 1264,
         "skipped": 0,
-        "pct": 85.38
+        "pct": 85.52
       },
       "uncoveredLines": [
         249,
@@ -838,28 +838,28 @@
     },
     "web/sw.js": {
       "lines": {
-        "total": 45,
-        "covered": 45,
+        "total": 46,
+        "covered": 46,
         "skipped": 0,
         "pct": 100
       },
       "functions": {
-        "total": 13,
-        "covered": 13,
+        "total": 14,
+        "covered": 14,
         "skipped": 0,
         "pct": 100
       },
       "statements": {
-        "total": 63,
-        "covered": 63,
+        "total": 64,
+        "covered": 64,
         "skipped": 0,
         "pct": 100
       },
       "branches": {
-        "total": 37,
-        "covered": 36,
+        "total": 41,
+        "covered": 39,
         "skipped": 0,
-        "pct": 97.29
+        "pct": 95.12
       },
       "uncoveredLines": [],
       "uncoveredFunctions": []
