@@ -104,6 +104,9 @@ jobs:
           google-chrome --version
           bun run build
           bun --no-env-file tests/browser/forced-install-restart.ts "$(command -v google-chrome)" "$RUNNER_TEMP/dance-stamp-linux-qa/node_modules/playwright-core/index.mjs"
+      # 真307與原生SW導航的組合不能只靠HTTP狀態或虛擬機保證；沿用這台既有Chrome。
+      - name: Verify redirected HTML navigation online and offline
+        run: DANCE_STAMP_CHROMIUM="$(command -v google-chrome)" bun --no-env-file scripts/verify-metronome-routing.ts
       - name: Preserve synthetic evidence and browser errors
         if: always()
         # 失敗也保留原始收據；只列明確 QA 檔，不上傳整個 profile 或資料庫。

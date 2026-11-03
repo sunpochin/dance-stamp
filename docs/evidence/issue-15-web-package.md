@@ -154,3 +154,14 @@ Bun 1.4.4 原 `bun run check` 通過：760 pass／0 fail／4,385 expects，51 �
 整合來源：保留指南提交 `e98d9aa8afa8d57f6ab8797b1a774b774ab07f2f`，正常合入 main `697f8ce33ecaebf47e5fa02dc3ba93d9d398e850`（來源 PR #247 精確 e8ddfe1 的必要 CI 已成功，main 本身同輪結果另記；#247 僅既有 #13 文件新增 34 行）。無衝突，五份使用／發行指南內容不變，本節另補來源綁定；不修改 #247 原 head，也不把 e98d9aa8 的舊 CI 改標成新整合 head。整合工作樹另沿原 check／package 校驗，正常 merge commit hook／push 與精確新 head CI 分開綁定。
 
 整合工作樹的原 check 完整日誌仍為760 pass／0 fail／4,385 expects、19項info與07cdd7不變；接手時舊執行handle已不存在且本工作樹無Bun程序，不據此補造exit code，最終正常提交hook另確認。整合後 `package:web`／`check:package` 已各自exit0，95檔、11,996,740 bytes、archive SHA256 `99b56aec0fa1ab9e504b57a6204ea5589352b82e1fbb31b71b505b5524e77dae`。這仍是補齊最終交接文字前的本機工作樹快照，sourceRevision=e98d9aa8、trackedChanges=true，未當成乾淨來源的發行附件；最後head由其CI獨立校驗。
+
+
+## #257 HTML 轉址導航修正
+
+白話：這次是主機短網址與離線助手交接時出了問題，頁面內容仍存在。短網址可暫時使用；正式修正讓兩種入口與離線副本都能正常開啟，不清除使用者資料。
+
+2026-11-03，基線 main `e55bd047c7737f0b4961f238332973378a7e9722`／產品07cdd7b66289af39。使用者回報公開站節拍器 `.html` 無法開啟；curl證明307到短網址後200，僅HTTP可用不能代表瀏覽器導航成功。隔離Chrome156.0.8078.76的真SW流程重現：未受控200、首頁完整快取及重新載入後 `.html` 為net::ERR_FAILED、短網址200。沒有存取私人媒體、既有profile或憑證。
+
+本機用原生307重現同因失敗，原 `sw.js` 在第一個受控導航即拒絕。修正後相同腳本通過在線快取導航、真正context offline、刪除本輪自有副本後在線follow補回及再次offline；錯版307目的頁仍503、不入cache，CSP標頭與節拍器開始／停止保持，零頁面錯誤。Bun1.4.4／Playwright1.64.1；腳本與原生瀏覽器、主機收尾均隨repo提供，不將合成主機當正式Cloudflare驗收。
+
+受測修正為本分支 `web/sw.js`：navigate＋redirected且已驗證的Response重建，補檔follow再驗證；產品其他模組與主機wrangler設定未改。回歸已加入既有Linux工作，PR新head的Linux與完整CI仍需各自產生證據。正式站目前仍是原失敗版，公開部署與使用者取得新版尚待確認；本機通過不代表正式站已更新。

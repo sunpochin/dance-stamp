@@ -1390,3 +1390,12 @@ Safari 僅解碼合法來源交集，來源 PCM 最多 300 秒／48kHz／雙聲�
 綠燈受測為上述基線加本次產品／回歸工作樹，正常建置與原始日誌留本機 ignored／暫存證據，不冒稱提交後乾淨來源重跑。原有影音／BPM 門檻不變；完成後自有測試子程序 exit0、瀏覽器與主機關閉，外部包裝核對自有 nonce 釋鎖。原生 Safari、實體手機、人工聽感及完整 G1–G7 未由此合成回歸驗收。重跑使用正常 `bun run check`、`bun run build`，再執行原 `bun --no-env-file scripts/verify-metronome.ts`；須先取得共同影音鎖，不與原生媒體量測競跑。
 
 完整檢查：Bun 1.4.4 `bun run check` 通過 757 tests／4,198 expects／0 fail，公開掃描、型別、lint、build 通過，保留原 19 項 lint info。修正建置 `07cdd7b66289af39`；`web/metronome.js` SHA-256 `c4ee81c0351701215b4162e3df04b201ebc83b1705e19f61955a8ad4cecddf0a`，加強後 startup helper SHA-256 `fb5f548f2467ef95c26ad62ff0c664a02caaea6b28116c474f5aae00b46290cd`。最後整輪六個受控原生等待的 settlement 均為 fulfilled，之後才核對取消與不重播；兩個合法初始化及原二十秒分析亦通過。該輪日誌 SHA-256 `55bb3cdb824ac3aab5401cafbdc7c92d0728498ee19b8fc6f0401283b7ec267f`，退出碼 0 且自有 nonce 釋鎖；原始日誌不公開。等待補測時曾在啟動前遇共同鎖 EEXIST，當次沒有開瀏覽器或改鎖，後續等持有者正常收尾才重跑。
+
+
+## #257 主機 HTML 轉址與離線導航
+
+白話：網站主機會把「節拍器.html」帶到短網址；離線助手存下這張帶轉址紀錄的頁面後，瀏覽器反而不讓它拿來開新分頁。修正像把內容核對好後，重新裝入沒有舊轉址紀錄的信封；原本筆記、影片與離線副本都保留。遇到舊版仍可先開 `/metronome`，修正版則讓原 `/metronome.html` 在線／離線都能開啟，並沿用保存工作後由使用者同意更新的流程。
+
+技術：Cloudflare 的預設 [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/) 令 `.html` 回307到無副檔名路徑。install 的 fetch follow 後，CacheStorage 保存真正 `redirected=true` 的200 Response；導航 `redirect=manual` 的 respondWith 不能直接交付這種回應。`web/sw.js` 在完整 manifest SHA256 核對後，僅對 navigate＋redirected 回應用相同 body／status／headers 建立新 Response；一般模組與樣式不改回應URL語意。缺檔在線補回則明確 follow 後核對原路徑雜湊，再保存與回覆。非白名單／非GET／其他origin仍不接管，錯版仍503且不寫cache，更新同意與DB不改。
+
+排除只改首頁短網址（繞過既有manifest路徑、不能證明離線）、停用SW／清網站資料（失去離線或危及使用者資料）、改主機全站HTML政策（影響其他既有URL）以及省略雜湊驗證。沿原Ubuntu工作追加真307／原生Chrome導航回歸，腳本 `scripts/verify-metronome-routing.ts` 也可建置後單獨執行。公開站先在隔離瀏覽器重現「未受SW控制200、受控後ERR_FAILED、短網址200」；同主機行為的本機回歸先紅後綠，詳見[網站證據](docs/evidence/issue-15-web-package.md#257-html-轉址導航修正)。部署、瀏覽器取得新版與本機驗證分開記錄，不能把PR或本機綠燈寫成正式站已恢復。
