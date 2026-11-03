@@ -22,7 +22,7 @@
       <button type="button" id="apply-update" hidden>立即更新</button>
     </aside>
   </header>
-  <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選左邊示範影片，再選右邊練習影片。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
+  <div class="statusbar"><p id="status" role="status" aria-live="polite" aria-atomic="true">先選示範影片；可單片跟跳，或另選自己的影片做比較。</p><div class="status-actions"><button type="button" id="pause-comparison" hidden>一起暫停</button><button type="button" id="stop" class="stop">停止／取消</button></div></div>
   <section id="storage-recovery" aria-labelledby="storage-recovery-title" hidden>
     <h2 id="storage-recovery-title">保存狀態未確認</h2>
     <p role="alert">瀏覽器沒有確認這次保存是否完成或回復。本頁暫停儲存，保留目前原片與可下載的 VS，請先使用下方影片下載連結另存。</p>
@@ -31,7 +31,7 @@
   </section>
   <!-- 選片入口與播放器放在同一張卡片；不再用兩個入口指向同一個老師欄位。 -->
   <fieldset id="controls" tabindex="-1"><legend>01 · 示範影片與練習影片</legend>
-    <p class="section-intro">左邊放示範影片，右邊放練習影片。兩支影片都選好後，設定同一個動作的起點。</p>
+    <p class="section-intro">左邊放示範影片，就能往下開始自主練習。想做比較時再選右邊練習影片，設定同一個動作的起點。</p>
     <section class="players" aria-label="示範影片與練習影片">
       <div class="video-card">
         <h2>左 · 示範影片</h2>
@@ -124,6 +124,37 @@
       <p class="hint">Safari 有聲錄影需使用支援的 MP4／AAC 示範；錄影時聲音隨速度變調，一般練習仍保留音高。影片與聲音都在此裝置處理。</p>
     </details>
   </fieldset>
+  <!-- 自主練習是單片入口，不能跟比較專用的延後功能一起隱藏。 -->
+  <section id="practice-sessions" aria-labelledby="sessions-title">
+    <h2 id="sessions-title">自主練習 · 把這一段跳順</h2>
+    <p>選一段，先看三次，再跟著跳。沒有相機也能練，回顧只留在此裝置。</p>
+    <button id="session-notes" type="button" aria-controls="practice library-panel">開啟時間標記、影片筆記與完整備份</button>
+    <fieldset id="sessions-controls" disabled><legend>選段與回合</legend>
+      <p id="session-suggestion" role="status">先選一支示範影片，或開啟已保存的片段。</p>
+      <div class="actions"><button id="session-suggest" type="button" disabled>練建議片段</button><button id="session-skip" type="button">略過建議</button><button id="session-auto" type="button">依最新自評建議</button></div>
+      <div id="session-selection" class="settings">
+        <label>想練哪段<select id="session-source"><option value="">自行圈選目前示範</option></select></label>
+        <label>段名<input id="session-title" maxlength="500" value="今天想練的片段"></label>
+        <label>A · 原片起點（秒）<input id="session-a" type="number" min="0" step="0.001" required></label>
+        <label>B · 原片終點（秒）<input id="session-b" type="number" min="0" step="0.001" required></label>
+      </div>
+      <div class="settings"><label>這回速度<select id="session-rate"><option>0.5</option><option selected>0.75</option><option>1</option><option>1.25</option><option>1.5</option><option>2</option></select></label><label class="check-label"><input id="session-mirror" type="checkbox">鏡像看示範</label></div>
+      <div class="actions"><button id="session-start" type="button">開始練</button><button id="session-follow" type="button" hidden>已觀察，開始跟跳</button><button id="session-replay" type="button" hidden>再從 A 播放</button><button id="session-pause" type="button" hidden>暫停</button><button id="session-review" type="button" hidden>進入回顧</button><button id="session-exit" type="button" hidden>退出這回</button></div>
+      <p id="session-stage" role="status" aria-live="polite">只觀察不會增加跟跳回合數。</p>
+      <canvas id="session-canvas" width="960" height="540" hidden aria-label="這回的鏡像示範畫面"></canvas>
+      <div id="session-recording" hidden><p id="session-record-hint" class="hint"></p><button id="session-record" type="button">選錄這回的自己</button></div>
+      <div id="session-review-form" hidden>
+        <label class="check-label"><input id="session-followed" type="checkbox">我有跟跳</label>
+        <label>這次感受<select id="session-assessment"><option value="">略過自評</option><option value="unfamiliar">還不熟</option><option value="smoother">比上次順</option><option value="done">這段先放下</option></select></label>
+        <label class="check-label"><input id="session-next" type="checkbox">下次再練這段</label>
+        <button id="session-save" type="button">保存這回</button>
+      </div>
+      <h3>這一段的跟跳歷史</h3><p id="session-history-hint">選片段後可依序回看每回的錄影與感受。</p><ol id="session-history"></ol>
+    </fieldset>
+    <!-- 歷史播放器獨立於比較，取回第 1／5 回不會覆蓋工作台的自拍或配方。 -->
+    <!-- biome-ignore lint/a11y/useMediaCaption: 本機自拍沒有字幕來源，不生成假字幕。 -->
+    <video id="session-video" controls playsinline preload="metadata" hidden aria-label="所選回合的自拍"></video><p id="session-video-status" role="status"></p>
+  </section>
   <fieldset id="compare" disabled><legend>02 · 對齊與預覽</legend>
     <!-- 起點只在兩側定位尺設定；保留原欄位供同一配方與暫藏工具使用，避免兩份輸入互相矛盾。 -->
     <label data-deferred>練習影片起點（秒）<input id="offset" type="number" value="0" step="0.01"></label>
@@ -248,7 +279,7 @@
     <details id="note-tools"><summary>備份、分享與管理筆記</summary>
       <p>筆記檔只含文字、時間標記和對齊設定，不含影片。搬到另一台裝置時，請帶走筆記備份，也另外帶走老師原片、自己的原片與合成影片。</p>
       <div class="actions"><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入筆記 JSON（分享／備份）<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
-      <details><summary>使用舊版備份時的注意事項</summary><p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p></details>
+      <details><summary>使用舊版備份時的注意事項</summary><p class="hint">此版本使用 v3 筆記，可讀取 v1／v2；首次成功儲存才升版。舊版程式無法開啟 v3，若要回復舊版，請保留升版前的備份及各支原片。完整 JSON 含私人跟跳紀錄與自評，影片須另存。</p></details>
     </details>
     <details><summary>分類搜尋與動作庫</summary>
       <p>先開啟課程填寫老師、舞風和日期，再把各課程的標記連到同一動作。狀態由你決定，錄影次數不會自動改成「會了」。</p>

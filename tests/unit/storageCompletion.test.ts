@@ -350,6 +350,8 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
   node('media-dialog').open = true; node('relink-file').value = 'synthetic candidate'
   const document = { body: {}, documentElement: {}, activeElement: null as any, createElement: () => node('new-download') }; document.activeElement = document.body
   const context: any = { ...storage, writeLibrary: storage.writeLibrary, validateBackup, structuredClone, crypto, Blob, Error, AbortController, document, reference, self,
+    // 這裡只隔離視圖，仍執行原 operation／updateControls 的保存保全。
+    sessions: { busy() {}, hasDraft: () => false },
     $: node, status: (text: string) => { node('status').textContent = text }, releaseCamera() {}, stopPractice() {}, applyPracticeSettings() {}, drawPractice() {}, updateOverlayControls() {}, updateStopControl() {}, updateSourceTimelines() {}, renderLibrary() {}, report() {}, focusControl() {},
     ready: Promise.resolve(), comparisonSave: Promise.resolve(), state: structuredClone(db.record), active: null, operationFocus: null, operationTrigger: null, diagnostics: {}, monitor: null, audio: null,
     // 載入狀態也讀取待重連 ID；補足真實頁面初值，保留既有未確認保存斷言。
@@ -407,6 +409,7 @@ test('佇列等待期間轉為未確認，真正「準備下一段」控制器�
     const original = new Blob(['synthetic self']), urls = new Map([['self', 'blob:synthetic-self']])
     let confirmations = 0, sourceChanges = 0
     const context: any = { storageUnconfirmed: storage.storageUnconfirmed, storageUnconfirmedMessage: storage.storageUnconfirmedMessage,
+      sessions: { busy() {}, hasDraft: () => false },
       $: node, active: null, document: { activeElement: null, body: {}, documentElement: {} },
       ready: gate === 'ready' ? saving : Promise.resolve(), comparisonSave: gate === 'comparisonSave' ? saving : Promise.resolve(),
       AbortController, Error, operationTrigger: null, operationFocus: null, diagnostics: {}, monitor: null, audio: null,

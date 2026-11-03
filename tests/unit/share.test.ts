@@ -79,13 +79,13 @@ test('動作庫的分享仍不帶動作，v1 合法分類升 v2 並保持跨版�
   local.markers[0].moveId = moveId
   const selected = selection(local); selected.fields = ['teacher', 'danceStyle', 'recordedDate', 'originalName']
   const shared = createShare(local, selected)
-  expect(shared.schemaVersion).toBe(2); expect(shared.moves).toEqual([])
+  expect(shared.schemaVersion).toBe(3); expect(shared.moves).toEqual([])
   expect(shared.markers[0]).not.toHaveProperty('moveId')
   expect(JSON.stringify(shared)).not.toContain('合成私人動作')
   const legacy = { ...structuredClone(shared), schemaVersion: 1 }, before = JSON.stringify(legacy)
   const normalized = validateBackup(legacy)
   expect(normalized.videos).toEqual(shared.videos); expect(normalized.assets).toEqual(shared.assets)
-  expect(normalized.schemaVersion).toBe(2); expect(JSON.stringify(legacy)).toBe(before)
+  expect(normalized.schemaVersion).toBe(3); expect(JSON.stringify(legacy)).toBe(before)
   const target = sample(), targetBefore = structuredClone(target), imported = await planBackupImport(target, legacy)
   expect(imported.data.moves).toEqual(target.moves)
   expect((await planBackupImport(imported.data, shared)).added).toBe(0)

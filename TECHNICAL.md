@@ -1,6 +1,8 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+自主練習回合（#259）的 v3 本機格式、比較保全與驗證範圍見[回合設計](#259-自主練習回合與-v3-本機備份)及[工程證據](docs/evidence/issue-259-practice-sessions.md)。
+
 **Web 個人雲端接續與免登入分享（#209）**：2026-11-02 已實作 Google A／B／C 工程候選，包含選定練習手動保存／接續及獨立成品觀看連結。尚無 OAuth client 設定，真實供應商／匿名播放與實體跨裝置全部未驗證；Dropbox／前景同步仍待 Google 穩定。設計、設定與進度以[完整交接](docs/CLOUD_SYNC_SHARING.md)為準，iOS App 不列前置。
 
 同日使用者已要求新聊天開始實作，接手入口見[repo 內交接](docs/CLOUD_SYNC_SHARING.md#10-實作交接2026-11-02)。規劃、決策與驗證摘要須隨 Git 保存的原則已納入根憲法，具體寫法見[交接流程](docs/agents/workflow.md#跨聊天交接)；聊天只提供導航，避免換聊天後失去進度或另生衝突規格。
@@ -1399,3 +1401,19 @@ Safari 僅解碼合法來源交集，來源 PCM 最多 300 秒／48kHz／雙聲�
 技術：Cloudflare 的預設 [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/) 令 `.html` 回307到無副檔名路徑。install 的 fetch follow 後，CacheStorage 保存真正 `redirected=true` 的200 Response；導航 `redirect=manual` 的 respondWith 不能直接交付這種回應。`web/sw.js` 在完整 manifest SHA256 核對後，僅對 navigate＋redirected 回應用相同 body／status／headers 建立新 Response；一般模組與樣式不改回應URL語意。缺檔在線補回則明確 follow 後核對原路徑雜湊，再保存與回覆。非白名單／非GET／其他origin仍不接管，錯版仍503且不寫cache，更新同意與DB不改。
 
 排除只改首頁短網址（繞過既有manifest路徑、不能證明離線）、停用SW／清網站資料（失去離線或危及使用者資料）、改主機全站HTML政策（影響其他既有URL）以及省略雜湊驗證。沿原Ubuntu工作追加真307／原生Chrome導航回歸，腳本 `scripts/verify-metronome-routing.ts` 也可建置後單獨執行。公開站先在隔離瀏覽器重現「未受SW控制200、受控後ERR_FAILED、短網址200」；同主機行為的本機回歸先紅後綠，詳見[網站證據](docs/evidence/issue-15-web-package.md#257-html-轉址導航修正)。部署、瀏覽器取得新版與本機驗證分開記錄，不能把PR或本機綠燈寫成正式站已恢復。
+
+## #259 自主練習回合與 v3 本機備份
+
+白話：把想練的八拍夾上一張書籤，先看三次，再跟著跳。跳完自己確認並寫下感受，才算一回；沒錄影也可以。每回像獨立的一頁日記，所以改了原來的標記，舊日記仍記得當時練哪裡。搬到另一台電腦時，筆記與影片分開帶走，再親自核對連結；分享示範筆記時不會夾帶這些私人感受。
+
+技術與取捨如下。
+
+首頁新增單支老師片入口，從手填 A/B 或 Marker 保存不可變片段快照。回合沿用 `main.js` 的可取消 A–B owner、seek 與影格觀察器；完整三輪後停回 A，暫停／手動跳轉／拒播不完成半輪。跟跳由舞者自行確認，只有回顧保存才新增一筆，UUID 在開始時固定。回顧草稿阻擋換片、比較與更新；交易失敗保留表單，未確認保存沿既有救援入口停止寫入。重開不恢復未確認回合，也不從播放或 take 數量推算回合。
+
+`practice-sessions.js` 管片段、回合與建議；UI 模組只透過薄 adapter 使用既有媒體／儲存。回合 A/B 不寫入比較欄位。選錄共用 `enableCamera`／`captureTake` 與原 15–60 秒限制，但以獨立 video 解碼新 take，不換掉工作台自拍、下載或配方；拒絕與中斷不連到上一回。歷史另用一個播放器取回明確 take，缺片顯示人工重連；沒有雙自拍合成。解除連結或刪回合不刪媒體。
+
+完整 backup 升 v3，新增 `segments`、`sessions`、`practiceChoices`，仍存在同一 metadata object store。v1/v2 驗證後在記憶體補空集合，首次成功交易才存 v3；不需要改 IndexedDB 結構或重設資料。白名單驗證來源範圍、回合時間、跟跳確認、自評及 take 同來源同 A/B。既有匯入閉包重寫新外鍵，穩定副本 ID 保證重匯不增次；Marker ID 只是可刪來源憑據，不是會跟著改動歷史的外鍵。刪整份影片筆記才級聯其回合，預覽列出數量；刪 take 只解除回合連結。細節見 [資料格式](docs/DATA_FORMAT.md#自主練習-v3-259)。
+
+建議優先明確的「下次再練」，否則各段最新回合自評為「還不熟」者；新回合略過自評也覆蓋舊建議。可略過全部建議、重新依自評或更換片段。JSON 備份含私人回報，既有 share／Google 選定快照明確產生空私人集合，成品分享仍只收 Blob。
+
+排除按 Marker 區間交集算回合（無法表示未錄影跟跳）、直接改比較 A/B（會污染已有配方）、把循環拼為 take（違反錄影契約）、直接擴充 v2（舊程式會靜默丟資料）、另建資料庫／同步服務（沒有必要）。驗證入口 `bun --no-env-file scripts/verify-practice-sessions.ts`；版本及限制只以[本輪證據](docs/evidence/issue-259-practice-sessions.md)為準。Safari、手機、真相機、真人七天試用與獨立審查另列，工程測試不代表「多練兩回」已發生。

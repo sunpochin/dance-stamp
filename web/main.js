@@ -9,6 +9,7 @@ import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recover
 import { sourceCrop } from './follow.js';
 import { createFollowUI } from './follow-ui.js';
 import { createCloudUI } from './cloud-ui.js';
+import { createPracticeSessionsUI } from './practice-sessions-ui.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -77,6 +78,30 @@ let metadataVideoId;
 let beatEditorVideoId, beatDirty = false;
 
 let looping = false, practiceStarting = false, practiceController, practiceSeek, practiceFrame, practiceFrameUsesVideo, practiceToken = 0;
+// 回合以自己的 A/B 使用同一播放器，不能覆寫工作台已保存的比較設定。
+const sessions = createPracticeSessionsUI({
+  data: () => state?.data, videoId: () => currentVideoId, duration: () => referenceDurationMs,
+  busy: () => !!active || storageUnconfirmed(), operate: operation, save: (change, signal) => saveData(change, undefined, signal),
+  status, focus: focusControl, media: getAvailableMedia, relink: openMediaRelink,
+  notes: () => { for (const id of /** @type {const} */ (['practice', 'library-panel'])) $(id).removeAttribute('data-deferred'); focusControl($('library')); },
+  guard: () => {
+    if (keepMarkerDraft() || moveDirty || hasMetadataDraft()) throw new Error('請先保存或取消目前的筆記草稿，再開始練習。');
+  },
+  openSource: async (id, signal) => {
+    if (id === currentVideoId && referenceDurationMs) return;
+    if (takeBlob) throw new Error('請先完成目前的比較，再開啟另一支示範的練習；自拍與 VS 仍保留。');
+    await openVideoNotes(id, signal);
+  },
+  play: startSessionLoop, stop: () => { stopPractice(); releaseCamera(); },
+  settings: () => { if (!active) { applyPracticeSettings(); drawPractice(); updateControls(); } },
+  record: async (segment, rate, mirror, signal) => {
+    const value = { startMs: segment.startMs, endMs: segment.endMs, rate, referenceMirror: mirror, selfMirror: false };
+    captureDuration(value);
+    await enableCamera(signal, true);
+    // 回合選錄使用獨立解碼候選，不替換工作台當前的自拍或比較配方。
+    return captureTake(signal, value);
+  },
+});
 
 function status(message) { $('status').textContent = message; }
 function updateStopControl() {
@@ -146,6 +171,7 @@ function stop() {
   following.pauseResults();
   closeImportDialog(); closeMediaDialog(); closeDeleteDialog(); closeShareDialog();
   reference.pause(); self.pause();
+  sessions.pauseReplay();
   releaseCamera();
   stopPractice();
   // 原生錯誤可能先把影片變成 paused，pause() 就不再發事件；閒置停止仍須明確暫停音訊。
@@ -154,6 +180,7 @@ function stop() {
   updateStopControl();
 }
 function updateControls() {
+  $('controls').disabled = !!active || sessions.hasDraft();
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
   $('share-controls').disabled = !!active || shareSending;
   $('share-download').disabled = !shareDraft || shareSending;
@@ -183,13 +210,19 @@ function updateControls() {
   $('copy-self').disabled = !activeTakeId || !takeBlob || !!active;
   // 錄製後固定來源區間與速度，避免調校時悄悄改變自拍的時間意義。
   for (const id of /** @type {const} */ (['start', 'end', 'rate'])) $(id).disabled = !!selfDurationMs && !existingMode;
-  $('practice').disabled = !currentVideoId || !!active;
+  $('practice').disabled = !currentVideoId || !!active || sessions.hasDraft();
   for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = !!active;
   if (storageUnconfirmed()) {
     // 停止接受可能改寫或換掉當次影片的操作；原生下載連結及救援備份在 fieldset 外，仍可使用。
     for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'inventory-controls', 'import-controls', 'relink-controls', 'delete-controls', 'share-controls'])) $(id).disabled = true;
     for (const el of $('library-panel').querySelectorAll('button, input, select')) (/** @type {HTMLButtonElement | HTMLInputElement | HTMLSelectElement} */ (el)).disabled = el.id !== 'backup' || !!active;
     showStorageRecovery();
+  }
+  sessions.busy();
+  // 回合期間鎖住共用工作台，完成或明確退出後才恢復比較與換片。
+  if (sessions.hasDraft()) {
+    $('controls').disabled = true; $('compare').disabled = true;
+    for (const el of $('library-panel').querySelectorAll('button, input, select')) if (el.id !== 'backup') /** @type {HTMLButtonElement} */ (el).disabled = true;
   }
   updateOverlayControls(); updateSourceTimelines(); updateStopControl();
 }
@@ -200,13 +233,13 @@ function updateOverlayControls() {
   // 正在預覽的入口要能暫停；另一區、準備中與合成仍沿用操作鎖，避免重複啟動聲音。
   for (const [id, label] of /** @type {const} */ ([['play', '左右比較'], ['overlay-play', '疊影比較']])) {
     const playing = previewing && comparisonPlayback === id;
-    $(id).disabled = !available || storageUnconfirmed() || !playing && ($('compare').disabled || $('export').disabled);
+    $(id).disabled = !available || sessions.hasDraft() || storageUnconfirmed() || !playing && ($('compare').disabled || $('export').disabled);
     const resumable = Number($('scrub').value) > 0 && Number($('scrub').value) * 1000 < Number($('scrub').max) * 1000 - 20;
     $(id).textContent = `${playing ? '暫停' : resumable ? '繼續' : '播放'}${label}`;
   }
   following.update(available);
   overlay.hidden = !available; $('overlay-empty').hidden = available;
-  $('overlay-opacity').disabled = !available || !!active && !previewing;
+  $('overlay-opacity').disabled = !available || sessions.hasDraft() || !!active && !previewing;
   $('overlay-layout').disabled = $('overlay-opacity').disabled;
   // 控制始終可見，停用時要交代缺片或處理中的原因，避免使用者以為滑桿消失。
   $('overlay-layout-status').textContent = !available ? '先選好老師與自己的影片，並確認兩片有共同的比較區間，即可使用下方滑桿。' : $('overlay-layout').disabled ? '正在處理影片，完成後即可繼續調整。' : '拖動下方的大小、左右位置與上下位置，讓老師與自己的身體對齊。';
@@ -218,7 +251,7 @@ function updateOverlayControls() {
     const sources = `${urls.get('reference')}\n${urls.get('self')}`;
     if (sources !== overlaySources) { overlaySources = sources; resetOverlayLayout(false); resetAdjustedSide(false); }
   }
-  $('export-controls').disabled = !available || !!active || storageUnconfirmed();
+  $('export-controls').disabled = !available || !!active || sessions.hasDraft() || storageUnconfirmed();
   if (available && !active) { const value = recipe(); drawOverlay(value); drawAdjustedSide(value); }
 }
 function updateSourceTimelines() {
@@ -259,6 +292,7 @@ async function operation(task) {
   const controller = new AbortController(), trigger = document.activeElement;
   operationTrigger = trigger; operationFocus = null;
   active = controller; updateStopControl();
+  sessions.busy();
   for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'true');
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
   $('share-controls').disabled = true;
@@ -591,8 +625,9 @@ $('reference-file').addEventListener('change', () => operation(async signal => {
   self.pause(); self.removeAttribute('src'); self.load();
   const previous = urls.get('self'); if (previous) URL.revokeObjectURL(previous); urls.delete('self');
   currentVideoId = videoId; sessionMedia.set(assetId, selected.file);
+  sessions.sourceChanged();
   $('video-title').value = requireCurrentVideo().title; renderLibrary();
-  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。請選右邊練習影片，對齊同一個動作。`);
+  status(`示範影片已載入：${reference.videoWidth}×${reference.videoHeight}，${(selected.duration / 1000).toFixed(1)} 秒。可到自主練習圈選片段，或選右邊練習影片做比較。`);
 }));
 $('self-file').addEventListener('change', () => operation(async signal => {
   if (!referenceDurationMs || !currentVideoId) throw new Error('請先載入並連結示範影片。');
@@ -630,9 +665,9 @@ $('new-take').addEventListener('click', () => operation(async () => {
   selfDurationMs = 0; takeBlob = null; activeTakeId = null; pendingTakeId = null; $('confirm-take').hidden = true; $('offset').value = '0';
   $('intersection').textContent = '請設定新片段與速度，再開啟相機。'; status('已準備下一段；原有錄影與筆記仍保留。');
 }));
-$('camera').addEventListener('click', () => operation(async signal => {
-  recipe();
-  existingMode = false;
+async function enableCamera(signal, forSession = false) {
+  if (!sessions.hasDraft()) recipe();
+  if (!forSession) existingMode = false;
   if (!isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('相機需要受信任的 HTTPS 或此電腦的 localhost。');
   releaseCamera(); status('請在瀏覽器中允許相機；不會要求麥克風。');
   const facing = $('camera-facing').value;
@@ -668,13 +703,16 @@ $('camera').addEventListener('click', () => operation(async signal => {
     diagnostics.camera = Object.fromEntries(['width', 'height', 'frameRate', 'facingMode'].map(k => [k, cameraSettings[k]]));
     mirrors(); status(`相機已就緒${cameraSettings.facingMode ? '' : '（裝置未回報鏡頭方向，請自行確認畫面）'}。請把全身與腳步放在框內，再點倒數錄影。`);
   } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught)); releaseCamera(); throw error; }
-}));
-$('capture').addEventListener('click', () => operation(async signal => {
+}
+$('camera').addEventListener('click', () => operation(enableCamera));
+async function captureTake(signal, sessionValue) {
   if (!camera) throw new Error('請先開啟相機。');
   if (beatDirty) throw new Error('請先保存或取消拍點編輯，再開始錄影。');
-  const value = recipe(), expectedDurationMs = captureDuration(value);
+  const value = sessionValue || recipe(), expectedDurationMs = captureDuration(value);
+  const captureVideo = sessionValue ? document.createElement('video') : self;
+  captureVideo.muted = true; captureVideo.playsInline = true;
   // 確認框的取消也會關閉預覽，避免使用者退出重錄後相機仍持續開啟。
-  if (takeBlob && !confirm('請先下載目前自拍與 VS。重錄會建立新 take，已保存的舊段仍會保留，確定繼續？')) { releaseCamera(); status('已取消新錄影，原自拍與已保存的舊段都保留。'); return; }
+  if (!sessionValue && takeBlob && !confirm('請先下載目前自拍與 VS。重錄會建立新 take，已保存的舊段仍會保留，確定繼續？')) { releaseCamera(); status('已取消新錄影，原自拍與已保存的舊段都保留。'); return; }
   const info = /** @type {import('./types').CaptureInfo} */ ({ rate: value.rate, interrupted: true }); diagnostics.capture = info;
   let recording, take, partialBlob, captureIntegrityError, captureBuffer, captureSource, captureGain, captureAudioAt = NaN, stopRequested = false, chunkQueue = Promise.resolve(), chunkError, persistenceError, chunkIndex = 0;
   const muted = reference.muted;
@@ -769,7 +807,7 @@ $('capture').addEventListener('click', () => operation(async signal => {
             const stopped = recording.stop(); releaseCamera();
             const blob = await stopped; partialBlob = blob;
             info.mime = blob.type;
-            const durationMs = await loadCandidate(blob, self, 'self', undefined, candidate => {
+            const durationMs = await loadCandidate(blob, captureVideo, sessionValue ? 'session-capture' : 'self', undefined, candidate => {
               info.durationMs = candidate.duration;
               if (captureIntegrityError) throw captureIntegrityError;
               // 沿原 media-feasibility 的 expected−500ms 下限；驗證前不能撤銷舊播放器／下載或清 chunks。
@@ -779,16 +817,18 @@ $('capture').addEventListener('click', () => operation(async signal => {
                 throw captureIntegrityError;
               }
               // EOF 的聲音時鐘有終點，須另守住原生未四捨五入片長，不能把晚停的長片當成功。
-              if (!info.interrupted && captureSource && reference.ended && Math.abs(self.duration * 1000 - expectedDurationMs) > 100) {
+              if (!info.interrupted && captureSource && reference.ended && Math.abs(captureVideo.duration * 1000 - expectedDurationMs) > 100) {
                 info.interrupted = true;
                 captureIntegrityError = new Error('錄影未完成：原片長度不符。未完成原片可另存；舊自拍與 VS 保留。');
                 throw captureIntegrityError;
               }
               return Promise.resolve();
             });
-            download('take-download', blob, 'dance-self');
             // 新原片解碼成功才切換關聯；倒數取消或壞檔不能把舊畫面綁到新 take。
-            takeBlob = blob; selfDurationMs = durationMs; activeTakeId = take.id; pendingTakeId = null; $('confirm-take').hidden = true; $('offset').value = '0';
+            if (!sessionValue) {
+              download('take-download', blob, 'dance-self');
+              takeBlob = blob; selfDurationMs = durationMs; activeTakeId = take.id; pendingTakeId = null; $('confirm-take').hidden = true; $('offset').value = '0';
+            }
             await chunkQueue;
             info.interrupted ||= signal.aborted || !!chunkError;
             const captureTiming = info.recorderRequestedMs === undefined ? undefined : { recorderRequestedMs: info.recorderRequestedMs, ...Object.fromEntries(['recorderStartedMs', 'referencePlayResolvedMs', 'referenceAtPlayMs'].filter(key => info[key] !== undefined).map(key => [key, info[key]])) };
@@ -804,8 +844,9 @@ $('capture').addEventListener('click', () => operation(async signal => {
       }
       if (persistenceError) throw persistenceError;
       if (chunkError) throw new Error('錄影片段落盤曾失敗；已保留可下載原片，請先下載。');
-      status('自拍已錄好。先下載原片，再校正與合成。'); updateIntersection();
+      status(sessionValue ? '這回自拍已保存。可繼續跟跳，回顧後從歷史取回。' : '自拍已錄好。先下載原片，再校正與合成。'); updateIntersection();
     });
+    return take && state.data.takes.find(t => t.id === take.id && t.state === 'ready');
   } catch (error) {
     // 失敗原片另給下載，不能為了保全新片覆蓋舊自拍連結；chunks 留待明確恢復。
     if (partialBlob && takeBlob !== partialBlob) { download('partial-download', partialBlob, 'dance-self-incomplete'); partialAssetId = take?.cameraAssetId; }
@@ -813,8 +854,15 @@ $('capture').addEventListener('click', () => operation(async signal => {
     if (captureIntegrityError) throw captureIntegrityError;
     if (persistenceError) throw new Error(`自拍無法保存在此瀏覽器，請立即下載自拍原片。${persistenceError.message}`);
     throw error;
-  } finally { reference.muted = muted; releaseCamera(); await chunkQueue; }
-}));
+  } finally {
+    reference.muted = muted; releaseCamera(); await chunkQueue;
+    if (sessionValue) {
+      captureVideo.pause(); captureVideo.removeAttribute('src'); captureVideo.load();
+      const url = urls.get('session-capture'); if (url) URL.revokeObjectURL(url); urls.delete('session-capture');
+    }
+  }
+}
+$('capture').addEventListener('click', () => operation(signal => captureTake(signal)));
 function updateIntersection() {
   try {
     const value = recipe(), range = comparison(value);
@@ -981,9 +1029,11 @@ window.addEventListener('pagehide', e => {
 window.addEventListener('pageshow', e => { if (e.persisted) { status(comparisonOnly ? '已返回頁面。請確認兩側影片與起點，再繼續比較。' : '已返回頁面。錄影保持停止，請確認片段後重新開啟相機。'); updateControls(); } });
 // 更新與離頁共用草稿判斷，不能讓「立即更新」繞過原本的保存保護。
 function hasUnsavedWork() {
+  return storageUnconfirmed() || active || cloud.busy() || sessions.hasDraft() || beatDirty || moveDirty || hasMetadataDraft() || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+}
+function hasMetadataDraft() {
   const video = state?.data.videos.find(value => value.id === currentVideoId);
-  const metadataDirty = video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
-  return storageUnconfirmed() || active || cloud.busy() || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+  return video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
 }
 window.addEventListener('beforeunload', e => { if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -1153,7 +1203,7 @@ async function showDelete(kind, id) {
   const owner = state.data.videos.find(v => v.id === videoId)?.title;
   $('delete-title').textContent = names[kind] + (owner ? ` · ${owner}` : '');
   const c = plan.counts;
-  $('delete-summary').textContent = `將移除：影片筆記 ${c.videos}、標記 ${c.markers}、練習影片 ${c.takes}、配方 ${c.recipes}、VS 輸出 ${c.exports}；本機影片副本 ${plan.mediaIds.filter(id => keys.has(id)).length} 份。${kind === 'copy' ? '保留筆記、配方與媒體描述；本次已開啟的影片可繼續使用，下次需要重連。' : '共用原片仍有其他練習使用時保留；移除的練習同時清理其殘留錄影片段。'}`;
+  $('delete-summary').textContent = `將移除：影片筆記 ${c.videos}、標記 ${c.markers}、練習影片 ${c.takes}、配方 ${c.recipes}、VS 輸出 ${c.exports}、自主練習片段 ${c.segments}、跟跳回合 ${c.sessions}；本機影片副本 ${plan.mediaIds.filter(id => keys.has(id)).length} 份。${kind === 'copy' ? '保留筆記、配方與媒體描述；本次已開啟的影片可繼續使用，下次需要重連。' : '共用原片仍有其他練習使用時保留；移除的練習同時清理其殘留錄影片段。'}`;
   if (kind === 'move') $('delete-summary').textContent = `將移除動作「${state.data.moves.find(m => m.id === id)?.name}」，並解除 ${state.data.markers.filter(m => m.moveId === id).length} 個標記關聯。全部標記、筆記、練習、比較與影片保留。`;
   releaseCamera(); $('delete-dialog').showModal(); $('delete-cancel').focus();
 }
@@ -1239,7 +1289,7 @@ function renderLibrary() {
     jump.disabled = outside;
     li.append(jump, button('編輯', async () => editMarker(marker), `marker:${marker.id}:edit`), button('刪除標記', async signal => {
       if (keepMarkerDraft()) return;
-      if (!confirm('確定刪除這個標記？其他筆記與影片不受影響。')) return;
+      if (!confirm('確定刪除這個標記？已保存的自主練習片段與回合保留原 A/B，其他筆記與影片不受影響。')) return;
       await saveData(data => { data.markers = data.markers.filter(m => m.id !== marker.id); }, undefined, signal);
     }, `marker:${marker.id}:delete`));
     $('markers').append(li);
@@ -1267,6 +1317,7 @@ function renderLibrary() {
     $('takes').append(li);
   }
   if (focused instanceof HTMLElement && focused.dataset.focusKey && !focused.isConnected) focusControl(focused);
+  sessions.render();
 }
 function renderSearch() {
   const filters = { keyword: $('library-keyword').value, danceStyle: $('library-style').value, teacher: $('library-teacher').value, from: $('library-from').value, to: $('library-to').value, status: $('library-status').value };
@@ -1542,6 +1593,7 @@ function clearMarkerEditor() {
   markerEditingId = null; markerVideoId = null; $('marker-form').reset(); $('marker-form').hidden = true;
 }
 function keepMarkerDraft() {
+  if (sessions.hasDraft()) { status('這回尚未保存，請先回顧保存或退出這回，再換片或修改筆記。'); return true; }
   if (beatDirty) { status('拍點尚未保存，請先保存或取消拍點編輯。'); return true; }
   if ($('marker-form').hidden) return false;
   // 不讓換片或另一個編輯入口靜默吃掉草稿；使用者可明確保存或取消。
@@ -1556,6 +1608,7 @@ function editMarker(marker, clickedMs = Math.round(reference.currentTime * 1000)
   $('marker-title').value = marker?.title || ''; $('marker-note').value = marker?.note || '';
   $('marker-move').value = marker?.moveId || '';
   $('marker-form').hidden = false; focusControl($('marker-title'));
+  if (marker && state.data.segments.some(s => s.markerId === marker.id)) status('這個標記已有自主練習；修改後原片段與回合保留原 A/B。要練新範圍請另選段。');
 }
 $('mark').addEventListener('click', () => {
   // 在點擊事件內先取時間；後續打字、非同步保存或播放進度不能改寫它。
@@ -1666,7 +1719,7 @@ $('restore').addEventListener('change', () => operation(async signal => {
   importDraft = { plan, revision };
   $('import-title').textContent = incoming.kind === 'share' ? '匯入分享筆記預覽（重建 ID）' : '還原筆記預覽';
   $('import-content').textContent = JSON.stringify(incoming, null, 2);
-  $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.moves} 個動作、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
+  $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.moves} 個動作、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述、${plan.additions.segments} 個自主片段、${plan.additions.sessions} 回跟跳、${plan.additions.practiceChoices} 筆下次選擇。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
 
   const count = kind => incoming.assets.filter(a => a.kind === kind).length;
   $('import-media').textContent = `JSON 不含影片：示範 ${count('reference')}、自己 ${count('take')}、VS ${count('vs')} 份描述。確認後請核對保存清單，缺片須另外選取並預覽確認。`;
@@ -1731,11 +1784,12 @@ function clearPracticeWatch() {
   practiceFrame = undefined;
 }
 function stopPractice() {
+  sessions.stopped();
   looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null; practiceSeek = null;
   reference.pause(); $('loop').textContent = '開始 A–B 循環'; updateStopControl();
 }
 function applyPracticeSettings() {
-  const rate = Number($('practice-rate').value);
+  const rate = sessions.rate() || Number($('practice-rate').value);
   // 媒體操作暫用錄影速度，結束後還給練習選項；load 與原生播放也沿用同一預設。
   reference.defaultPlaybackRate = rate; reference.playbackRate = rate;
   if ('preservesPitch' in reference) {
@@ -1745,8 +1799,12 @@ function applyPracticeSettings() {
 }
 function drawPractice() {
   renderBeatPosition();
-  if (!$('practice-mirror').checked || reference.readyState < 2) return;
-  const c = $('practice-canvas'), ctx = drawingContext(c), rect = contain(reference.videoWidth, reference.videoHeight, c.width, c.height);
+  const mirrored = sessions.hasDraft() ? sessions.mirrored() : $('practice-mirror').checked;
+  $('practice-canvas').hidden = sessions.hasDraft() || !mirrored;
+  sessions.canvas.hidden = !sessions.mirrored();
+  // 鏡像另畫在回合內；直接翻 video 會連原生播放控制與文字一起倒轉。
+  if (!mirrored || reference.readyState < 2) return;
+  const c = sessions.hasDraft() ? sessions.canvas : $('practice-canvas'), ctx = drawingContext(c), rect = contain(reference.videoWidth, reference.videoHeight, c.width, c.height);
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height); ctx.save(); ctx.translate(c.width, 0); ctx.scale(-1, 1); ctx.drawImage(reference, rect.x, rect.y, rect.width, rect.height); ctx.restore();
 }
 async function rewindPractice(seconds, signal) {
@@ -1768,14 +1826,31 @@ async function playLoopFromA(controller) {
     // 開始就持有可取消的 owner；晚到的 seek／play 不能在使用者停止後重新啟動。
     await mediaAction(reference, 'playing', () => reference.play(), controller.signal);
     controller.signal.throwIfAborted();
+    sessions.started();
     if (controller === practiceController && !reference.paused) watchPractice();
   } finally { if (controller === practiceController) practiceStarting = false; }
 }
 function practiceRange() {
+  const sessionRange = sessions.range(); if (sessionRange) return sessionRange;
   const a = Number($('start').value), b = Number($('end').value);
   // 與配方同以整數毫秒比較；65001ms 的秒數往返誤差不能誤拒完整片段。
   if (!$('start').value || !$('end').value || !referenceDurationMs || !Number.isFinite(a) || !Number.isFinite(b) || a < 0 || b <= a || Math.round(b * 1000) > referenceDurationMs) throw new Error('請填合法的 A–B 起訖；不會自動交換。');
   return { a, b };
+}
+async function finishSessionObservation(a) {
+  stopPractice();
+  // 停回 A 也持有可取消 owner；退出後的遲到 seek 不能跟下一個工作搶播放器。
+  const controller = new AbortController(); practiceController = controller; practiceStarting = true;
+  try { await rewindPractice(a, controller.signal); }
+  finally { if (practiceController === controller) { practiceController = null; practiceStarting = false; updateStopControl(); } }
+}
+async function startSessionLoop() {
+  if (active || storageUnconfirmed() || !sessions.range()) return;
+  stopPractice(); releaseCamera();
+  const controller = new AbortController(); practiceController = controller;
+  looping = true; updateControls();
+  try { await playLoopFromA(controller); }
+  catch (error) { if (practiceController === controller) { stopPractice(); status(error instanceof Error ? error.message : String(error)); } }
 }
 function watchPractice() {
   if (active) return;
@@ -1790,7 +1865,11 @@ function watchPractice() {
       try {
         const { a, b } = practiceRange();
         // 循環中改 A 也要重新定位，不能繼續播放新起點之前的畫面。
-        if (reference.currentTime >= b || reference.currentTime < a - 0.15) await rewindPractice(a, owner.signal);
+        if (reference.currentTime >= b && sessions.boundary()) { await finishSessionObservation(a); return; }
+        if (reference.currentTime >= b || reference.currentTime < a - 0.15) {
+          await rewindPractice(a, owner.signal);
+          if (owner === practiceController && token === practiceToken) sessions.started();
+        }
       } catch (caught) {
         if (owner !== practiceController || token !== practiceToken) return;
         const error = caught instanceof Error ? caught : new Error(String(caught)); if (error.name !== 'AbortError') status(error.message); stopPractice(); return;
@@ -1814,6 +1893,7 @@ reference.addEventListener('seeking', () => {
 $('set-a').addEventListener('click', () => { if (!active && !selfDurationMs) $('start').value = reference.currentTime.toFixed(3); else status('錄後來源片段固定，請先重新選片再改 A。'); });
 $('set-b').addEventListener('click', () => { if (!active && !selfDurationMs) $('end').value = reference.currentTime.toFixed(3); else status('錄後來源片段固定，請先重新選片再改 B。'); });
 $('loop').addEventListener('click', async () => {
+  if (sessions.hasDraft()) { status('請使用自主練習回合的播放與暫停控制。'); return; }
   if (active) return;
   if (looping) { stopPractice(); return; }
   clearPracticeWatch(); practiceController?.abort();
@@ -1848,6 +1928,8 @@ reference.addEventListener('pause', () => {
 reference.addEventListener('ended', async () => {
   const owner = practiceController;
   if (looping && !active && owner) {
+    const { a } = practiceRange();
+    if (sessions.boundary()) { await finishSessionObservation(a).catch(() => {}); return; }
     try { await playLoopFromA(owner); }
     catch { if (owner === practiceController) stopPractice(); }
   }
@@ -1907,7 +1989,7 @@ function updateAudioStatus() {
 }
 // 雲端沿用同一個取消／儲存鎖，避免下載套用期間與選片或合成互相覆寫。
 const cloud = createCloudUI({
-  operate: operation, busy: () => !!active || !!camera || storageUnconfirmed(), cancel: () => active?.abort(),
+  operate: operation, busy: () => !!active || !!camera || sessions.hasDraft() || storageUnconfirmed(), cancel: () => active?.abort(),
   revision: () => state.revision, media: getAvailableMedia,
   shareFiles: () => [...(outputBlob ? [{ id: 'vs', label: '上次完成的 VS 成品（請預覽核對）', blob: outputBlob }] : []), ...following.completed()],
   selection: async signal => {

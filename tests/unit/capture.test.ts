@@ -41,7 +41,8 @@ test('有界供聲的 EOF 成功片仍守住未四捨五入的 ±100ms，不擋�
   ] as const) {
     const info = { interrupted }
     const run = () => runInNewContext(`(() => { let captureIntegrityError; ${source} return info; })()`, {
-      candidate: { duration: Math.round(duration) }, self: { duration: duration / 1000 }, reference: { ended },
+      // 提交前讀真正的錄影候選；回合選錄與工作台自拍共用同一品質護欄。
+      candidate: { duration: Math.round(duration) }, captureVideo: { duration: duration / 1000 }, reference: { ended },
       captureSource: hasSound ? {} : undefined, expectedDurationMs: 15_000, info,
     })
     if (rejected) expect(run).toThrow('原片長度不符')

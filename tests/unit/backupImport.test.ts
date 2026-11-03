@@ -82,7 +82,7 @@ test('完整 v1 備份升 v2 並可重匯；舊備份衝突仍保留本機分類
   const legacy = graph(); legacy.schemaVersion = 1
   const legacyBefore = structuredClone(legacy), normalized = validateBackup(legacy)
   const restored = await planBackupImport(newLibrary(), legacy)
-  expect(restored.data.schemaVersion).toBe(2)
+  expect(restored.data.schemaVersion).toBe(3)
   expect(restored.data.sourceLibraryId).toBe(legacy.sourceLibraryId)
   for (const table of tables.filter(t => t !== 'assets')) expect(restored.data[table]).toEqual(normalized[table])
   expect(validateBackup(restored.data).assets).toEqual(normalized.assets)

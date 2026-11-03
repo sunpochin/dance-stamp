@@ -1,10 +1,11 @@
 /* 檔案用途：本機筆記與可攜格式的信任邊界。所在層：純資料邏輯。主要關聯：DATA_FORMAT.md、storage.js、main.js。 */
 import { validateMarkerRange, MAX_COMPARISON_MS } from './timeline.js';
 import { validateBeatGrid } from './beats.js';
-export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves']);
+export const privateTables = /** @type {const} */ (['segments', 'sessions', 'practiceChoices']);
+export const tables = /** @type {const} */ (['videos', 'assets', 'markers', 'takes', 'recipes', 'exports', 'moves', ...privateTables]);
 /** @returns {import('./types').Library} */
 export function newLibrary() {
-  return { format: 'dance-stamp', schemaVersion: 2, kind: 'backup', exportedAt: new Date().toISOString(), sourceLibraryId: crypto.randomUUID(), videos: [], assets: [], markers: [], takes: [], recipes: [], exports: [], moves: [] };
+  return { format: 'dance-stamp', schemaVersion: 3, kind: 'backup', exportedAt: new Date().toISOString(), sourceLibraryId: crypto.randomUUID(), videos: [], assets: [], markers: [], takes: [], recipes: [], exports: [], moves: [], segments: [], sessions: [], practiceChoices: [] };
 }
 function check(ok, message = '備份格式不正確，沒有匯入任何資料。') { if (!ok) throw new Error(message); }
 const id = value => typeof value === 'string' && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value);
@@ -35,7 +36,12 @@ function exportPresentation(value) {
 export function validateBackup(input) {
   check(input && typeof input === 'object');
   rejectDangerous(input);
-  check(input.format === 'dance-stamp' && [1, 2].includes(input.schemaVersion) && ['backup', 'share'].includes(input.kind), '不支援這個備份版本或種類，沒有改動本機資料。');
+  check(input.format === 'dance-stamp' && [1, 2, 3].includes(input.schemaVersion) && ['backup', 'share'].includes(input.kind), '不支援這個備份版本或種類，沒有改動本機資料。');
+  // 舊版沒有回合；只在記憶體補空集合，不能把新版私人資料偽裝成舊版吞掉。
+  if (input.schemaVersion < 3) {
+    check(privateTables.every(table => input[table] === undefined || Array.isArray(input[table]) && input[table].length === 0));
+    input = { ...input, segments: [], sessions: [], practiceChoices: [] };
+  }
 
   check(id(input.sourceLibraryId) && text(input.exportedAt) && Number.isFinite(Date.parse(input.exportedAt)));
   for (const table of tables) check(Array.isArray(input[table]) && input[table].length <= 10_000);
@@ -71,8 +77,8 @@ export function validateBackup(input) {
     check(maps.videos.has(m.videoId));
     validateMarkerRange(m.startMs, m.endMs, maps.videos.get(m.videoId).durationMs);
     check(text(m.title) && text(m.note, 20_000) && integer(m.revision) && m.revision > 0);
-    if (input.schemaVersion === 2) check(m.moveId === undefined || maps.moves.has(m.moveId));
-    out.markers.push({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs !== undefined ? { endMs: m.endMs } : {}), title: m.title, note: m.note, revision: m.revision, ...(input.schemaVersion === 2 && m.moveId !== undefined ? { moveId: m.moveId } : {}) });
+    if (input.schemaVersion >= 2) check(m.moveId === undefined || maps.moves.has(m.moveId));
+    out.markers.push({ id: m.id, videoId: m.videoId, startMs: m.startMs, ...(m.endMs !== undefined ? { endMs: m.endMs } : {}), title: m.title, note: m.note, revision: m.revision, ...(input.schemaVersion >= 2 && m.moveId !== undefined ? { moveId: m.moveId } : {}) });
   }
   for (const t of input.takes) {
     check(maps.videos.has(t.referenceVideoId) && maps.assets.get(t.cameraAssetId)?.kind === 'take');
@@ -101,6 +107,27 @@ export function validateBackup(input) {
     check(text(e.mimeType, 200) && ['ready', 'interrupted', 'failed'].includes(e.state) && text(e.createdAt) && Number.isFinite(Date.parse(e.createdAt)));
     out.exports.push({ id: e.id, recipeId: e.recipeId, recipeRevision: e.recipeRevision, assetId: e.assetId, mimeType: e.mimeType, state: e.state, createdAt: e.createdAt, ...(e.presentation === undefined ? {} : { presentation: exportPresentation(e.presentation) }) });
   }
+  check(input.kind !== 'share' || privateTables.every(table => input[table].length === 0), '分享檔不能包含私人練習回報。');
+  for (const s of input.segments) {
+    check(maps.videos.has(s.videoId) && text(s.title) && s.title.trim().length > 0 && s.endMs !== undefined);
+    validateMarkerRange(s.startMs, s.endMs, maps.videos.get(s.videoId).durationMs);
+    check(s.markerId === undefined || id(s.markerId));
+    out.segments.push({ id: s.id, videoId: s.videoId, title: s.title, startMs: s.startMs, endMs: s.endMs, ...(s.markerId === undefined ? {} : { markerId: s.markerId }) });
+  }
+  for (const s of input.sessions) {
+    check(maps.segments.has(s.segmentId) && s.followed === true && [0.5, 0.75, 1, 1.25, 1.5, 2].includes(s.rate));
+    check(text(s.startedAt) && Number.isFinite(Date.parse(s.startedAt)) && text(s.completedAt) && Number.isFinite(Date.parse(s.completedAt)) && Date.parse(s.completedAt) >= Date.parse(s.startedAt));
+    check(integer(s.revision) && s.revision > 0 && (s.assessment === undefined || ['unfamiliar', 'smoother', 'done'].includes(s.assessment)));
+    const segment = maps.segments.get(s.segmentId), take = maps.takes.get(s.takeId);
+    // 某回缺片不能借另一回；只接受同來源、同 A/B 的明確 take 關聯。
+    check(s.takeId === undefined || take && take.referenceVideoId === segment.videoId && take.referenceStartMs === segment.startMs && take.referenceEndMs === segment.endMs);
+    out.sessions.push({ id: s.id, segmentId: s.segmentId, startedAt: s.startedAt, completedAt: s.completedAt, rate: s.rate, followed: true, revision: s.revision, ...(s.assessment === undefined ? {} : { assessment: s.assessment }), ...(s.takeId === undefined ? {} : { takeId: s.takeId }) });
+  }
+  for (const c of input.practiceChoices) {
+    check(['selected', 'skip'].includes(c.mode) && text(c.updatedAt) && Number.isFinite(Date.parse(c.updatedAt)) && integer(c.revision) && c.revision > 0);
+    check(c.mode === 'selected' ? maps.segments.has(c.segmentId) : c.segmentId === undefined);
+    out.practiceChoices.push({ id: c.id, mode: c.mode, updatedAt: c.updatedAt, revision: c.revision, ...(c.segmentId === undefined ? {} : { segmentId: c.segmentId }) });
+  }
   // 白名單重新建立物件，絕不把路徑、object URL 或任意外部欄位帶進資料庫。
   // 容量屬於可攜內容；讀回補上的媒體狀態不能擋住合法筆記與救援。外部原檔仍由 parseBackup 先檢查 bytes。
   check(new Blob([JSON.stringify(out)]).size <= 10 * 1024 * 1024, '筆記資料超過 10 MiB，請先保存備份。');
@@ -115,8 +142,8 @@ export function parseBackup(source) {
 /** @param {import('./types').Library} data */
 export function migrateLibrary(data) {
   // 只在記憶體升版，保留本機媒體狀態；第一次成功交易才與新編輯一起提交。
-  validateBackup(data);
-  return { ...structuredClone(data), schemaVersion: 2 };
+  const normalized = validateBackup(data);
+  return { ...structuredClone(data), schemaVersion: 3, ...Object.fromEntries(privateTables.map(table => [table, normalized[table]])) };
 }
 /** @param {import('./types').Library} data @param {{keyword?: string, danceStyle?: string, teacher?: string, from?: string, to?: string, status?: string}} filters */
 export function searchLibrary(data, filters = {}) {
@@ -209,7 +236,7 @@ export function mergeBackup(local, incoming) {
 }
 
 // 同一份關聯表用於依賴閉包與 ID 重寫，避免副本把 take／輸出連到本機另一支影片。
-const backupRelations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos', moveId: 'moves' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {} };
+const backupRelations = { videos: {}, assets: { videoId: 'videos' }, markers: { videoId: 'videos', moveId: 'moves' }, takes: { referenceVideoId: 'videos', cameraAssetId: 'assets' }, recipes: { takeId: 'takes' }, exports: { recipeId: 'recipes', assetId: 'assets' }, moves: {}, segments: { videoId: 'videos' }, sessions: { segmentId: 'segments', takeId: 'takes' }, practiceChoices: { segmentId: 'segments' } };
 const rowKey = (table, id) => table + ':' + id;
 const canonical = row => JSON.stringify(row);
 /** @param {import('./types').Recipe[]} recipes */
@@ -223,6 +250,7 @@ function recipeSettingsByTake(recipes) {
 }
 function rewriteBackupRow(row, table, ids) {
   const next = { ...row, id: ids[table].get(row.id) || row.id };
+  // markerId 只保留來源憑據，不是外鍵；刪除或匯入 Marker 不改動片段快照。
   for (const [field, parent] of Object.entries(backupRelations[table])) if (row[field] !== undefined) next[field] = ids[parent].get(row[field]) || row[field];
   return next;
 }
@@ -241,7 +269,7 @@ export async function planBackupImport(local, source, signal) {
   const existingData = validateBackup(local), incoming = validateBackup(source);
   const shared = incoming.kind === 'share';
   // 分享永遠重建 ID，連空庫或寄回原作者也不能信任寄件者的本機身分。
-  const empty = tables.every(table => local[table].length === 0), foreign = shared || !empty && local.sourceLibraryId !== incoming.sourceLibraryId;
+  const empty = tables.every(table => existingData[table].length === 0), foreign = shared || !empty && local.sourceLibraryId !== incoming.sourceLibraryId;
   const ids = Object.fromEntries(tables.map(table => [table, new Map()]));
   if (foreign) {
     for (const table of tables) for (const row of incoming[table]) ids[table].set(row.id, await backupUUID([shared ? 'dance-stamp-share-v1' : 'dance-stamp-import-v1', incoming.sourceLibraryId, table, row.id], signal));
@@ -341,7 +369,7 @@ export function videoLabels(videos) {
 /** @param {import('./types').Library} local @param {'copy'|'take'|'export'|'video'|'move'} kind @param {string} id */
 export function planDeletion(local, kind, id) {
   validateBackup(local);
-  const data = structuredClone(local), candidates = new Set(), locks = new Set();
+  const data = migrateLibrary(local), candidates = new Set(), locks = new Set();
   const table = ({ copy: 'assets', take: 'takes', export: 'exports', video: 'videos', move: 'moves' })[kind];
   if (!table || !data[table].some(row => row.id === id)) throw new Error('找不到要移除的資料；原資料保留。');
   if (kind === 'move') {
@@ -361,9 +389,15 @@ export function planDeletion(local, kind, id) {
     data.exports = data.exports.filter(a => !(kind === 'export' && a.id === id) && !removedRecipes.has(a.recipeId));
     data.recipes = data.recipes.filter(r => !removedRecipes.has(r.id));
     data.takes = data.takes.filter(t => !removedTakes.has(t.id));
+    // 刪錄影只解除回合連結，日期與自評仍保留；不能級聯刪掉沒有錄影的練習。
+    for (const session of data.sessions) if (session.takeId && removedTakes.has(session.takeId)) { delete session.takeId; session.revision++; }
     if (kind === 'video') {
       data.assets.filter(a => a.videoId === id).forEach(a => { candidates.add(a.id); });
       data.videos = data.videos.filter(v => v.id !== id); data.markers = data.markers.filter(m => m.videoId !== id);
+      const removedSegments = new Set(data.segments.filter(s => s.videoId === id).map(s => s.id));
+      data.segments = data.segments.filter(s => !removedSegments.has(s.id));
+      data.sessions = data.sessions.filter(s => !removedSegments.has(s.segmentId));
+      data.practiceChoices = data.practiceChoices.filter(c => !c.segmentId || !removedSegments.has(c.segmentId));
     }
     // 多個配方可共用原片；只刪失去所有關聯的媒體，不能順手清掉其他 take 的副本。
     const videos = new Set(data.videos.map(v => v.id));
@@ -376,7 +410,7 @@ export function planDeletion(local, kind, id) {
   const takeIds = local.takes.filter(t => !takes.has(t.id)).map(t => t.id);
   // chunks 以相機 asset ID 為 key，不是 take ID；共用原片仍被引用時不得清理其分段。
   const chunkIds = kind === 'copy' ? [] : local.assets.filter(a => a.kind === 'take' && !assets.has(a.id)).map(a => a.id);
-  const counts = Object.fromEntries(['videos', 'markers', 'takes', 'recipes', 'exports'].map(name => [name, local[name].length - data[name].length]));
+  const counts = Object.fromEntries(['videos', 'markers', 'takes', 'recipes', 'exports', ...privateTables].map(name => [name, (local[name] || []).length - data[name].length]));
   return { data, mediaIds, takeIds, chunkIds, locks: [...locks].sort(), counts, kind, id };
 }
 /** @param {import('./types').Library} data @param {Set<string>} stored @param {Set<string>} session */
