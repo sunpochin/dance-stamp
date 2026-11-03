@@ -2,7 +2,7 @@
 
 這是最近一次 main 成功完整量測；新測試失敗時保留上次成功數字，最新狀態請看首頁 CI。
 
-來源：[f5a4753693b418bd71de1015a2a2562be03f093d](https://github.com/sunpochin/dance-stamp/commit/f5a4753693b418bd71de1015a2a2562be03f093d) · [CI 執行與可下載報告](https://github.com/sunpochin/dance-stamp/actions/runs/41615041651)
+來源：[481889bb2bf85597049199457a3d29132fb78100](https://github.com/sunpochin/dance-stamp/commit/481889bb2bf85597049199457a3d29132fb78100) · [CI 執行與可下載報告](https://github.com/sunpochin/dance-stamp/actions/runs/41623386519)
 
 24 個 web/*.js 全列入分母；83 個瀏覽器流程通過。單元、VM 與隔離 Chromium 的插樁合成測試不代表真機或影音品質驗收。
 
