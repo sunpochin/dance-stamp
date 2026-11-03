@@ -611,3 +611,50 @@ observer `c927cbd9c5676c8b4929a46eb22e576b4be1b3c7c8fccfa967421dda6dc5053d` 從3
 原250ms checker四案exit1均保留：自然案先因guard收據檔名不符，三個100案因文案前提不同。獨立局部保全copy分別改2／5／3／3處並保存exact diff：第一案精確100文案＋recorders=[]；自然案改收據名、精確QA狀態、recorders=[]、tracks=[]未觀察與結果標籤；後兩案為100文案、recorders=[]、tracks=[]未觀察。它們exit0只支持對應保全，沒有改原checker或將空清單當全軌ended，也沒有放寬產品守門。四案都不驗私人VS保存／救援或完整G1–G7。
 
 本交接從同步main `6f605e5871c48b23e4e6e732a6563edde331df5e` 建分支；前節42項已由[#253](https://github.com/sunpochin/dance-stamp/pull/253)在精確a727獨立審查、CI41583519674必要四項成功、83情境／0FAIL及12真下載全解碼／自然播放後合併，只2docs28+/0。原01a0995主線自己的CI41581193940五項亦全成功；新6f605e5自己的push檢查另待實際結果。以上是文件工程檢查，不能代簽原生品質。本次仍未找到可採產品修正，#229／#13保持open；接續優先補實際畫格識別，避免再以getter或靜態色條推斷像素停住。
+
+## 2026-11-03 逐格辨識、後續擷取請求與第一份候選真下載
+
+白話：新測片每格都有編號，失敗時最後合成畫布還是示範第1格、自己第0格。保留擷取流但不再追加擷取請求，未編碼時間線可走完；接著試著等來源送出新格才擷取，第一次真正下載了VS。這個檔案的解析度、平均格率與音軌已有資料支持，但回原版面又失敗，不能直接把此改法放進產品；動態品質未驗，私人瀏覽器內保存也仍確實失敗。
+
+### 新輸入與失敗後單次像素觀察
+
+原始靜態色條不能分辨畫格，另製作兩份320×240／30fps／3秒／90格的motion素材：7bit格號0–89加source bit7，兩列互補碼、黑白校準格與移動方塊，連續660／880Hz AAC。最終reference38,660B／SHA `c59c41adcf38d62376f1054d1dc09b8be149020cc26c044675f5d0fcd99892f5`，self39,008B／`8c5f3d15ea327822df0463a77892e0f24ba9d16e7159b5d7b6b95fe65c0771d7`。FFmpeg8.1.2首份生成後完整解碼、90格ID／source／PTS=n/30及PCM皆核對；第二路用獨立5×5中位數解碼、另驗縮放後碼區，全90格通過，沒有匯入原decoder。生成器SHA `22e8d89570c42a34aae627b7d5cb1c278e205b28313ed5fbeb94360b0fef77a1`，離線驗證JSON SHA `986769781ce5114afb6bb16536f2a5229b0209567f9ccd1310523d69e04c9590`。靜態審查先修正管線逾時涵蓋範圍並加source bit，才首跑生成；沒有覆寫測片或重匯出挑成功。這是新輸入及編碼條件，不能冒稱原靜態色條的同輸入重測。
+
+main `12769978912b2ea31c589c5adc34cce918648eb7eba94124f7470449165cdb67` 相對fullRecorder3870，只在原100ms條件已true、12純量已寫好後，用nested try讀一次現有canvas小區；不是新的正式旁聽。要求兩源320×240、輸出1280×720／原並排／無鏡像／無跟隨crop；ROI(52,196,1160,72)，RGBA stride4，兩側碼心分別x=56+64b／696+64b、y=200／264，第8欄校準。未另畫video；讀取／對比／互補／source／格號不合法就保留unknown，不猜值或覆蓋原守門。
+
+唯一原生首匯出仍原100ms拒絕：reference elapsed640.6723750114907／audio744.6666666666667ms，差103.99429165517608ms；self判定後約0.000004229秒，四個ended／paused皆false。單次讀回最後canvas解出reference ID1／self ID0，sourceMatch皆true。守門在該tick的paint之前；這只證明最後合成畫布的碼，不是判定瞬間來源像素、連續停格、原子PTS或完整G2。沒有VS。observer仍ea508、CSS0acf／HTML78e，原PCM／真Recorder／暖機／微速率／守門不變；pixel read在失敗後仍有成本，不回填歷史案例。
+
+### 追加擷取請求的控制與真影格回呼候選
+
+回原靜態素材、main023／ea508，只將timeline的captureFrame參數改空callback，保留真captureStream(0)與原render／paint／budget；原位置的typeof能力判斷只求值一次，沿原fallback，並將boolean存既有diagnostics。main `0ec441a83155336ee8179617e45cc60be9df640b4bcbc38a1a532aa96855ec08` 的manualCaptureAvailable=true，原fallback未選；未編碼timeline自然完成3010ms／maxDrift23ms／tick gap18ms，producedVs:false。這支持後續JS請求與相關擷取工作這組差異有關聯，不等於本機恰好只擷取一格、GPU唯一原因或可採修正；靜態公開WebKit的初始emit旗標與requestFrame行為只是來源理由。
+
+接著fullRecorder3870僅在原rAF tick的paint外加條件：Safari localAudio匯出且兩側有rVFC時，保留原watchVideo影格回呼的paint，rAF不再paint；其他情況仍原路徑。候選main `fec7b042b43267752cf31182a42176431ce46f37d840d4ba99153d6d23b54bb7`，原30fps budget、時計／微調／100與250ms／取消／片長／停滯／progress、暖機回零兩play、PCM10ms、真Recorder／captureStream與finally全保持。任一側回呼不代表雙側同時新格；低fps、稀少回呼與尾格仍是風險，maxRenderGap欄實為tick間隔，不能當繪圖或成品格率。未改門檻、放寬期限或加固定補償。
+
+候選同原三秒靜態素材、固定QA CSS0acf／HTML78e的唯一首匯出自然產生VS Blob：產品diagnostics elapsed3045ms／maxDrift46ms／tick gap49ms，內部讀回decodedDuration3040ms，first100=null。私人保存第4筆media＋metadata雙put有trusted media UnknownError、metadata AbortError及transaction abort，defaultPrevented=false；unknown=false／busy=false，按原契約取得revision4。這是已確認保存失敗，不能寫成保存成功或未知pending。舊data／原片URL及完整hash相同、revision3→4為配方保存，舊retained四列完整；新增兩列是同輸出Blob的已撤銷validation URL及未撤銷下載URL，不誤要求整份retained全相等。
+
+### 真下載與獨立解碼的部分品質
+
+原生下載不是一開始成功：兩次fresh AX右鍵落在media選單，沒有點media項／播放／SaveAs，原失誤保留；初次鍵盤4步因無法確知focus停止。後續明確允許視覺focus ring，總第70次OptionTab時原VS鏈結同時有AX focused與完整ring，才Return一次。瀏覽器真正下載174,935B，原生下載與封存副本SHA均為`4447c93d2dd8dba4858b04bed333006981ff4eca1e6522fbafcce6ca8eb91fc4`，等原Blob；未遍讀其他下載、不覆寫、不用fetch／CSP繞過或代理鏈結，0匯出重試，沒有因下載另讀DB。下載前26項pending manifest及早期方法失敗均原封保留，之後才完成自有頁／主機／PID／nonce收尾；不是先前已下載或已清理。
+
+兩路獨立完整解碼得到VP8 1280×720／單一Opus stereo48k音軌，82格；WebM沒有format.duration，沿既有v5方式以解碼影音尾端算3.045秒，平均26.929392fps。PCM每channel144,840 samples／3.0175秒、RMS0.08852766，660Hz強、880Hz近零。原檔PTS無倒退、80個不同時間戳，最後三格同為3.008秒；最大相鄰PTS間隔83ms。通用null解碼exit0但六筆DTS警告保留，解碼器輸出重尺度碰撞與末尾兩筆真正相同PTS分開，不改時間戳或重封裝，不追加strict-PTS／zero-drop門檻。
+
+第一次本機分析曾假設WebM一定有format.duration而KeyError，尚未完成全軌分析；原工具錯誤保存，改依原v5既有decoded-tail分支才得到上述結果，不是重匯出或改檔後過關。解析度及平均≥24fps這部分有實檔支持；靜態色條／連續tone仍不能驗非預期像素停格、首中尾聲畫／完整G2、人耳或原生首次自然播放。原分析器的flash／時間碼前提不適用此靜態來源，不製造其withinSyntheticTargets通過。
+
+### 原版面續驗：仍失敗，不能直接採用此候選
+
+同fec7／ea508／原靜態素材再做一個新原版面控制：HTML `6ce985d3e696cbef44b839aeed791e114467be61a698eb59d14c439f0fc39b22` 為原dist HTML只加保全observer，不引用固定CSS；原產品style／控件／捲動保持，QA toolbar仍在，非完全零觀察。原31路加observer／config的前置33 GET逐hash符合；CSS路由雖保留但未被引用／請求，不硬套先前34項或來源ratio1。前後快照來源ratio0，before在footer時y約−5177；正式全程未觀測，不能由快照判唯一可見性因果。
+
+唯一原AX export首100ms拒絕：reference elapsed約64.564／audio166ms，差約101.436ms；self判定後約0.044031秒、四旗標false。沒有VS／雙put／下載；完整data／retained／原片URL及完整hash同、revision3→4／三metadata-only complete。click102ms、指定5,005ms靜默實際5,011.2ms；首AX距click完成真實34,667ms，不改稱五秒首觀察。原250ms checker exit1保留，僅精確100文案與tracks未觀測兩斷言的局部copy另0。Recorder inactive／tracks未觀測，無硬體／頁錯／工具錯誤或重試；自有視窗／主機／PID／nonce正常收尾。此反例使「單獨改成rVFC paint即可採用」不成立，原門檻未動。
+
+| 單次封存（entry數） | manifest SHA-256 | summary SHA-256 |
+| --- | --- | --- |
+| 新motion／單次末畫布讀碼（39） | `c0fe7f0b50f283469fb2c9237f0700250b3e9ce1c6aece0e17dee473c4d03e87` | `1950a75b6134b3b0d86a6089a581bf7d22989e14ca73928a712b4cd46a76ee07` |
+| 無額外JS requestFrame（35） | `6f263a117ba5dc5c2747f3069ba89f5b8aa059eb09859243c6832cb917112b9a` | `b0aaf5460fbf0cc11a6e16aeb0d9a82317da22ea4b30c146e57135e0805e6cae` |
+| 真rVFC候選、實際下載（34） | `aa3d20500b0e0f2e38ab2a15775670975928a4e57cb0732f23c8eefbfc957e4c` | `d7d3b96bca5405ce59cd51dc261e7c572b9d128af3ff7d511a5eff8cb6f62094` |
+| 同候選原版面首錯（39） | `08e3f093ab49cbb0e362b16b85e5a89779d7b08947e21d6812c32e49cccf2d35` | `4f681ab7d53229e783ed5cd14bfc76a6ecc18636b2fdf597cdd65524c8b64ad6` |
+
+147項entry由協調者與獨立審查者逐一重算bytes／SHA、核對raw／下載／限制，另有上述實檔獨立分析。第一案canvas packet SHA `576a507131d3fa9db70dc51f6df950deb828a8fe972cd376948e6d7bf95a138d`、first100 SHA `753283bbab95e4514fbec7e39228c7d339bc624122c52bc7476b3282eb03f91f`；第二案能力＋自然收據SHA `773b569601246cbc7c607b3c701b5261dfab03e7b6f0ddc194f68910346465ec`；第三案先前pending26 SHA `fb2734040ca5db9ec73a939842f32b91e2a1cd78afbfbe720dbb5331765d31c1`保持。原始素材／影片／收據／本機識別不公開。
+
+四案clock皆null、tracks未觀測，不能填零native callback／全部ended；真Recorder案inactive另有原wrapper收據。前三案前後835→882及來源ratio1只屬固定QA版面的快照，不外推全程或第四案原使用者版面。第一案原250ms checker exit1／兩斷言局部保全copy另0；第二案因自然收據名不同原checker拒絕，五處局部文字差異另存；第三案真已確認雙put失敗／新Blob不是「保存前首guard拒絕」，不硬套guard checker。資料保全、下載與品質各自核對，無硬體呼叫／頁錯，全部自有測試資源已收尾。
+
+本交接從同步main `da0232505bb410337262ff89ff8e4daba5217812` 建分支；前批[#254](https://github.com/sunpochin/dance-stamp/pull/254)精確e7c獨立審查與必要CI41586975361成功後合併，只2docs42+/0；da主線自己的CI41589617609五項亦已全成功，均屬工程檢查。上述候選仍是frozen832／83a29a上的明列QA變體，原版面續驗失敗而未採到產品；下一步釐清來源幾何與擷取策略，動態實檔品質仍待驗，不把第一份靜態真下載當完整修復。#229／#13維持open，沒有部署或發布。
