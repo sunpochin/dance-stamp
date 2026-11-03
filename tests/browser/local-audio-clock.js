@@ -1,4 +1,6 @@
 /* 檔案用途：拒絕獨立音訊時鐘下的延遲啟播與短暫視訊停滯。所在層：合成瀏覽器回歸。主要關聯：main.js、local-audio.js、RECORD_COMPARE.md。 */
+// 歷史專項：只適用於 9cf6db7 及之前的即時 Safari 匯出聲路；目前 PTS 不經此 play／AudioContext 邊界。
+// 原故障與 100ms 斷言保留，不冒充 current export 的驗證；目前 owner 邊界另見 explicit-pts-owner.js。
 async page => {
   const assert = (ok, message) => { if (!ok) throw new Error(message); };
   assert(/^http:\/\/127\.0\.0\.1:\d+$/.test(new URL(page.url()).origin), '只可使用隔離本機合成環境');

@@ -148,3 +148,16 @@ Safari WebM續修只在有界本機音訊VS不帶timeslice，一次收檔；相�
 ### #119 續作：Safari 錄影的播放聲路
 
 Safari 在錄影期間保留示範元素的音高設定並暫時靜音，使用同一原片 A–B 的有界本機 AAC 聲音以 r 自然變調播放；一般練習仍保持音高與原音量。聲音準備完成、以真正影格暖機並回到 A 才進倒數，相機開錄仍早於正式示範啟播；不延後開錄、不在 B 補 seek、不修改 B、片長或 ±100ms。支援格式、取消／故障保全及排除方案見 TECHNICAL 第 51 節，原生結果見 [#9 續修證據](evidence/issue-9-capture-recovery.md#119-續作錄影聲路與一般練習音高)。此續修不代表真相機、聽感、私人模式、背景或完整 G1–G7 已驗收。
+
+
+### Safari錄影供聲時計候選（2026-11-04）
+
+白話：錄影時要看聲音送出到哪裡，不能只看資料已製作到哪裡。新守門同時核對原生回報位置與鄰近時間推估位置，兩端都守原±100ms；這是同步監測候選，不是已完成真相機或人耳驗收。
+
+技術：有效getOutputTimestamp配對形成API模型區間 `[contextTime, min(renderTime, contextTime+(now−performanceTime)/1000)]`，兩端扣本輪原source.start時間，開始前夾0、末段cap原expected後各與A/r映射比較。同配對可合法不更新；嚴格回退／非法配對若本輪曾有效，立即保全原錯拒絕，不能降回render假通過。從未有效才原render相容fallback，僅具舊監測能力；history每輪重置。模型不是硬體誤差界，不以latency相減、固定補償或另一freshness數字代替。source啟動、錄影順序、A/B、原100ms與G1–G7門檻均維持；完整開發證據位於repo的 `docs/evidence/issue-11-explicit-pts-spike.md` 第「88b首輸出鐘與錄影守門候選」節；該開發文件不隨產品包附帶。
+
+### Safari 明確時間戳比較匯出候選（#11／#229）
+
+白話：同一個輸出按鈕改用「先排好每格與老師聲音，再製片」的本機工具，不再追著即時播放器擷取。配方、兩側鏡像／跟隨、並排／疊影與保存救援沿原流程；目前只是工程候選，尚不能說成品同步已通過。
+
+技術：Safari export用專屬Worker、固定同源Mediabunny1.65.0與原positions計算PTS；PCM逐包裁切後以Fs×r自然變調，輸出AVC/AAC MP4。舊Safari即時VS/WebM描述保留為原版本歷史，不是失敗後fallback。Chrome與預覽仍原路；Safari錄影供聲守門另依上節候選，不能拿source sample age當舊PCM-clock drift，也不能造觀測漂移0。輸出仍獨立讀回原始片長±100ms後才交換／保存；G1–G7、完整A/B覆蓋與格式真實下載門檻完全維持。300秒BufferTarget峰值、取消物理資源、完整Safari/裝置品質未驗，60秒≤90秒仍需完整流程實測，不以owner interval替代。庫授權／source取得方式見 [第三方告知](../THIRD_PARTY_NOTICES.md)。

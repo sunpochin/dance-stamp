@@ -2,13 +2,16 @@
 import { createHash } from 'node:crypto'
 import { lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { webFiles as files, notices, pagesHeaders, webNotice, visionAssets, binaryAssetHashes, webAssetBytes } from './web-assets'
+import { webFiles as files, notices, pagesHeaders, webNotice, visionAssets, mediabunnyAssets, mediabunnyAssetHashes, binaryAssetHashes, webAssetBytes } from './web-assets'
 import { readAllowed } from './package-web'
 const root = resolve(import.meta.dir, '..'), target = resolve(root, 'dist/web')
 // 必須先檢查才寫入；打包後才拒絕，已可能沿輸出連結改到別處的檔案。
 if (lstatSync(resolve(root, 'dist'), { throwIfNoEntry: false })?.isSymbolicLink()) throw new Error('建置輸出不接受符號連結')
 if (lstatSync(target, { throwIfNoEntry: false })) readAllowed(target, [...files, ...notices, '_headers'], false)
-const result = await Bun.build({ entrypoints: files.filter(f => f.endsWith('.js') && f !== 'sw.js' && !visionAssets[f]).map(f => resolve(root, 'web', f)), target: 'browser', write: false })
+const result = await Bun.build({ entrypoints: files.filter(f => f.endsWith('.js') && f !== 'sw.js' && !visionAssets[f] && !mediabunnyAssets[f]).map(f => resolve(root, 'web', f)), target: 'browser', plugins: [{ name: 'fixed-mediabunny', setup(build) {
+  // 瀏覽器 URL 是白名單別名；建置仍驗真正固定套件，不放過一個無法解析的 external。
+  build.onResolve({ filter: /^\.\/mediabunny\.js$/ }, () => ({ path: resolve(root, mediabunnyAssets['mediabunny.js']) }))
+} }], write: false })
 if (!result.success) { console.error(result.logs); process.exit(1) }
 const digest = createHash('sha256')
 // 版本、manifest 與實際輸出共用轉換後的 bytes，避免修好授權連結卻讓離線校驗仍期待根文件內容。
@@ -16,7 +19,7 @@ const resourceBytes = new Map([...files, ...notices].map(file => [file, notices.
   ? new TextEncoder().encode(webNotice(file, readFileSync(resolve(root, file), 'utf8')))
   : webAssetBytes(root, file)]))
 // 模型是官方公開測得的固定檔，拒絕未知替換品；二進位直接複製，不能經 UTF-8 解碼毀損。
-for (const [file, hash] of Object.entries(binaryAssetHashes)) if (createHash('sha256').update(resourceBytes.get(file)!).digest('hex') !== hash) throw new Error('人物分析二進位指紋不符')
+for (const [file, hash] of Object.entries({ ...binaryAssetHashes, ...mediabunnyAssetHashes })) if (createHash('sha256').update(resourceBytes.get(file)!).digest('hex') !== hash) throw new Error('固定離線資源指紋不符')
 // 授權也是離線資源；只改 notice 時也必須用新 cache，不能改寫仍被舊分頁使用的內容。
 for (const bytes of resourceBytes.values()) digest.update(bytes)
 // 離線回應也保存標頭；政策改變時要建立新版，不能繼續使用舊快取的政策。

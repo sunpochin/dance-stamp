@@ -23,3 +23,9 @@
 - `@mediapipe/tasks-vision` 1.2.0：Apache-2.0，來源 https://github.com/google-ai-edge/mediapipe ，精確版本與完整性見 bun.lock。瀏覽器包包含其 vision bundle、SIMD／非 SIMD WASM 與各自載入器。僅將各載入器的 Emscripten 虛擬家目錄改為公開範例路徑，避免被誤認成私人路徑；不改 WASM 或偵測模型。
 - EfficientDet-Lite0 int8 模型 revision 1：Apache-2.0，官方來源 https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/1/efficientdet_lite0.tflite 。SHA256 `0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb`。模型以 COCO 類別偵測人物，不提供身分辨認或正確率保證。
 - 完整 [Apache-2.0 授權](vendor/mediapipe/LICENSE) 隨下載包提供。模型與分析程式都由同一包載入；不連 CDN、不上傳影片，非商用根授權不取代上述第三方授權。
+
+## Safari 明確時間戳匯出（#11／#229）
+
+- Mediabunny **1.65.0**：MPL-2.0，Copyright © 2026-present Vanilagy and contributors。瀏覽器同源 `mediabunny.js` 是官方 npm `dist/bundles/mediabunny.mjs` 原封副本，SHA256 `65a111aadcb9a8b45e585f128d11daf3c972289bf6c58b2e795ba6073ee13363`；沒有更改庫。完整 [MPL 授權](vendor/mediabunny/LICENSE) 隨來源／下載包提供，離線 Web 資產亦有 `mediabunny-license.txt`。
+- preferred TypeScript source：[v1.65.0 tag](https://github.com/Vanilagy/mediabunny/tree/v1.65.0/src)，固定來源 [cd6612380c7e3f1261d74b9b550e6fc3b65a53bc/src](https://github.com/Vanilagy/mediabunny/tree/cd6612380c7e3f1261d74b9b550e6fc3b65a53bc/src)。開發者可從這些公開位置取得原碼，不需要帳號／付費服務；產品執行不連這些網址。
+- 沿 MPL 第 3.2 節及 [官方 FAQ Q8／Q16](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) 提供來源位置與授權告知，不建立自訂原碼封套／還原工具。此為打包取捨紀錄，不是法律意見，也沒有改變本產品或庫的授權。產品根 LICENSE 不取代 MPL 的權利。

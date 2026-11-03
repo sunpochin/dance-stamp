@@ -11,6 +11,31 @@
 
 技術決策：靜態 Web 先用 GIS OAuth token model／後續 Dropbox PKCE 直接連接個人空間，區分身分登入、檔案授權與同步；首版不建自有帳號後端。先以選定資料、不可覆寫快照及明確衝突選擇完成手動接續，再評估前景自動同步。分享只對獨立成品副本建立供應商唯讀連結，匿名觀看先用供應商頁面。排除整庫默默上傳、單檔最後寫入覆蓋、公開私人同步根目錄及將分享頁假當媒體 CDN。權限、資料封套、失敗保全、成本與驗收只在上述文件維護；既有本機交換格式維持相容，新增雲端 runtime 與未驗證界線見該文件第 11 節。
 
+
+## Safari錄影供聲的輸出時計模型（2026-11-04）
+
+白話：製作聲音資料的進度，可能比真正送出聲音更早。錄影改把瀏覽器已回報的輸出位置與時間推估位置一起核對畫面，兩端都守原100ms；已取得可信配對後若資料倒退或失效，就保留原片並停止。原本沒有可用API的瀏覽器仍用既有檢查。這是候選修正，完整遠端三案尚待。
+
+技術：每次capture獨立保存原生getOutputTimestamp配對歷史；state→reference→render讀序保留，模型區間為contextTime至min(renderTime,contextTime+(now−performanceTime)/1000)，source開始前夾0、片尾cap原expected，兩端皆須與A/r映射在±100ms。相等配對合法，曾有效後的非法／嚴格回退直接拒絕，不靠render fallback掩蓋輸出停滯；從未有效的fallback只保留原render監測能力。這是API估計模型，不是物理聲音誤差保證；不減latency、不加常數或新freshness毫秒標準，也不變更play／source.start／Recorder順序。首判定與事後診斷分開。原88b兩PTS成功／capture失敗、模型反例、原生Safari靜音能力與來源原片解碼、純測22／0／270及新head未驗範圍見[版本證據](docs/evidence/issue-11-explicit-pts-spike.md#88b首輸出鐘與錄影守門候選)。能力檢查可從repo開發檔 `scripts/qa/capture-output-clock.html` 重建；它不隨產品包附帶，也不代表相機／成片或人耳驗收。
+
+## PR265 首輪CI與平台能力分工候選（2026-11-03）
+
+白話：某台機器沒有這個製片零件，就在那台驗證「清楚拒絕且資料不丟」；真正做片、取消與重試仍到有零件的機器完整驗證。原5dec首CI81PASS／3FAIL保留，不能把Linux不具AAC編碼能力改稱成功，也不加軟體encoder。新版仍待實際CI，產品codec與影音／資料護欄不變。
+
+技術：原84案清單成為單一來源，Linux預設完整82案（原其餘81＋原生AAC拒絕保全），固定Mac15必要三案無skip；精確案例名／順序／全PASS與always硬gate共同守門。32自有模組仍全分母，badge只標Linux平台，不合併Mac計數；兩下載verifier保留顯式selected的原嚴格契約。首CI的2+10離站檢查／badge／artifact均skipped、當時raw收據不存在，不能補造；原失敗、官方能力依據、平台重現與尚未驗證範圍見[既有完整證據](docs/evidence/issue-11-explicit-pts-spike.md#pr265-首輪ci與平台能力分工候選2026-11-03)。
+
+#11／#229 的 Safari 明確時間戳匯出候選（2026-11-03）：像先把每張照片和聲音放上同一把尺，再製成影片；不靠兩個播放器一邊跑、一邊擷取。使用者仍按原輸出按鈕、用原配方與畫面設定；失敗可保留原片與舊 VS。原兩支不同合成片的第一個Safari產品三秒案已真正另存VS／原片／完整筆記，關站後首次原生開檔自然走到可見片尾；但私人保存仍unknown，完整原生矩陣／G1–G7未驗；#229原三秒缺陷可待最終精確commit獨立review、CI與merge後按同fixture成檔／下載／離站解碼及取消資料保全證據窄範圍結案，#11完整與#13保存仍開，見[實作與交接](docs/evidence/issue-11-explicit-pts-spike.md#產品接線候選11／229)。
+
+技術：僅 Safari 的比較 export 在 saveCurrentRecipe 後用本輪 module Worker，BlobSource／VideoSampleSink 按原 positions 取來源 PTS，OffscreenCanvas 經共用 renderer 輸出 AVC；reference PCM 按同一來源交集逐包裁切，以 Fs×r 原生 AudioSample 交 Mediabunny 1.65.0 的 resampler 到48kHz／AAC，自然變調、只取老師聲音。三速、非零 A、正負 offset、尾不足交集及300秒沿原 timeline；SBS／overlay／鏡像／逐側跟隨用原 renderer。無音軌輸出真無聲，未知解碼缺口／多段 edit 明示拒絕，不默補零或默退已知失步聲路。Chrome與預覽原路不改；Safari錄影供聲守門另見本索引上方時計修正。新檔仍共用原獨立元素驗片長±100ms，再交換舊 VS、persistExport，未知保存維持 memory-only 救援。
+
+取消／背景／離頁只 terminate 自己的 Worker，晚 Blob 不接受；真物理資源退出仍需驗證。固定庫的 public source.close 回 void，因此薄 seam 立即 await 1.65 的 `_closingPromise`，及時保留 flush 首錯並停止 peer；缺介面即拒絕，沒有修改庫。sample 清理在 add／draw 首錯記錄後各自執行；合法60→30fps尾格不必覆整個B、長VFR sample age僅診斷，不能當舊即時 PCM-clock drift。成檔 G2／G3 仍依原量尺，不造 observedDrift=0。BufferTarget 留完整輸出檔、Blob可能另佔副本，300秒峰值／取消回收未驗；內部 fMP4 選項未採產品預設，也不放 UI。新整輪不錯套舊播放 phase D+10秒；十秒無進展仍拒絕，60秒≤90秒 G7 目標仍另驗，owner interval 欄不能叫完整效能通過。選固定官方同源 bundle／MPL授權與preferred TS source告知，排除CDN／自訂muxer／DSP／source還原封套，詳見[第三方授權](THIRD_PARTY_NOTICES.md)。
+
+受測來源明列base9cf6db7＋staged tree4be2085、trackedChanges=true／builda3c4cccb8c9bb59e，並非乾淨最終提交。Chrome直接引擎首案84,341B／90格，僅本機POST保全；Safari27.2原產品按鈕一次trusted輸出65,204B／90格，視訊3秒／容器3.006667秒，四項原生救援檔指紋完整核對。媒體request UnknownError且native transaction未觀察到終態，所以after native=null、不讀DB；筆記只按原memory備份契約保全。離站AX片尾不等於JS ended／error0／人耳或coded聲畫驗收。兩路唯讀核對46／99項封存，原首輪選定App仍1PASS／2FAIL（環境hidden前提與聲音資源斷言），不覆寫失敗、不推定實漏或產品背景失敗；詳見上述同一份證據。
+
+同一4be／a3 snapshot另完成四個原生直接引擎coded首案，原v5全部通過：1×三秒、0.5×非零A／正偏移／雙鏡像六秒、0.75×負偏移共同裁頭3.6秒與1×一分鐘；最大AV差分別20／20／6.667／20ms，原配方／內容量化與hold照實，沒有套用舊prototype0ms。一分鐘1,800格／60秒的真ready上界75,731ms達這一固定合成案原v5目標，不能代完整App保存／原生下載／cold-start G7。全部為local POST品質檔，未覆蓋300秒峰值、一般格式／rotation／VFR、follow／overlay、真機人耳或完整取消資料矩陣；原App首輪失敗與尚未最終commit／merge的狀態不由品質表抹掉。四案seal、實檔SHA與原量尺表沿用上方同一份證據。
+
+新版main另有一次原UI產品首案，來源tree51e278／buildd956／main0a6d99（完整hash見同證據），十個後端模組與原4be逐byte相同。原兩支不同素材唯一輸出63,809B／90格，四檔原生救援與原validateBackup完整筆記相符；私人保存仍unknown、native=null／不讀DB。站點關閉後首檔可見自然到片尾，JS ended/error/drops與人耳未知。四coded案保留原4be來源，不能移記成新版main矩陣。進度程式改只用input／encoding≤.99與finalizing滿格；首案只觀察終態1，不稱整段單調量測。修改測試scope後另輪三個選定Chromium情境3PASS（真能力拒絕恢復、準備Stop／晚真Blob不接納／retry、冷context capture gain分類），原首輪1PASS／2FAIL不改標；完整App矩陣／CI另驗；後續一個原生Chrome defaultContext完整owner案已PASS（setup Stop／真trusted hidden→visible取消／晚真Blob不接納與retry），只選Safari UA分支、非Safari裝置／預設首頁。20項seal、5Worker terminate呼叫返回與物理退出限制見同一證據；port受限PermissionError未證拒連，不混Safari actual61。正常check781／0／4669及原受限七失敗分開記，尚未最終commit／merge，不新增產品驗收通過宣告。
+
 #11／#229 的共用影格 renderer（2026-11-03）：像把排照片的規則留在同一張桌子上，現在的影片畫面仍照原樣排成左右或疊影；未來的解碼照片可用同一張桌子，不必重寫鏡像、人物裁切與文字。此輪只抽取畫圖程式，沒有接入 WebCodecs／Worker，沒有修好 Safari 聲畫失步，也未改預覽／匯出的時間、PCM、Recorder、取消、保存與原品質護欄。
 
 技術上，[comparison-renderer.js](web/comparison-renderer.js) 接受 `{width,height,time,draw(context,sx,sy,sw,sh,dx,dy,dw,dh)}`，透過 `frameCrop` 重用來源秒數的跟隨插值；並排維持 1280×720、兩個 640×672 半框、靠中線與非鏡像標籤，疊影維持自己先畫／老師覆蓋，調整側仍複用原畫布並限縮在各自半框。現有 `videoFrame` 只轉交原 `drawImage(video,...)`，時間採 getter 且無跟隨時不讀，避免純抽取額外碰原生時間快取；不假稱是固定 PTS 快照。主畫面仍擁有 UI／來源／跟隨狀態，單側跟隨沿原 `sourceCrop` adapter。排除複製另一套新引擎專用 renderer、假 video 物件與為新介面重新排版；新模組納入原同源白名單、建置／離線 hash 及下載包。驗證記錄於本次 PR；原生 Safari、實體裝置與完整 G1–G7 本次未驗證，不能由像素回歸替代。

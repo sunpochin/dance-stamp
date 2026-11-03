@@ -1,6 +1,18 @@
 <!-- 檔案用途：依既有驗收條件核對可結案與尚未實作的 issue，避免重做已交付功能。所在層：版本固定的工程盤點。主要關聯：ROADMAP.md、AGENTS.md、GitHub issue #1。 -->
 # 開啟 issues 的工程與驗收盤點
 
+## 2026-11-03 產品逐PTS三秒首案與未確認保存
+
+白話：新的製片程式已從原產品按鈕做出第一份三秒VS，原生Safari也另存了影片、兩支原片與完整筆記；但私人保存仍不確定，短靜態素材不能代完整聲畫驗收，#229原三秒合成缺陷已有同fixture產品首匯出、真下載、離站解碼與取消資料保全回歸證據；待最終精確commit獨立review、CI與merge後，可依該窄範圍判斷結案。#11完整驗收與#13保存問題仍開，這次提交不預稱已merge或closed。
+
+受測為base9cf6db7＋staged tree4be2085、trackedChanges=true／builda3c4cccb8c9bb59e，並非最終commit。Chrome直接引擎首檔84,341B是本機POST；Safari27.2原兩支不同合成片、A0/B3/C0／1×／offset0／SBS／不鏡像，唯一trusted export成65,204B，真原生四項救援及離站首次AX片尾已分開核對。90格／視訊3秒／容器3.006667秒與原完整decode成功，不代表光學／脈衝G2、完整G3、G7或人耳。
+
+保存request為trusted UnknownError而無transaction終態，after unknown／native=null且無後續DB交易；只救援最後確認的memory筆記。初raw assets對備份比較失敗保留，依原validateBackup契約正規化才完整相等。匯出前錯選自拍已在0export修正；全部檔案救援後才另准普通離頁，shared Safari與未知視窗保持，unknown不改稱rollback。Chrome46與原生99項seal均由兩路唯讀核對，來源hash、原始差異與清理範圍見[既有產品候選證據](issue-11-explicit-pts-spike.md#產品首次結果chrome直接引擎原生safari產品介面)。
+
+首次三個選定App情境1PASS／2FAIL、exit1，8項seal原封保留；owner準備Stop已過，但hidden環境前提未成立、晚結果子案未到，錄影聲音資源失敗收據又未dump gain，不據此判實漏或改標通過。browser/server停止返回、lock未留與物理退出證據分開。另以同一凍結產品、既有完整65秒coded來源做四個逐案授權原生直接引擎首案，原v5全部通過：三速、非零A、正負偏移、雙鏡像及一分鐘；最大AV差20／20／6.667／20ms，一分鐘1,800格的真ready上界75,731ms只證該合成案原90秒目標，不是完整UI／保存／原生下載／cold-start G7。四案為local POST，300秒峰值、其他格式／rotation／VFR、follow／overlay、完整取消／保全、真機人耳與G1–G7仍未驗；原1PASS／2FAIL不改標，後續選定情境另列、未預勾CI，產品候選尚未最終commit／merge。#11／#229／#13保持open，其他原驗收與結案狀態不代勾，無部署／發布。下方原型尚未接產品的敘述保留當時來源。
+
+新版main進度介面另完成原229雙片唯一原生產品首案：tree51e278／buildd956、trackedChanges=true，94項seal ed3e1cf9606249b6adb77564ac8659a9e01ac7bad0ddde34076e86c1335d6e92；63,809B／90格／3秒，四項真原生下載及原備份契約完整比對，after仍unknown／native=null、不讀DB。站點關閉後首檔自然到可見片尾，JS ended/error/drops與人耳未驗；own windows／host／nonce按各自稽核收尾，共用Safari保留。原coded品質表只沿相同十個後端的已測範圍，不改綁新版main。新測試scope下三個選定Chromium情境3PASS／run77da68b1…，原1／2失敗保留，該輪未測背景、不是完整矩陣；另一次原生Chrome完整owner情境已PASS，真trusted hidden→visible／Stop／晚真Blob拒絕與retry保全，20項seal9c7b07f7…，只選Safari UA分支而非Safari裝置。已知自有程序／nonce清理與port探針PermissionError未證拒連分開，descendants／物理退出未驗。正常check781／0／4669；早先受限七失敗及未明build子程序原因照留，最終hook／CI／merge未預勾。300秒只靜態暫停，其他原驗收不擴大、不代簽。
+
 ## 2026-11-03 原生Safari逐PTS首檔與產品接續
 
 白話：Safari的第一份固定三秒原型也把90格照片和三組提示音排對了；這是可繼續實作的證據，還沒有換掉產品或新增可結案票。原生視窗、第一次實檔、兩路分析與清理範圍見[同一份證據](issue-11-explicit-pts-spike.md#原生-safari-首檔同引擎固定三秒通過2026-11-03)。

@@ -1,5 +1,6 @@
 /* 檔案用途：在同輪主機停止後獨立驗證升版案例的真下載與可攜備份。所在層：本機／CI成檔證據入口。主要關聯：run-app.ts、storage-version-change.js、download-playback.js。 */
 import assert from 'node:assert/strict'
+import { assertDownloadRunPlan } from './platform-plan'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,12 +12,12 @@ const root = resolve(import.meta.dir, '../..'), sha = (bytes: Uint8Array) => cre
 assert.equal(Bun.version, readFileSync(resolve(root, '.bun-version'), 'utf8').trim())
 const currentHead = Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }); assert.equal(currentHead.exitCode, 0)
 // CI只接受同一乾淨head的唯一完整輪；本機可明確指定選定輪，不能自行挑綠燈或混加計數。
-const candidates = process.argv[2] ? [resolve(root, process.argv[2])] : readdirSync(resolve(root, 'coverage')).filter(name => name.startsWith('app-')).map(name => resolve(root, 'coverage', name, 'run.json')).filter(path => existsSync(path)).filter(path => { const run = JSON.parse(readFileSync(path, 'utf8')); return run.sourceHead === currentHead.stdout.toString().trim() && !run.trackedChanges && run.matrix === 'full' && run.status === 'passed' })
+const candidates = process.argv[2] ? [resolve(root, process.argv[2])] : readdirSync(resolve(root, 'coverage')).filter(name => name.startsWith('app-')).map(name => resolve(root, 'coverage', name, 'run.json')).filter(path => existsSync(path)).filter(path => { const run = JSON.parse(readFileSync(path, 'utf8')); return run.sourceHead === currentHead.stdout.toString().trim() && !run.trackedChanges && ['full', 'linux-full'].includes(run.matrix) && run.status === 'passed' })
 assert.equal(candidates.length, 1, '請提供唯一且來源相符的本輪App收據')
 const path = candidates[0]; assert(realpathSync(path).startsWith(resolve(root, 'coverage') + '/'))
 const evidencePath = resolve(path, '..', 'storage-version-playback.json'); assert(!existsSync(evidencePath), '保留原重播收據，不覆寫或重跑追掉格')
 const raw = readFileSync(path), run = JSON.parse(raw.toString())
-assert.equal(run.status, 'passed'); assert.equal(run.errors.length, 0)
+assertDownloadRunPlan(run, Boolean(process.argv[2])); assert.equal(run.status, 'passed'); assert.equal(run.errors.length, 0)
 assert.equal(run.cleanup.browserClosed, true); assert.equal(run.cleanup.serverStopped, true); assert.equal(run.cleanup.lockRetained, false)
 assert.equal(run.runnerSha256, sha(readFileSync(resolve(root, 'tests/app-coverage/run-app.ts'))))
 assert.deepEqual(Object.keys(run.sourceHashes).sort(), readdirSync(resolve(root, 'web')).filter(name => name.endsWith('.js')).map(name => 'web/' + name).sort())
