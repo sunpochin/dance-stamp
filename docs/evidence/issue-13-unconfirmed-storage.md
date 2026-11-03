@@ -557,3 +557,23 @@ clock仍240筆／27dropped，53已記正式rAF雙rect1；已記53次self setter�
 本次只補原守門的失敗輸入與位置；不能從108.6ms、缺callback或靜態圖樣判定編碼器、音高、可聽性或速率API的唯一根因。下一步回查此精確局部值所對應的來源時鐘與原生播放邊界，尚未選定新的產品修正；不放寬原門檻、不補固定延遲、不裁片，成品品質與私人VS保存／救援仍各自未驗。
 
 本分支僅更新既有兩份交接文件，未改產品／測試／格式／CSP。首錯觀測前、無原生播放時的正常`bun run check`為Bun1.4.4、760 pass／0 fail／4,385 expects，公開掃描／型別／lint／build通過，原19項info與build07cdd7b66289af39保持；其退出後才做最後觀測，全部原生收尾後才走正常提交hook。兩路獨立來源／收據審查與六案236項封存分開，hook及遠端CI另綁最終head；基線main cba自己的push CI41573086864 attempt1五項全成功，也只屬該文件版本工程檢查，不能代簽上述失敗案或新版本原生品質。
+
+### 移除連續時鐘探針的原流程控制：仍在100ms守門停止
+
+白話：量測工具本身也可能影響影片，所以這次拿掉一直讀時間、速度和影格的探針，只在原本已判定失敗後留一張收據。仍沒有成品，原片與筆記都有保留；拿掉這批探針不足以解決這一次失敗，不能因此說已找到原因或產品已修好。
+
+先回查固定公開[WebKit來源49e831c](https://github.com/WebKit/WebKit/blob/49e831c38e05d4099861ea284b017a4a5603ad38/Source/WebCore/platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm#L1585)：`currentTime()`可能以快取時間加牆鐘差推算；rate設定會使快取失效，下一次讀值可能回到AVPlayerItem時間。同值rate也可能轉交原生。因此setter後getter近0不等於畫面像素倒退；全部抑制setter後getter平順也不證明解碼前進。這是公開原碼的可能機制，未對應本機Safari binary、實際快取狀態或證明唯一根因，不據此採補丁。
+
+本新案仍固定83220ed／83a29a、Safari27.2／macOS27.2與同三秒合成素材／配方、CSS0acf／HTML78e。main `3870cfbd3de432b9bc91378de5dc383048c881a331b2559dc41ce67baf0bd717` 相對stock728只加前節同一個失敗後12scalar收據；恢復原mute、音高、全部微速率轉交、暖機與PCM／Recorder，並非前案雙側原聲＋allhold組合。原100／250ms、片長、停滯與取消護欄皆保留，沒有音訊補償或延遲。
+
+observer `c927cbd9c5676c8b4929a46eb22e576b4be1b3c7c8fccfa967421dda6dc5053d` 從320整段刪除4,949-byte連續clock區塊（SHA `262dd4c1949535e725c7765843275ed69fd1175c180a9d693062012a99cad9f5`）及export click arming；刪除內容含AudioContext/createBufferSource、play/currentTime/playbackRate wrapper、rAF/rVFC／曝光／scroll／keydown，沒有no-op替身或新timer，反向可完整還原。保留原硬體禁止、URL／IDB／Recorder／stream資源旁聽、錯誤與trusted click、六旗標與手動非busy快照，故仍非完全零觀察。`clock=null`及observationMode明示未觀測，不能記為零callback、零setter、零drop或全程可見；不送已移除listener的CtrlShiftP。
+
+事前18項來源封存與兩路靜態核對後，只做一次fresh AX索引的原export click（91ms）；指定5,005ms靜默，實際工具等待5,010.6ms，首AX距click完成11,117ms，期間無AX／其他輸入。首次原100ms拒絕、無VS；receipt elapsedMs＝638.8983749784529、audioElapsedMs＝742、durationMs＝3000、rate＝1、兩起點0，差103.10162502154708ms。self判定後讀值約0.000001244秒，四個ended／paused皆false；這些非原子DOM讀值與at仍不是硬體PTS、呈現像素或成品品質。
+
+前後來源固定436×300且雙側ratio1，viewport實際1774×835→1774×882；沒有正式曝光取樣，不由兩張快照補全程。原測試範圍未要求高度必為882；兩片與export在835高時已完整且不重疊，沒有因差異改CSS、點防護提示或更改Safari設定。三個0export QA錯誤（AX diff索引解析、字串codegen不支援、額外882斷言）原樣保存；改用明確inline helper，沒有繞過codegen限制，也沒有產品重試。
+
+完整data、原片URL／完整hash及retained相同，revision3→4／三筆metadata-only complete；無VS Blob／下載／media雙put，硬體與頁錯0，Recorder inactive／tracks ended。原250ms checker前提exit1保留，僅精確100ms status局部copy另exit0，只核對守門／保全。自有主機exit0、PID退出、origin拒絕、匹配nonce釋放、只關本案自有視窗，舊及未知分頁保留；沒有encoder／player測量仍在執行。
+
+本案42項manifest entry含素材，由協調者與獨立審查者逐一重算bytes／SHA且核對原始收據，無finding：manifest `44b4bf9642752a3443697e7db1ee6c0bf01336196fccd5bea3c8660cae880a63`，summary `7676d78240a2c4e529fcdc5c915e9cc6bf263ac17facbb11133c7900dd62b07e`，decision `240501d2a57b8296a74b92b8acbb3a8de84d69ca5a44deb62027aa90bbd6558c`；前置manifest `23aac54d20a3535921f42e059f6ea50415cda6f04ef7c02325fbfaa2be675b99`另存。只支持「移除這批連續探針仍未消除此新案失敗」，不回填前案、判定快取唯一因果或宣稱新主線已原生受測。原始收據／素材／本機識別不公開，靜態色條仍不能量動態停格或完整G2／G3。
+
+來源續查確認`updateSourceTimelines`在active的timeupdate／seeked仍讀兩側currentTime並刷新DOM；`renderBeatPosition`亦另讀reference。它們不寫seek／rate／play，正式匯出時練習繪圖已有active保護。略過這些UI更新會同時改讀值與DOM工作，且timeline自身仍每rAF讀時鐘／寫self速率，無法單獨證快取機制；目前未採這個猜測或再開原生變體。下一個有效診斷須先補可區分實際呈現與推算時鐘的證據，避免繼續堆疊未證實旗標。#229／#13維持open，尚無產品修正、成品保存救援或完整G1–G7結論。
