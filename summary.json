@@ -1,7 +1,7 @@
 {
-  "sourceHead": "da0232505bb410337262ff89ff8e4daba5217812",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41589617609",
-  "generatedAt": "2026-11-03T06:49:41.781Z",
+  "sourceHead": "e55bd047c7737f0b4961f238332973378a7e9722",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41600565140",
+  "generatedAt": "2026-11-03T08:27:58.313Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -39,9 +39,9 @@
     },
     "statements": {
       "total": 6291,
-      "covered": 5909,
+      "covered": 5908,
       "skipped": 0,
-      "pct": 93.92
+      "pct": 93.91
     },
     "functions": {
       "total": 1127,
@@ -51,9 +51,9 @@
     },
     "branches": {
       "total": 3713,
-      "covered": 3223,
+      "covered": 3222,
       "skipped": 0,
-      "pct": 86.8
+      "pct": 86.77
     },
     "branchesTrue": {
       "total": 0,
@@ -418,9 +418,9 @@
       },
       "branches": {
         "total": 259,
-        "covered": 218,
+        "covered": 217,
         "skipped": 0,
-        "pct": 84.16
+        "pct": 83.78
       },
       "uncoveredLines": [
         177,
@@ -579,9 +579,9 @@
       },
       "statements": {
         "total": 2528,
-        "covered": 2373,
+        "covered": 2372,
         "skipped": 0,
-        "pct": 93.86
+        "pct": 93.82
       },
       "branches": {
         "total": 1478,
