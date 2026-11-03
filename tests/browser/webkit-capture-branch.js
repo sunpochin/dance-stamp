@@ -14,6 +14,19 @@ async (page, options) => {
   await page.evaluate(async () => {
     const a = window.webkitCapture = { mode: '', streams: [], recorders: [], nodes: [], gains: [], contexts: [], held: [], requests: [], cancelled: [], timers: [], revoked: [], blobs: new Map(), restore: [] };
     const wrap = (target, key, make) => { const original = target[key]; target[key] = make(original); a.restore.push(() => { target[key] = original; }); };
+    // 只留固定小批次API動作；滿額照記drop，不從缺列推沒有呼叫／沒有影響。
+    a.audioStateLedger = { limit: 32, calls: 0, dropped: 0, observationErrors: 0, rows: [] };
+    a.recorderOwners = new Map(); a.audioInterruptControl = null;
+    const errorName = error => { try { return typeof error?.name === 'string' ? error.name : 'Error'; } catch { return 'Error'; } };
+    const stateEvent = (kind, owner, method, id, callMode, error = null) => {
+      try {
+        const ledger = a.audioStateLedger;
+        if (ledger.rows.length >= ledger.limit) { ledger.dropped++; return; }
+        let nativeState = null, stateReadError = null;
+        try { nativeState = owner.context.state; } catch (caught) { stateReadError = errorName(caught); }
+        ledger.rows.push({ kind, contextId: owner.id, method, id, mode: a.mode, callMode, at: performance.now(), nativeState, stateReadError, errorName: error === null ? null : errorName(error) });
+      } catch { a.audioStateLedger.observationErrors++; }
+    };
     a.sha = async blob => ({ bytes: blob.size, mime: blob.type, sha256: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(n => n.toString(16).padStart(2, '0')).join('') });
     const store = await import('/storage.js'), before = await store.readLibrary();
     a.ids = Object.fromEntries(Object.entries(before.data).filter(([, rows]) => Array.isArray(rows)).map(([key, rows]) => [key, rows.map(row => row.id)]));
@@ -38,6 +51,8 @@ async (page, options) => {
       constructor(stream, config) {
         super(stream, config);
         const row = { mode: a.mode, camera: stream.getAudioTracks().length === 0, events: [] }; a.recorders.push(row);
+        // 真instance只留本頁私有對照；state直接讀原生getter，不把handle塞進可攜JSON。
+        a.recorderOwners.set(row, this);
         for (const name of ['start', 'stop', 'error', 'dataavailable']) this.addEventListener(name, event => row.events.push({ name, trusted: event.isTrusted, bytes: event.data?.size }));
       }
     });
@@ -46,6 +61,19 @@ async (page, options) => {
       constructor(...args) {
         super(...args); a.contexts.push({ context: this, id: a.contexts.length + 1, mode: a.mode, gainCount: 0 });
       }
+    });
+    for (const method of ['suspend', 'resume']) wrap(AudioContext.prototype, method, original => function (...args) {
+      const owner = a.contexts.find(row => row.context === this);
+      if (!owner) return original.apply(this, args);
+      const id = ++a.audioStateLedger.calls, callMode = a.mode;
+      stateEvent('call', owner, method, id, callMode);
+      let promise;
+      try { promise = original.apply(this, args); }
+      catch (error) { stateEvent('throw', owner, method, id, callMode, error); throw error; }
+      // 旁聽不能變成新的await／重試：回傳原Promise本身，原拒絕與receiver/args原樣轉交。
+      try { promise.then(() => stateEvent('resolved', owner, method, id, callMode), error => stateEvent('rejected', owner, method, id, callMode, error)); }
+      catch { a.audioStateLedger.observationErrors++; }
+      return promise;
     });
     wrap(AudioContext.prototype, 'createBufferSource', original => function (...args) {
       const node = original.apply(this, args), row = { node, context: this, mode: a.mode, starts: [], stopped: 0, disconnected: 0 }; a.nodes.push(row);
@@ -122,13 +150,15 @@ async (page, options) => {
         if (info.interrupted || info.rate !== 0.5 || info.durationMs <= 14500) throw new Error('重試未沿原15秒時長護欄真正完成');
       }
     }
-    return { mode, takeId: take.id, takeState: take.state, oldDataAndMediaPreserved: true, oldUrlsPreserved: oldUrls, nativeRecorderEvents: recordings.map(row => row.events), gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), sharedMonitorPerRoundReleasedClaim: false, nodesReleased: nodes.length, cameraTracksEnded: true, frameRequests: a.requests.filter(row => row.mode === mode), timers: a.timers.filter(row => row.mode === mode) };
+    const diagnosticsCapture = JSON.parse(document.getElementById('diagnostics').textContent).capture ?? null;
+    return { mode, capture: diagnosticsCapture, captureReceiptScope: 'after idle / operation finally report', audioInterruptControl: mode === 'native-audio-interrupt' ? a.audioInterruptControl : null, takeId: take.id, takeState: take.state, oldDataAndMediaPreserved: true, oldUrlsPreserved: oldUrls, nativeRecorderEvents: recordings.map(row => row.events), gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), sharedMonitorPerRoundReleasedClaim: false, nodesReleased: nodes.length, cameraTracksEnded: true, frameRequests: a.requests.filter(row => row.mode === mode), timers: a.timers.filter(row => row.mode === mode) };
   }, { mode, state, oldUrls });
   const start = async mode => {
     await page.evaluate(mode => { window.webkitCapture.mode = mode; }, mode);
     await page.locator('#camera-tools').evaluate(element => { element.open = true; });
     await page.locator('#camera').click(); await idle(); await page.locator('#capture').click();
   };
+  let reportedFailure;
   try {
     await download('output-download', 'baseline-vs');
     for (const mode of ['warmup-stop', 'warmup-timeout']) {
@@ -146,7 +176,17 @@ async (page, options) => {
       return a.nodes.some(row => row.mode === a.mode && row.starts.length) && a.recorders.some(row => row.mode === a.mode && row.events.some(e => e.name === 'dataavailable' && e.trusted && e.bytes > 0));
     });
     // 真正暫停原生音訊時鐘；不拋假錯誤，也不派發假的聲音／錄影事件。
-    await page.evaluate(async () => { const row = window.webkitCapture.nodes.find(row => row.mode === 'native-audio-interrupt'); await row.context.suspend(); if (row.context.state !== 'suspended') throw new Error('音訊未真正暫停'); });
+    await page.evaluate(async () => {
+      const a = window.webkitCapture, row = a.nodes.find(row => row.mode === 'native-audio-interrupt');
+      const recording = a.recorders.find(row => row.mode === 'native-audio-interrupt' && row.camera), recorder = a.recorderOwners.get(recording);
+      let captureReported = null, diagnosticsReadError = null;
+      try { captureReported = JSON.parse(document.getElementById('diagnostics').textContent).capture ?? null; }
+      catch (error) { diagnosticsReadError = error.name; }
+      // stop造成的dataavailable不能充當可中斷前提；讀真state，同一JS turn保存、檢查後才suspend。
+      const control = a.audioInterruptControl = { at: performance.now(), busy: document.getElementById('compare').getAttribute('aria-busy') === 'true', contextState: row?.context.state ?? null, recorderState: recorder?.state ?? null, status: document.getElementById('status').textContent, captureReported, diagnosticsReadError, captureReceiptScope: 'last-reported DOM; null is not live no-guard proof' };
+      if (!control.busy || control.contextState !== 'running' || control.recorderState !== 'recording') throw new Error('QA中斷前提未成立，未執行suspend：' + JSON.stringify(control));
+      await row.context.suspend(); if (row.context.state !== 'suspended') throw new Error('音訊未真正暫停');
+    });
     await idle(); assert((await page.locator('#status').textContent()).includes('示範聲音中斷或不同步'), '聲音中斷仍標成功');
     phases.push(await verify('native-audio-interrupt', 'interrupted')); await download('partial-download', 'interrupted-raw');
     await page.evaluate(async () => { await window.webkitCapture.nodes.find(row => row.mode === 'native-audio-interrupt').context.resume(); });
@@ -158,15 +198,39 @@ async (page, options) => {
     assert(await page.evaluate(async () => JSON.stringify(await window.webkitCapture.fingerprint()) === JSON.stringify(window.webkitCapture.before)), '重試匯出改變既有筆記／媒體');
     await download('output-download', 'retry-vs');
     const originalSnapshot = await page.evaluate(() => window.webkitCapture.before);
-    return { engine: 'Chromium', selectedWebKitBranch: true, safariDeviceAcceptance: false, originalSnapshot, phases, downloads };
+    return { engine: 'Chromium', selectedWebKitBranch: true, safariDeviceAcceptance: false, originalSnapshot, phases, downloads, audioInterruptControl: await page.evaluate(() => window.webkitCapture.audioInterruptControl), audioStateLedger: await page.evaluate(() => window.webkitCapture.audioStateLedger) };
   } catch (error) {
-    const observed = await page.evaluate(() => {
+    let observed;
+    try { observed = await page.evaluate(() => {
       const a = window.webkitCapture, reference = document.getElementById('reference');
-      return { mode: a.mode, status: document.getElementById('status').textContent, held: a.held.map(row => ({ mode: row.mode, now: row.now, mediaTime: row.metadata.mediaTime, released: row.released })), timers: a.timers, recorders: a.recorders, gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), nodes: a.nodes.map(row => ({ mode: row.mode, starts: row.starts, stopped: row.stopped, disconnected: row.disconnected, contextState: row.context.state })), reference: { time: reference.currentTime, rate: reference.playbackRate, paused: reference.paused, muted: reference.muted }, completed: document.getElementById('controls').disabled === false };
-    });
-    throw new Error(String(error) + '\n錄影分支原生紀錄：' + JSON.stringify(observed));
+      let capture = null, diagnosticsReadError = null;
+      // 原產品首guard packet已存於capture；只在失敗後帶走，不增加正式期媒體時鐘讀取。
+      try { capture = JSON.parse(document.getElementById('diagnostics').textContent).capture ?? null; }
+      catch (caught) { diagnosticsReadError = caught.name; }
+      return { mode: a.mode, status: document.getElementById('status').textContent, capture, diagnosticsReadError, captureReceiptScope: 'last-reported DOM after failure', audioInterruptControl: a.audioInterruptControl, audioStateLedger: a.audioStateLedger, held: a.held.map(row => ({ mode: row.mode, now: row.now, mediaTime: row.metadata.mediaTime, released: row.released })), timers: a.timers, recorders: a.recorders, gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), nodes: a.nodes.map(row => ({ mode: row.mode, starts: row.starts, stopped: row.stopped, disconnected: row.disconnected, contextState: row.context.state })), reference: { time: reference.currentTime, rate: reference.playbackRate, paused: reference.paused, muted: reference.muted }, completed: document.getElementById('controls').disabled === false };
+    }); } catch (observationError) { observed = { observationError: { name: observationError.name, message: observationError.message } }; }
+    reportedFailure = new Error(String(error) + '\n錄影分支原生紀錄：' + JSON.stringify(observed), { cause: error });
+    throw reportedFailure;
   } finally {
-    await page.locator('#stop').click(); await idle();
-    await page.evaluate(() => { for (const restore of window.webkitCapture.restore.reverse()) restore(); });
+    const cleanupErrors = []; let cleanupFirst;
+    // 停止失敗仍嘗試還原自有旁聽；清理問題只能附加，不能蓋掉先前的產品／斷言首錯。
+    for (const cleanup of [async () => {
+      await page.locator('#stop').click(); await idle();
+      if (reportedFailure) {
+        let receipt;
+        // 原前提fail時產品仍可能收尾；只在既有idle後補讀report，不能回填catch或認定QA Stop前的自然狀態。
+        try { receipt = await page.evaluate(() => ({ scope: 'test cleanup after idle / may follow QA Stop', captureReported: JSON.parse(document.getElementById('diagnostics').textContent).capture ?? null })); }
+        catch (error) { receipt = { scope: 'test cleanup after idle / may follow QA Stop', observationError: { name: error.name, message: error.message } }; }
+        const detail = '\n錄影測試收尾後診斷：' + JSON.stringify(receipt);
+        reportedFailure.message += detail; reportedFailure.stack = (reportedFailure.stack || '') + detail;
+      }
+    }, async () => { await page.evaluate(() => { for (const restore of window.webkitCapture.restore.reverse()) restore(); }); }]) {
+      try { await cleanup(); } catch (error) { cleanupFirst ??= error; cleanupErrors.push({ name: error.name, message: error.message }); }
+    }
+    if (cleanupErrors.length) {
+      const detail = '\n錄影測試清理限制：' + JSON.stringify(cleanupErrors);
+      if (reportedFailure) { reportedFailure.message += detail; reportedFailure.stack = (reportedFailure.stack || '') + detail; }
+      else throw new Error(detail, { cause: cleanupFirst });
+    }
   }
 }

@@ -237,6 +237,13 @@ export interface LibraryState { revision: number; data: Library }
 export interface Comparison { startMs: number; endMs: number; rate: number; offsetMs: number; selfDurationMs: number; referenceMirror: boolean; selfMirror: boolean }
 // 匯入原片沒有原生錄製觀測；允許缺欄，不能用檔案建立時間偽造同步資料。
 export interface CaptureTiming { recorderRequestedMs: number; recorderStartedMs?: number; referencePlayResolvedMs?: number; referenceAtPlayMs?: number }
-export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number }
+// 僅原聲音守門已拒絕時保存；null表示短路未讀，不是0或清理後回填，非finite用字串保留。
+export interface CaptureAudioGuardFailure {
+  reason: 'context-not-running' | 'clock-drift'; state: AudioContextState;
+  referenceTime: number | string | null; audioTime: number | string | null;
+  mappedElapsedMs: number | string | null; pcmElapsedMs: number | string | null;
+  captureAudioAt: number | string; startMs: number; rate: number; expectedDurationMs: number; postDecisionAtMs: number | string;
+}
+export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number; audioGuardFailure?: CaptureAudioGuardFailure }
 export interface ExportInfo { presentation?: OverlayPresentation; backend?: 'explicit-pts'; maxRenderGapMs?: number; elapsedMs?: number; observedMaxDriftMs?: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
 export interface Diagnostics { exportFailure?: unknown; stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; audioPath?: string; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }

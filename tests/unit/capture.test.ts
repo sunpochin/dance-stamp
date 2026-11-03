@@ -95,3 +95,53 @@ test('錄影觀測值可往返、只接受整數毫秒並排除裝置欄位，�
     const bad = structuredClone(data); Object.assign(bad.takes[0].captureTiming, change); expect(() => validateBackup(bad)).toThrow()
   }
 })
+
+// 直接擷取實際產品函式執行；spy讀取次數與首錯收據，不另抄判定公式當測試。
+function audioGuardHarness(initial: { state?: string; reference?: number; audio?: number; source?: boolean; startMs?: number; rate?: number; expected?: number; audioAt?: number; info?: any } = {}) {
+  const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8').match(/const checkCaptureAudio = \(\) => \{[^]*?\n        };/)![0]
+  const values = { state: 'running', reference: 0, audio: 0, ...initial }, reads: string[] = [], info = initial.info ?? {}
+  const reference = { get currentTime() { reads.push('reference.currentTime'); return values.reference } }
+  const audio = { get state() { reads.push('audio.state'); return values.state }, get currentTime() { reads.push('audio.currentTime'); return values.audio } }
+  const check = runInNewContext(`(() => { let captureIntegrityError; ${source} return checkCaptureAudio; })()`, {
+    captureSource: initial.source === false ? undefined : {}, reference, audio, info,
+    value: { startMs: initial.startMs ?? 0, rate: initial.rate ?? 1 }, captureAudioAt: initial.audioAt ?? 0, expectedDurationMs: initial.expected ?? 15000,
+    performance: { now() { reads.push('postDecisionAt'); return 1234.5 } },
+  })
+  return { check, values, reads, info }
+}
+test('錄影聲音100ms兩側邊界原樣，成功不配置packet或讀診斷時鐘', () => {
+  for (const reference of [0, .1, -.1]) {
+    const h = audioGuardHarness({ reference }); expect(h.check).not.toThrow()
+    expect(h.reads).toEqual(['audio.state', 'reference.currentTime', 'audio.currentTime'])
+    expect(Object.hasOwn(h.info, 'audioGuardFailure')).toBe(false)
+  }
+  for (const reference of [.100001, -.100001]) {
+    const h = audioGuardHarness({ reference }); expect(h.check).toThrow('示範聲音中斷或不同步，請重新錄影。')
+    expect(h.info.audioGuardFailure.reason).toBe('clock-drift')
+    expect(h.info.audioGuardFailure.mappedElapsedMs).toBeCloseTo(reference * 1000, 6)
+    expect(h.info.audioGuardFailure.pcmElapsedMs).toBe(0)
+    expect(h.reads).toEqual(['audio.state', 'reference.currentTime', 'audio.currentTime', 'postDecisionAt'])
+  }
+})
+test('原聲路不存在不讀state，非running短路不碰兩時鐘，packet如實null', () => {
+  const none = audioGuardHarness({ source: false }); expect(none.check).not.toThrow(); expect(none.reads).toEqual([]); expect(none.info).toEqual({})
+  for (const state of ['suspended', 'closed', 'interrupted']) {
+    const h = audioGuardHarness({ state }); expect(h.check).toThrow('示範聲音中斷或不同步')
+    expect(h.reads).toEqual(['audio.state', 'postDecisionAt'])
+    expect(h.info.audioGuardFailure).toEqual({ reason: 'context-not-running', state, referenceTime: null, audioTime: null, mappedElapsedMs: null, pcmElapsedMs: null, captureAudioAt: 0, startMs: 0, rate: 1, expectedDurationMs: 15000, postDecisionAtMs: 1234.5 })
+  }
+})
+test('守門首次原始讀值按A/速度及PCM終點保存，後次失敗不覆寫或再讀診斷時鐘', () => {
+  const h = audioGuardHarness({ reference: 2.2, audio: 1.2, audioAt: 1, startMs: 2000, rate: .5 })
+  expect(h.check).toThrow('示範聲音中斷或不同步'); const first = h.info.audioGuardFailure
+  expect(first.referenceTime).toBe(2.2); expect(first.audioTime).toBe(1.2); expect(first.mappedElapsedMs).toBeCloseTo(400); expect(first.pcmElapsedMs).toBeCloseTo(200)
+  h.values.reference = 2.4; expect(h.check).toThrow('示範聲音中斷或不同步')
+  expect(h.info.audioGuardFailure).toBe(first); expect(h.reads.filter(name => name === 'postDecisionAt')).toHaveLength(1)
+  const tail = audioGuardHarness({ reference: 15.1, audio: 50 }); expect(tail.check).not.toThrow(); expect(tail.info).toEqual({})
+})
+test('診斷不可吞原聲音錯誤，非finite讀值JSON不悄悄變null', () => {
+  const broken = audioGuardHarness({ reference: .2, info: Object.defineProperty({}, 'audioGuardFailure', { get() { throw Error('synthetic diagnostic getter failure') } }) }); expect(broken.check).toThrow('示範聲音中斷或不同步')
+  const nonfinite = audioGuardHarness({ reference: Infinity }); expect(nonfinite.check).toThrow('示範聲音中斷或不同步')
+  expect(JSON.parse(JSON.stringify(nonfinite.info)).audioGuardFailure.referenceTime).toBe('Infinity')
+  expect(JSON.parse(JSON.stringify(nonfinite.info)).audioGuardFailure.mappedElapsedMs).toBe('Infinity')
+})

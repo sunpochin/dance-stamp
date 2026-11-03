@@ -703,8 +703,36 @@ $('capture').addEventListener('click', () => operation(async signal => {
         const checkCaptureAudio = () => {
           // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
           // PCM 播完後 context 時鐘仍前進；只界定真正已播出的聲音位置，不改示範或 B 的讀值。
-          if (captureSource && (audio.state !== 'running' || Math.abs((reference.currentTime * 1000 - value.startMs) / value.rate - Math.min((audio.currentTime - captureAudioAt) * 1000, expectedDurationMs)) > 100)) {
-            captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。'); throw captureIntegrityError;
+          if (!captureSource) return;
+          const state = audio.state;
+          /** @type {number | null} */ let referenceTime = null;
+          /** @type {number | null} */ let audioTime = null;
+          /** @type {number | null} */ let mappedElapsedMs = null;
+          /** @type {number | null} */ let pcmElapsedMs = null;
+          // 保留原短路及getter順序／次數；非running時沒有讀過的時鐘不可補讀猜值。
+          let rejected = state !== 'running';
+          if (!rejected) {
+            referenceTime = reference.currentTime;
+            mappedElapsedMs = (referenceTime * 1000 - value.startMs) / value.rate;
+            audioTime = /** @type {AudioContext} */ (audio).currentTime;
+            pcmElapsedMs = Math.min((audioTime - captureAudioAt) * 1000, expectedDurationMs);
+            rejected = Math.abs(mappedElapsedMs - pcmElapsedMs) > 100;
+          }
+          if (rejected) {
+            captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。');
+            try {
+              /** @param {number} number */
+              const scalar = number => Number.isFinite(number) ? number : String(number);
+              // 只在原拒絕已確定後留首次固定大小收據；成功不讀診斷時鐘，非finite也不被JSON偷轉null。
+              info.audioGuardFailure ??= {
+                reason: state !== 'running' ? 'context-not-running' : 'clock-drift', state,
+                referenceTime: referenceTime === null ? null : scalar(referenceTime), audioTime: audioTime === null ? null : scalar(audioTime),
+                mappedElapsedMs: mappedElapsedMs === null ? null : scalar(mappedElapsedMs), pcmElapsedMs: pcmElapsedMs === null ? null : scalar(pcmElapsedMs),
+                captureAudioAt: scalar(captureAudioAt), startMs: value.startMs, rate: value.rate, expectedDurationMs,
+                postDecisionAtMs: scalar(performance.now()),
+              };
+            } catch { /* 診斷失敗不能遮掉原聲音完整性錯誤；沒有packet就保持未觀測。 */ }
+            throw captureIntegrityError;
           }
         };
         while (reference.currentTime * 1000 < value.endMs && !reference.ended) {
