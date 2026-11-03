@@ -12,11 +12,11 @@
 技術決策：靜態 Web 先用 GIS OAuth token model／後續 Dropbox PKCE 直接連接個人空間，區分身分登入、檔案授權與同步；首版不建自有帳號後端。先以選定資料、不可覆寫快照及明確衝突選擇完成手動接續，再評估前景自動同步。分享只對獨立成品副本建立供應商唯讀連結，匿名觀看先用供應商頁面。排除整庫默默上傳、單檔最後寫入覆蓋、公開私人同步根目錄及將分享頁假當媒體 CDN。權限、資料封套、失敗保全、成本與驗收只在上述文件維護；既有本機交換格式維持相容，新增雲端 runtime 與未驗證界線見該文件第 11 節。
 
 
-## Mac平台錄影首錯與時鐘資格（2026-11-04）
+## Safari錄影供聲的輸出時計模型（2026-11-04）
 
-白話：同一版在本機三項過關，但遠端第三項錄影重試被原聲音守門拒絕；先記裁判真正看到的數字，避免拿收尾後的暫停狀態猜原因。原本機3PASS與遠端2PASS／1FAIL都保留，不重跑或降低100ms。同一8f的Linux82案及2＋10份離站下載後續已全通過；整輪仍被Mac2/1的硬gate拒絕，不能借Linux成功改標Mac。 新2036166的Linux82＋12份下載亦通過；Mac首次實際三案仍2/1，但已確認QA暫停前原guard看見112.654ms差，根因未修。
+白話：製作聲音資料的進度，可能比真正送出聲音更早。錄影改把瀏覽器已回報的輸出位置與時間推估位置一起核對畫面，兩端都守原100ms；已取得可信配對後若資料倒退或失效，就保留原片並停止。原本沒有可用API的瀏覽器仍用既有檢查。這是候選修正，完整遠端三案尚待。
 
-技術：僅在原capture聲音判定已true後保存首次固定scalar packet，保留短路／getter次數、原公式／Error／throw；未讀clock明確null，成功無packet或額外診斷clock，postdecision時間不是PTS。直接執行實際函式的capture純測15/0/143；測試另確認真錄影仍recording、context running、頁面busy才主動中斷，DOM最近報告不當live證據。203首次診斷CI仍2/1未通過；本輪只在首次拒絕後再讀輸出timestamp／latency／sampleRate與讀取窗口，新增probe的CI尚待，原原因未知；完整來源與限制見[原證據](docs/evidence/issue-11-explicit-pts-spike.md#8f240c1-mac平台首輪錄影retry原聲音守門拒絕下一步僅補判定收據)。
+技術：每次capture獨立保存原生getOutputTimestamp配對歷史；state→reference→render讀序保留，模型區間為contextTime至min(renderTime,contextTime+(now−performanceTime)/1000)，source開始前夾0、片尾cap原expected，兩端皆須與A/r映射在±100ms。相等配對合法，曾有效後的非法／嚴格回退直接拒絕，不靠render fallback掩蓋輸出停滯；從未有效的fallback只保留原render監測能力。這是API估計模型，不是物理聲音誤差保證；不減latency、不加常數或新freshness毫秒標準，也不變更play／source.start／Recorder順序。首判定與事後診斷分開。原88b兩PTS成功／capture失敗、模型反例、原生Safari靜音能力與來源原片解碼、純測22／0／270及新head未驗範圍見[版本證據](docs/evidence/issue-11-explicit-pts-spike.md#88b首輸出鐘與錄影守門候選)。能力檢查可從repo開發檔 `scripts/qa/capture-output-clock.html` 重建；它不隨產品包附帶，也不代表相機／成片或人耳驗收。
 
 ## PR265 首輪CI與平台能力分工候選（2026-11-03）
 
@@ -26,7 +26,7 @@
 
 #11／#229 的 Safari 明確時間戳匯出候選（2026-11-03）：像先把每張照片和聲音放上同一把尺，再製成影片；不靠兩個播放器一邊跑、一邊擷取。使用者仍按原輸出按鈕、用原配方與畫面設定；失敗可保留原片與舊 VS。原兩支不同合成片的第一個Safari產品三秒案已真正另存VS／原片／完整筆記，關站後首次原生開檔自然走到可見片尾；但私人保存仍unknown，完整原生矩陣／G1–G7未驗；#229原三秒缺陷可待最終精確commit獨立review、CI與merge後按同fixture成檔／下載／離站解碼及取消資料保全證據窄範圍結案，#11完整與#13保存仍開，見[實作與交接](docs/evidence/issue-11-explicit-pts-spike.md#產品接線候選11／229)。
 
-技術：僅 Safari 的比較 export 在 saveCurrentRecipe 後用本輪 module Worker，BlobSource／VideoSampleSink 按原 positions 取來源 PTS，OffscreenCanvas 經共用 renderer 輸出 AVC；reference PCM 按同一來源交集逐包裁切，以 Fs×r 原生 AudioSample 交 Mediabunny 1.65.0 的 resampler 到48kHz／AAC，自然變調、只取老師聲音。三速、非零 A、正負 offset、尾不足交集及300秒沿原 timeline；SBS／overlay／鏡像／逐側跟隨用原 renderer。無音軌輸出真無聲，未知解碼缺口／多段 edit 明示拒絕，不默補零或默退已知失步聲路。Chrome、預覽與相機原路不改；新檔仍共用原獨立元素驗片長±100ms，再交換舊 VS、persistExport，未知保存維持 memory-only 救援。
+技術：僅 Safari 的比較 export 在 saveCurrentRecipe 後用本輪 module Worker，BlobSource／VideoSampleSink 按原 positions 取來源 PTS，OffscreenCanvas 經共用 renderer 輸出 AVC；reference PCM 按同一來源交集逐包裁切，以 Fs×r 原生 AudioSample 交 Mediabunny 1.65.0 的 resampler 到48kHz／AAC，自然變調、只取老師聲音。三速、非零 A、正負 offset、尾不足交集及300秒沿原 timeline；SBS／overlay／鏡像／逐側跟隨用原 renderer。無音軌輸出真無聲，未知解碼缺口／多段 edit 明示拒絕，不默補零或默退已知失步聲路。Chrome與預覽原路不改；Safari錄影供聲守門另見本索引上方時計修正。新檔仍共用原獨立元素驗片長±100ms，再交換舊 VS、persistExport，未知保存維持 memory-only 救援。
 
 取消／背景／離頁只 terminate 自己的 Worker，晚 Blob 不接受；真物理資源退出仍需驗證。固定庫的 public source.close 回 void，因此薄 seam 立即 await 1.65 的 `_closingPromise`，及時保留 flush 首錯並停止 peer；缺介面即拒絕，沒有修改庫。sample 清理在 add／draw 首錯記錄後各自執行；合法60→30fps尾格不必覆整個B、長VFR sample age僅診斷，不能當舊即時 PCM-clock drift。成檔 G2／G3 仍依原量尺，不造 observedDrift=0。BufferTarget 留完整輸出檔、Blob可能另佔副本，300秒峰值／取消回收未驗；內部 fMP4 選項未採產品預設，也不放 UI。新整輪不錯套舊播放 phase D+10秒；十秒無進展仍拒絕，60秒≤90秒 G7 目標仍另驗，owner interval 欄不能叫完整效能通過。選固定官方同源 bundle／MPL授權與preferred TS source告知，排除CDN／自訂muxer／DSP／source還原封套，詳見[第三方授權](THIRD_PARTY_NOTICES.md)。
 

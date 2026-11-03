@@ -244,12 +244,18 @@ export interface CaptureAudioOutputObservation {
   timestampStatus: 'unsupported' | 'returned' | 'error'; contextTime: number | string | null; performanceTime: number | string | null;
   baseLatency: number | string | null; outputLatency: number | string | null; sampleRate: number | string | null; errors: string[];
 }
+// 實際決定用的clock另存，不能拿決定後的outputObservation冒充此次判定讀值。
+export interface CaptureAudioDecisionClock {
+  mode: 'state-only' | 'render-fallback' | 'presentation-interval' | 'presentation-unconfirmed'; reason: string;
+  contextTime: number | string | null; performanceTime: number | string | null; readAtMs: number | string | null; renderPcmElapsedMs: number | string | null;
+  lowerTime: number | null; upperTime: number | null; lowerElapsedMs: number | null; upperElapsedMs: number | null;
+}
 export interface CaptureAudioGuardFailure {
-  reason: 'context-not-running' | 'clock-drift'; state: AudioContextState;
+  reason: 'context-not-running' | 'clock-drift' | 'output-clock-unconfirmed'; state: AudioContextState;
   referenceTime: number | string | null; audioTime: number | string | null;
   mappedElapsedMs: number | string | null; pcmElapsedMs: number | string | null;
   captureAudioAt: number | string; startMs: number; rate: number; expectedDurationMs: number; postDecisionAtMs: number | string;
-  outputObservation: CaptureAudioOutputObservation;
+  outputObservation: CaptureAudioOutputObservation; decisionClock: CaptureAudioDecisionClock;
 }
 export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number; audioGuardFailure?: CaptureAudioGuardFailure }
 export interface ExportInfo { presentation?: OverlayPresentation; backend?: 'explicit-pts'; maxRenderGapMs?: number; elapsedMs?: number; observedMaxDriftMs?: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }

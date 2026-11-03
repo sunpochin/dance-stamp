@@ -700,6 +700,8 @@ $('capture').addEventListener('click', () => operation(async signal => {
           catch (error) { captureIntegrityError = error instanceof Error ? error : new Error('示範聲音無法啟動。'); throw captureIntegrityError; }
         }
         status('錄影中。示範到片段終點會停止，也可隨時按停止。');
+        /** @type {{contextTime: number, performanceTime: number} | undefined} */
+        let previousCaptureOutputTimestamp;
         const checkCaptureAudio = () => {
           // 聲音與示範沿同一 A／r 映射；時鐘超過原 100ms 就保留中斷原片，不能把錯位錄影標成功。
           // PCM 播完後 context 時鐘仍前進；只界定真正已播出的聲音位置，不改示範或 B 的讀值。
@@ -709,6 +711,8 @@ $('capture').addEventListener('click', () => operation(async signal => {
           /** @type {number | null} */ let audioTime = null;
           /** @type {number | null} */ let mappedElapsedMs = null;
           /** @type {number | null} */ let pcmElapsedMs = null;
+          /** @type {import('./types').CaptureAudioDecisionClock} */
+          const decisionClock = { mode: 'state-only', reason: 'context-not-running', contextTime: null, performanceTime: null, readAtMs: null, renderPcmElapsedMs: null, lowerTime: null, upperTime: null, lowerElapsedMs: null, upperElapsedMs: null };
           // 保留原短路及getter順序／次數；非running時沒有讀過的時鐘不可補讀猜值。
           let rejected = state !== 'running';
           if (!rejected) {
@@ -716,7 +720,42 @@ $('capture').addEventListener('click', () => operation(async signal => {
             mappedElapsedMs = (referenceTime * 1000 - value.startMs) / value.rate;
             audioTime = /** @type {AudioContext} */ (audio).currentTime;
             pcmElapsedMs = Math.min((audioTime - captureAudioAt) * 1000, expectedDurationMs);
-            rejected = Math.abs(mappedElapsedMs - pcmElapsedMs) > 100;
+            decisionClock.mode = 'render-fallback'; decisionClock.reason = 'unsupported'; decisionClock.renderPcmElapsedMs = Number.isFinite(pcmElapsedMs) ? pcmElapsedMs : String(pcmElapsedMs);
+            try {
+              const getTimestamp = audio.getOutputTimestamp;
+              if (typeof getTimestamp === 'function') {
+                const timestamp = getTimestamp.call(audio);
+                const contextTime = timestamp.contextTime, performanceTime = timestamp.performanceTime, readAtMs = performance.now();
+                decisionClock.contextTime = typeof contextTime === 'number' ? (Number.isFinite(contextTime) ? contextTime : String(contextTime)) : null;
+                decisionClock.performanceTime = typeof performanceTime === 'number' ? (Number.isFinite(performanceTime) ? performanceTime : String(performanceTime)) : null;
+                decisionClock.readAtMs = Number.isFinite(readAtMs) ? readAtMs : String(readAtMs);
+                decisionClock.reason = 'invalid-pair';
+                if (Number.isFinite(contextTime) && Number.isFinite(performanceTime) && Number.isFinite(readAtMs) && Number.isFinite(audioTime)
+                  && contextTime >= 0 && performanceTime >= 0 && (contextTime !== 0 || performanceTime !== 0) && performanceTime <= readAtMs && contextTime <= audioTime) {
+                  // 同值配對可能是合法更新間隔；嚴格回退不可拿render冒充輸出，不另猜裝置freshness常數。
+                  if (previousCaptureOutputTimestamp && (contextTime < previousCaptureOutputTimestamp.contextTime || performanceTime < previousCaptureOutputTimestamp.performanceTime)) decisionClock.reason = 'regressed-pair';
+                  else {
+                    const lowerTime = contextTime, upperTime = Math.min(audioTime, contextTime + (readAtMs - performanceTime) / 1000);
+                    if (Number.isFinite(upperTime) && upperTime >= lowerTime) {
+                      // 這是原生配對的模型區間，不是硬體保證；兩端都守原100ms，舊pair不能只靠外推假裝聲音前進。
+                      const lowerElapsedMs = Math.max(0, Math.min((lowerTime - captureAudioAt) * 1000, expectedDurationMs));
+                      const upperElapsedMs = Math.max(0, Math.min((upperTime - captureAudioAt) * 1000, expectedDurationMs));
+                      decisionClock.lowerTime = lowerTime; decisionClock.upperTime = upperTime;
+                      decisionClock.lowerElapsedMs = lowerElapsedMs; decisionClock.upperElapsedMs = upperElapsedMs;
+                      pcmElapsedMs = lowerElapsedMs;
+                      decisionClock.mode = 'presentation-interval'; decisionClock.reason = 'native-pair';
+                      previousCaptureOutputTimestamp = { contextTime, performanceTime };
+                    }
+                  }
+                }
+              }
+            } catch { decisionClock.reason = 'timestamp-error'; }
+            // 有效後失去配對只能拒絕；從未可用才保留原render相容路徑，不能聲稱那條路已驗硬體輸出。
+            if (decisionClock.mode !== 'presentation-interval' && previousCaptureOutputTimestamp) decisionClock.mode = 'presentation-unconfirmed';
+            rejected = decisionClock.mode === 'presentation-unconfirmed' || (decisionClock.mode === 'presentation-interval'
+              ? Math.abs(mappedElapsedMs - /** @type {number} */ (decisionClock.lowerElapsedMs)) > 100 || Math.abs(mappedElapsedMs - /** @type {number} */ (decisionClock.upperElapsedMs)) > 100
+              : Math.abs(mappedElapsedMs - pcmElapsedMs) > 100);
+            if (decisionClock.mode === 'presentation-unconfirmed') pcmElapsedMs = null;
           }
           if (rejected) {
             captureIntegrityError = new Error('示範聲音中斷或不同步，請重新錄影。');
@@ -725,11 +764,11 @@ $('capture').addEventListener('click', () => operation(async signal => {
               const scalar = number => Number.isFinite(number) ? number : String(number);
               // 只在原拒絕已確定後留首次固定大小收據；成功不讀診斷時鐘，非finite也不被JSON偷轉null。
               info.audioGuardFailure ??= {
-                reason: state !== 'running' ? 'context-not-running' : 'clock-drift', state,
+                reason: state !== 'running' ? 'context-not-running' : decisionClock.mode === 'presentation-unconfirmed' ? 'output-clock-unconfirmed' : 'clock-drift', state,
                 referenceTime: referenceTime === null ? null : scalar(referenceTime), audioTime: audioTime === null ? null : scalar(audioTime),
                 mappedElapsedMs: mappedElapsedMs === null ? null : scalar(mappedElapsedMs), pcmElapsedMs: pcmElapsedMs === null ? null : scalar(pcmElapsedMs),
                 captureAudioAt: scalar(captureAudioAt), startMs: value.startMs, rate: value.rate, expectedDurationMs,
-                postDecisionAtMs: scalar(performance.now()),
+                postDecisionAtMs: scalar(performance.now()), decisionClock,
                 // 輸出鐘只在首個原拒絕後讀一次；raw零值／舊值不校正，且非原子快照不能充當補償。
                 outputObservation: (() => {
                   /** @type {import('./types').CaptureAudioOutputObservation} */
