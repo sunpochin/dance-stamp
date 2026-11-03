@@ -10,6 +10,11 @@ async function matches(response, path) {
   const hash = await crypto.subtle.digest('SHA-256', await response.clone().arrayBuffer());
   return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('') === manifest[path];
 }
+/** @param {Response} response @param {Request} request */
+function navigationResponse(response, request) {
+  // 主機可能將 .html 轉成乾淨網址；導航不可重用帶轉址紀錄的回應，bytes 已先通過 manifest。
+  return request.mode === 'navigate' && response.redirected ? new Response(response.body, response) : response;
+}
 worker.addEventListener('install', e => {
   // 安裝不自動 skipWaiting／claim；整批驗證後才等待，失敗只移除這個未完成的新版 cache。
   e.waitUntil((async () => {
@@ -34,14 +39,15 @@ worker.addEventListener('fetch', e => {
     try {
       cache = await caches.open(cacheName);
       const cached = await cache.match(url.pathname);
-      if (cached && await matches(cached, url.pathname)) return cached;
+      if (cached && await matches(cached, url.pathname)) return navigationResponse(cached, e.request);
     } catch { /* 快取暫時無法讀取時仍可在線取回，但不能略過下面的版本驗證。 */ }
     // 舊版缺檔時不能從新版主機混入不相容模組；符合本版雜湊才可補回。
-    const response = await fetch(e.request);
+    // 導航的原請求採 manual；補檔必須先取得轉址後 bytes，才能做既有雜湊驗證。
+    const response = await fetch(e.request, { redirect: 'follow' });
     if (!await matches(response, url.pathname)) return new Response('應用版本不完整，請先備份並關閉所有本站分頁後重開。', { status: 503 });
     // 容量不足不能讓正確的在線頁面也失效；未補存仍由離線檢查誠實回報不完整。
     try { await cache?.put(url.pathname, response.clone()); } catch { /* 本次回應可用，不代表已保存副本。 */ }
-    return response;
+    return navigationResponse(response, e.request);
   })());
 });
 worker.addEventListener('message', e => {
