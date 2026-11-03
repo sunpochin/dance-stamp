@@ -19,7 +19,7 @@
 - 內建 [presets/lean](https://github.com/github/spec-kit/tree/9eacc24ffe47eadf035a3af601e4dabfb15b8fde/presets/lean) 的 preset 自身版本 **1.0.0**。`specify preset resolve speckit.plan` 實際解析到本地 lean v1.0.0；registry 記錄五個覆寫已註冊，未加任何 extension。
 - 按產品 `awm-skill-safety` 先唯讀讀取 pyproject／MIT、CLI init 入口與選定分支、資產定位、Codex／SkillsIntegration setup、shared infrastructure、preset 安裝與 skill 註冊、events 關閉路徑，以及四份 Lean 命令。檢查套件 build backend 為 hatchling；無本輪所需的另行安裝／更新腳本。未執行 self upgrade、preset update、外部 integration、工作流引擎或 MCP server。
 - 初始化會寫 `.specify/`、十份 `.agents/skills/speckit-*/SKILL.md`，複製六個 bash helper／templates／內建 workflow 並 chmod helper；這些 core helper 與額外 skills **只生成、未執行／載入**。Lean 四指示本身只要求讀寫文件及依序實作，沒有 research-agent 派工。
-- 初始化前 `.specify`、所有 speckit 目的地與 `.codex/config.toml` 不存在；保存 452 個既有追蹤檔 bytes snapshot。使用無 `--force` 的保留式確認，完成後逐檔 SHA 對照：**既有檔案變更 0**。`--events false` 沒有產生 `.codex/config.toml` 或 dispatcher；既有 hooks／AWM 五 skills、vendor、lock、aliases 不變。
+- 初始化前 `.specify`、所有 speckit 目的地與 `.codex/config.toml` 不存在；保存 452 個既有追蹤檔 bytes snapshot。使用無 `--force` 的保留式確認，完成後逐檔 SHA 對照：**既有檔案變更 0**。這份快照只涵蓋 CLI 初始化，不用來聲稱後續新測試完全沒有副作用（真實 hook 失敗見下節）。`--events false` 沒有產生 `.codex/config.toml` 或 dispatcher；既有 hooks／AWM 五 skills、vendor、lock、aliases 不變。
 - 來源下載到系統暫存；用既有 uv 0.11.31、Python 3.15.2，固定來源建立 wheel，安裝在暫存 venv。沒有全域 tool install／設定、常駐服務、付費 API、憑證輸入或產品資料上傳。必要套件需下載；CLI 執行採 `OTEL_SDK_DISABLED=true`。依賴含 opentelemetry-api，但選定路徑未見 exporter／傳送呼叫；**未作封包觀測，不能聲稱已驗證零網路**。
 - 本機 Bun 原為 1.4.2（未拿它冒充檢查成功）；從 Bun 固定 release 局部取得 1.4.4，命令環境 PATH 指向該版本，不修改全域 Bun。依 repo lockfile `bun install --frozen-lockfile --ignore-scripts`，未改 package／lock。
 
@@ -70,7 +70,7 @@ OTEL_SDK_DISABLED=true /tmp/dance-stamp-trial-runtime/specify-venv/bin/specify i
 
 第一輪最終完整 check 曾 761 pass／0 fail（34.414 秒），但首次正常 `git commit` 的 pre-commit 另以真實 hook 環境重跑時，新增 fixture 測試在 `git add` exit 128：760 pass／1 fail，提交未成立、未推送。原因是 hook 匯出的 Git repo 環境會優先於子程序 cwd；fixture 的 `git init` 因此誤用主 repo 的 Git 目錄，將共同設定 `core.bare` 改為 true，短暫使一般 status 失敗。這是本輪新增測試的隔離疏漏，不能歸為 Lean 的自動保護成果。
 
-已只還原這次造成的 `core.bare=false`，確認原分支／index／工作檔及 `.githooks` 仍在，沒有 reset、stash、丟棄檔案或略過 hook。依 [Git 官方 hooks 文件](https://git-scm.com/docs/githooks) 對操作其他 repo 的指引，fixture 子程序清除 `git rev-parse --local-env-vars` 列出的環境；真正產品 check／提交 hook 的環境與檢查不變。修正後必須再通過帶 repo 環境的回歸及正常完整 hook，最終結果另記精確 head。初次失敗沒有計為成功；沒有未推送 commit 堆積。
+已只還原這次造成的 `core.bare=false`，確認原分支／index／工作檔及 `.githooks` 仍在，沒有 reset、stash、丟棄檔案或略過 hook。依 [Git 官方 hooks 文件](https://git-scm.com/docs/githooks) 對操作其他 repo 的指引，fixture 子程序清除 `git rev-parse --local-env-vars` 列出的環境；真正產品 check／提交 hook 的環境與檢查不變。修正後帶 repo 環境的回歸 **7 pass／0 fail、57 assertions（0.824 秒）**，正常完整 pre-commit 亦 **761 pass／0 fail、4,404 assertions**；後者連 commit 34.484 秒，測試／程式來源精確為 `e26f476d518d72ec606ef004f27c332b74041ef6`。初次失敗沒有計為成功；沒有未推送 commit 堆積。
 
 ## 能力與既有 gate 分工
 
@@ -103,6 +103,16 @@ OTEL_SDK_DISABLED=true /tmp/dance-stamp-trial-runtime/specify-venv/bin/specify i
 | 模型費用、工具取得費用、CI 費用 | **unknown**；沒有帳務證據，不填 0、不猜節省比例 |
 
 額外成本是三份 spec／plan／tasks、一次安全檢查與本紀錄、四份生成指示及必要設定證據；程式僅改一個訊息選擇分支，這些流程文件明顯比修正本身多。最終檔案／行數見 PR diff；不把搬移或產生文件當成淘汰程式碼。
+
+## 交付版本與接手收據
+
+[非 Draft PR #250](https://github.com/sunpochin/dance-stamp/pull/250) 於 2026-11-03 02:28:45 UTC（台北 10:28:45）建立，target 為 main；base 仍是 `acea4b9d52ad1b7aaa7db2ba1e5b8c070a567b74`。第一個程式／測試 commit `e26f476d518d72ec606ef004f27c332b74041ef6` 通過正常 hook 後立即 push，耗時 2.137 秒。首次提交失敗未產生 commit；這是第一個成功提交。
+
+該 head 的 [CI 41566366332](https://github.com/sunpochin/dance-stamp/actions/runs/41566366332) 開始執行，當時為 in_progress；reviews 與 review threads 皆空，independent reviewed commit **unknown／尚無**，不能把自查或無 findings 當獨立審查。integration commit **不適用，未合併**。其後此交付紀錄與 tasks 勾選的文件提交另走完整正常 hook／push；程式及測試不再改動，但不能移記舊 head 的遠端 CI 為新 head 成功。最終 head、CI 與審查狀態保存在 PR conversation 的收據，避免文件追記自身 SHA 造成循環提交。
+
+可取得的牆鐘紀錄：首次成功 commit／完整 hook 02:27:29 UTC 起 34.484 秒；PR 建立至本輪文件交付的間隔屬交付／紀錄成本，不算程式時間。hook 疏漏的診斷／還原／修正約在 02:24:22–02:27:25 UTC，約 3 分 03 秒牆鐘；初次失敗測試本身 32.89 秒，另保留為返工成本。文件整理跨 02:17:31–本節交付，包含測試與接手交錯，無法拆出純文件工時，因此標 **unknown**。獨立人工審查費時／費用尚無可取得資料，列 **unknown**。
+
+試用紀錄當次為 20 檔、689+/2-（後續收據追加會增加文件行數）；程式 4+/1-，測試 66+/1-，其餘為技術索引與試用文件／生成證據。沒有新增產品 runtime 依賴。全程單線，無自動派工；共用 checkout 原分支及未提交狀態重核未變，唯一可歸因 Git metadata 副作用與還原明列於上節。
 
 ## 接手、停用與建議
 

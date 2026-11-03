@@ -16,4 +16,4 @@
 ## Polish
 
 - [x] [T004] 在 `docs/evidence/issue-249-spec-kit-lean.md` 保存試用／接手／測試與回復紀錄，`TECHNICAL.md` 加索引；封存實用生成指示並停用本輪局部註冊。
-- [ ] [T005] 完整 check／diff／正常 hooks、commit／push，開 main PR，記錄該 head CI 與既有審查狀態；不合併。
+- [x] [T005] 完整 check／diff／正常 hooks、commit／push，開 main PR，記錄該 head CI 與既有審查狀態；不合併。
