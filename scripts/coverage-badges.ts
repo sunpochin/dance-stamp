@@ -1,5 +1,6 @@
 /* 檔案用途：將成功的完整 App 收據轉為首頁 badge 與可追溯報告。所在層：CI 工具。主要關聯：tests/app-coverage/instrument.ts、harness-ci.yml、README.md。 */
 import assert from 'node:assert/strict'
+import { assertCompleteRun } from '../tests/app-coverage/platform-plan'
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { appFiles, emptyCoverage, mergeReceipt, sourceHashes } from '../tests/app-coverage/instrument'
@@ -12,7 +13,8 @@ export function createCoverageBadges(directory: string, destination: string, sou
   assert.match(workflowRun, /^https:\/\/github\.com\/sunpochin\/dance-stamp\/actions\/runs\/\d+$/)
   assert.equal(run.sourceHead, sourceHead, '提交不同')
   assert.equal(run.status, 'passed', '量測未通過')
-  assert.equal(run.matrix, 'full', '不可使用局部量測')
+  assertCompleteRun(run, ['full', 'linux-full'])
+  const linux = run.matrix === 'linux-full', scope = linux ? 'All web/*.js; Linux complete platform catalog (82 cases); unit + VM + isolated Chromium. Three native AAC success cases are required on macOS separately; counters are not combined.' : 'All web/*.js; unit + VM + isolated Chromium; synthetic checks'
   assert.equal(run.trackedChanges, false, '來源不是乾淨提交')
   assert.deepEqual(run.appFiles, appFiles, '產品分母不同')
   assert.deepEqual(run.sourceHashes, sourceHashes, '產品來源不同')
@@ -34,10 +36,10 @@ export function createCoverageBadges(directory: string, destination: string, sou
   mkdirSync(destination, { recursive: true })
   const write = (name: string, value: unknown) => writeFileSync(resolve(destination, name), JSON.stringify(value, null, 2) + '\n')
   const metrics = ['lines', 'functions', 'branches'] as const
-  for (const key of metrics) write(`${key}.json`, { schemaVersion: 1, label: `App ${key}`, message: `${report.total[key].pct}%`, color: 'blue' })
-  write('summary.json', { sourceHead, workflowRun, generatedAt: new Date().toISOString(), scope: 'All web/*.js; unit + VM + isolated Chromium; synthetic checks', sourceHashes, scenarios: run.scenarios.length, ...report })
+  for (const key of metrics) write(`${key}.json`, { schemaVersion: 1, label: `${linux ? 'Linux App' : 'App'} ${key}`, message: `${report.total[key].pct}%`, color: 'blue' })
+  write('summary.json', { sourceHead, workflowRun, generatedAt: new Date().toISOString(), scope, platformPlan: run.platformPlan, sourceHashes, scenarios: run.scenarios.length, ...report })
   copyFileSync(resolve(directory, 'report.html'), resolve(destination, 'report.html'))
-  writeFileSync(resolve(destination, 'README.md'), `# 全 App coverage\n\n這是最近一次 main 成功完整量測；新測試失敗時保留上次成功數字，最新狀態請看首頁 CI。\n\n來源：[${sourceHead}](https://github.com/sunpochin/dance-stamp/commit/${sourceHead}) · [CI 執行與可下載報告](${workflowRun})\n\n${appFiles.length} 個 web/*.js 全列入分母；${run.scenarios.length} 個瀏覽器流程通過。單元、VM 與隔離 Chromium 的插樁合成測試不代表真機或影音品質驗收。\n\n| 指標 | 已覆蓋 / 總數 | 比例 |\n| --- | --- | --- |\n${metrics.map(key => `| ${key} | ${report.total[key].covered} / ${report.total[key].total} | ${report.total[key].pct}% |`).join('\n')}\n\n逐檔數字及來源指紋見 [summary.json](summary.json)；CI artifact 包含可離線開啟的 report.html。\n`)
+  writeFileSync(resolve(destination, 'README.md'), `# 全 App coverage\n\n這是最近一次 main 成功完整量測；新測試失敗時保留上次成功數字，最新狀態請看首頁 CI。\n\n來源：[${sourceHead}](https://github.com/sunpochin/dance-stamp/commit/${sourceHead}) · [CI 執行與可下載報告](${workflowRun})\n\n${appFiles.length} 個 web/*.js 全列入分母；${run.scenarios.length} 個瀏覽器流程通過。計畫：${run.matrix}；${scope}。單元、VM 與隔離 Chromium 的插樁合成測試不代表真機或影音品質驗收。\n\n| 指標 | 已覆蓋 / 總數 | 比例 |\n| --- | --- | --- |\n${metrics.map(key => `| ${key} | ${report.total[key].covered} / ${report.total[key].total} | ${report.total[key].pct}% |`).join('\n')}\n\n逐檔數字及來源指紋見 [summary.json](summary.json)；CI artifact 包含可離線開啟的 report.html。\n`)
 }
 
 if (import.meta.main) {

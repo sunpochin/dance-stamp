@@ -281,3 +281,16 @@ npx --package @playwright/cli@0.1.22 playwright-cli --session dance-pts-native c
 ```
 
 核真正`### Result`的`status:passed`與`nativeBackgroundVerified:true`，出現`### Error`或failed就保留本輪log，不以退出碼或重跑覆蓋。關自己的CLI session後回launcher終端Ctrl+C，只停自己的Chrome；產品主機亦單獨停止，保存原stdout／stderr／Result與清理稽核。此入口仍是真Chrome＋Safari UA分支、retained adapter與自有origin SW阻擋；上述Safari、預設首頁、離線與物理退出限制全保留。
+
+
+## PR265 首輪CI與平台能力分工候選（2026-11-03）
+
+原精確head `5dec532ad4d058b3bf595e24846a66ed81f2fb23`／run41656988618：Harness與Linux安裝驗證成功，Ubuntu App首輪81PASS／3FAIL。原webkit-audio／capture的PTS基準被真正AAC encoder能力拒絕；owner後續missing retained Blob是尚未成檔就讀snapshot的症狀，不是新資料遺失證明。原2+10下載離站驗證、badge與報表上傳因App失敗skipped，沒有raw run.json artifact，不能補稱已驗；首次完整CI log保留本機，失敗不rerun挑綠。
+
+白話：某台機器沒有這個製片零件，就在那台驗證「清楚拒絕且資料不丟」；真正做片、取消和重試仍要到有零件的機器完整驗證。這是測試平台分工候選，不改產品codec／PCM／時間／保存護欄、不加軟體encoder，也沒有聲稱新版已通過。
+
+技術：原84案catalog抽到單一來源；Linux無參數／CI明選linux-full完整計畫為原其餘81案＋native-aac-refusal=82，實際原生AudioEncoder配置false才接受其原拒絕，真Chrome產品舊VS與筆記／原片保全另核。該負例直接呼叫產品owner／真Worker，非Safari產品UI成功或整個Linux永遠不支援。原三個成功／能力故障恢復／取消與冷context capture案例放固定macos-15必要工作，Mac無參數仍full84，Mac CI明選三案且無skip；VM實際能力與首次結果待驗。三份Mac counters不併Linux badge；32自有模組仍全分母，Linux badge明示完整平台計畫。always硬gate與badge publish皆要求Linux與Mac成功，不能以Mac失敗後skipped當pass。
+
+兩個原下載verifier只在自動搜尋或full/linux-full收據核完整catalog；原顯式argv指定selected輪仍保留原source／目標scenario／bytes／cleanup／自然播放等嚴格檢查，selected不得出badge。每平台精確unique名稱／原順序／全部PASS；失敗另上傳匿名run.json與unit-errors，不傳profile或媒體。owner基準先檢查原成檔status，再讀snapshot保留真首因。
+
+[Mediabunny官方能力界線](https://mediabunny.dev/guide/supported-formats-and-codecs)：庫不能保證各browser的WebCodecs codec；固定1.65.0仍轉交原生isConfigSupported。[固定Mac15 ARM64官方映像](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)是選runner依據，既有Chrome與FFmpeg命令仍在該輪實際核對，缺FFmpeg才安裝brew formula；不以映像清單預填AAC成功。重現預定用既有prepare-fixtures後Linux `bun --no-env-file tests/app-coverage/run-app.ts --linux-platform`，Mac `--mac-pts-platform`；一般開發入口Linux無參數自選82、Mac無參數原84。此節記錄靜態準備階段，當時尚未port或執行新版unit／瀏覽器；後續已套入測試與CI修正，最終實測／commit／CI另綁，不預稱通過。

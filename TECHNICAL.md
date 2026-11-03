@@ -11,6 +11,13 @@
 
 技術決策：靜態 Web 先用 GIS OAuth token model／後續 Dropbox PKCE 直接連接個人空間，區分身分登入、檔案授權與同步；首版不建自有帳號後端。先以選定資料、不可覆寫快照及明確衝突選擇完成手動接續，再評估前景自動同步。分享只對獨立成品副本建立供應商唯讀連結，匿名觀看先用供應商頁面。排除整庫默默上傳、單檔最後寫入覆蓋、公開私人同步根目錄及將分享頁假當媒體 CDN。權限、資料封套、失敗保全、成本與驗收只在上述文件維護；既有本機交換格式維持相容，新增雲端 runtime 與未驗證界線見該文件第 11 節。
 
+
+## PR265 首輪CI與平台能力分工候選（2026-11-03）
+
+白話：某台機器沒有這個製片零件，就在那台驗證「清楚拒絕且資料不丟」；真正做片、取消與重試仍到有零件的機器完整驗證。原5dec首CI81PASS／3FAIL保留，不能把Linux不具AAC編碼能力改稱成功，也不加軟體encoder。新版仍待實際CI，產品codec與影音／資料護欄不變。
+
+技術：原84案清單成為單一來源，Linux預設完整82案（原其餘81＋原生AAC拒絕保全），固定Mac15必要三案無skip；精確案例名／順序／全PASS與always硬gate共同守門。32自有模組仍全分母，badge只標Linux平台，不合併Mac計數；兩下載verifier保留顯式selected的原嚴格契約。首CI的2+10離站檢查／badge／artifact均skipped、當時raw收據不存在，不能補造；原失敗、官方能力依據、平台重現與尚未驗證範圍見[既有完整證據](docs/evidence/issue-11-explicit-pts-spike.md#pr265-首輪ci與平台能力分工候選2026-11-03)。
+
 #11／#229 的 Safari 明確時間戳匯出候選（2026-11-03）：像先把每張照片和聲音放上同一把尺，再製成影片；不靠兩個播放器一邊跑、一邊擷取。使用者仍按原輸出按鈕、用原配方與畫面設定；失敗可保留原片與舊 VS。原兩支不同合成片的第一個Safari產品三秒案已真正另存VS／原片／完整筆記，關站後首次原生開檔自然走到可見片尾；但私人保存仍unknown，完整原生矩陣／G1–G7未驗；#229原三秒缺陷可待最終精確commit獨立review、CI與merge後按同fixture成檔／下載／離站解碼及取消資料保全證據窄範圍結案，#11完整與#13保存仍開，見[實作與交接](docs/evidence/issue-11-explicit-pts-spike.md#產品接線候選11／229)。
 
 技術：僅 Safari 的比較 export 在 saveCurrentRecipe 後用本輪 module Worker，BlobSource／VideoSampleSink 按原 positions 取來源 PTS，OffscreenCanvas 經共用 renderer 輸出 AVC；reference PCM 按同一來源交集逐包裁切，以 Fs×r 原生 AudioSample 交 Mediabunny 1.65.0 的 resampler 到48kHz／AAC，自然變調、只取老師聲音。三速、非零 A、正負 offset、尾不足交集及300秒沿原 timeline；SBS／overlay／鏡像／逐側跟隨用原 renderer。無音軌輸出真無聲，未知解碼缺口／多段 edit 明示拒絕，不默補零或默退已知失步聲路。Chrome、預覽與相機原路不改；新檔仍共用原獨立元素驗片長±100ms，再交換舊 VS、persistExport，未知保存維持 memory-only 救援。

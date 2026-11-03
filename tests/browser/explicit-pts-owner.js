@@ -36,6 +36,8 @@ async (page, options) => {
     await page.locator('#marker-form button[type="submit"]').click(); await idle();
     await checkpoint('baseline-export');
     await page.locator('#export').click(); await idle();
+    // 先留真正成檔拒絕，再讀保全基準；缺Blob不能遮住平台首錯。
+    assert((await page.locator('#status').textContent()).includes('已成檔'), 'PTS 基準未成檔：' + await page.locator('#status').textContent());
     const baseline = await page.evaluate(() => window.__ptsAudit.snapshot());
     assert(baseline.data.markers.length && baseline.data.exports.length && baseline.bytes[2].mime.startsWith('video/mp4'), '沒有非空筆記／真 MP4 基準');
     await checkpoint('baseline-confirmed');

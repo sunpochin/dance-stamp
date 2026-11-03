@@ -9,13 +9,15 @@ import { chromium, type BrowserContext, type Page } from 'playwright-core'
 import { appFiles, emptyCoverage, instrument, mergeReceipt, receipt, root, sourceHashes } from './instrument'
 import { notices, webFiles, webHeaders, webNotice, webAssetBytes } from '../../scripts/web-assets'
 import { fixtureFiles } from './prepare-fixtures'
+import { macPtsCatalog, appPlan, assertCompleteRun } from './platform-plan'
 import { observeKeyboardProtocol } from './keyboard-protocol'
 
 assert.equal(Bun.version, readFileSync(resolve(root, '.bun-version'), 'utf8').trim(), '請使用指定 Bun 版本')
 mkdirSync(resolve(root, 'coverage'), { recursive: true })
 const directory = mkdtempSync(resolve(root, 'coverage/app-')), units = resolve(directory, 'units')
 mkdirSync(units)
-const evidence: any = { status: 'running', matrix: process.argv.length > 2 ? 'selected' : 'full', sourceHead: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), runnerSha256: createHash('sha256').update(readFileSync(import.meta.path)).digest('hex'), appFiles, navigationSnapshots: 0, scenarios: [], errors: [] }
+const plan = appPlan(process.argv.slice(2), process.platform), linuxPlatform = plan.matrix === 'linux-full'
+const evidence: any = { status: 'running', matrix: plan.matrix, sourceHead: Bun.spawnSync(['git', 'rev-parse', 'HEAD'], { cwd: root }).stdout.toString().trim(), runnerSha256: createHash('sha256').update(readFileSync(import.meta.path)).digest('hex'), appFiles, navigationSnapshots: 0, scenarios: [], errors: [] }
 evidence.trackedChanges = Boolean(Bun.spawnSync(['git', 'status', '--porcelain'], { cwd: root }).stdout.toString().trim())
 evidence.sourceHashes = sourceHashes
 evidence.environment = { bun: Bun.version, platform: process.platform, arch: process.arch }
@@ -38,7 +40,7 @@ function report(name: string) {
       const lines = readFileSync(resolve(root, path), 'utf8').split('\n').map((text, index) => `<span class="${counts[index + 1] === undefined ? '' : counts[index + 1] > 0 ? 'covered' : 'missing'}"><b>${String(index + 1).padStart(4)}</b> ${escape(text)}</span>`).join('\n')
       return `<details id="${path}"><summary>${path} — ${result.lines.pct}% lines</summary><pre>${lines}</pre></details>`
     }).join('')
-    writeFileSync(resolve(directory, 'report.html'), `<!doctype html><meta charset="utf-8"><title>Dance Stamp App coverage</title><style>body{font:16px system-ui;max-width:1100px;margin:32px auto;padding:16px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}details{margin:20px 0}pre{overflow:auto;font-size:12px;line-height:1.6}pre span{display:block}pre b{color:#666}.covered{background:#edf9ed}.missing{background:#ffe4e4}</style><h1>Dance Stamp App 覆蓋率</h1><p>狀態：${evidence.status}。${appFiles.length} 個產品 JS 模組全部列入分母；綠色已執行、紅色尚未執行。插樁合成測試不代表真機驗收。</p><table><tr><th>檔案</th><th>行數</th><th>函式</th><th>分支</th></tr>${rows}</table>${details}`)
+    writeFileSync(resolve(directory, 'report.html'), `<!doctype html><meta charset="utf-8"><title>Dance Stamp App coverage</title><style>body{font:16px system-ui;max-width:1100px;margin:32px auto;padding:16px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #ddd}details{margin:20px 0}pre{overflow:auto;font-size:12px;line-height:1.6}pre span{display:block}pre b{color:#666}.covered{background:#edf9ed}.missing{background:#ffe4e4}</style><h1>Dance Stamp App 覆蓋率</h1><p>計畫：${evidence.matrix}（${evidence.matrix === 'linux-full' ? 'Linux完整平台82案；AAC成功三案另由Mac必要工作驗證，不合併計數' : evidence.matrix}）。狀態：${evidence.status}。${appFiles.length} 個產品 JS 模組全部列入分母；綠色已執行、紅色尚未執行。插樁合成測試不代表真機驗收。</p><table><tr><th>檔案</th><th>行數</th><th>函式</th><th>分支</th></tr>${rows}</table>${details}`)
   }
   console.log(`${name}: lines ${summary.total.lines.pct}%, functions ${summary.total.functions.pct}%, branches ${summary.total.branches.pct}% (${map.files().length} App modules)`)
   return summary
@@ -67,11 +69,10 @@ function watchPage(page: Page) {
 }
 
 let server: ReturnType<typeof Bun.serve> | undefined, browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
-const selected = process.argv.slice(2)
 // 獨立跟隨結果也走真正預設頁；整合時不能退回暫藏工具全開的介面。
 const defaultInterfaceScenarios = new Set(['simplified-comparison', 'adjusted-side-preview', 'person-follow', 'follow-results', 'follow-performance', 'webkit-follow-results', 'follow-runtime', 'cloud-integration', 'metronome-integration', 'cloud-pending-recovery', 'cloud-probe-reconnect', 'cloud-share-recovery'])
 // 停止路徑名稱直接沿用原回歸模組，避免完整量測另抄清單而漏掉已存在的入口。
-const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/browser/metadata-stop.js')).href)
+// 原metadata-stop種類與全案順序由platform-plan單一來源保留。
 // 新介面與更新排程必須進同一輪，否則舊版的高覆蓋率不能替整合後的來源背書。
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
@@ -80,45 +81,8 @@ const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/br
 const ptsAuditPath = resolve(root, 'tests/browser/pts-audit.js')
 const { installPtsAudit } = await import(pathToFileURL(ptsAuditPath).href)
 const ptsAuditOptions = { installAudit: installPtsAudit, auditSourceSha256: createHash('sha256').update(readFileSync(ptsAuditPath)).digest('hex') }
-const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
-// 恢復守門沿原函式接入，不改前51條順序，保留既有鍵盤故障的前置環境。
-// 匯出暖機中的停止須沿既有回歸執行，恢復片段或保存尾段不能代替這條生命週期。
-if (!selected.length) scenarios.push('recovery-frame-guard', ...metadataStopCases.map((kind: string) => 'metadata-stop-' + kind), 'export-ready')
-// 四條既有恢復回歸接在原63條之後，保留鍵盤與取消案例的原前置順序。
-if (!selected.length) scenarios.push('overlay-export')
-if (!selected.length) scenarios.push('recovery-offline-timeout', 'recovery-inventory-read', 'recovery-unknown-media', 'recovery-draft-navigation')
-// 錄影供聲與匯出供聲生命週期不同；追加於原媒體案例之後，不能改變原鍵盤案例的前置順序。
-if (!selected.length) scenarios.push('webkit-capture-branch')
-// 已開舊頁收到升版通知與啟動前已有新庫不同；另接在供聲案例後，保留原生關閉／重開路徑。
-if (!selected.length) scenarios.push('storage-version-change')
-
-// 秒數尺另接在既有流程之後，保留原本媒體與恢復案例的相對順序。
-if (!selected.length) scenarios.push('source-time-rulers')
-
-// 簡化介面獨立追加，原有比較／疊影及恢復順序不變。
-if (!selected.length) scenarios.push('simplified-comparison')
-// 新的試看框走真正預設介面，接在原案例之後以保留既有前置順序。
-if (!selected.length) scenarios.push('adjusted-side-preview')
-// 跟隨分析使用真正的本機模型，與合成匯出共用相同資源政策。
-if (!selected.length) scenarios.push('person-follow')
-// 單側結果與原本 VS 分開驗，確保各自的原片聲音與真正下載都存在。
-if (!selected.length) scenarios.push('follow-results')
-// 計時只驗數字與保全；CI 機器速度不當成效能門檻或最佳化證據。
-if (!selected.length) scenarios.push('follow-performance')
-// Chrome 元素供聲不能替 Safari 的有界 AAC 供聲背書；重用完整單側結果案例並保留原76條順序。
-if (!selected.length) scenarios.push('webkit-follow-results')
-// 相容回退追加在原77案之後；阻擋 SW 僅為讓受控網路故障確實到達模型載入。
-if (!selected.length) scenarios.push('follow-runtime')
-// 雲端 UI 也必須進同一個來源分母；重用原合成供應商流程，保留前78案順序。
-if (!selected.length) scenarios.push('cloud-integration')
-// 獨立工具仍是產品的一部分，沿用原生分析／工作台保全回歸追加在原79案之後。
-if (!selected.length) scenarios.push('metronome-integration')
-// 保存成功不代表中斷工作可恢復；公開待傳流程追加在原80案後，不改既有順序。
-if (!selected.length) scenarios.push('cloud-pending-recovery')
-// 斷開授權與刪檔不同；公開合成probe／同位置重連保全放在第82案。
-if (!selected.length) scenarios.push('cloud-probe-reconnect')
-// 分享失敗只能待確認；新頁恢復與停止失敗保全追加第83案，不取代原成功分享。
-if (!selected.length) scenarios.push('cloud-share-recovery')
+const scenarios = [...plan.catalog]
+evidence.platformPlan = { matrix: evidence.matrix, catalog: [...scenarios], transferredToMac: linuxPlatform ? [...macPtsCatalog] : [] }
 const lockPath = resolve(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'dance-stamp-p0-media-test.lock'), nonce = randomUUID()
 let ownsLock = false, launchAttempted = false, browserClosed = false, serverStopped = false
 try {
@@ -211,13 +175,12 @@ try {
     context.close = async options => { try { await collectContext(context) } finally { await close(options); contexts.delete(context) } }
     return context
   }
-  if (!selected.length) scenarios.push('explicit-pts-owner')
   for (const name of scenarios) {
     activeScenario = name
     updateMode = 'current'
     assert(/^[a-z][a-z-]+$/.test(name), '只接受明確的瀏覽器回歸名稱')
     // exact Worker route 必須走網路；SW 的離線／更新驗收仍由原其他案例負責，不以此代驗。
-    const routedWorker = ['follow-runtime', 'webkit-audio-branch', 'webkit-capture-branch', 'explicit-pts-owner'].includes(name)
+    const routedWorker = ['follow-runtime', 'webkit-audio-branch', 'webkit-capture-branch', 'explicit-pts-owner', 'native-aac-refusal'].includes(name)
     const selectedSafari = ['webkit-audio-branch', 'webkit-capture-branch', 'webkit-follow-results', 'explicit-pts-owner'].includes(name)
     const context = await browser.newContext({ ...(routedWorker ? { serviceWorkers: 'block' as const } : {}), ...(selectedSafari ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}) }), page = await context.newPage(), started = Date.now()
     try {
@@ -288,7 +251,7 @@ try {
           const baselineSource = readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'), 'utf8').replaceAll('output/', `${media}/`)
           const baseline = await ((0, eval)(`(${baselineSource})`))(page, ptsAuditOptions)
           result = { baseline, baselineSha256: createHash('sha256').update(readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'))).digest('hex'), scenarioSha256: createHash('sha256').update(readFileSync(path)).digest('hex'), ...await scenario(page, { directory: media }) }
-        } else if (name === 'webkit-audio-branch' || name === 'explicit-pts-owner') {
+        } else if (name === 'webkit-audio-branch' || name === 'explicit-pts-owner' || name === 'native-aac-refusal') {
           result = await scenario(page, ptsAuditOptions)
         } else if (name === 'comparison-keyboard') {
           const observing = observeKeyboardProtocol(page)
@@ -344,9 +307,9 @@ try {
       evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
       console.log(`PASS ${name} (${Date.now() - started}ms)`)
     } catch (error) {
-      // 只保留這兩個 PTS case 的自有階段收據；catch 不另讀 DB，也不遺失被 baseline 呼叫的首錯 marker。
+      // 只保留這三個 PTS case 的自有階段收據；catch 不另讀 DB，也不遺失被 baseline 呼叫的首錯 marker。
       const ptsFailure = (error as { ptsOwnerEvidence?: { case?: string } })?.ptsOwnerEvidence
-      const ptsCaseEvidence = ptsFailure && ['webkit-audio-branch', 'explicit-pts-owner'].includes(ptsFailure.case ?? '') ? ptsFailure : undefined
+      const ptsCaseEvidence = ptsFailure && ['webkit-audio-branch', 'explicit-pts-owner', 'native-aac-refusal'].includes(ptsFailure.case ?? '') ? ptsFailure : undefined
       evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined, ...(ptsCaseEvidence ? { ptsCaseEvidence } : {}) })
       console.error(`FAIL ${name}:`, error)
     } finally {
@@ -356,6 +319,7 @@ try {
   assert(evidence.scenarios.every((scenario: any) => scenario.status === 'passed'), '瀏覽器回歸失敗，覆蓋率高也不能視為通過')
   assert.equal(evidence.errors.length, 0, '瀏覽器出現未處理例外')
   evidence.status = 'passed'
+  if (evidence.matrix !== 'selected') assertCompleteRun(evidence)
 } catch (error) {
   evidence.status = 'failed'; evidence.failure = String(error); process.exitCode = 1
   console.error(error)

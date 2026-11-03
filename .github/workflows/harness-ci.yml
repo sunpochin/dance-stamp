@@ -52,11 +52,12 @@ jobs:
       - name: Check comparison analyzer controls
         run: python3 scripts/check-comparison-analyzer.py
       # 沿用 runner 已安裝的瀏覽器；計數／失敗情境不能當作裝置驗收。
-      - name: Measure every App module with unit and isolated browser checks
+      - name: Measure all App modules with the complete Linux platform catalog
         run: |
           command -v ffmpeg
           export DANCE_STAMP_CHROMIUM="$(command -v google-chrome)"
-          bun run test:coverage:app
+          bun --no-env-file tests/app-coverage/prepare-fixtures.ts
+          bun --no-env-file tests/app-coverage/run-app.ts --linux-platform
       # 原入口已關閉網站與瀏覽器；另開原生file播放器，不能以App內預覽替代實際下載證據。
       - name: Reopen actual storage-version downloads after app shutdown
         run: bun --no-env-file tests/app-coverage/verify-storage-version-downloads.ts
@@ -80,6 +81,60 @@ jobs:
           for file in coverage/app-*/unit-errors.log; do
             if [ -f "$file" ]; then cat -- "$file"; fi
           done
+      # 首失敗也要留下匿名原收據，不能只在badge成功時上傳而遺失首錯。
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: app-linux-first-failure
+          path: |
+            coverage/app-*/run.json
+            coverage/app-*/unit-errors.log
+          if-no-files-found: warn
+          retention-days: 30
+  app-pts-macos:
+    needs: harness
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Prepare existing synthetic sources
+        run: |
+          command -v ffmpeg || brew install ffmpeg
+          bun --no-env-file tests/app-coverage/prepare-fixtures.ts
+      # 不用unsupported skip；三個原成功／拒絕後恢復／取消case都須真AAC通過。
+      - name: Run all three native AAC PTS scenarios
+        env:
+          DANCE_STAMP_CHROMIUM: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+        run: bun --no-env-file tests/app-coverage/run-app.ts --mac-pts-platform
+      - name: Verify exact Mac catalog and source
+        run: bun --no-env-file tests/app-coverage/verify-platform-run.ts mac-pts-selected coverage/app-*/run.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: app-macos-native-aac-receipts
+          path: |
+            coverage/app-*/run.json
+            coverage/app-*/unit-errors.log
+          if-no-files-found: warn
+          retention-days: 30
+  app-platform-gate:
+    # always讓Mac失敗時必有紅燈，不以needs自動skipped冒充成功；Linux仍獨立實跑。
+    if: always()
+    needs: [app-coverage, app-pts-macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require both complete platform jobs
+        run: |
+          test '${{ needs.app-coverage.result }}' = success
+          test '${{ needs.app-pts-macos.result }}' = success
   linux-install-restart:
     needs: harness
     runs-on: ubuntu-24.04
@@ -121,7 +176,7 @@ jobs:
   coverage-badges:
     # PR 保持唯讀；三項既有檢查都成功後，才更新 main 的量測數字。
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [harness, app-coverage, linux-install-restart]
+    needs: [harness, app-coverage, app-pts-macos, app-platform-gate, linux-install-restart]
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
