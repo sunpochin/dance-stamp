@@ -658,3 +658,51 @@ main `12769978912b2ea31c589c5adc34cce918648eb7eba94124f7470449165cdb67` 相對fu
 四案clock皆null、tracks未觀測，不能填零native callback／全部ended；真Recorder案inactive另有原wrapper收據。前三案前後835→882及來源ratio1只屬固定QA版面的快照，不外推全程或第四案原使用者版面。第一案原250ms checker exit1／兩斷言局部保全copy另0；第二案因自然收據名不同原checker拒絕，五處局部文字差異另存；第三案真已確認雙put失敗／新Blob不是「保存前首guard拒絕」，不硬套guard checker。資料保全、下載與品質各自核對，無硬體呼叫／頁錯，全部自有測試資源已收尾。
 
 本交接從同步main `da0232505bb410337262ff89ff8e4daba5217812` 建分支；前批[#254](https://github.com/sunpochin/dance-stamp/pull/254)精確e7c獨立審查與必要CI41586975361成功後合併，只2docs42+/0；da主線自己的CI41589617609五項亦已全成功，均屬工程檢查。上述候選仍是frozen832／83a29a上的明列QA變體，原版面續驗失敗而未採到產品；下一步釐清來源幾何與擷取策略，動態實檔品質仍待驗，不把第一份靜態真下載當完整修復。#229／#13維持open，沒有部署或發布。
+
+## 2026-11-03 捲回來源與初始影格策略的原版面成品
+
+白話：匯出時先把來源影片帶回畫面，等來源送來新畫格才畫進成品，三份三秒測試都真正下載了影片。但最後用閃光和提示音一量，聲音仍早了136毫秒，超過原標準，所以不採用這個改法。保存也有失敗／未確認；下載成功不等於保存或聲畫品質已過關。
+
+候選 main `d09fce5e927b5702aa556cd9ea8c90600248e470f385002a1874f54d21573fb8` 相對 fullRecorder3870 只加一組介入：Safari localAudio 且雙側都有 rVFC 時，在原匯出處將 reference 捲至中央；原暖機與回零後、startOutput 前讀一次雙側 rect／viewport，有限正面積且兩側與 viewport 有交集才由原 watchVideo 回呼驅動 paint，否則保留原 rAF paint。rAF 仍跑原時計、PCM 100ms、雙側250ms、停滯／片長／取消及進度；原預算、真 captureStream／Recorder、微速率與 finally 不變。這是捲動與初始策略的組合，不分離唯一可見性、CPU／GPU或快取根因；初始交集不是全程曝光，後續捲動／低fps仍有風險，尚未採用到產品。
+
+前兩案均 frozen83220ed／83a29a、observer ea508、原HTML6ce／原style與inflow，沒有連結固定CSS，33項前置GET逐hash核對；配方 A0/B3/C0、r1、offset0／並排無鏡像。匯出前來源 ratio0 不當作拒絕門檻，未手動預捲；候選自己捲後的初始策略 true，雙側436×300、top385.140625、viewport1774×835。clock=null／tracks未觀測，不能補零callback或全軌ended。每案原生首匯出一次、零重試，無相機／麥克風呼叫與頁錯。
+
+### 原靜態素材：確認保存失敗後真下載
+
+原靜態三秒素材的產品 diagnostics elapsed3024／maxDrift42／tick gap41ms、內部decodedDuration3027ms，無首100收據。第四筆媒體＋metadata雙put有trusted request錯誤與 transaction abort，unknown=false；完整舊data、原片URL／完整指紋與舊retained子集相同，revision3→4；總計觀察到三筆metadata-only complete。新validation／下載URL另記，不要求整份retained全相等。
+
+原生原鏈結另存一次，177,023B，SHA `4b290db0067e5bbf9eef4b42aa680c3825116df349e99b87fcb1c5da8c242e93` 等原Blob。兩路完整解碼exit0：VP8 1280×720、單Opus stereo48k、84格、decoded-tail3.044秒／平均27.5953fps；PCM每channel144,840 samples／3.0175秒、RMS0.08852766，660Hz強、880Hz近零。原PTS無倒退、一筆重複、最大相鄰間隔93ms；null輸出DTS警告59／63／82及末條重複、raw尾端警告保留，沒有重封裝／改時間戳。靜態色條不能驗光學停格或完整聲畫。
+
+匯出前曾有cached app拒輸入、過早SaveAs未見sheet、工具batch逾時kernel reset及唯讀PID探針PermissionError；都在0 export時保留。第一份before收據hidden=true／focused=true，不當作當前前景；保留原件後，僅對已知自有視窗公開AX Raise，再新增hidden=false／focused=true且原資料／來源相同的foreground收據，才首匯出，未重新選片或改設定。click88ms／指定5,005ms靜默實際5,009.3ms／首AX距click完成13,630ms。下載後自有主機exit0／PID退出／origin拒連／匹配nonce釋放，僅關本案自有頁。
+
+### 動態編號素材：保存未確認時只救出成品
+
+僅換前節已驗的c59c／8c5f兩份motion素材及server／config指紋，main／observer／HTML逐byte相同；23項v2靜態計畫兩路審查，重複副本刪除曾被自動審查拒絕，改為全部保留，不重試刪除或覆寫首21項manifest。首匯出前即hidden=false／focused=true，產品diagnostics3018／42／38ms、內部decodedDuration3030ms。真下載370,372B，SHA `9de935f3d580de8119796ba05426c4883130f6d5d13cca35f5ba80cbb4f7b7f1` 等原Blob。
+
+本案是**保存未確認**：最後VS交易只觀察到media request UnknownError，無complete／abort收據；不當成rollback。後續只用原unknown-safe memory快照（native=null）、原鏈結原生另存一次，沒有再開DB、重開頁、重試匯出或強制abort。可核對的是記憶體中的原片指紋、舊retained子集與下載一致，**未驗當前原生DB資料相等**。QA另存選單曾消失、未對undefined項目click，保存的是同一記憶體收據，沒有第二次snapshot。
+
+click74ms／指定5,005ms靜默實際5,010.1ms／首AX距click完成13,509ms。下載後QA finish正常返回且unknown文字仍在；對自有頁送close後看見LeavePage alert，未確認離開，下一次唯讀觀察時自有頁與alert已消失，原因未知，不寫成正常關閉或無外來操作。之後不再操作UI／未知頁；自有主機exit0／PID退出／origin拒連／nonce釋放，原生交易最終狀態仍未觀測。
+
+兩路獨立解碼以灰階5×5中位數及RGB3×3校準互補碼，各85格的PTS／左右ID逐項完全相同，沒有unknown或ID倒退。完整解碼exit0、1280×720 VP8／單Opus、decoded-tail3.043秒／平均27.93296fps；最長同格reference146ms／self184ms含尾段，原最大250ms欄位不改。首格雙ID0、實際末格雙ID88，首端覆蓋0ms／尾端−33.333ms；全段最大左右差33.333ms、最大內容對輸出時鐘誤差167.667ms，後者沿原v5的250ms欄，不能偷換成音畫100ms已通過。原PTS一筆重複、無倒退，null／raw尾端DTS警告原樣保留。中點取樣另保留兩口徑：v5的lastPTS/2取1.501秒ID41／41；全檔duration/2取1.536秒ID42／43，沒有挑較佳格或覆寫任一原報告；末兩格同PTS3.008秒的ID87／87與88／88亦未去重。
+
+PCM每channel144,840 samples／3.0175秒，左右聲道平均後RMS0.088104、660Hz強／880Hz近零；root另一量尺的mono downmix RMS是不同口徑，不混寫成每聲道測值。連續tone仍不能量出唯一聲畫配對，因此準備沿既有逐格碼／flash／pulse來源、原v5分析器做三秒有界品質驗證；不能僅由平均fps、同格長度或原生護欄未拒絕就採產品修正。
+
+### 既有閃光／提示音來源：真成品仍音早136ms，拒絕採用
+
+第三案保持同d09／ea508／原HTML6ce、33 GET與全部產品守門，只換兩側為既有640×360／30fps／65秒coded-flash來源，各1,789,027B／SHA `3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548`。來源先獨立完整解碼，1,950格ID0–1949、PTS=n/30及65個每秒pulse均核對；這是來源驗證，不是65秒原生輸出。實際UI及before metadata都核雙側65秒、自身duration65000、A0/B3/C0／r1／offset0，**只輸出三秒**；兩側同檔不能證來源身分，尺寸／編碼／音訊與前案不同，三秒不能外推長片。初始策略true，雙側436×300／top385／viewport1774×835，仍只一次幾何。
+
+唯一首匯出產生502,501B VS，原生原鏈結另存一次，SHA `b17e6961449f2b96977379faff9d647051c4ee0a3ab46b2f98733c8d068a7a7d` 等原Blob。產品diagnostics3024／maxDrift44／tick gap42ms、內部decodedDuration3024；私人保存有media UnknownError、metadata AbortError及trusted transaction abort，unknown=false。當次原生讀回完整舊data相同、revision3→4、總計三筆metadata-only complete、原片指紋／舊retained子集相同。未用前案unknown-memory證據代替此案原生讀回。
+
+沿**未修改**的原v5分析器SHA `3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa`，record保留完整65秒take／seconds65／selfDuration65000、end3000及當次diagnostics。實測exportReadyUpperBoundMs為15,647ms，從export click開始到第一個ready AX回傳結束，是保守端到端上界；click131ms、靜默實際5,010.6ms、首AX啟動距click完成15,094ms，不拿timeline3024代替。兩路原v5均exit1、withinSyntheticTargets=false，所有結果一致：VP8 1280×720／單Opus、82格／decoded-tail3.045秒／26.929fps、完整解碼與配方覆蓋true，首中尾左右差0／0／0ms、全段最大33.334ms，同格最大146／184ms，最大內容時計差154.667ms；3flash／3pulse數目相同，但**最大聲畫差136ms超過原100ms**。
+
+獨立RGB碼與原timestamped PCM配對為：視覺0.000秒／聲音0.010秒（音晚10ms）；視覺1.146秒、來源code31／聲音1.010秒（音早136ms）；視覺2.144秒、code60／聲音2.010秒（音早134ms）。所有配對、原PTS與null尾端DTS警告保留，不挑樣、不去重／重定時／重封裝，不用136或167ms固定補償，不放寬100／250ms或片長。原100ms守門比較音訊時計與影片getter，並未直接驗編入檔案的像素；本案證明數值未改且有VS，不等於成品符合聲畫要求，故拒絕採用d09候選，不再疊B-frame換音或新控制。
+
+匯出前preset SaveAs首次AX尚未見sheet，下一次唯讀確認原dialog後完成，未重點；本案自有前景穩定，但初始未知日常視窗已不同，不宣稱沒有其他操作。下載後未再讀DB／snapshot或播放；QA finish正常、自有頁close後首AX回原日常頁，未觀察到LeavePage alert，無確認離開動作。自有主機exit0／PID退出／origin拒連／匹配nonce釋放；沒有新native授權或產品修改。這個三秒合成品質失敗不代替人耳／實體裝置、原130ms長片失敗或完整G1–G7，#229／#13仍未修復。
+
+| 單次封存 | entries | manifest SHA-256 | summary SHA-256 |
+| --- | --- | --- | --- |
+| 原版面／靜態真下載 | 34 | `64087c8a5c1aeaf1b05b02196abb1c4d8481a3ff9045ae9ba28a7d1219489040` | `9f49917b58c2f202ba10909a67d98b03dc17d26f82acc2aa50b4ba3ce5f64da2` |
+| 原版面／動態未知保存下載 | 38 | `ca5a19b43b56117684aa05e0910391d470f3f9863a73f0ab0a7153bf80efe649` | `b2a0f79dbb1c05758eddf79f7499bd4870f8e7905f2ce81331662971fd1d8dbd` |
+| 原版面／三秒AV136ms失敗 | 35 | `721367cfdb958763dd31d5a50fd026941da612bf5ac347c664bf41dc78d133d0` | `f53b25d21740f1aaf746ae9f96b4bf2511285a1d89a015b9ea7da598c48a5243` |
+
+107項entry由兩路逐項重算bytes／SHA並核對raw與品質，原始媒體／收據／本機識別留本機，公開只有匿名摘要與指紋。三份VS均無原生播放／人耳結論；成檔、保存、下載與原品質門檻分開判斷，不由JS tick gap或完成訊息代簽。前批[#255](https://github.com/sunpochin/dance-stamp/pull/255)精確b8c經獨立審查與CI41597812634 attempt1必要四項成功、83不同情境／0FAIL、12真下載全解碼／自然播放後，已merge為 `e55bd047c7737f0b4961f238332973378a7e9722`，相對第一parent da只2docs55+/0；主線自己的CI41600565140 attempt1五項也已全成功，App log另核83不同情境／0FAIL與12真下載全解碼／自然播放，不能沿用PR。#229／#13仍open，無部署或發布。
