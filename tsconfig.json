@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2023", "module": "ESNext", "moduleResolution": "Bundler",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"], "allowJs": true, "checkJs": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "ESNext.Disposable"], "allowJs": true, "checkJs": true,
     "strict": true, "noImplicitAny": false, "noEmit": true, "types": []
   },
   "include": ["web/**/*.js", "web/**/*.d.ts"],

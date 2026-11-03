@@ -76,6 +76,10 @@ const { metadataStopCases } = await import(pathToFileURL(resolve(root, 'tests/br
 // 筆記分享與 VS 分享是兩條控制路徑，不能用前者的高覆蓋率替後者的取消／重試背書。
 // 保存尾段沿用真正成檔／原生交易回歸；只測比較設定失敗，碰不到已成檔的新 VS 救援。
 // 原生權限拒絕與自然播完各有獨立生命週期，不能由拋錯或派送 ended 事件代替。
+// PTS 兩個條件分支共用實際 Worker／Blob 觀察，與舊 live clock 歷史檢查分開。
+const ptsAuditPath = resolve(root, 'tests/browser/pts-audit.js')
+const { installPtsAudit } = await import(pathToFileURL(ptsAuditPath).href)
+const ptsAuditOptions = { installAudit: installPtsAudit, auditSourceSha256: createHash('sha256').update(readFileSync(ptsAuditPath)).digest('hex') }
 const scenarios = selected.length ? selected : ['coverage-navigation', 'storage', 'storage-boundaries', 'storage-startup-failure', 'markers', 'moves', 'beats', 'share', 'vs-share', 'vs-live-delete', 'vs-save-tail-stop-complete', 'vs-save-tail-native-reject', 'vs-save-tail-unknown-abort', 'vs-save-tail-unknown-complete', 'deletion', 'existing-comparison', 'comparison-overlay', 'comparison-overlay-layout', 'video-roles', 'self-failure', 'comparison-recovery', 'comparison-save-failure', 'review-recovery', 'take-open-failure', 'export-failure', 'comparison-capture-fallback', 'webkit-audio-branch', 'capture', 'capture-success', 'capture-integrity', 'camera-policy-denial', 'camera-preview-cancel', 'edges', 'relink', 'backup-conflicts', 'backup-recovery', 'backup-keyboard', 'storage-recovery-title', 'storage-recovery-import', 'comparison-keyboard', 'moves-storage', 'move-draft', 'practice-range-change', 'practice-fallback', 'practice-natural-end', 'practice-native-decode', 'practice-native-audio', 'practice-native-ended', 'offline-storage', 'offline-cache-failure', 'offline-multi-tab']
 // 恢復守門沿原函式接入，不改前51條順序，保留既有鍵盤故障的前置環境。
 // 匯出暖機中的停止須沿既有回歸執行，恢復片段或保存尾段不能代替這條生命週期。
@@ -207,11 +211,15 @@ try {
     context.close = async options => { try { await collectContext(context) } finally { await close(options); contexts.delete(context) } }
     return context
   }
+  if (!selected.length) scenarios.push('explicit-pts-owner')
   for (const name of scenarios) {
     activeScenario = name
     updateMode = 'current'
     assert(/^[a-z][a-z-]+$/.test(name), '只接受明確的瀏覽器回歸名稱')
-    const context = await browser.newContext(name === 'follow-runtime' ? { serviceWorkers: 'block' } : name === 'webkit-audio-branch' || name === 'webkit-capture-branch' || name === 'webkit-follow-results' ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}), page = await context.newPage(), started = Date.now()
+    // exact Worker route 必須走網路；SW 的離線／更新驗收仍由原其他案例負責，不以此代驗。
+    const routedWorker = ['follow-runtime', 'webkit-audio-branch', 'webkit-capture-branch', 'explicit-pts-owner'].includes(name)
+    const selectedSafari = ['webkit-audio-branch', 'webkit-capture-branch', 'webkit-follow-results', 'explicit-pts-owner'].includes(name)
+    const context = await browser.newContext({ ...(routedWorker ? { serviceWorkers: 'block' as const } : {}), ...(selectedSafari ? { userAgent: 'AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15' } : {}) }), page = await context.newPage(), started = Date.now()
     try {
       await page.goto(origin)
       if (name === 'self-failure') {
@@ -276,10 +284,12 @@ try {
         const source = readFileSync(path, 'utf8').replace(/http:\/\/127\.0\.0\.1:417[34]\b/g, origin).replaceAll('output/', `${media}/`)
         const scenario = (0, eval)(`(${source})`) as (page: Page, options?: any) => Promise<any>
         if (name === 'webkit-capture-branch') {
-          // 完整執行原有界音訊回歸作基線，不改它的素材、失敗／重試斷言或期限。
+          // 共用目前 PTS Worker 匯出基準，包含真 Worker 能力拒絕與保全／恢復；不是舊 WebM／Window 解碼故障回歸。
           const baselineSource = readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'), 'utf8').replaceAll('output/', `${media}/`)
-          const baseline = await ((0, eval)(`(${baselineSource})`))(page)
+          const baseline = await ((0, eval)(`(${baselineSource})`))(page, ptsAuditOptions)
           result = { baseline, baselineSha256: createHash('sha256').update(readFileSync(resolve(root, 'tests/browser/webkit-audio-branch.js'))).digest('hex'), scenarioSha256: createHash('sha256').update(readFileSync(path)).digest('hex'), ...await scenario(page, { directory: media }) }
+        } else if (name === 'webkit-audio-branch' || name === 'explicit-pts-owner') {
+          result = await scenario(page, ptsAuditOptions)
         } else if (name === 'comparison-keyboard') {
           const observing = observeKeyboardProtocol(page)
           try { result = await scenario(page, { interceptionReady: observing.interceptionReady }) }
@@ -334,7 +344,10 @@ try {
       evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'passed', durationMs: Date.now() - started, result })
       console.log(`PASS ${name} (${Date.now() - started}ms)`)
     } catch (error) {
-      evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined })
+      // 只保留這兩個 PTS case 的自有階段收據；catch 不另讀 DB，也不遺失被 baseline 呼叫的首錯 marker。
+      const ptsFailure = (error as { ptsOwnerEvidence?: { case?: string } })?.ptsOwnerEvidence
+      const ptsCaseEvidence = ptsFailure && ['webkit-audio-branch', 'explicit-pts-owner'].includes(ptsFailure.case ?? '') ? ptsFailure : undefined
+      evidence.scenarios.push({ name, interface: defaultInterfaceScenarios.has(name) ? 'comparison-only-default' : 'retained-full-interface', status: 'failed', durationMs: Date.now() - started, message: String(error), stack: error instanceof Error ? error.stack : undefined, ...(ptsCaseEvidence ? { ptsCaseEvidence } : {}) })
       console.error(`FAIL ${name}:`, error)
     } finally {
       await context.close(); save(); report('app')

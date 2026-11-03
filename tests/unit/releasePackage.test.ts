@@ -5,11 +5,11 @@ import { linkSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, wr
 import { dirname, join, posix, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { packageInputs, readAllowed, sealPackage, verifyPackage } from '../../scripts/package-web'
-import { webNotice, binaryAssetHashes, visionAssets } from '../../scripts/web-assets'
+import { webNotice, binaryAssetHashes, visionAssets, mediabunnyAssets, mediabunnyAssetHashes, webAssetBytes } from '../../scripts/web-assets'
 
 function publicPayload() {
   // 封裝邊界必須走真正的固定二進位，不能用任意文字假裝模型或 WASM。
-  return new Map(packageInputs.map(name => [name, binaryAssetHashes[name.slice('dist/web/'.length)] && name.startsWith('dist/web/') ? readFileSync(resolve(import.meta.dir, '../..', visionAssets[name.slice('dist/web/'.length)])) : new TextEncoder().encode('synthetic-public-text')]))
+  return new Map(packageInputs.map(name => [name, binaryAssetHashes[name.slice('dist/web/'.length)] && name.startsWith('dist/web/') ? readFileSync(resolve(import.meta.dir, '../..', visionAssets[name.slice('dist/web/'.length)])) : name.startsWith('dist/web/') && mediabunnyAssets[name.slice('dist/web/'.length)] ? webAssetBytes(resolve(import.meta.dir, '../..'), name.slice('dist/web/'.length)) : new TextEncoder().encode('synthetic-public-text')]))
 }
 
 function fixtureGitEnv(environment = process.env) {
@@ -39,6 +39,14 @@ test('真正建置的授權副本與離線 manifest 使用相同 bytes', () => {
   const manifest = JSON.parse(readFileSync(join(root, 'dist/web/sw.js'), 'utf8').match(/const manifest = (\{[^\n]+\});/)![1])
   expect(manifest['/' + notice]).toBe(createHash('sha256').update(built).digest('hex'))
   expect(readFileSync(join(root, notice), 'utf8')).toBe(source)
+  // 新後端與 MPL 同樣離線可用，固定第三方 bytes 不能漏出 manifest／下載包。
+  for (const [file, fingerprint] of Object.entries(mediabunnyAssetHashes)) {
+    expect(createHash('sha256').update(readFileSync(join(root, 'dist/web', file))).digest('hex')).toBe(fingerprint)
+    expect(manifest['/' + file]).toBe(fingerprint)
+    expect(packageInputs).toContain('dist/web/' + file)
+  }
+  const damaged = publicPayload(); damaged.set('dist/web/mediabunny.js', new TextEncoder().encode('synthetic tampered library'))
+  expect(() => sealPackage(damaged, { version: 'a'.repeat(16), sourceRevision: 'b'.repeat(40), trackedChanges: false })).toThrow('引擎來源指紋')
 })
 
 test('隨包指南、證據與授權副本的實際封裝內容，所有相對連結都必須有目標', async () => {

@@ -8,6 +8,7 @@ import { validateBeatGrid, beatPosition, countInPlan, scheduleCountIn } from './
 import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recoverChunks, clearChunks, withTakeLock, storageUnconfirmed, storageUnconfirmedMessage } from './storage.js';
 import { videoFrame, drawSideBySide, drawOverlay as renderOverlay, drawAdjustedSide as renderAdjustedSide } from './comparison-renderer.js';
 import { createFollowUI } from './follow-ui.js';
+import { exportExplicitPts } from './export-pts.js';
 import { createCloudUI } from './cloud-ui.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
@@ -832,55 +833,79 @@ $('export').addEventListener('click', () => operation(async signal => {
   const muted = reference.muted;
   await saveCurrentRecipe(value, signal);
   try {
-    await prepareAudio();
     if (localAudio) {
-      status('正在準備 Safari 相容音訊，可隨時取消；原片保留。');
-      const first = positions(value, 0);
-      buffer = await decodeLocalAudio(currentReferenceFile, audio, first.referenceMs / 1000, comparison(value).durationMs * value.rate / 1000, signal);
-      reference.muted = true;
-    }
-    await align(value, 0, signal); abortIfNeeded(signal);
-    monitor.gain.value = 0;
-    /** @type {CanvasCaptureMediaStreamTrack | undefined} */
-    let canvasTrack;
-    status('正在準備比較畫面，請保持此頁在前景。');
-    // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
-    const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), async () => {
-      render();
-      // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
-      // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
-      stream = canvas.captureStream(0);
-      canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
-      if (typeof canvasTrack.requestFrame !== 'function') {
-        stream.getTracks().forEach(track => { track.stop(); });
-        stream = canvas.captureStream(30); canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
+      status('正在逐格合成，請保持此頁在前景；取消後原片與前次 VS 保留。');
+      // 原配方先保存，再把本輪 Blob／空間與跟隨快照交給自己的 Worker；失敗不默退已知失步聲路。
+      let result;
+      try {
+        result = await exportExplicitPts({ reference: currentReferenceFile, self: takeBlob, recipe: value, presentation,
+        tracks: { reference: following.track('reference'), self: following.track('self') }, signal,
+        progress: ({ stage, fraction }) => {
+          // 音畫並行，audio 只是局部百分比；沿逐格進度且等兩軌提交完 finalizing 才滿格，避免倒退或提早100%。
+          if (stage === 'finalizing') $('progress').value = fraction;
+          else if (stage === 'input' || stage === 'encoding') $('progress').value = Math.min(fraction, 0.99);
+        } });
+      } catch (error) {
+        // Worker 的首錯與清理收據留在診斷，不讓 operation 的通用錯誤文案蓋掉根因。
+        if (error instanceof Error && 'metadata' in error) diagnostics.exportFailure = error.metadata;
+        throw error;
       }
+      blob = result.blob;
+      diagnostics.export = { ...result.diagnostics, backend: 'explicit-pts', mime: blob.type, bytes: blob.size,
+        requestedWidth: 1280, requestedHeight: 720, recipe: value, ...(presentation ? { presentation } : {}) };
+    } else {
+      await prepareAudio();
       if (localAudio) {
-        // 每輪自己的目的端與一次性來源都由 finally 釋放；無音軌就保持真正無聲，不猜測壞解碼為靜音。
-        if (buffer) {
-          destination = audio.createMediaStreamDestination(); bufferSource = audio.createBufferSource();
-          bufferSource.buffer = buffer; bufferSource.playbackRate.value = value.rate; bufferSource.connect(destination);
-          destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
-        }
-        // start 事件可依賴後續影格，不能等它才啟播；start() 已成功回傳才啟動音畫，仍用原偏移護欄拒絕失步。
-        recording = record(stream, undefined, undefined, { webmOnly: true });
-        // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
-        audioStartedAt = audio.currentTime + 0.01;
-        bufferSource?.start(audioStartedAt);
-      } else {
-        audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
-        recording = record(stream);
+        status('正在準備 Safari 相容音訊，可隨時取消；原片保留。');
+        const first = positions(value, 0);
+        buffer = await decodeLocalAudio(currentReferenceFile, audio, first.referenceMs / 1000, comparison(value).durationMs * value.rate / 1000, signal);
+        reference.muted = true;
       }
-      recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
-      status('合成中，請保持此頁在前景。取消後仍可重試。');
-    }, () => !bufferSource ? NaN : audio.state === 'running' ? Math.max(0, (audio.currentTime - audioStartedAt) * 1000) : Infinity, render);
-    blob = await recording.stop();
-    diagnostics.export = { ...measured, mime: blob.type, bytes: blob.size, requestedWidth: 1280, requestedHeight: 720, recipe: value, ...(presentation ? { presentation } : {}) };
+      await align(value, 0, signal); abortIfNeeded(signal);
+      monitor.gain.value = 0;
+      /** @type {CanvasCaptureMediaStreamTrack | undefined} */
+      let canvasTrack;
+      status('正在準備比較畫面，請保持此頁在前景。');
+      // 兩側真正呈現後才建立輸出流，不裁首尾或硬填音訊延遲來掩蓋啟播差。
+      const measured = await timeline(value, signal, true, () => canvasTrack?.requestFrame?.(), async () => {
+        render();
+        // ponytail: 前景即時合成免轉碼套件；通過 M0 實測後才評估更快的編碼路徑。
+        // 明確在畫面畫好後請求擷取，避免慢速素材與自動擷取計時器互相錯開而留住舊畫面。
+        stream = canvas.captureStream(0);
+        canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
+        if (typeof canvasTrack.requestFrame !== 'function') {
+          stream.getTracks().forEach(track => { track.stop(); });
+          stream = canvas.captureStream(30); canvasTrack = /** @type {CanvasCaptureMediaStreamTrack} */ (stream.getVideoTracks()[0]);
+        }
+        if (localAudio) {
+          // 每輪自己的目的端與一次性來源都由 finally 釋放；無音軌就保持真正無聲，不猜測壞解碼為靜音。
+          if (buffer) {
+            destination = audio.createMediaStreamDestination(); bufferSource = audio.createBufferSource();
+            bufferSource.buffer = buffer; bufferSource.playbackRate.value = value.rate; bufferSource.connect(destination);
+            destination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
+          }
+          // start 事件可依賴後續影格，不能等它才啟播；start() 已成功回傳才啟動音畫，仍用原偏移護欄拒絕失步。
+          recording = record(stream, undefined, undefined, { webmOnly: true });
+          // 10ms 只給原生音訊排程留前置；不是量測後硬填的裝置補償，來源零點與片長都不改。
+          audioStartedAt = audio.currentTime + 0.01;
+          bufferSource?.start(audioStartedAt);
+        } else {
+          audioDestination.stream.getAudioTracks().forEach(track => { stream.addTrack(track.clone()); });
+          recording = record(stream);
+        }
+        recording.done.catch(error => { if (active?.signal === signal && !signal.aborted) active.abort(error); });
+        status('合成中，請保持此頁在前景。取消後仍可重試。');
+      }, () => !bufferSource ? NaN : audio.state === 'running' ? Math.max(0, (audio.currentTime - audioStartedAt) * 1000) : Infinity, render);
+      blob = await recording.stop();
+      diagnostics.export = { ...measured, mime: blob.type, bytes: blob.size, requestedWidth: 1280, requestedHeight: 720, recipe: value, ...(presentation ? { presentation } : {}) };
+    }
+    const exportInfo = diagnostics.export;
+    if (!exportInfo) throw new Error('新合成檔診斷缺失，原片與前次 VS 保留。');
     const temporary = URL.createObjectURL(blob), validationVideo = document.createElement('video');
     validationVideo.muted = true; validationVideo.playsInline = true;
     // 用獨立元素驗證新檔，取消或壞檔不能破壞上一個成功輸出的播放器。
     try {
-      diagnostics.export.decodedDurationMs = await load(validationVideo, temporary, signal);
+      exportInfo.decodedDurationMs = await load(validationVideo, temporary, signal);
       // 可播放不代表錄完整；沿原 100ms 覆蓋容差，確認共同片長後才能替換舊 VS 並保存新檔。
       const rawDurationMs = validationVideo.duration * 1000;
       if (!Number.isFinite(rawDurationMs) || Math.abs(rawDurationMs - comparison(value).durationMs) > 100) throw new Error('匯出片長與共同區間不符，未完成合成；原片與前次 VS 保留。');
@@ -893,7 +918,7 @@ $('export').addEventListener('click', () => operation(async signal => {
     output.pause(); output.src = urls.get('output-download'); output.hidden = false;
     $('share').disabled = false;
     try {
-      await persistExport(blob, diagnostics.export.decodedDurationMs, presentation);
+      await persistExport(blob, exportInfo.decodedDurationMs, presentation);
       status('VS 影片已成檔並保存在此瀏覽器。請下載，離開本站後重新播放驗證。');
     } catch (caught) { const error = caught instanceof Error ? caught : new Error(String(caught));
       if (storageUnconfirmed()) $('output-status').textContent = 'VS 已成檔可下載；這次保存狀態未確認。';

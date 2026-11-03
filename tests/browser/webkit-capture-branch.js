@@ -12,7 +12,7 @@ async (page, options) => {
   await page.locator('#end').fill('7.5'); await page.locator('#end').dispatchEvent('change'); await idle();
   await page.locator('#rate').selectOption('0.5'); await idle();
   await page.evaluate(async () => {
-    const a = window.webkitCapture = { mode: '', streams: [], recorders: [], nodes: [], gains: [], held: [], requests: [], cancelled: [], timers: [], revoked: [], blobs: new Map(), restore: [] };
+    const a = window.webkitCapture = { mode: '', streams: [], recorders: [], nodes: [], gains: [], contexts: [], held: [], requests: [], cancelled: [], timers: [], revoked: [], blobs: new Map(), restore: [] };
     const wrap = (target, key, make) => { const original = target[key]; target[key] = make(original); a.restore.push(() => { target[key] = original; }); };
     a.sha = async blob => ({ bytes: blob.size, mime: blob.type, sha256: [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map(n => n.toString(16).padStart(2, '0')).join('') });
     const store = await import('/storage.js'), before = await store.readLibrary();
@@ -41,6 +41,12 @@ async (page, options) => {
         for (const name of ['start', 'stop', 'error', 'dataavailable']) this.addEventListener(name, event => row.events.push({ name, trusted: event.isTrusted, bytes: event.data?.size }));
       }
     });
+    // PTS 基準不再提前建 live AudioContext；照真冷啟動辨識共用 monitor，不能把它當每輪 captureGain。
+    wrap(window, 'AudioContext', Native => class extends Native {
+      constructor(...args) {
+        super(...args); a.contexts.push({ context: this, id: a.contexts.length + 1, mode: a.mode, gainCount: 0 });
+      }
+    });
     wrap(AudioContext.prototype, 'createBufferSource', original => function (...args) {
       const node = original.apply(this, args), row = { node, context: this, mode: a.mode, starts: [], stopped: 0, disconnected: 0 }; a.nodes.push(row);
       const start = node.start, stop = node.stop, disconnect = node.disconnect;
@@ -50,8 +56,13 @@ async (page, options) => {
       return node;
     });
     wrap(AudioContext.prototype, 'createGain', original => function (...args) {
-      const node = original.apply(this, args), row = { mode: a.mode, disconnected: 0 }; a.gains.push(row);
-      const disconnect = node.disconnect; node.disconnect = function (...args) { row.disconnected++; return disconnect.apply(this, args); }; return node;
+      const node = original.apply(this, args), owner = a.contexts.find(row => row.context === this);
+      // 此固定 prepareAudio 在新 context 的第一個 gain 是全頁 monitor；其餘／不明 context gain 仍照本輪資源驗。
+      const role = owner && owner.gainCount++ === 0 ? 'shared-monitor' : 'capture-gain';
+      const row = { mode: a.mode, contextId: owner?.id ?? null, role, connectCalls: 0, connectReturns: 0, disconnected: 0 }; a.gains.push(row);
+      const connect = node.connect, disconnect = node.disconnect;
+      node.connect = function (...args) { row.connectCalls++; const value = connect.apply(this, args); row.connectReturns++; return value; };
+      node.disconnect = function (...args) { row.disconnected++; return disconnect.apply(this, args); }; return node;
     });
     // 只延後同一次原生通知；取消後仍送回原 now／metadata，檢查舊通知不能復活錄影。
     wrap(HTMLVideoElement.prototype, 'requestVideoFrameCallback', original => function (callback) {
@@ -86,7 +97,10 @@ async (page, options) => {
     const reference = document.getElementById('reference');
     if (!reference.paused || reference.muted !== a.muted) throw new Error(mode + ' 示範未停止／靜音未還原');
     const nodes = a.nodes.filter(row => row.mode === mode), recordings = a.recorders.filter(row => row.mode === mode && row.camera);
-    if (nodes.some(row => row.starts.length !== 1 || !row.stopped || !row.disconnected || row.node.buffer !== null) || a.gains.filter(row => row.mode === mode).some(row => !row.disconnected)) throw new Error(mode + ' 本輪聲音資源未清理');
+    const sharedMonitors = a.gains.filter(row => row.role === 'shared-monitor'), captureGains = a.gains.filter(row => row.mode === mode && row.role !== 'shared-monitor');
+    if (a.contexts.length !== 1 || sharedMonitors.length !== 1 || sharedMonitors.some(row => row.connectCalls || row.connectReturns)) throw new Error('冷 context 共用 monitor 未被正確辨識，或 Safari monitor 意外接入聲路');
+    // 共用 monitor 只驗從未連接，不冒稱每輪釋放；真正 capture source/gain 的原 start／stop／buffer／disconnect 斷言不變。
+    if (nodes.some(row => row.starts.length !== 1 || !row.stopped || !row.disconnected || row.node.buffer !== null) || captureGains.some(row => !row.disconnected)) throw new Error(mode + ' 本輪聲音資源未清理');
     const media = await store.readMedia(take.cameraAssetId), db = await store.openStore();
     const count = await new Promise((resolve, reject) => { const request = db.transaction('chunks').objectStore('chunks').count(IDBKeyRange.bound([take.cameraAssetId, 0], [take.cameraAssetId, Number.MAX_SAFE_INTEGER])); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
     if (state !== 'ready' && media) throw new Error(mode + ' 失敗錄影被finalize');
@@ -108,7 +122,7 @@ async (page, options) => {
         if (info.interrupted || info.rate !== 0.5 || info.durationMs <= 14500) throw new Error('重試未沿原15秒時長護欄真正完成');
       }
     }
-    return { mode, takeId: take.id, takeState: take.state, oldDataAndMediaPreserved: true, oldUrlsPreserved: oldUrls, nativeRecorderEvents: recordings.map(row => row.events), nodesReleased: nodes.length, cameraTracksEnded: true, frameRequests: a.requests.filter(row => row.mode === mode), timers: a.timers.filter(row => row.mode === mode) };
+    return { mode, takeId: take.id, takeState: take.state, oldDataAndMediaPreserved: true, oldUrlsPreserved: oldUrls, nativeRecorderEvents: recordings.map(row => row.events), gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), sharedMonitorPerRoundReleasedClaim: false, nodesReleased: nodes.length, cameraTracksEnded: true, frameRequests: a.requests.filter(row => row.mode === mode), timers: a.timers.filter(row => row.mode === mode) };
   }, { mode, state, oldUrls });
   const start = async mode => {
     await page.evaluate(mode => { window.webkitCapture.mode = mode; }, mode);
@@ -148,7 +162,7 @@ async (page, options) => {
   } catch (error) {
     const observed = await page.evaluate(() => {
       const a = window.webkitCapture, reference = document.getElementById('reference');
-      return { mode: a.mode, status: document.getElementById('status').textContent, held: a.held.map(row => ({ mode: row.mode, now: row.now, mediaTime: row.metadata.mediaTime, released: row.released })), timers: a.timers, recorders: a.recorders, nodes: a.nodes.map(row => ({ mode: row.mode, starts: row.starts, stopped: row.stopped, disconnected: row.disconnected, contextState: row.context.state })), reference: { time: reference.currentTime, rate: reference.playbackRate, paused: reference.paused, muted: reference.muted }, completed: document.getElementById('controls').disabled === false };
+      return { mode: a.mode, status: document.getElementById('status').textContent, held: a.held.map(row => ({ mode: row.mode, now: row.now, mediaTime: row.metadata.mediaTime, released: row.released })), timers: a.timers, recorders: a.recorders, gains: a.gains.map(row => ({ ...row })), contexts: a.contexts.map(row => ({ id: row.id, mode: row.mode, gainCount: row.gainCount, state: row.context.state })), nodes: a.nodes.map(row => ({ mode: row.mode, starts: row.starts, stopped: row.stopped, disconnected: row.disconnected, contextState: row.context.state })), reference: { time: reference.currentTime, rate: reference.playbackRate, paused: reference.paused, muted: reference.muted }, completed: document.getElementById('controls').disabled === false };
     });
     throw new Error(String(error) + '\n錄影分支原生紀錄：' + JSON.stringify(observed));
   } finally {

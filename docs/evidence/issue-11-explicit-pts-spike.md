@@ -153,3 +153,131 @@ Worker模式17個HTTP-only請求、預設window16個請求通過，涵蓋config�
 搬入第一步曾因工作樹權限拒絕、尚無部分source修改；精確授權寫入約定scripts範圍後完成，沒有把這個工具前置失敗叫媒體失敗。原13／42／55來源與實檔封存未改，原型仍未接產品；正常check／正常提交hook與本次最終來源另綁，不以HTTP檢查代替媒體或取消驗收。
 
 本次完整正常check已通過：Bun1.4.4、761 pass／0 fail／4404 expects，公開掃描511個tracked檔、19項既有lint info、build58cb019df383c129；無產品web bytes變更。正常提交hook仍沿原入口執行，結果與精確commit另在PR核對，不跳過hook。
+
+
+## 產品接線候選（#11／#229）
+
+白話：把每格和老師的聲音排在同一把尺上的程式，已做出第一份三秒產品影片。Safari 也真的另存了新影片、兩支原片和完整筆記，關站後首次開檔可自然播到畫面顯示片尾；但私人保存狀態仍未確認，短靜態片也不能證明完整聲畫品質，原問題尚未結案；#229原三秒合成缺陷已有同fixture產品首匯出、真下載、離站解碼與取消資料保全回歸證據；待最終精確commit獨立review、CI與merge後，可依該窄範圍判斷結案。#11完整驗收與#13保存問題仍開，這次提交不預稱已merge或closed。
+
+- 基線 main `9cf6db7960bbdcd5c8b560e32b68a49f225c5c2a`；共用 renderer 來自已合併 PR263。隔離靜態 v1 manifest `c4b2f64880ea3aecdb20f779e1fc31ab0004b26ba024b90dce5bafb546ec7346` 與 v2 `06ff4fb9b86158e90535997d472ca9454deaf0cfdba5198c84645d16768be125` 原封保留本機。前兩個 QA 原生成檔、首次失敗及原量尺各綁原版本，不移記到產品候選。
+- v1 static review 找到合法60fps尾格／VFR age誤拒、錯層mvhd改寫timescale、finally close掩首錯、未旁聽source.close非同步失敗與整輪錯套D+10秒。v2已補純反例。port再修60秒取消時誤標正向G7：只記owner interval／是否超過90秒，不宣稱失敗或取消性能通過。
+- 後端保留完整原 positions／300秒、最後短格、兩片不同尺寸／旋轉／VFR覆蓋與可解碼檢查。跟隨用配方來源時間，畫面仍共用並排／疊影／鏡像／標籤；VideoSample.draw處理庫的rotation/flip，不另拷貝一份假video。選樣age只診斷，編碼後聲畫與非預期freeze仍需原G2/G3實檔量尺。
+- PCM格線以真解碼相位錨定，裁邊／跨包覆蓋完整，已核track首前尾後可靜音，未知gap/overlap拒絕。8MiB elst／有界header審核僅補固定庫會略過的edit範圍，不寫第二套demux；canonical owner／唯一ID拒錯層或重複metadata。庫resampler處理Fs×r自然變調與48kHz輸出，不建即時AudioContext，不留整段300秒PCM；整個輸出Blob與BufferTarget仍全檔留記憶體，峰值未驗。
+- 只Safari比較輸出接新Worker，saveRecipe仍先做。主頁保留新後端首錯metadata；沒有取得／驗證新Blob前不換舊VS，之後沿原load驗片長±100ms／persistExport。private unknown／pending只用原memory救援連結，不重讀DB、不強abort、不把pending當rollback。Chrome、一般／共同預覽、相機錄製與單側跟隨成果路徑不改。
+- Worker只自己所有，abort/background/pagehide先佔終態、terminate、自動移除自己的timer/listener，晚訊息不能發布。close privatePromise是固定1.65的薄seam，失配拒絕；called/returned不代表實體codec退出。自有模組均進App覆蓋分母，pure fakeWorker僅驗決策，不冒充真codec。
+- 前置階段先做正常check／strict types／unit與完整diff審查，當時未啟browser／codec；之後實際首案分開記於下方，不把早期靜態結果移記成媒體成功。型別沿上游類別宣告薄轉接，避開舊ambient WebCodecs與TS7 DOM重複；不使用skipLibCheck，不改套件。
+- 下列第一個原生產品案已使用原#229兩個不同來源：reference 41736 bytes／SHA256 `4899551b4cec878137bca1e1d510cfbea00d5de1ae62799275cdcf04d8c689ae`，320×180；self 67209 bytes／`ae6db98e328a05a1a0cff319e30ee4651607af84b8b0bcf0d4204cd55777af9f`，180×320。A0/B3/C0/r1/offset0/SBS/no mirror；不轉碼、不以65秒同片雙側冒充。原素材不是coded flash，本首案不代替碼表聲畫量尺；人工聽感／實體裝置仍分開。
+- 本節僅記下方已完成的首次結果。三速、非零A／偏移／短尾、layout/mirror/follow、其他格式、取消／背景／舊VS與五分鐘峰值仍不得由三秒首案代勾；沒有新增byte上限縮小原要求，也沒有宣稱唯一WebKit原因或完整G1–G7通過。原#11／#229及私人保存#13保持未結案。
+
+
+Port 前置檢查紀錄：首次嚴格型別發現上游舊 ambient WebCodecs 與 TS7 DOM 重複，改引用固定上游類別宣告並只補 track-kind 細分，沒有 skipLibCheck；完整 typecheck 已通過。第一次正常 check 保留779 pass／1 fail／4640 assertions：真正 build 回歸揭露相對 external 無法解析同源庫別名。修為只在建置時將該唯一 URL 解析到固定官方套件，仍真正驗套件，不是假略過依賴；單獨 build 已通過。這些不是原生媒體失敗，也沒有因此啟動瀏覽器或放寬測試。
+
+### 產品首次結果：Chrome直接引擎、原生Safari產品介面
+
+受測來源是 base main 9cf6db7960bbdcd5c8b560e32b68a49f225c5c2a 加 reviewed staged tree 4be2085ccb0d32d9166c5cfa4a9c9d0d24fef657，**trackedChanges=true**，build a3c4cccb8c9bb59e；不是乾淨HEAD或最終提交。原24檔port封存 e550925cf8e615ba37c17de3d3386317723ef18a681dbfde987feec6165c3014 維持原樣，受測產品主要模組：
+
+| 模組 | SHA256 |
+| --- | --- |
+| main.js | 13b7ed2083829ffe526095cfd3d534eb972c658e8b44b62ba18a5833a6a78a6a |
+| export-pts-core.js | fef46189bb05966cfd46aeb9ace130a2d00b6b63c1d56270ccacdd84f8c42e48 |
+| export-pts.js | 9ec85faecd76d4f5fd72374cb1c742932e6501e0b5c4adfd3d76e50f78bbf6ad |
+| export-pts-worker.js | 29aa399934442d4b31cbe0affb68882fae32576b6c3c0dedab19e3dd4ef6c289 |
+
+- **Chrome直接引擎首案**：46項manifest db7a023225a51be43114cae121467767ba5248fa60cb66f59527fc03042c9703，原兩份不同素材、A0/B3/C0／1×／offset0／SBS／不鏡像；一次真Worker能力檢查、一次產品owner匯出。首檔84,341B／SHA256 e807d9e08b7a140471e4ad5dd8d7528468c2796060086e113c4d06d75ed096be，以本機POST保全，**不是原生下載、產品保存或Safari**。既有FFmpeg原log完整解碼exit0／stderr空；90格、視訊3秒、AAC／容器3.028秒、PTS嚴格遞增。來源PCM144,000與輸出48k duration_ts145,344分記；owner570.2ms、含素材hash與artifact POST的QA593.1ms、真正click→首觀察保守上界5,014ms不互換。403 favicon及already-finalized warning原封保留。隔離browser八個已知PID皆不存在、主機exit0／實際port拒連61／own nonce釋放，不把Worker terminate回傳叫物理codec退出。
+- **Safari27.2產品首案**：99項manifest db4532ee4e0d125033bd41589b0aa96030583bc9928526434da9eae6739ba308，與上案相同原兩份不同素材／三秒配方；原產品按鈕唯一trusted export。首MP4 65,204B／SHA256 fcc9a95dd2860b1082f0628bd9b6362d4670fef60fd10e074000efac05dd0a1c；新VS、兩側原片及完整筆記四項救援均真正原生另存，下載bytes／hash對應頁內Blob。90格／視訊3秒／容器3.006667秒、原完整decode exit0／stderr空、PTS嚴格遞增。來源PCM144,000、AAC48k duration_ts144,320與重採樣8k的24,054樣本分開，不能把後者乘六捏成精確48k計數。首中尾靜態幾何及持續測試音只支持描述性檢查，不是光學／脈衝AV量尺或人耳。core3,391ms／owner3,423ms／主頁讀回3,007ms，真正click→首AX保守上界14,610ms；指定quiet5,005ms不是實測首次觀察時刻，也不證60秒G7。
+- **私人保存仍unknown**：最後媒體request為trusted UnknownError，快照沒有該transaction的complete／abort；after unknown=true、native=null，之後沒有DB交易、reopen或force-abort。不能稱保存成功、已rollback或native DB after不變。非空合成筆記與全部最後確認資料經原產品memory備份救援；最初直接拿raw native assets比可攜備份失敗，原紀錄保留。依原validateBackup白名單去除state／storageKind等runtime欄位、只換generated exportedAt後完整deep-equal，兩路唯讀核對相符；原片URL／hash及舊retained subset保留，不把新validation／output URL誤報成毀損。這仍屬#13未確認保存界線，不改寫舊失敗。
+- **操作與收尾限制**：匯出前自拍選擇曾載入老師片，已在0export時走原UI修正並以不同SHA確認；不算匯出重試。原一般備份入口在預設比較UI隱藏，before完整資料改由原QA JSON原生下載，after則走可見的原memory救援備份，不改CSS／產品。四項救援檔核對完成後才另准普通離頁，僅關自有視窗；native transaction結果仍unknown。主機原收據browserStopped=false／留鎖，之後實際PID／port61與own nonce稽核才釋鎖，共用Safari與未知視窗保持。本輪未變更設定或接受降低防護；其他隱私組合與預設組合未完整驗證。
+- **離站首次原生播放**：先確認產品頁／主機已停，再於新的自有私人視窗第一次開原下載檔；原生開檔自行播放，AX由Pause／0秒走到Play／3秒、進度1，未seek／重播／手動啟停。這只支持自然走到可見片尾；JS ended／error code／dropped未觀察、人耳未驗。自己的檔案視窗正常關閉，shared Safari仍在，不推實體資源全退。
+- 協調者與獨立Codex lane已分別唯讀核對46／99項全部bytes／SHA、原收據、資料救援、分析紀錄與限制；第二路沒有重播／重編碼。這不取代後續最終commit獨立review／CI或完整產品驗收。以上都仍是原靜態色條／持續音素材，不能從currentTime、selectedPresentationLagMs=0、90格或自然片尾推定完整G2／G3；未新增結案。
+
+### 首輪三個選定App情境：1 PASS／2 FAIL，保留原結果
+
+8項manifest 4d663361e3387aec5357fbb21979c70cdd1103f968f7d627328f92a5667243ad，run收據7d5facda46fb95676b4b98a578cc75cf1b94048e13586e2a75481550faf4ceec；測試適配後整個staged tree為5752b055b5b6330b9e57593abacfe3a5615ec915，產品原24檔仍對4be封存、32個App來源SHA相符。這是三個選定Chromium情境、exit1，不能叫完整84案或原生Safari驗收。
+
+WebKit匯出支援故障／保全／解除後恢復一案PASS。owner準備中Stop的斷言已過，但headless沒有建立真正hidden／visibility事件，於環境前提等待FAIL；晚Blob／後續retry子案未到，不可當產品背景取消通過或失敗。錄影暖機取消在聲音資源斷言FAIL，原紀錄nodes／recorders空且未dump gain，因此不能由缺欄認定或排除實漏。兩個首失敗與原log完整保留；pageErrors為0、browser.close／server.stop返回及lock未留，該輪未另做物理PID獨立退出稽核。此首輪紀錄不移記後續探針、修正或另輪結果；新版選定情境另列下段。
+
+### 同來源四個原生coded配方首案：三速、偏移、鏡像與一分鐘
+
+白話：再用原本帶格碼和提示音的假影片，一次只做一張已授權測試單。四份第一次成品都通過原量尺，包含半速、四分之三速度與一分鐘；這比只看靜態色條多了實際聲畫證據，但仍不能跳過尚未通過的產品回歸。
+
+四案都由Safari27.2直接呼叫同一產品owner／真module Worker；原產品46資源固定在同一4be／a3 snapshot，未隨後續測試適配漂移。每案只有一次cap與一次export，沒有自動矩陣、codec fallback或失敗重做。兩roles用既有完整65秒coded／flash素材（1,789,027B／SHA256 3fb42ffb14678b8c944d605cab684a1919801de7908c1f540f7fbfc29ea26548），selfDuration65000與seconds65保留；這些是本機POST實檔，**不是產品介面保存或原生下載**，亦不取代前述兩份不同來源的真正產品首案。
+
+| 首案 | A／B ms；速度／偏移；鏡像 | 視訊／容器秒；格數 | bytes | flash／pulse；最大AV差ms | 最大配方／內容差ms；最大hold ms | owner／QA／真ready上界ms |
+| --- | --- | --- | ---: | --- | --- | --- |
+| coded1 | 0／3000；1×／0；無 | 3／3.006667；90 | 205,019 | 3／3；20 | 0／0；33.334 | 3,413／3,427／13,919 |
+| codedHalf | 12000／15000；0.5×／+400；兩側鏡像 | 6／6.022667；180 | 534,921 | 3／3；20 | 33.334／33.334；66.667 | 6,850／6,864／23,797 |
+| codedThreeQuarter | 12000／15000；0.75×／−400；無 | 3.6／3.604021；108 | 239,260 | 2／2；6.667 | 33.334／33.334；66.667 | 4,090／4,103／13,559 |
+| coded60 | 2000／62000；1×／0；無 | 60／60.012；1,800 | 9,022,755 | 60／60；20 | 0／0；33.334 | 66,742／66,773／75,731 |
+
+原analyzer v5 SHA256 3f4aec9788880037a585ff81c6f77a0e56ab456dc835aa4cbe0cb0cbe1cbeaaa不改，仍用10ms音訊RMS步長與原來源格點，四案均exit0／withinSyntheticTargets=true、完整共同配方覆蓋true，平均FPS分別29.933／29.887／29.967／29.994。各另存PTS符合原i/30格線、嚴格遞增，及全軌decode exit0／stderr空；沒有去重、重排、補償或remux。AV數字是本次原量尺結果，不能移成舊prototype的0ms。Half的ref12→15／self.4→6.4對應6秒；ThreeQuarter負偏移連老師音訊裁共同頭，ref12.3→15／self0→3.6，沒有補回名義4秒。半速參考格的66.667ms hold與33.334ms配方量化照實保留，不改原100ms／250ms或FPS門檻。
+
+四份獨立seal與成品SHA256各自保留（entry數包含重複來源／收據，不當unique檔案數）：
+
+- coded1：15項manifest 3e189c589a32a87c2911f8ee2908b0bf0a35f77eb4dc379b7583cef3c0c7eb8d；成品 de1b21921ccc21c4c292d1891aa2808d78131e2ee0a87d51bbe615642e94b0af。
+- codedHalf：17項manifest a0b934569e8633cead7f1e4e4445757017962465f7daa19cad0aa5008b094f5a；成品 59e9ed10433bc3dbba0a67e8fb6bec98f125417738f7bb4a9bf57acbfe05b32f。
+- codedThreeQuarter：17項manifest 7383fe3ccc0afa7f17f9d49e3f4cf2c168c58e2b1b0483bc5573730f44a45b9a；成品 9db2c6f7a65d89474eeffae1cb21b7688b2361aaaa03f14f5b2c98fd31e4f415。
+- coded60：16項manifest 34fa23be1d8684e00dad598e5020887200f7bb79da839ffb56a02812a2b5143f；成品 6817c2c39b0ddfc56b07def8ab91d545eb3e9905d77cf2045049e686af841d90。
+
+半速首提示音既有PCM的.04–.10秒Hann小窗峰近330Hz；0.75×的.97–1.00秒峰近495Hz，支持這些合成小窗的自然變調描述，不等於人耳或整段聲音驗收。四案均由協調者和獨立Codex lane逐項核seal／raw／配方與分析資料；第二路只重算已存PTS／PCM小窗，沒有再解碼、重播或重做成品。
+
+時間欄三種範圍分開：owner只到自己的Worker終態／terminate回傳，QA含素材讀取／hash／artifact POST但不含result POST，真正ready上界才用實際export click→首ready AX回傳。Half與60的quiet sleep被agent訊息提前結束後補一段，原時點及零native UI輸入照錄，不把指定5,005ms當實測首次觀察；60先見非終態AX，另有本機result檔被動觀察，後者不充原生AX ready。只有**這個直接引擎原生60秒合成案**以真上界75,731ms達原v5的90秒目標，不能推成完整產品UI／保存／原生下載／cold-start G7或300秒效能通過。60秒來源PCM／covered為2,880,000；進度日誌200筆上限後2,797筆未保留，不是輸出掉幀，實檔解碼為1,800格。
+
+四案原SIGINT exit1／browserStopped=false／留鎖都保留；另外確認自有context、host PID不存在、實際port拒連61及own nonce才釋鎖，共用Safari與未知視窗保持。Worker公開清理／terminate呼叫回傳不冒稱物理codec資源退出；未獨立蒐集的原生console不以toolErrors空當「無console訊息」。
+
+本表原始整理時產品候選尚未最終commit／merge，原App首輪1PASS／2FAIL不能因四份品質檔通過而變綠，沒有預填後續ENV／App／CI。300秒記憶體、其他格式／rotation／VFR、follow／overlay、完整取消與資料／舊VS保全、真機與人耳，以及完整G1–G7仍未驗證；#11／#229／#13不由本表結案。
+
+### 新進度介面的原生產品首案：來源與舊品質表分開
+
+新版產品實際首案仍用原#229兩份不同素材／A0/B3/C0／1×／offset0／SBS／不鏡像，沒有錯選、重匯出或換codec。凍結來源base9cf6db7960bbdcd5c8b560e32b68a49f225c5c2a＋staged tree51e278eca955b9462352bb75bfad9677e0e7fd21、trackedChanges=true／buildd956f301dd2cce5d，main SHA256 0a6d99a60cd9013b492775d04eb219d53233c3fc1cf3051012ec2d799de6204e；不是最終提交。相對舊4be產品盒子只有main／重建SW變動，十個codec／renderer／timeline／follow模組逐byte相同；四coded品質結果仍各綁原4be直接引擎案，只能沿用這些相同後端的已測範圍，不能移記為新版main跑過coded矩陣。
+
+進度程式不再把audio局部百分比寫入總進度，input／encoding最多.99、finalizing才滿格。本次原UI首案只記終態progress=1，沒有連續採樣去證明整段單調。94項最終manifest ed3e1cf9606249b6adb77564ac8659a9e01ac7bad0ddde34076e86c1335d6e92，summary f5f700bf1be97c9bab7fda01b888747f2f0c78459dcd4df98e3419305ac124db；協調者與獨立Codex lane分別唯讀全項bytes／SHA與原始收據，第二路未重播或重新解碼。
+
+原產品唯一trusted click產生63,809B MP4／SHA256 ea303dba3ecc058d4c8d64a09da1c440c45d286cc9312993bc118ef28d05725d，VS／兩側原片／筆記四項真正原生下載，指紋均核對。原FFmpeg完整全軌decode exit0／stderr空；H264 Baseline 1280×720、90格／3秒，PTS嚴格遞增並符i/30（最大量化差0.333微秒），AAC48k mono／容器3.006667秒／duration_ts144,320，8k解碼24,054樣本另記、不能乘六冒充精確48k數。既有首中尾三PNG核幾何，660／660／660Hz僅描述性測試聲源，不是coded光學AV或人耳。core3,387ms／owner3,416ms／原元素decodedDuration3,007ms，click-end→首AX回傳真上界16,077ms；指定quiet5,005ms不是實測首觀察時刻，不代G7。
+
+私人保存最後request仍trusted media UnknownError，沒有transaction complete／abort；after unknown=true／native=null且沒有之後DB交易，不reopen或force-abort。原validateBackup契約正規化後，真正下載的完整筆記與before完整資料deep-equal；一筆非空合成marker、原片URL／hash及舊retained四項subset都保留（新增validation／output後共六項）。救援介面讓原片連結由隱藏變可見是預期UI改變，不誤稱整個link物件相同。四檔核對完成後才普通Leave／關自己的產品視窗，未知transaction結果仍未知；shared Safari與未知視窗保持。
+
+站點和host停止後，真正另存檔在新自有private視窗首次開啟，自然由0秒／Pause／滑桿.019到3秒／Play／1；無seek／重播，未見可見錯誤。JS ended／error／drops未觀測、人耳未驗，不能寫error0或零掉幀。只關自己的fileplay視窗。原host收據exit0／browserStopped=false／留鎖與其後own context／PID不存在／實際port拒連61／匹配nonce稽核釋鎖分開保存，不宣稱物理codec退出。本輪未變更設定或接受降低防護；其他隱私組合與預設組合未完整驗證。
+
+### 修改測試範圍後的三個選定App情境：新輪3PASS不覆寫首失敗
+
+原首輪1PASS／2FAIL及8項封存永久保留。後續取消測試把真正hidden驗證另留native模式，headless選定情境改測可建立的setup Stop及停止後晚交付真結果；錄影資源斷言則區分冷AudioContext的全頁shared monitor與每次capture gain。新輪是Chromium156的三個選定情境，不是完整App矩陣或Safari真背景驗收；nativeBackgroundRequested／Verified都false。
+
+新run SHA256 77da68b1a6fd908b082f7e1ea1b89390be2b7f9abc94a2da3ab3f7a35f31bcc7，base9cf＋測試適配staged tree3a6b196cbb1c1f7b1aa754f67c31590efbd94ee5（31檔）、trackedChanges=true；32個App來源指紋包含main0a6與原相同後端。webkit-audio-branch／explicit-pts-owner／webkit-capture-branch分別PASS，1,187／1,548／30,632ms；run errors空，browserClosed／serverStopped true、lockRetained false，不冒稱獨立物理程序退出。
+
+真Worker能力邊界拒絕後解除恢復、setup Stop，以及停止後晚交付原生52,005B Blob均核完整資料／原片／舊VS保全；晚訊息trusted、target／request id／handler匹配，仍不接納，之後另次retry能產真MP4。owner共四個自有Worker的terminate呼叫返回，未證物理編碼器退出；此晚交付不是證明編碼器在terminate後才完成。原route清理的already-handled訊息亦保留，不把頂層errors空當沒有任何工具訊息。
+
+capture從真冷context開始：全頁shared monitor一個、connect0／disconnect0，不聲稱每輪釋放；兩輪capture gain各connect1／disconnect1，context末態suspended。原2000ms暖機期限、取消與失敗保全斷言保持；四份實際下載列於原收據，這裡沒有新增播放／解碼結果。這一headless輪沒有驗真正背景，後續完整原生Chrome情境另列下段；此3PASS不可改標舊前提失敗，也不替代完整84案／CI。300秒僅靜態準備後暫停，沒有新增長片成功或RSS證明。
+
+正常check在這次native首案前已實際exit0：781 pass／0 fail／4669 expects、typecheck、19既有lint infos、buildd956。早先受限環境774 pass／7 fail照留：六處listen port0回EADDRINUSE，另一build子程序exit1未擷取子stderr、原因不能逕定相同；不弱化或跳測。此處不預勾尚未完成的最終hook／commit／CI／merge；原#11／#13與未驗格式／rotation／VFR／follow／overlay／300秒峰值／人耳／完整G1–G7仍依原驗收保留。
+
+### 真背景事件的完整owner情境：Chrome原生視窗，並非Safari裝置
+
+後續僅一次完整owner原生情境已PASS，20項seal 9c7b07f7f3fba1595f8a8328cf1e174482b18d6144fb4386e267d36a053bffa3；來源仍tree3a6b／buildd956，scenario SHA256 1748ff07afded348d735e4d72e26e063accd656f88ff6acfee1c5ba88f36e8fa。實際engine是Chrome156.0.8078.80 defaultContext，只用UA選Safari產品分支，不能稱Safari真機；亦有retained-full-interface初始化轉接、只阻擋自有origin的SW註冊，非預設首頁或離線驗收。
+
+setup-stop、setup-background、held-native-result-after-stop三階段完整資料／舊VS bytes及來源均保留，真visibility事件為hidden:true／trusted:true後hidden:false／trusted:true，不是假送事件或改getter。五個自有Worker各terminate1／return1；晚交付真52,005B Blob的trusted／own target／request id／handler均核對，Stop後不接納，同頁retry從一份舊export成兩份且舊筆記／來源／VS不變。這是攔住原native MessageEvent再晚交付，不證編碼器在terminate後才自然完成；沒有把terminate返回稱物理資源退出。case observationErrors／cleanupErrors空，原首輪hidden前提失敗仍不改標。
+
+CLI close exit0、launcher exit0，server143是自己的SIGTERM，已記自有PID不存在及匹配nonce釋放；最後port探針在受限環境回PermissionError／errno1，**沒有證明port拒連**，不能移用Safari主機的實際61。未獨立核全部descendants／物理codec退出。三個選定App成功輪另有8項seal c7b9a65697831ddf83f9b88c8d1125f418ee34d4e3c2711db20dad21bfbca2dd；兩路逐項SHA／原收據核對，但沒有因此宣稱完整84案、CI、Safari背景、其他格式／300秒RSS／人耳或完整G1–G7通過。
+
+重現沿用[MEDIA_PROBE的「#8 練習循環」原生背景流程](../MEDIA_PROBE.md#8-練習循環)，不用新增工具。先依共用媒體鎖串行準備既有合成素材與建置，開一個專用產品主機：
+
+```sh
+bun --no-env-file tests/app-coverage/prepare-fixtures.ts
+bun --no-env-file scripts/build-web.ts
+bun --no-env-file scripts/serve-web.ts 4174
+```
+
+另一終端只把原launcher換成PTS模式（每輪fresh profile，不能同時跑其他媒體）：
+
+```sh
+bun --no-env-file scripts/launch-native-browser.ts --pts-export
+```
+
+第三個終端沿同一份原生defaultContext設定與三個CLI步驟；session名稱每輪另取、前次只關自己的session／launcher後才啟下一輪：
+
+```sh
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-pts-native open http://127.0.0.1:4174 --config output/native-controller.json
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-pts-native run-code --filename output/native-background-run.js
+npx --package @playwright/cli@0.1.22 playwright-cli --session dance-pts-native close
+```
+
+核真正`### Result`的`status:passed`與`nativeBackgroundVerified:true`，出現`### Error`或failed就保留本輪log，不以退出碼或重跑覆蓋。關自己的CLI session後回launcher終端Ctrl+C，只停自己的Chrome；產品主機亦單獨停止，保存原stdout／stderr／Result與清理稽核。此入口仍是真Chrome＋Safari UA分支、retained adapter與自有origin SW阻擋；上述Safari、預設首頁、離線與物理退出限制全保留。

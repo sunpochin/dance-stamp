@@ -238,5 +238,5 @@ export interface Comparison { startMs: number; endMs: number; rate: number; offs
 // 匯入原片沒有原生錄製觀測；允許缺欄，不能用檔案建立時間偽造同步資料。
 export interface CaptureTiming { recorderRequestedMs: number; recorderStartedMs?: number; referencePlayResolvedMs?: number; referenceAtPlayMs?: number }
 export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number }
-export interface ExportInfo { presentation?: OverlayPresentation; maxRenderGapMs: number; elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
-export interface Diagnostics { stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; audioPath?: string; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }
+export interface ExportInfo { presentation?: OverlayPresentation; backend?: 'explicit-pts'; maxRenderGapMs?: number; elapsedMs?: number; observedMaxDriftMs?: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
+export interface Diagnostics { exportFailure?: unknown; stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; audioPath?: string; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }
