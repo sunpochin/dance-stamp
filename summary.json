@@ -1,7 +1,7 @@
 {
-  "sourceHead": "481889bb2bf85597049199457a3d29132fb78100",
-  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41623386519",
-  "generatedAt": "2026-11-03T11:21:57.658Z",
+  "sourceHead": "7c97df972aad940683de40f7f15d333cd61ecd68",
+  "workflowRun": "https://github.com/sunpochin/dance-stamp/actions/runs/41627102641",
+  "generatedAt": "2026-11-03T11:45:52.912Z",
   "scope": "All web/*.js; unit + VM + isolated Chromium; synthetic checks",
   "sourceHashes": {
     "web/beats.js": "d25c6893043db7456cb32c4b64c1dbee982b33c3bb94a41966bfabe0bd0bcf9c",
@@ -11,14 +11,15 @@
     "web/cloud-sharing.js": "15bac7b219e1cd0a5eff71577a358c3360f45b14848f4c219e954fb650bf754d",
     "web/cloud-snapshot.js": "97a1f6195dabed19b302aaa4966e9e6ea848aaa97aa181b052a9e7031d5a5571",
     "web/cloud-ui.js": "ddd5df9c624971b0c2c4dcae3d54a2ccf43ffab28d8dcf365d019575058de311",
+    "web/comparison-renderer.js": "782195d8f6745f60b75704edc9fbe66a770e5e8523d7822a40bd58046804c757",
     "web/follow-export.js": "d056396836afddec5072e4140e1fd48a7b7ce914958998bed95a608503d76e3a",
     "web/follow-metrics.js": "f6b216071ab82116ed50a2538309c81add4831f68539dd9a670aca1409d1c834",
     "web/follow-ui.js": "1be12f23f0e168b8181f292f5fdf68f4f10136767547ec9ae31579339392e920",
-    "web/follow.js": "2c257c6524b852ec71b0f6c7c4e97ec8c6c147f7cc8171af29b481834dbfa94f",
+    "web/follow.js": "78e739a7135076ba1dac3d19415be91eacad5f8e2db1e2828a511a1c2038b386",
     "web/google-drive.js": "c8078b7d38d0b82f13cf9b931bc6b18de80635da6e37290c4c1982196c1ad195",
     "web/library.js": "ad329bf5a5bb07cbdcade65f6d1fde1d05a3028122b1282155fa2e209b548593",
     "web/local-audio.js": "a1d1ca1bc8974bee4564cb816359ba3b2510c82f6c0b5436b5df7c727c3b40d0",
-    "web/main.js": "728ef88512d7402ba5a1e014c70c11312e27742115c05807541ebac6b3e746f2",
+    "web/main.js": "5c3d014594ce2b81a4af972d992ce8b351da46080bbaa604953902967cafb833",
     "web/metronome.js": "c4ee81c0351701215b4162e3df04b201ebc83b1705e19f61955a8ad4cecddf0a",
     "web/offline.js": "84e0032d931798ca571966d94fa6103f2d6c67f271bfb0ae7fe19e780ab0b59a",
     "web/person-worker.js": "c1d9138d81c0a139a9e0bf8077d40abebf8f4a064fc2860ef3441448b824c7da",
@@ -32,28 +33,28 @@
   "scenarios": 83,
   "total": {
     "lines": {
-      "total": 3358,
-      "covered": 3336,
+      "total": 3369,
+      "covered": 3347,
       "skipped": 0,
       "pct": 99.34
     },
     "statements": {
-      "total": 6292,
-      "covered": 5909,
+      "total": 6306,
+      "covered": 5924,
       "skipped": 0,
-      "pct": 93.91
+      "pct": 93.94
     },
     "functions": {
-      "total": 1128,
-      "covered": 1085,
+      "total": 1139,
+      "covered": 1096,
       "skipped": 0,
-      "pct": 96.18
+      "pct": 96.22
     },
     "branches": {
-      "total": 3717,
-      "covered": 3226,
+      "total": 3719,
+      "covered": 3229,
       "skipped": 0,
-      "pct": 86.79
+      "pct": 86.82
     },
     "branchesTrue": {
       "total": 0,
@@ -316,6 +317,34 @@
         }
       ]
     },
+    "web/comparison-renderer.js": {
+      "lines": {
+        "total": 38,
+        "covered": 38,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 10,
+        "covered": 10,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 57,
+        "covered": 55,
+        "skipped": 0,
+        "pct": 96.49
+      },
+      "branches": {
+        "total": 25,
+        "covered": 23,
+        "skipped": 0,
+        "pct": 92
+      },
+      "uncoveredLines": [],
+      "uncoveredFunctions": []
+    },
     "web/follow-export.js": {
       "lines": {
         "total": 71,
@@ -443,28 +472,28 @@
     },
     "web/follow.js": {
       "lines": {
-        "total": 36,
-        "covered": 36,
+        "total": 38,
+        "covered": 38,
         "skipped": 0,
         "pct": 100
       },
       "functions": {
-        "total": 16,
-        "covered": 16,
+        "total": 17,
+        "covered": 17,
         "skipped": 0,
         "pct": 100
       },
       "statements": {
-        "total": 58,
-        "covered": 58,
+        "total": 60,
+        "covered": 60,
         "skipped": 0,
         "pct": 100
       },
       "branches": {
-        "total": 24,
-        "covered": 24,
+        "total": 26,
+        "covered": 25,
         "skipped": 0,
-        "pct": 100
+        "pct": 96.15
       },
       "uncoveredLines": [],
       "uncoveredFunctions": []
@@ -566,10 +595,10 @@
     },
     "web/main.js": {
       "lines": {
-        "total": 1394,
-        "covered": 1384,
+        "total": 1365,
+        "covered": 1355,
         "skipped": 0,
-        "pct": 99.28
+        "pct": 99.26
       },
       "functions": {
         "total": 431,
@@ -578,28 +607,28 @@
         "pct": 97.67
       },
       "statements": {
-        "total": 2528,
-        "covered": 2372,
+        "total": 2483,
+        "covered": 2330,
         "skipped": 0,
-        "pct": 93.82
+        "pct": 93.83
       },
       "branches": {
-        "total": 1478,
-        "covered": 1262,
+        "total": 1453,
+        "covered": 1241,
         "skipped": 0,
-        "pct": 85.38
+        "pct": 85.4
       },
       "uncoveredLines": [
         249,
-        739,
-        783,
-        784,
-        785,
-        1929,
-        1930,
-        1931,
-        1932,
-        1955
+        699,
+        743,
+        744,
+        745,
+        1889,
+        1890,
+        1891,
+        1892,
+        1915
       ],
       "uncoveredFunctions": [
         {
@@ -612,35 +641,35 @@
         },
         {
           "name": "(anonymous_69)",
-          "line": 539
+          "line": 499
         },
         {
           "name": "(anonymous_92)",
-          "line": 653
+          "line": 613
         },
         {
           "name": "(anonymous_143)",
-          "line": 972
+          "line": 932
         },
         {
           "name": "(anonymous_145)",
-          "line": 976
+          "line": 936
         },
         {
           "name": "(anonymous_146)",
-          "line": 977
+          "line": 937
         },
         {
           "name": "(anonymous_394)",
-          "line": 1846
+          "line": 1806
         },
         {
           "name": "(anonymous_423)",
-          "line": 1929
+          "line": 1889
         },
         {
           "name": "(anonymous_428)",
-          "line": 1955
+          "line": 1915
         }
       ]
     },
