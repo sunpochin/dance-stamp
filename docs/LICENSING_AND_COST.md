@@ -24,6 +24,18 @@ PolyForm Noncommercial 授權允許非商用使用、修改與分發，並明列
 
 後續貢獻者須確認其原創貢獻按專案當時授權提交，並揭露第三方來源；不要求一份無需求的商用權利轉讓。若未來再改授權，重新檢查所有權利人同意，不憑 repo owner 身分重授他人著作。
 
+### 逐 PTS QA 原型的固定依賴（2026-11-03）
+
+白話：原型使用現成工具把畫面和聲音放進檔案，資料只在本機處理，不需要帳號、付費API或CDN。這個工具有自己的授權，沒有改成本專案的非商用授權。
+
+| 固定開發依賴 | 授權與來源 | 本輪用途 |
+| --- | --- | --- |
+| mediabunny1.65.0 | [MPL-2.0原文](https://github.com/Vanilagy/mediabunny/blob/v1.65.0/LICENSE)、[對應source tag](https://github.com/Vanilagy/mediabunny/tree/v1.65.0) | 本機QA讀取、編碼與封裝，不進產品下載包；未修改依賴原檔 |
+| @types/dom-mediacapture-transform0.1.12 | 安裝包內MIT LICENSE | 上述依賴的型別傳遞依賴，不是瀏覽器runtime服務 |
+| @types/dom-webcodecs0.1.13 | 安裝包內MIT LICENSE | 上述依賴的型別傳遞依賴，不是瀏覽器runtime服務 |
+
+技術上以Bun鎖檔固定版本及完整性，主機只讀本機bundle並保存指紋；MPL／copyright原notice及對應來源取得資訊保留。若後續把依賴納入可散布產品包，須同步附它自己的LICENSE／來源資訊，不能假設根LICENSE涵蓋第三方檔案。這裡沒有變更根授權、購買服務或加入影片上傳。原型只在原始碼repo提供，請由[repo技術索引](https://github.com/sunpochin/dance-stamp/blob/main/TECHNICAL.md)閱讀證據與限制；下載包不包含QA工具。
+
 使用者的影片、舞蹈教學、音樂、聲音與肖像不因匯入本工具變為 PolyForm。參考產品只用來理解需求，不複製其 UI 素材、程式或宣稱合作。匯出／分享前提示確認有權使用內容，公開 issue 只用合成或經授權的素材。
 
 ## 4. 完全免費如何成立

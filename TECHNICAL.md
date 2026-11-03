@@ -1,6 +1,10 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+#11／#229 的[逐 PTS 匯出原型](docs/evidence/issue-11-explicit-pts-spike.md)像把每張照片與聲音放到事先指定的時間，不讓播放器快慢決定成品時間。隔離 Chrome 的第一份三秒合成檔經兩路原量尺核對90格、最大聲畫差0ms；只有這個受限原型通過，尚未驗 Safari、取消或完整產品功能，沒有替換產品入口。
+
+技術：dev-only Mediabunny1.65.0 按來源 PTS 取樣，CanvasSource 明確提交輸出 timestamp／duration，reference PCM 裁到同一區間再編 AAC／MP4。工具與重建入口在 [scripts/qa/explicit-pts](scripts/qa/explicit-pts/README.md)，不進產品包。拒絕固定136ms補償、等待播放後才開錄而丟失A，以及把PCM主鐘與自身比較的假護欄；不用自造muxer。後續若接產品，仍須共用既有繪圖／時間映射並完成全部速度、偏移、疊影、鏡像、跟隨、輸入格式與取消保全驗證，不能以此三秒原型代簽。
+
 **Web 個人雲端接續與免登入分享（#209）**：2026-11-02 已實作 Google A／B／C 工程候選，包含選定練習手動保存／接續及獨立成品觀看連結。尚無 OAuth client 設定，真實供應商／匿名播放與實體跨裝置全部未驗證；Dropbox／前景同步仍待 Google 穩定。設計、設定與進度以[完整交接](docs/CLOUD_SYNC_SHARING.md)為準，iOS App 不列前置。
 
 同日使用者已要求新聊天開始實作，接手入口見[repo 內交接](docs/CLOUD_SYNC_SHARING.md#10-實作交接2026-11-02)。規劃、決策與驗證摘要須隨 Git 保存的原則已納入根憲法，具體寫法見[交接流程](docs/agents/workflow.md#跨聊天交接)；聊天只提供導航，避免換聊天後失去進度或另生衝突規格。
