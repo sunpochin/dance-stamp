@@ -730,6 +730,34 @@ $('capture').addEventListener('click', () => operation(async signal => {
                 mappedElapsedMs: mappedElapsedMs === null ? null : scalar(mappedElapsedMs), pcmElapsedMs: pcmElapsedMs === null ? null : scalar(pcmElapsedMs),
                 captureAudioAt: scalar(captureAudioAt), startMs: value.startMs, rate: value.rate, expectedDurationMs,
                 postDecisionAtMs: scalar(performance.now()),
+                // 輸出鐘只在首個原拒絕後讀一次；raw零值／舊值不校正，且非原子快照不能充當補償。
+                outputObservation: (() => {
+                  /** @type {import('./types').CaptureAudioOutputObservation} */
+                  const observed = { readBeforeMs: null, readAfterMs: null, timestampStatus: 'unsupported', contextTime: null, performanceTime: null, baseLatency: null, outputLatency: null, sampleRate: null, errors: [] };
+                  /** @param {string} field @param {unknown} error */
+                  const failed = (field, error) => observed.errors.push(`${field}:${error instanceof Error ? error.name : 'Error'}`);
+                  /** @param {string} field @param {() => number | undefined} getter */
+                  const read = (field, getter) => {
+                    try { const result = getter(); if (typeof result === 'number') return scalar(result); observed.errors.push(`${field}:unsupported`); return null; }
+                    catch (error) { failed(field, error); return null; }
+                  };
+                  observed.readBeforeMs = read('readBeforeMs', () => performance.now());
+                  try {
+                    const getTimestamp = audio.getOutputTimestamp;
+                    if (typeof getTimestamp === 'function') {
+                      // 保留原生receiver；方法與回傳欄位各只讀一次，不在成功路徑或正式迴圈旁聽。
+                      const timestamp = getTimestamp.call(audio);
+                      observed.timestampStatus = 'returned';
+                      observed.contextTime = read('contextTime', () => timestamp.contextTime);
+                      observed.performanceTime = read('performanceTime', () => timestamp.performanceTime);
+                    }
+                  } catch (error) { observed.timestampStatus = 'error'; failed('getOutputTimestamp', error); }
+                  observed.baseLatency = read('baseLatency', () => audio.baseLatency);
+                  observed.outputLatency = read('outputLatency', () => audio.outputLatency);
+                  observed.sampleRate = read('sampleRate', () => audio.sampleRate);
+                  observed.readAfterMs = read('readAfterMs', () => performance.now());
+                  return observed;
+                })(),
               };
             } catch { /* 診斷失敗不能遮掉原聲音完整性錯誤；沒有packet就保持未觀測。 */ }
             throw captureIntegrityError;

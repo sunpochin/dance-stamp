@@ -238,11 +238,18 @@ export interface Comparison { startMs: number; endMs: number; rate: number; offs
 // 匯入原片沒有原生錄製觀測；允許缺欄，不能用檔案建立時間偽造同步資料。
 export interface CaptureTiming { recorderRequestedMs: number; recorderStartedMs?: number; referencePlayResolvedMs?: number; referenceAtPlayMs?: number }
 // 僅原聲音守門已拒絕時保存；null表示短路未讀，不是0或清理後回填，非finite用字串保留。
+// 原拒絕決定後的一次非原子原始輸出鐘；0／舊值仍保留，unsupported與失敗不猜聲音位置。
+export interface CaptureAudioOutputObservation {
+  readBeforeMs: number | string | null; readAfterMs: number | string | null;
+  timestampStatus: 'unsupported' | 'returned' | 'error'; contextTime: number | string | null; performanceTime: number | string | null;
+  baseLatency: number | string | null; outputLatency: number | string | null; sampleRate: number | string | null; errors: string[];
+}
 export interface CaptureAudioGuardFailure {
   reason: 'context-not-running' | 'clock-drift'; state: AudioContextState;
   referenceTime: number | string | null; audioTime: number | string | null;
   mappedElapsedMs: number | string | null; pcmElapsedMs: number | string | null;
   captureAudioAt: number | string; startMs: number; rate: number; expectedDurationMs: number; postDecisionAtMs: number | string;
+  outputObservation: CaptureAudioOutputObservation;
 }
 export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number; audioGuardFailure?: CaptureAudioGuardFailure }
 export interface ExportInfo { presentation?: OverlayPresentation; backend?: 'explicit-pts'; maxRenderGapMs?: number; elapsedMs?: number; observedMaxDriftMs?: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }

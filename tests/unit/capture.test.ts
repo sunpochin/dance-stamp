@@ -97,17 +97,18 @@ test('錄影觀測值可往返、只接受整數毫秒並排除裝置欄位，�
 })
 
 // 直接擷取實際產品函式執行；spy讀取次數與首錯收據，不另抄判定公式當測試。
-function audioGuardHarness(initial: { state?: string; reference?: number; audio?: number; source?: boolean; startMs?: number; rate?: number; expected?: number; audioAt?: number; info?: any } = {}) {
+function audioGuardHarness(initial: { state?: string; reference?: number; audio?: number; source?: boolean; startMs?: number; rate?: number; expected?: number; audioAt?: number; info?: any; output?: object } = {}) {
   const source = readFileSync(new URL('../../web/main.js', import.meta.url), 'utf8').match(/const checkCaptureAudio = \(\) => \{[^]*?\n        };/)![0]
   const values = { state: 'running', reference: 0, audio: 0, ...initial }, reads: string[] = [], info = initial.info ?? {}
   const reference = { get currentTime() { reads.push('reference.currentTime'); return values.reference } }
   const audio = { get state() { reads.push('audio.state'); return values.state }, get currentTime() { reads.push('audio.currentTime'); return values.audio } }
+  Object.defineProperties(audio, Object.getOwnPropertyDescriptors(initial.output ?? { baseLatency: 0, outputLatency: 0, sampleRate: 48000 }))
   const check = runInNewContext(`(() => { let captureIntegrityError; ${source} return checkCaptureAudio; })()`, {
     captureSource: initial.source === false ? undefined : {}, reference, audio, info,
     value: { startMs: initial.startMs ?? 0, rate: initial.rate ?? 1 }, captureAudioAt: initial.audioAt ?? 0, expectedDurationMs: initial.expected ?? 15000,
     performance: { now() { reads.push('postDecisionAt'); return 1234.5 } },
   })
-  return { check, values, reads, info }
+  return { check, values, reads, info, audio }
 }
 test('錄影聲音100ms兩側邊界原樣，成功不配置packet或讀診斷時鐘', () => {
   for (const reference of [0, .1, -.1]) {
@@ -120,15 +121,15 @@ test('錄影聲音100ms兩側邊界原樣，成功不配置packet或讀診斷時
     expect(h.info.audioGuardFailure.reason).toBe('clock-drift')
     expect(h.info.audioGuardFailure.mappedElapsedMs).toBeCloseTo(reference * 1000, 6)
     expect(h.info.audioGuardFailure.pcmElapsedMs).toBe(0)
-    expect(h.reads).toEqual(['audio.state', 'reference.currentTime', 'audio.currentTime', 'postDecisionAt'])
+    expect(h.reads).toEqual(['audio.state', 'reference.currentTime', 'audio.currentTime', 'postDecisionAt', 'postDecisionAt', 'postDecisionAt'])
   }
 })
 test('原聲路不存在不讀state，非running短路不碰兩時鐘，packet如實null', () => {
   const none = audioGuardHarness({ source: false }); expect(none.check).not.toThrow(); expect(none.reads).toEqual([]); expect(none.info).toEqual({})
   for (const state of ['suspended', 'closed', 'interrupted']) {
     const h = audioGuardHarness({ state }); expect(h.check).toThrow('示範聲音中斷或不同步')
-    expect(h.reads).toEqual(['audio.state', 'postDecisionAt'])
-    expect(h.info.audioGuardFailure).toEqual({ reason: 'context-not-running', state, referenceTime: null, audioTime: null, mappedElapsedMs: null, pcmElapsedMs: null, captureAudioAt: 0, startMs: 0, rate: 1, expectedDurationMs: 15000, postDecisionAtMs: 1234.5 })
+    expect(h.reads).toEqual(['audio.state', 'postDecisionAt', 'postDecisionAt', 'postDecisionAt'])
+    expect(h.info.audioGuardFailure).toEqual({ reason: 'context-not-running', state, referenceTime: null, audioTime: null, mappedElapsedMs: null, pcmElapsedMs: null, captureAudioAt: 0, startMs: 0, rate: 1, expectedDurationMs: 15000, postDecisionAtMs: 1234.5, outputObservation: { readBeforeMs: 1234.5, readAfterMs: 1234.5, timestampStatus: 'unsupported', contextTime: null, performanceTime: null, baseLatency: 0, outputLatency: 0, sampleRate: 48000, errors: [] } })
   }
 })
 test('守門首次原始讀值按A/速度及PCM終點保存，後次失敗不覆寫或再讀診斷時鐘', () => {
@@ -136,7 +137,7 @@ test('守門首次原始讀值按A/速度及PCM終點保存，後次失敗不覆
   expect(h.check).toThrow('示範聲音中斷或不同步'); const first = h.info.audioGuardFailure
   expect(first.referenceTime).toBe(2.2); expect(first.audioTime).toBe(1.2); expect(first.mappedElapsedMs).toBeCloseTo(400); expect(first.pcmElapsedMs).toBeCloseTo(200)
   h.values.reference = 2.4; expect(h.check).toThrow('示範聲音中斷或不同步')
-  expect(h.info.audioGuardFailure).toBe(first); expect(h.reads.filter(name => name === 'postDecisionAt')).toHaveLength(1)
+  expect(h.info.audioGuardFailure).toBe(first); expect(h.reads.filter(name => name === 'postDecisionAt')).toHaveLength(3)
   const tail = audioGuardHarness({ reference: 15.1, audio: 50 }); expect(tail.check).not.toThrow(); expect(tail.info).toEqual({})
 })
 test('診斷不可吞原聲音錯誤，非finite讀值JSON不悄悄變null', () => {
@@ -144,4 +145,52 @@ test('診斷不可吞原聲音錯誤，非finite讀值JSON不悄悄變null', () 
   const nonfinite = audioGuardHarness({ reference: Infinity }); expect(nonfinite.check).toThrow('示範聲音中斷或不同步')
   expect(JSON.parse(JSON.stringify(nonfinite.info)).audioGuardFailure.referenceTime).toBe('Infinity')
   expect(JSON.parse(JSON.stringify(nonfinite.info)).audioGuardFailure.mappedElapsedMs).toBe('Infinity')
+})
+
+
+test('首拒絕後只讀一次原生輸出鐘並保留receiver、raw零值與舊timestamp', () => {
+  const calls: string[] = []; let receiver: unknown
+  const output = {
+    get getOutputTimestamp() { calls.push('method'); return function(this: unknown) { receiver = this; calls.push('call'); return { get contextTime() { calls.push('contextTime'); return 0 }, get performanceTime() { calls.push('performanceTime'); return 1 } } } },
+    get baseLatency() { calls.push('baseLatency'); return 0 },
+    get outputLatency() { calls.push('outputLatency'); return .12 },
+    get sampleRate() { calls.push('sampleRate'); return 48000 },
+  }
+  const h = audioGuardHarness({ reference: .2, output })
+  expect(h.check).toThrow('示範聲音中斷或不同步')
+  expect(receiver).toBe(h.audio)
+  expect(calls).toEqual(['method', 'call', 'contextTime', 'performanceTime', 'baseLatency', 'outputLatency', 'sampleRate'])
+  expect(h.info.audioGuardFailure.outputObservation).toEqual({ readBeforeMs: 1234.5, readAfterMs: 1234.5, timestampStatus: 'returned', contextTime: 0, performanceTime: 1, baseLatency: 0, outputLatency: .12, sampleRate: 48000, errors: [] })
+  const first = h.info.audioGuardFailure; expect(h.check).toThrow('示範聲音中斷或不同步'); expect(h.info.audioGuardFailure).toBe(first); expect(calls).toHaveLength(7)
+})
+test('未提供輸出API或getter失敗如實記錄，不能遮原拒絕或補造時鐘', () => {
+  const unsupported = audioGuardHarness({ reference: .2, output: {} })
+  expect(unsupported.check).toThrow('示範聲音中斷或不同步')
+  expect(unsupported.info.audioGuardFailure.outputObservation).toEqual({ readBeforeMs: 1234.5, readAfterMs: 1234.5, timestampStatus: 'unsupported', contextTime: null, performanceTime: null, baseLatency: null, outputLatency: null, sampleRate: null, errors: ['baseLatency:unsupported', 'outputLatency:unsupported', 'sampleRate:unsupported'] })
+  const broken = audioGuardHarness({ state: 'suspended', output: {
+    getOutputTimestamp() { throw new Error('synthetic private diagnostic detail') },
+    get baseLatency() { throw new Error('synthetic private diagnostic detail') }, outputLatency: 0, sampleRate: Infinity,
+  } })
+  expect(broken.check).toThrow('示範聲音中斷或不同步')
+  expect(broken.reads).not.toContain('reference.currentTime'); expect(broken.reads).not.toContain('audio.currentTime')
+  const observation = broken.info.audioGuardFailure.outputObservation
+  expect(observation.timestampStatus).toBe('error'); expect(observation.contextTime).toBe(null); expect(observation.performanceTime).toBe(null)
+  expect(observation.baseLatency).toBe(null); expect(observation.outputLatency).toBe(0); expect(observation.sampleRate).toBe('Infinity')
+  expect(observation.errors).toEqual(['getOutputTimestamp:Error', 'baseLatency:Error'])
+  expect(JSON.stringify(observation)).not.toContain('private diagnostic detail')
+})
+test('成功及無聲路完全不碰輸出診斷API', () => {
+  const output = { get getOutputTimestamp() { throw new Error('must not read') }, get baseLatency() { throw new Error('must not read') } }
+  for (const initial of [{ reference: .1, output }, { source: false, output }]) {
+    const h = audioGuardHarness(initial); expect(h.check).not.toThrow(); expect(h.info).toEqual({})
+    expect(h.reads).not.toContain('postDecisionAt')
+  }
+})
+
+test('原生timestamp全零也保留原值，不以不可用判斷改寫成null', () => {
+  const h = audioGuardHarness({ reference: .2, output: { getOutputTimestamp() { return { contextTime: 0, performanceTime: 0 } }, baseLatency: 0, outputLatency: 0, sampleRate: 48000 } })
+  expect(h.check).toThrow('示範聲音中斷或不同步')
+  expect(h.info.audioGuardFailure.outputObservation.timestampStatus).toBe('returned')
+  expect(h.info.audioGuardFailure.outputObservation.contextTime).toBe(0)
+  expect(h.info.audioGuardFailure.outputObservation.performanceTime).toBe(0)
 })

@@ -119,9 +119,12 @@ jobs:
         if: always()
         with:
           name: app-macos-native-aac-receipts
+          # 只保留本輪明列合成原片供首錯解碼，不收其他媒體、profile或資料庫。
           path: |
             coverage/app-*/run.json
             coverage/app-*/unit-errors.log
+            coverage/app-*/media/export-failure/reference.mp4
+            coverage/app-*/media/export-failure/self.mp4
           if-no-files-found: warn
           retention-days: 30
   app-platform-gate:
