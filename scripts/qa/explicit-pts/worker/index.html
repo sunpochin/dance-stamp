@@ -1,0 +1,11 @@
+<!doctype html>
+<!-- 用途：Worker專用固定三秒QA入口；所在層：scripts/qa/explicit-pts/worker；關聯：probe.js、entry.js、README.md。 -->
+<html lang="zh-Hant"><meta charset="utf-8"><title>Worker三秒明確時間戳原型</title>
+<h1>Worker三秒明確時間戳原型</h1>
+<p>能力與唯一首匯出都在同一個Module Worker執行。只有固定合成片，不使用相機、麥克風或帳戶；不是產品驗收。</p>
+<button id="capability">檢查Worker編碼能力一次</button>
+<button id="run" disabled>Worker產生唯一三秒原型</button>
+<button id="cancel" disabled>終止自己的Worker</button>
+<a id="download" hidden>下載原型成品</a>
+<pre id="result">尚未開始。</pre>
+<script type="module" src="/probe.js"></script></html>
