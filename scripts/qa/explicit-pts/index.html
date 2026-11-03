@@ -1,0 +1,11 @@
+<!doctype html>
+<!-- 用途：只供合成資料的明確 PTS 原型；所在層：scripts/qa/explicit-pts；關聯：probe.js、spike.js、README.md、#11／#229。相對 Chrome 受測頁僅改此註解。 -->
+<html lang="zh-Hant"><meta charset="utf-8"><title>三秒明確時間戳原型</title>
+<h1>三秒明確時間戳原型</h1>
+<p>這是隔離可行性檢查，不能當作產品或 Safari 驗收。只處理指定的合成片，不使用相機、麥克風或外部服務。</p>
+<button id="capability">檢查本機編碼能力</button>
+<button id="run" disabled>產生一次三秒合成原型</button>
+<button id="cancel" disabled>取消本次原型</button>
+<a id="download" hidden>下載原型成品</a>
+<pre id="result">尚未開始。</pre>
+<script type="module" src="/probe.js"></script></html>
