@@ -11,6 +11,8 @@ export const packageInputs = [
   'docs/DATA_FORMAT.md', 'docs/RECORD_COMPARE.md', 'docs/ACCEPTANCE.md', 'docs/LICENSING_AND_COST.md', 'docs/RELEASE.md',
   // 雲端仍是選用功能；隨資料指南保留設定與未驗證界線，裸包閱讀不能斷鏈。
   'docs/CLOUD_SYNC_SHARING.md',
+  // 開練指南與詞彙也要離線可讀；不把本機收據或合成影片帶入下載包。
+  'docs/PRACTICE_SESSIONS.md', 'GLOSSARY.md',
   'docs/evidence/issue-209-cloud.md',
   'docs/WEB_USABILITY_CHECK.md', 'docs/agents/acceptance-template.md', 'docs/MEDIA_PROBE.md',
   'docs/evidence/existing-comparison.md', 'docs/evidence/issue-12-backup-recovery.md', 'docs/evidence/issue-13-offline-storage.md',

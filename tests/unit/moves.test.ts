@@ -18,7 +18,7 @@ test('v1 在記憶體升版，不改原件、ID、狀態或時間；v2 保留分
   const legacy = newLibrary(); legacy.schemaVersion = 1
   legacy.videos.push({ id: crypto.randomUUID(), title: '舊筆記', durationMs: 15000, revision: 1 })
   const before = JSON.stringify(legacy), migrated = migrateLibrary(legacy)
-  expect(migrated.schemaVersion).toBe(2)
+  expect(migrated.schemaVersion).toBe(3)
   expect(JSON.stringify(legacy)).toBe(before)
   expect(migrated.videos).toEqual(legacy.videos)
   const data = sample(), restored = parseBackup(JSON.stringify(data))
@@ -33,7 +33,7 @@ test('拒絕未知狀態、孤兒 move、非法日期、重複與超長資料，
     d => { d.moves[0].name = ' ' }, d => { d.moves[0].danceStyle = 'x'.repeat(201) },
     d => { d.moves.push(d.moves[0]) }, d => { d.markers[0].moveId = crypto.randomUUID() },
     d => { d.videos[0].recordedDate = '2026-02-30' }, d => { d.videos[0].teacher = 2 },
-    d => { d.schemaVersion = 1 }, d => { d.schemaVersion = 3 },
+    d => { d.schemaVersion = 1 }, d => { d.schemaVersion = 99 },
   ]) { const data = sample(); change(data); const before = JSON.stringify(data); expect(() => migrateLibrary(data)).toThrow(); expect(JSON.stringify(data)).toBe(before) }
   const data = sample(); Object.assign(data.moves[0], { path: '/synthetic', deviceId: 'synthetic' })
   expect(validateBackup(data).moves[0]).not.toHaveProperty('path')

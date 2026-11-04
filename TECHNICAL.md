@@ -1,6 +1,18 @@
 <!-- 檔案用途：產品與開發工具的技術決策索引。所在層：根文件。主要關聯：AGENTS.md、docs/PRODUCT_PLAN.md、docs/ai/HARNESS.md。 -->
 # 技術設計與決策
 
+## #259 開練引導首版（2026-11-05）
+
+白話：首頁按「準備練舞」，先替完整目標與自己選的 8 拍各留一張小卡。接著一次做一個準備步驟，回來可接續；先看或跟跳一次後，由本人說有沒有跳，還不熟也能留下紀錄。提醒文字交給本人到 iPhone「提醒事項」設定一次，網站不排程。
+
+技術：`preparation.js` 定義三情境與純資料白名單；`preparation-ui.js` 接目標表單、單步進度和收尾，`main.js` 只接既有 `saveData`／`operation`／可取消的播放 owner。單次播放以獨立 `practiceOnce` 區間停止在 B，不改比較 A/B；完整目標與起步使用原片整數毫秒，沒有秒數轉拍數或觀看次數推論。觀看、準備、本人跟跳與原速熟練自評分開，快速重按不新增回報，新一次以新 ID 清空當次準備與回報。
+
+完整備份 v3 新增 `preparations`，v1／v2 只在記憶體補空表，成功交易才升版；IndexedDB stores 仍是 version 1，原片不搬動。父關聯 `videoId` 加入既有衝突閉包、穩定副本與 ID 重寫；新記錄、進度及收尾均走全庫 revision 與同一失敗保全。筆記分享仍輸出 v2 空私人表，既有 Google 選定練習快照明確排除準備／地點／回報。完整備份含私人文字，須本人自行保管。刪整份影片筆記的預覽列出準備筆數；僅移除影片副本不刪紀錄。
+
+取捨：以一份有穩定 ID 的準備快照保存最小回報，沒有新增完整歷史比較、推薦器或另一套儲存庫。排除固定秒數猜 8 拍、播放結束自動算已跳、跨裝置同步私人準備，以及網站 Push／必要帳號。舊程式拒絕 v3，回復需升版前備份與原片；不輸出會丟回報的降版完整備份。
+
+[需求與實作證據](docs/PRACTICE_SESSIONS.md#首版操作與驗證2026-11-05)保存交接來源、操作入口、檢查與剩餘驗收；[v3 格式](docs/DATA_FORMAT.md#13-259-準備與本人回報v3)是資料契約。實體 iPhone 17e、原生 Safari、通知送達、真人開始及長期習慣效果均未驗證，工程檢查不代簽。
+
 #11／#229 的[逐 PTS 匯出原型](docs/evidence/issue-11-explicit-pts-spike.md)像把每張照片與聲音放到事先指定的時間，不讓播放器快慢決定成品時間。隔離Chrome、原生Safari window與真正Module Worker的固定三秒首檔各自經原量尺核對90格、最大聲畫差0ms（10ms量尺）；只支持受限原型，取消與完整產品功能仍未驗，沒有替換產品入口。
 
 技術：dev-only Mediabunny1.65.0 按來源 PTS 取樣，CanvasSource 明確提交輸出 timestamp／duration，reference PCM 裁到同一區間再編 AAC／MP4。 Safari Worker單案改用OffscreenCanvas／raw AudioSampleSource，能力在真正Worker核對，成功前核公開清理與own terminate回傳；取消途中及physical資源仍未驗。共用QA主機新增明確variant、預設window保持，新adapter僅另驗17＋16個HTTP請求與2個參數拒絕，原生結果不移記。工具與重建入口在 [scripts/qa/explicit-pts](scripts/qa/explicit-pts/README.md)，不進產品包。拒絕固定136ms補償、等待播放後才開錄而丟失A，以及把PCM主鐘與自身比較的假護欄；不用自造muxer。後續若接產品，仍須共用既有繪圖／時間映射並完成全部速度、偏移、疊影、鏡像、跟隨、輸入格式與取消保全驗證，不能以此三秒原型代簽。

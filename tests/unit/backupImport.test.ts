@@ -77,12 +77,12 @@ test('空資料集還原保留來源身分與缺片狀態；原庫及重匯均�
   expect(repeated.data.assets[0].state).toBe('ready')
   expect(repeated.data.recipes).toEqual(data.recipes)
 })
-test('完整 v1 備份升 v2 並可重匯；舊備份衝突仍保留本機分類、動作、拍點及媒體狀態', async () => {
+test('完整 v1 備份升 v3 並可重匯；舊備份衝突仍保留本機分類、動作、拍點及媒體狀態', async () => {
   // 明確固定舊格式，避免 newLibrary 升版後讓相容測試其實只測到新版。
   const legacy = graph(); legacy.schemaVersion = 1
   const legacyBefore = structuredClone(legacy), normalized = validateBackup(legacy)
   const restored = await planBackupImport(newLibrary(), legacy)
-  expect(restored.data.schemaVersion).toBe(2)
+  expect(restored.data.schemaVersion).toBe(3)
   expect(restored.data.sourceLibraryId).toBe(legacy.sourceLibraryId)
   for (const table of tables.filter(t => t !== 'assets')) expect(restored.data[table]).toEqual(normalized[table])
   expect(validateBackup(restored.data).assets).toEqual(normalized.assets)

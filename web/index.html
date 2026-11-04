@@ -12,7 +12,7 @@
   <header><span class="eyebrow">DANCE STAMP / WEB PREVIEW</span><h1>看示範影片，對照練習影片。</h1>
     <p>先選示範影片，再選練習影片；對齊同一個動作，一起看、存成左右並排或疊影影片。</p>
     <!-- 另開工具以保留原工作台的當次影片，不能靠重新載入找回未保存的 File。 -->
-    <div class="actions"><a href="/metronome.html" target="_blank" rel="noopener">節拍器／偵測 BPM（另開分頁） →</a><button type="button" id="open-cloud">個人雲端／影片連結</button></div>
+    <div class="actions"><a href="/metronome.html" target="_blank" rel="noopener">節拍器／偵測 BPM（另開分頁） →</a><button type="button" id="open-preparation" aria-pressed="false">準備練舞</button><button type="button" id="open-cloud">個人雲端／影片連結</button></div>
     <nav class="actions" aria-label="練習入口" data-deferred><button type="button" id="existing-mode" aria-pressed="false">比較已有影片</button><a href="#library-panel">繼續之前的練習</a></nav>
     <!-- 顯示受測瀏覽器，讓使用者先選能重現完整流程的環境。 -->
     <p class="notice" data-deferred>桌面 Chrome 預覽版。筆記及完成的自拍保存在此瀏覽器，請定期備份；Safari 匯出與手機支援尚未通過驗收。</p>
@@ -217,6 +217,68 @@
     <p class="hint">合成約需播放一次片段，請保持前景。下載後離開本站重新播放，核對畫面、聲音與鏡像。取消不會刪除原片。</p>
   </section>
   <p id="beat-position" data-deferred>尚未設定拍點；仍可使用秒數與秒倒數。</p>
+
+  <section id="preparation-panel" hidden aria-labelledby="preparation-title">
+    <h2 id="preparation-title" tabindex="-1">為下一次舞會，先跳自己選的 8 拍</h2>
+    <p>免註冊，資料留在這台裝置。先在上方選一支示範影片，再保存完整目標和你自己挑的 8 拍；影片秒數不會替你判斷舞步。</p>
+    <fieldset id="preparation-controls"><legend>我的開練引導</legend>
+      <label>已保存的準備／收尾<select id="preparation-selection"><option value="">尚未保存</option></select></label>
+      <details id="preparation-plan"><summary>選好目標與起步 8 拍</summary>
+        <form id="preparation-form">
+          <label>想練的動作<input id="preparation-name" maxlength="500" required placeholder="例如：舞會想用的 shine"></label>
+          <label>這次想練的理由<textarea id="preparation-reason" maxlength="2000" rows="2" required placeholder="例如：週五想要用出這個動作"></textarea></label>
+          <label>用既有標記作完整目標<select id="preparation-marker"><option value="">手動選起訖</option></select></label>
+          <div class="settings">
+            <label>完整目標起點（秒）<input id="target-start" type="number" min="0" step="0.001" required></label>
+            <label>完整目標終點（秒）<input id="target-end" type="number" min="0" step="0.001" required></label>
+          </div>
+          <button type="button" id="target-current">用上方 A–B 作完整目標</button>
+          <div class="settings">
+            <label>起步 8 拍起點（秒）<input id="starter-start" type="number" min="0" step="0.001" required></label>
+            <label>起步 8 拍終點（秒）<input id="starter-end" type="number" min="0" step="0.001" required></label>
+          </div>
+          <div class="actions"><button type="button" id="starter-a">當下畫面作 8 拍起點</button><button type="button" id="starter-b">當下畫面作 8 拍終點</button></div>
+          <p class="hint">8 拍由你看影片挑選，須在完整目標內。可拖動上方影片時間尺，不需選自己的影片。保存後兩份選段各自保留。</p>
+          <button class="primary" type="submit">保存目標，準備下一次開練</button><button id="preparation-cancel-plan" type="button">取消新目標草稿</button>
+        </form>
+      </details>
+      <div id="preparation-saved" hidden>
+        <p id="preparation-summary"></p>
+        <details><summary>在 iPhone「提醒事項」手動約一次</summary>
+          <label>可選取複製的提醒文字<textarea id="preparation-reminder" rows="4" readonly></textarea></label>
+          <ol><li>開啟 iPhone「提醒事項」，新增一則提醒，貼入上方文字。</li><li>由你選「下一次開始準備」的日期與時間；請同時設定時間，並確認手機允許通知。</li><li>收到後開 Dance Stamp，按「準備練舞」，繼續下方步驟。</li></ol>
+          <p>這裡不會建立通知。沒空可在提醒事項延後、改期或這次不練；練完再自行約下一次。</p>
+        </details>
+        <div id="preparation-context-controls">
+          <label>今天的情境<select id="preparation-context"><option value="home">在住處練</option><option value="out">準備外出練</option><option value="venue">已到練習地點</option></select></label>
+          <label>常用練習地點（可不填）<input id="preparation-place" list="preparation-places" maxlength="200"></label><datalist id="preparation-places"></datalist>
+          <button id="preparation-begin" type="button">確認情境，從第一步準備</button>
+        </div>
+        <div id="preparation-step-box" hidden>
+          <h3 id="preparation-step" tabindex="-1">當次準備步驟</h3>
+          <p>只做眼前這一步。已完成或不需要可以略過；中途離開，這一步仍在。改選情境會重新確認當次準備。</p>
+          <div class="actions"><button id="preparation-next" class="primary" type="button">準備好了，下一步</button><button id="preparation-skip" type="button">略過這一步</button></div>
+        </div>
+        <div id="preparation-ready" hidden>
+          <h3>準備好了，先看或直接跟跳</h3>
+          <p>用下方「練習速度」選自己適合的慢速，跟跳自選 8 拍一次就算有開始；隨時可用上方「停止」，也可繼續完整目標。不必先看三輪。</p>
+          <div class="actions"><button id="preparation-watch" type="button">先看 8 拍示範一次</button><button id="preparation-dance" class="primary" type="button">跟跳 8 拍一次</button><button id="preparation-full" type="button">繼續完整目標一次</button></div>
+          <p class="hint">播放不會自動記為你有跳。原速完整跳過一次且不用一直看示範，另由你在收尾判斷。</p>
+          <form id="preparation-feedback">
+            <label class="check-label"><input id="preparation-danced" type="checkbox">我有跟跳</label>
+            <label>練後感受（可略過）<select id="preparation-rating"><option value="">略過自評</option><option value="better">比上次順</option><option value="same">差不多</option><option value="stuck">還卡住</option></select></label>
+            <label>心得／卡住的地方（自願）<textarea id="preparation-note" rows="2" maxlength="2000"></textarea></label>
+            <label class="check-label"><input id="preparation-mastery" type="checkbox">我已能跟原速音樂跳完整目標一次，不用一直看示範（本人自評，可略過）</label>
+            <button class="primary" type="submit">保存這次收尾</button><button id="preparation-cancel-feedback" type="button">清除未存回饋</button>
+            <p class="hint">這次只看或準備也能收尾，不會算成跟跳。若還不熟，仍保留你確認跳過的紀錄。</p>
+          </form>
+        </div>
+        <p id="preparation-result" role="status"></p>
+        <button id="preparation-new" type="button">沿用選段，新一次重新準備</button>
+      </div>
+      <p id="preparation-message" role="status"></p>
+    </fieldset>
+  </section>
   <fieldset id="practice" data-deferred disabled><legend>練習與時間筆記</legend>
     <label>影片標題<input id="video-title" maxlength="500"></label><button type="button" id="save-title">儲存標題</button>
     <div class="settings"><label>課程老師<input id="video-teacher" maxlength="200"></label><label>課程舞風<input id="video-style" maxlength="200"></label><label>課程日期<input id="video-date" type="date"></label></div><p class="hint">「儲存標題」也會保存老師、舞風與日期；日期由你填寫，不以檔案時間猜測。</p>
@@ -248,7 +310,7 @@
     <details id="note-tools"><summary>備份、分享與管理筆記</summary>
       <p>筆記檔只含文字、時間標記和對齊設定，不含影片。搬到另一台裝置時，請帶走筆記備份，也另外帶走老師原片、自己的原片與合成影片。</p>
       <div class="actions"><button type="button" id="backup">下載筆記備份</button><button type="button" id="share-notes">選片段分享筆記…</button><label class="file-label">匯入筆記 JSON（分享／備份）<input id="restore" type="file" accept=".json,application/json"></label><button type="button" id="delete-video">刪除選取的整份筆記…</button></div>
-      <details><summary>使用舊版備份時的注意事項</summary><p class="hint">此版本使用 v2 筆記，可讀取 v1；首次成功儲存才升版。舊版程式無法開啟 v2，若要回復舊版，請保留升版前由舊版下載的 v1 備份及各支原片。</p></details>
+      <details><summary>使用舊版備份時的注意事項</summary><p class="hint">完整備份使用 v3，可讀取 v1／v2；首次成功儲存才升版。舊版程式無法開啟 v3；回復舊版需要升版前的備份和原片。筆記分享仍用 v2，且不帶私人準備、地點與心得。</p></details>
     </details>
     <details><summary>分類搜尋與動作庫</summary>
       <p>先開啟課程填寫老師、舞風和日期，再把各課程的標記連到同一動作。狀態由你決定，錄影次數不會自動改成「會了」。</p>

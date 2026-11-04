@@ -22,7 +22,7 @@ export function webAssetBytes(root: string, file: string) {
   // Emscripten 的虛擬家目錄不是使用者路徑；兩處同改為公開範例，保留原公開掃描強度。
   return ['vision-wasm.js', 'vision-simd.js'].includes(file) ? new TextEncoder().encode(bytes.toString().replaceAll(JSON.stringify(['', 'home', 'web_user'].join('/')), '"/home/example"')) : bytes
 }
-export const webFiles = ['index.html', 'metronome.html', 'metronome.css', 'metronome.js', 'tempo.js', 'tempo-worklet.js', 'style.css', 'main.js', 'google-drive.js', 'cloud-auth.js', 'cloud-ui.js', 'cloud-snapshot.js', 'cloud-practice-ui.js', 'cloud-sharing.js', 'cloud-share-ui.js', 'timeline.js', 'comparison-renderer.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets)]
+export const webFiles = ['index.html', 'metronome.html', 'metronome.css', 'metronome.js', 'tempo.js', 'tempo-worklet.js', 'style.css', 'main.js', 'google-drive.js', 'cloud-auth.js', 'cloud-ui.js', 'cloud-snapshot.js', 'cloud-practice-ui.js', 'cloud-sharing.js', 'cloud-share-ui.js', 'timeline.js', 'comparison-renderer.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'preparation.js', 'preparation-ui.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets)]
 export const notices = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 export function webNotice(file: string, source: string) {
   // 授權 Markdown 副本位於 dist/web；根文件保留原連結，副本須回到同一包根目錄找實際檔案。
