@@ -9,6 +9,7 @@ import { readLibrary, writeLibrary, readMedia, readMediaKeys, saveChunk, recover
 import { videoFrame, drawSideBySide, drawOverlay as renderOverlay, drawAdjustedSide as renderAdjustedSide } from './comparison-renderer.js';
 import { createFollowUI } from './follow-ui.js';
 import { createCloudUI } from './cloud-ui.js';
+import { createPreparationUI } from './preparation-ui.js';
 
 /** @template {keyof import('./types').Elements} K @param {K} id @returns {import('./types').Elements[K]} */
 function $(id) {
@@ -76,8 +77,40 @@ let moveEditingId, moveDirty = false;
 let metadataVideoId;
 let beatEditorVideoId, beatDirty = false;
 
+/** @type {{a: number, b: number} | null} */
+let practiceOnce = null;
 let looping = false, practiceStarting = false, practiceController, practiceSeek, practiceFrame, practiceFrameUsesVideo, practiceToken = 0;
 
+const preparation = createPreparationUI({
+  data: () => state?.data, currentVideo: () => currentVideoId, duration: () => referenceDurationMs,
+  position: () => Math.round(reference.currentTime * 1000), range: () => ({ a: Number($('start').value), b: Number($('end').value) }),
+  setSettings: plan => { $('practice-rate').value = String(plan.rate); $('practice-mirror').checked = plan.mirror; $('practice-canvas').hidden = !plan.mirror; applyPracticeSettings(); },
+  settings: () => ({ rate: Number($('practice-rate').value), mirror: $('practice-mirror').checked }),
+  save: (change, signal) => saveData(change, undefined, signal), operate: operation,
+  busy: () => !!active || storageUnconfirmed(), status, focus: focusControl, stop: stopPractice,
+  play: async (plan, full) => {
+    if (active || storageUnconfirmed()) throw new Error('請先完成目前操作。');
+    if (hasUnsavedWork()) throw new Error('請先保存或取消目前草稿，再開始跟跳。');
+    if (selfDurationMs || camera) throw new Error('請先完成目前雙片比較／相機工作，再回到單片練習。');
+    if (currentVideoId !== plan.videoId || !referenceDurationMs) await operation(signal => openVideoNotes(plan.videoId, signal));
+    if (currentVideoId !== plan.videoId || !referenceDurationMs || pendingLinkId) throw new Error('示範尚未連結。請在上方選片、預覽並確認，原準備進度保留。');
+    const a = (full ? plan.targetStartMs : plan.starterStartMs) / 1000, b = (full ? plan.targetEndMs : plan.starterEndMs) / 1000;
+    if (Math.round(b * 1000) > referenceDurationMs) throw new Error('這支原片短於所選片段，請重新連結完整原片；原選段保留。');
+    stopPractice(); practiceOnce = { a, b };
+    const controller = new AbortController(); practiceController = controller; looping = true;
+    try { await playLoopFromA(controller); status('播放所選片段一次；是否有跟跳，收尾由你確認。'); }
+    catch (error) { if (controller === practiceController) stopPractice(); throw error; }
+  },
+});
+document.getElementById('open-preparation')?.addEventListener('click', () => {
+  if (active || storageUnconfirmed() || camera || selfDurationMs) { status('請先完成目前比較／相機工作，再選單支示範練舞。'); return; }
+  const open = !document.body.hasAttribute('data-preparation-mode');
+  stopPractice(); document.body.toggleAttribute('data-preparation-mode', open);
+  /** @type {HTMLElement} */ (document.getElementById('preparation-panel')).hidden = !open;
+  /** @type {HTMLElement} */ (document.getElementById('open-preparation')).setAttribute('aria-pressed', String(open));
+  preparation.render();
+  if (open) focusControl(document.getElementById('preparation-title'));
+});
 function status(message) { $('status').textContent = message; }
 function updateStopControl() {
   const stoppable = !!active || !!camera || looping || practiceStarting || !reference.paused || !self.paused || following.playing();
@@ -154,6 +187,7 @@ function stop() {
   updateStopControl();
 }
 function updateControls() {
+  preparation.updateControls();
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = !!active;
   $('share-controls').disabled = !!active || shareSending;
   $('share-download').disabled = !shareDraft || shareSending;
@@ -258,7 +292,7 @@ async function operation(task) {
   if (storageUnconfirmed()) { showStorageRecovery(); return; }
   const controller = new AbortController(), trigger = document.activeElement;
   operationTrigger = trigger; operationFocus = null;
-  active = controller; updateStopControl();
+  active = controller; preparation.updateControls(); updateStopControl();
   for (const id of /** @type {const} */ (['controls', 'compare', 'practice', 'library-panel'])) $(id).setAttribute('aria-busy', 'true');
   for (const id of /** @type {const} */ (['inventory-controls', 'import-controls', 'relink-controls', 'delete-controls'])) $(id).disabled = true;
   $('share-controls').disabled = true;
@@ -943,7 +977,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) { status(comparisonO
 function hasUnsavedWork() {
   const video = state?.data.videos.find(value => value.id === currentVideoId);
   const metadataDirty = video && /** @type {const} */ ([['title', 'video-title'], ['teacher', 'video-teacher'], ['danceStyle', 'video-style'], ['recordedDate', 'video-date']]).some(([field, id]) => $(id).value !== (video[field] || ''));
-  return storageUnconfirmed() || active || cloud.busy() || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
+  return preparation.dirty() || storageUnconfirmed() || active || cloud.busy() || beatDirty || moveDirty || metadataDirty || !$('marker-form').hidden || $('import-dialog').open || $('media-dialog').open || $('delete-dialog').open || $('share-dialog').open;
 }
 window.addEventListener('beforeunload', e => { if (hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -1113,7 +1147,7 @@ async function showDelete(kind, id) {
   const owner = state.data.videos.find(v => v.id === videoId)?.title;
   $('delete-title').textContent = names[kind] + (owner ? ` · ${owner}` : '');
   const c = plan.counts;
-  $('delete-summary').textContent = `將移除：影片筆記 ${c.videos}、標記 ${c.markers}、練習影片 ${c.takes}、配方 ${c.recipes}、VS 輸出 ${c.exports}；本機影片副本 ${plan.mediaIds.filter(id => keys.has(id)).length} 份。${kind === 'copy' ? '保留筆記、配方與媒體描述；本次已開啟的影片可繼續使用，下次需要重連。' : '共用原片仍有其他練習使用時保留；移除的練習同時清理其殘留錄影片段。'}`;
+  $('delete-summary').textContent = `將移除：影片筆記 ${c.videos}、標記 ${c.markers}、練習影片 ${c.takes}、配方 ${c.recipes}、VS 輸出 ${c.exports}、準備／收尾 ${(state.data.preparations || []).filter(p => kind === 'video' && p.videoId === id).length}；本機影片副本 ${plan.mediaIds.filter(id => keys.has(id)).length} 份。${kind === 'copy' ? '保留筆記、配方與媒體描述；本次已開啟的影片可繼續使用，下次需要重連。' : '共用原片仍有其他練習使用時保留；移除的練習同時清理其殘留錄影片段。'}`;
   if (kind === 'move') $('delete-summary').textContent = `將移除動作「${state.data.moves.find(m => m.id === id)?.name}」，並解除 ${state.data.markers.filter(m => m.moveId === id).length} 個標記關聯。全部標記、筆記、練習、比較與影片保留。`;
   releaseCamera(); $('delete-dialog').showModal(); $('delete-cancel').focus();
 }
@@ -1161,6 +1195,7 @@ $('delete-confirm').addEventListener('click', () => operation(async signal => {
   status('指定的本站資料已移除；原始檔、原相簿與其他筆記保留。');
 }));
 function renderLibrary() {
+  preparation.render();
   const focused = document.activeElement;
   if (beatEditorVideoId !== currentVideoId) resetBeatEditor();
   renderBeatPosition();
@@ -1626,7 +1661,7 @@ $('restore').addEventListener('change', () => operation(async signal => {
   importDraft = { plan, revision };
   $('import-title').textContent = incoming.kind === 'share' ? '匯入分享筆記預覽（重建 ID）' : '還原筆記預覽';
   $('import-content').textContent = JSON.stringify(incoming, null, 2);
-  $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.moves} 個動作、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
+  $('import-summary').textContent = `將新增 ${plan.additions.videos} 份影片筆記、${plan.additions.markers} 個標記、${plan.additions.moves} 個動作、${plan.additions.takes} 個練習、${plan.additions.recipes} 個配方、${plan.additions.exports} 個 VS 描述、${plan.additions.preparations} 份準備／收尾。已存在 ${plan.skipped} 筆。${plan.conflicts.length ? `有 ${plan.conflicts.length} 處內容衝突，會為衝突與相關項目另存副本，原資料不變。` : plan.differentSource ? '這是另一個來源，將分開匯入，不與本機同名資料混合。' : ''}`;
 
   const count = kind => incoming.assets.filter(a => a.kind === kind).length;
   $('import-media').textContent = `JSON 不含影片：示範 ${count('reference')}、自己 ${count('take')}、VS ${count('vs')} 份描述。確認後請核對保存清單，缺片須另外選取並預覽確認。`;
@@ -1691,6 +1726,7 @@ function clearPracticeWatch() {
   practiceFrame = undefined;
 }
 function stopPractice() {
+  practiceOnce = null;
   looping = false; practiceStarting = false; clearPracticeWatch(); practiceController?.abort(); practiceController = null; practiceSeek = null;
   reference.pause(); $('loop').textContent = '開始 A–B 循環'; updateStopControl();
 }
@@ -1722,7 +1758,7 @@ async function rewindPractice(seconds, signal) {
 async function playLoopFromA(controller) {
   practiceStarting = true; updateStopControl();
   try {
-    const { a } = practiceRange(); reference.pause();
+    const { a } = practiceOnce || practiceRange(); reference.pause();
     await rewindPractice(a, controller.signal); controller.signal.throwIfAborted();
     applyPracticeSettings();
     // 開始就持有可取消的 owner；晚到的 seek／play 不能在使用者停止後重新啟動。
@@ -1748,8 +1784,10 @@ function watchPractice() {
     drawPractice();
     if (looping && !reference.seeking) {
       try {
-        const { a, b } = practiceRange();
+        const { a, b } = practiceOnce || practiceRange();
         // 循環中改 A 也要重新定位，不能繼續播放新起點之前的畫面。
+        // 單次起步只停在 B，不按播放結果寫入本人跟跳紀錄。
+        if (practiceOnce && reference.currentTime >= b) { stopPractice(); return; }
         if (reference.currentTime >= b || reference.currentTime < a - 0.15) await rewindPractice(a, owner.signal);
       } catch (caught) {
         if (owner !== practiceController || token !== practiceToken) return;
@@ -1807,6 +1845,7 @@ reference.addEventListener('pause', () => {
 });
 reference.addEventListener('ended', async () => {
   const owner = practiceController;
+  if (practiceOnce) { stopPractice(); return; }
   if (looping && !active && owner) {
     try { await playLoopFromA(owner); }
     catch { if (owner === practiceController) stopPractice(); }

@@ -232,7 +232,7 @@ export interface Take { id: string; referenceVideoId: string; cameraAssetId: str
 export interface Recipe { id: string; takeId: string; offsetMs: number; referenceMirror: boolean; selfMirror: boolean; layout: 'side-by-side'; audioSource: 'reference'; revision: number }
 export interface OverlayPresentation { layout: 'overlay'; opacity: number; reference: { scale: number; x: number; y: number }; self: { scale: number; x: number; y: number } }
 export interface Artifact { presentation?: OverlayPresentation; id: string; recipeId: string; recipeRevision: number; assetId: string; mimeType: string; state: 'ready' | 'interrupted' | 'failed'; createdAt: string }
-export interface Library { format: string; schemaVersion: number; kind: string; exportedAt: string; sourceLibraryId: string; videos: Video[]; assets: Asset[]; markers: Marker[]; takes: Take[]; recipes: Recipe[]; exports: Artifact[]; moves: Move[] }
+export interface Library { format: string; schemaVersion: number; kind: string; exportedAt: string; sourceLibraryId: string; videos: Video[]; assets: Asset[]; markers: Marker[]; takes: Take[]; recipes: Recipe[]; exports: Artifact[]; moves: Move[]; preparations: Preparation[] }
 export interface LibraryState { revision: number; data: Library }
 export interface Comparison { startMs: number; endMs: number; rate: number; offsetMs: number; selfDurationMs: number; referenceMirror: boolean; selfMirror: boolean }
 // 匯入原片沒有原生錄製觀測；允許缺欄，不能用檔案建立時間偽造同步資料。
@@ -240,3 +240,6 @@ export interface CaptureTiming { recorderRequestedMs: number; recorderStartedMs?
 export interface CaptureInfo extends Partial<CaptureTiming> { rate?: number; interrupted?: boolean; mime?: string; durationMs?: number }
 export interface ExportInfo { presentation?: OverlayPresentation; maxRenderGapMs: number; elapsedMs: number; observedMaxDriftMs: number; mime: string; bytes: number; requestedWidth: number; requestedHeight: number; recipe: Comparison; decodedDurationMs?: number }
 export interface Diagnostics { stage: string; camera: Partial<MediaTrackSettings> | null; capture: CaptureInfo | null; export: ExportInfo | null; audioPath?: string; lastError?: string; chunkCleanup?: string; preview?: {elapsedMs: number; observedMaxDriftMs: number} }
+
+// 準備與跟跳回報是一份快照；不依播放推算本人動作。
+export interface Preparation { id: string; videoId: string; title: string; reason: string; targetStartMs: number; targetEndMs: number; starterStartMs: number; starterEndMs: number; rate: number; mirror: boolean; context: 'home' | 'out' | 'venue' | ''; place: string; step: number; phase: 'planned' | 'preparing' | 'ready' | 'completed'; revision: number; createdAt: string; danced?: boolean; rating?: '' | 'better' | 'same' | 'stuck'; note?: string; mastery?: boolean; completedAt?: string }
