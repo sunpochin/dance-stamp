@@ -25,6 +25,8 @@
 
 比較／VS 的現行五分鐘上限與相機仍維持 60 秒的分工，見[五分鐘決策](#比較與-vs-匯出放寬至五分鐘195)；下方舊 60 秒描述與證據保留其當時版本歸屬。
 
+面試與系統設計架構視覺化圖表、四大核心流程（Local-First、影音對齊匯出、WASM Worker 推論、IndexedDB 崩潰復原狀態機）與高頻考點解析，見 [第 56 節 面試與系統架構全景視覺化](#56-面試與系統架構全景視覺化interview--architectural-visual-guides)。
+
 首頁 badge 的真實數字、來源與更新限制見 [README coverage badge](#readme-coverage-badge)。
 
 #11 固定整合候選 `81d8756` 的原生 Safari 成片續驗見[一分鐘聲畫失敗與完整保全](docs/evidence/issue-11-integrated-minute-file-failure.md)：三速度的15／30秒實際下載通過；首份0.75×一分鐘檔聲畫差130ms即停止，未重試改標。七份原下載關站後均可自然播到尾，重開資料逐byte不變。追加十份有界診斷未重現原失敗；原生擷取呼叫不等於成片影格，39份媒體完整保留；品質、十輪與真機仍未驗收。
@@ -1409,3 +1411,248 @@ Safari 僅解碼合法來源交集，來源 PCM 最多 300 秒／48kHz／雙聲�
 技術：Cloudflare 的預設 [HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/) 令 `.html` 回307到無副檔名路徑。install 的 fetch follow 後，CacheStorage 保存真正 `redirected=true` 的200 Response；導航 `redirect=manual` 的 respondWith 不能直接交付這種回應。`web/sw.js` 在完整 manifest SHA256 核對後，僅對 navigate＋redirected 回應用相同 body／status／headers 建立新 Response；一般模組與樣式不改回應URL語意。缺檔在線補回則明確 follow 後核對原路徑雜湊，再保存與回覆。非白名單／非GET／其他origin仍不接管，錯版仍503且不寫cache，更新同意與DB不改。
 
 排除只改首頁短網址（繞過既有manifest路徑、不能證明離線）、停用SW／清網站資料（失去離線或危及使用者資料）、改主機全站HTML政策（影響其他既有URL）以及省略雜湊驗證。沿原Ubuntu工作追加真307／原生Chrome導航回歸，腳本 `scripts/verify-metronome-routing.ts` 也可建置後單獨執行。公開站先在隔離瀏覽器重現「未受SW控制200、受控後ERR_FAILED、短網址200」；同主機行為的本機回歸先紅後綠，詳見[網站證據](docs/evidence/issue-15-web-package.md#257-html-轉址導航修正)。部署、瀏覽器取得新版與本機驗證分開記錄，不能把PR或本機綠燈寫成正式站已恢復。
+
+
+## 56. 面試與系統架構全景視覺化（Interview & Architectural Visual Guides）
+
+本節專為技術面試、系統架構審查與技術交流設計。Dance Stamp 作為純前端本機優先（Local-First）的高難度多媒體 Web 應用，涉及音畫微秒級同步、Web Audio API 聲路自訂、Web Worker 背景 WASM 推論與 IndexedDB 交易安全。以下將最關鍵的四大架構流程轉化為視覺化 Mermaid 圖表，並同時提供「小朋友解說（ELI5）」與「資深工程師技術深度原理與取捨」。
+
+---
+
+### 56.1 架構總覽：Local-First 零雲端系統架構與隱私邊界
+
+#### 小朋友解說（ELI5）
+就像你在自己的書桌上畫圖、剪貼照片，完全不需要把日記本寄到別人家；所有的跳舞影片、鏡頭錄影和筆記，都只存放在你的瀏覽器小抽屜裡。外面的網站伺服器只負責把「工具箱（網頁程式碼）」借給你，絕對碰不到也看不到你的任何影片。
+
+#### 技術原理與設計決策
+Dance Stamp 徹底落實 Local-First 原則。所有媒體處理均由瀏覽器原生 Web API 完成，杜絕伺服器轉碼帶來的頻寬、算力成本與隱私外洩風險。
+1. **沙盒存取**：使用者透過 HTML5 File API 選取本機影片，或透過 `navigator.mediaDevices.getUserMedia` 啟動本機鏡頭，媒體物件僅以記憶體 Blob URL 形式存在，離頁即釋放。
+2. **純靜態交付**：靜態主機（如 Cloudflare Pages）僅提供經 SHA-256 校驗的同源靜態資源（HTML/JS/WASM/CSS），Service Worker 嚴格限制僅快取白名單內的同源靜態檔案。
+3. **儲存隔離**：筆記、標記與時間配方透過 Dexie 存入本機 IndexedDB；錄影分段資料（Chunks）與本機工作透過 staging 隔離，絕無背景自動上傳機制。選用的 Google Drive 雲端同步亦要求使用者明確授權並由前端直接調用 Google API，不設中介後端代理。
+
+```mermaid
+flowchart TD
+    subgraph ClientSandbox ["使用者本機瀏覽器沙盒 (Local-First Client Sandbox)"]
+        subgraph LocalInputs ["本機資料與輸入 (零未授權外傳)"]
+            RefFile["示範影片檔 (File API)"]
+            SelfFile["練習/自拍影片檔 (File API / Camera)"]
+            CameraStream["相機即時串流 (getUserMedia)"]
+        end
+
+        subgraph CoreEngine ["瀏覽器核心引擎 (Vanilla TS & Web Standards)"]
+            SyncClock["雙片時間映射與同步時鐘<br/>t_ref = A + r*t, t_self = t + δ"]
+            CanvasEngine["HTML5 Canvas 雙片渲染<br/>(左右並排中線靠齊 / 半透明疊影)"]
+            AudioEngine["Web Audio API 音訊路由<br/>(自然變調 / 示範聲輸出 / 排除自拍回音)"]
+            WorkerBridge["Web Worker 隔離橋接<br/>(MediaPipe WASM 人物追蹤)"]
+        end
+
+        subgraph StorageLayer ["本機儲存與交易保護 (IndexedDB / Dexie)"]
+            MetaDB[("筆記/標記/配方 Metadata<br/>(短交易提交)")]
+            ChunkStaging["錄影/分段 Staging Chunks"]
+            CrashRecovery["未確認中斷救援機制<br/>(failed / recoverable 狀態保護)"]
+            JSONExport["JSON 筆記備份匯出<br/>(純文字交換，不含大影片)"]
+        end
+
+        subgraph MediaOutput ["成檔與匯出 (MediaRecorder)"]
+            VSBlob["單一 VS 左右合成影片 (Blob)"]
+            FollowBlob["單側人物跟隨裁切影片 (Blob)"]
+            LocalDownload["本機直接下載 / 離線播放驗證"]
+        end
+    end
+
+    subgraph ExternalBoundary ["外部網路嚴格邊界"]
+        StaticCDN["靜態託管主機<br/>(僅首次下載 HTML/JS/WASM 靜態資源)"]
+        GoogleDrive["選用個人 Google Drive<br/>(OAuth 本人專屬空間，預設關閉)"]
+    end
+
+    RefFile --> SyncClock
+    SelfFile --> SyncClock
+    CameraStream --> SyncClock
+    SyncClock --> CanvasEngine
+    SyncClock --> AudioEngine
+    RefFile --> WorkerBridge
+    CanvasEngine --> VSBlob
+    AudioEngine --> VSBlob
+    WorkerBridge --> FollowBlob
+    VSBlob --> LocalDownload
+    FollowBlob --> LocalDownload
+    SyncClock --> MetaDB
+    CameraStream --> ChunkStaging
+    ChunkStaging --> CrashRecovery
+    MetaDB --> JSONExport
+    StaticCDN -.->|"同源靜態白名單資源"| CoreEngine
+    VSBlob -.->|"使用者明確點選才上傳"| GoogleDrive
+```
+
+---
+
+### 56.2 影音同步核心：雙片時間映射與 VS 即時匯出管線
+
+#### 小朋友解說（ELI5）
+就像把兩台播放機排在一起，一台放老師的舞步，一台放自己的練習。因為每個人開始跳的時間不一樣，所以我們用尺算出差距（偏移量），讓兩邊的動作整整齊齊地同步播放；接著拿一塊大畫布把兩邊畫面拼在一起，接上老師原片的音樂，最後用瀏覽器內建的錄影機錄成一支全新的「對照影片」。
+
+#### 技術原理與設計決策
+1. **時間映射契約**：
+   - 示範影片時間：$t_{\text{ref}} = A + r \times t$（$A$ 為示範起點，$r$ 為慢速比率 $0.5, 0.75, 1.0$，$t$ 為練習經過秒數）。
+   - 自拍影片時間：$t_{\text{self}} = t + \delta$（$\delta$ 為手動微調偏移量，既有影片入口以使用者選取的起點 $C$ 初始化）。
+   - 合法時間交集：$L = \max(0, -\delta)$ 至 $U = \min((B-A)/r, D-\delta)$，若 $U \le L$ 則禁止合成。
+2. **畫面渲染與格率控制**：
+   - 透過前景單一時鐘（`requestAnimationFrame` 或原生 `requestVideoFrameCallback`）驅動，配合 30fps 預算控制器（Paint Budget），確保同一影格預算內不重複繪製、遇到掉影格時不補畫追趕以保持相位。
+   - 支援「左右並排（中線靠齊，外側黑邊）」與「半透明疊影（依透明度覆蓋）」兩種版面模式，並套用獨立鏡像矩陣（`transform`）。
+3. **音訊路由與抗回音架構**：
+   - 示範音訊透過 `AudioContext.createMediaElementSource()` 提取並直接連接至 `createMediaStreamDestination()`，採隨播放速度自然變調（避開瀏覽器不同實作的音高保持演算法所引入的微小漂移）。
+   - 自拍端音訊預設靜音、不混入輸出串流，徹底根除麥克風收錄環境喇叭聲所造成的空洞回音。
+4. **串流編碼與落盤**：
+   - 結合 Canvas `captureStream(30)` 視訊軌與音訊目標節點軌道，傳入 `MediaRecorder` 執行即時編碼（優先偵測 MP4/H.264/AAC，備援 WebM/VP8/Opus），透過 `ondataavailable` 接收分段 Blob 並最終組裝為可單獨下載的成品。
+
+```mermaid
+flowchart TD
+    subgraph VideoInput ["1. 雙片輸入與時間契約"]
+        VRef["示範影片 (Reference Video)<br/>起點 A, 播放速率 r"]
+        VSelf["自拍/練習影片 (Self Video)<br/>起點 C, 偏移量 δ"]
+        TimeContract["時間映射公式<br/>t_ref = A + r * t<br/>t_self = t + δ<br/>合法交集 L 到 U"]
+    end
+
+    subgraph VideoPipeline ["2. 視訊圖層合成 (HTML5 Canvas)"]
+        VRef -->|"等比 fit / 獨立鏡像"| CanvasLayer["Canvas 畫布 (1280x720)<br/>左右並排中線靠齊 或 半透明疊影"]
+        VSelf -->|"等比 fit / 獨立鏡像"| CanvasLayer
+        TimerSource["前景計時器 (rAF / rVFC)<br/>30fps 繪圖預算控制"] --> CanvasLayer
+        CanvasLayer -->|"captureStream(30)"| VideoTrack["合成視訊軌 (Video Track)"]
+    end
+
+    subgraph AudioPipeline ["3. 音訊提取與路由 (Web Audio API)"]
+        VRef -->|"示範音訊"| SourceNode["createMediaElementSource()"]
+        SourceNode --> AudioCtx["AudioContext<br/>(隨速度 r 自然變調，避免音高演算法漂移)"]
+        AudioCtx --> DestNode["createMediaStreamDestination()<br/>(獨立錄音聲路)"]
+        DestNode --> AudioTrack["示範音訊軌 (Audio Track)"]
+        VSelf -.->|"自拍音軌靜音"| AudioMute["靜音 (防止環境回音重疊)"]
+    end
+
+    subgraph ExportPipeline ["4. 串流編碼與落盤 (MediaRecorder)"]
+        VideoTrack --> MixedStream["MediaStream (合併影音軌)"]
+        AudioTrack --> MixedStream
+        MixedStream --> Recorder["MediaRecorder<br/>(MP4/H.264/AAC 或 WebM/VP8/Opus)"]
+        Recorder -->|"ondataavailable"| ChunkCollector["分段 Blob Chunks"]
+        ChunkCollector --> FinalBlob["單一 VS 影片檔 (Blob URL)"]
+        FinalBlob --> OutVerify["使用者下載與離站播放驗證"]
+    end
+```
+
+---
+
+### 56.3 背景智慧推論：WASM Web Worker 人物跟隨與單側裁切
+
+#### 小朋友解說（ELI5）
+跳舞影片裡常常有其他人或雜亂的背景，我們請了一位在幕後算數學的小助手（Web Worker），用人工智慧幫我們緊緊盯住畫面中的主角。小助手算出主角每一秒的移動路線後，主畫面就可以像攝影師一樣，自動把鏡頭推近、裁切出主角的全身特寫，而且因為運算是在幕後進行，你看影片時畫面完全不會卡頓！
+
+#### 技術原理與設計決策
+1. **執行緒職責隔離**：
+   - 瀏覽器主執行緒負責 60fps UI 互動、雙播放器控制與 Canvas 渲染。
+   - 重度機器學習模型（MediaPipe 人體偵測 WASM 模型）被完全隔離在獨立的 Web Worker 內執行，避免阻塞主執行緒事件循環（Event Loop）。
+2. **生命週期與記憶體防護**：
+   - **隨用即棄**：推論分析完成後，Worker 立即執行 `terminate()` 銷毀，徹底釋放 WASM 模型的數十 MB 記憶體空間，後續影片裁切製作時不再保留模型記憶體。
+   - **平滑濾波與偶數尺寸**：人體邊界框（Bounding Box）座標經過平滑濾波算法以消除逐影格跳動；裁切尺寸鎖定為偶數邊長、長邊上限 1280，避免視訊編碼器因奇數維度崩潰。
+3. **成片即預覽（What You See Is What You Get）**：
+   - 先透過 `follow-export.js` 真正產出單側裁切影片 Blob，再交由原生 `<video>` 播放器預覽。這保證了使用者在網頁上看到的播放效果與下載檔案完全為同一份 bytes，排除重造一套 Canvas 播放器所帶來的時間軸負擔。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 使用者
+    participant UI as 主執行緒 (UI & Main Canvas)
+    participant Worker as Person Worker (Web Worker)
+    participant WASM as MediaPipe WASM 模型
+    participant Export as follow-export (獨立裁切成片)
+
+    User->>UI: 點選「框選人物」並拖曳身體範圍
+    UI->>Worker: postMessage 傳送初始化與影格資訊
+    Worker->>WASM: 背景非同步載入推論模型 (零卡頓 60fps UI)
+    loop 逐影格分析 (片段區間)
+        UI->>Worker: 傳送當前影格 (VideoFrame / ImageBitmap)
+        Worker->>WASM: 執行人體姿勢與邊界偵測
+        WASM-->>Worker: 回傳人體邊界框 (Bounding Box: x, y, w, h)
+        Worker->>Worker: 執行平滑濾波 (平滑鏡頭軌跡，消除抖動)
+        Worker-->>UI: postMessage 回傳當前平滑剪裁座標
+    end
+    Worker->>Worker: 推論結束，Worker.terminate() 立即釋放模型記憶體
+    UI->>Export: 依平滑軌跡動態裁切原片 (原速原音、偶數尺寸限制)
+    Export-->>UI: 產出單側裁切影片 Blob URL
+    UI->>User: 原生播放器預覽與下載 (預覽與成片 bytes 完全一致)
+```
+
+---
+
+### 56.4 資料安全與中斷防護：IndexedDB 短交易與崩潰復原狀態機
+
+#### 小朋友解說（ELI5）
+就像寫日記時，先把新寫的那一頁放在「暫存資料夾」，等整篇都寫好、檢查字跡完整後，才正式收進大書櫃。如果在寫到一半時電腦突然沒電或分頁被關掉，下次打開時，系統不會壞掉，而是會溫柔地問你：「剛才有沒寫完的草稿，你要把它存下來還是丟掉？」，絕對不會偷偷把你的原始筆記刪掉。
+
+#### 技術原理與設計決策
+1. **短交易原則（Short Transactions）**：
+   - 瀏覽器 IndexedDB 嚴禁將大型媒體二進位串流與中繼資料（Metadata）混入同一個長交易中，否則任何非同步延遲皆會導致交易逾時（Transaction Inactive / Abort）。
+   - 筆記、標記與時間配方透過短交易原子化更新；大型影片與分段 Chunks 則以獨立 Key 逐塊落盤於 Staging 空間。
+2. **三階段交易與未確認狀態保護**：
+   - **Staging 階段**：錄影或匯入過程中，chunks 依序寫入暫存區。若發生頁面關閉、斷電或 Quota 滿溢，狀態標記為 `failed` 或 `recoverable`。
+   - **復原機制（Crash Recovery）**：重開頁面時，若偵測到未完成交易，系統不自動清除資料，而是提供「救援下載」或由使用者確認後安全復原，保證原片與歷史筆記毫髮無傷。
+   - **Commit 階段**：所有資料與指紋核對無誤後，以單一短交易更新狀態為 `ready`。
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: 應用程式啟動 / 讀取現有筆記
+    
+    Idle --> Staging: 使用者開始錄影 / 匯入資料
+    state Staging {
+        [*] --> WritingChunks: 依序寫入分段資料塊 (Chunks)
+        WritingChunks --> WritingChunks: 新 chunk 到達 (保持順序落盤)
+        WritingChunks --> Incomplete: 發生異常 (關閉分頁 / 斷電 / 記憶體 Quota 滿)
+        WritingChunks --> ReadyToCommit: 全部 chunks 正常接收完成
+    }
+
+    Incomplete --> Recoverable: 標記為未確認/待救援狀態 (failed / recoverable)
+    state Recoverable {
+        [*] --> PromptUser: 頁面重開提示「發現未確認保存資料」
+        PromptUser --> RescueExport: 救援下載 (匯出原始已存 chunks)
+        PromptUser --> DiscardCleanup: 使用者確認捨棄 (安全清理交易鎖，不傷原片)
+    }
+
+    ReadyToCommit --> ShortTransaction: 開啟短交易更新 Metadata
+    ShortTransaction --> Committed: 交易成功 (更新 status: ready)
+    Committed --> Idle: 完成落盤 (持久保存於本機 IndexedDB)
+```
+
+---
+
+### 56.5 面試高頻考點精選與系統設計回答技巧（Interview Cheat Sheet）
+
+在前端資深工程師、多媒體技術或全端系統設計面試中，Dance Stamp 的架構具備極高含金量。以下精選面試官最常切入的 4 大核心問題與答題要點：
+
+#### Q1：為什麼選擇 Local-First（純前端本機架構），而不使用後端轉碼伺服器？
+- **白話回答**：
+  練舞者的自拍涉及高度個人隱私，沒有人希望自己的私人跳舞影片被上傳到未知伺服器；而且影片轉碼需要昂貴的雲端伺服器與頻寬費用，純前端架構讓軟體能永遠免費且開源。
+- **架構深層要點**：
+  1. **隱私與合規**：零伺服器外傳，GDPR 與個人資料安全從架構層面直接達成。
+  2. **營運成本**：無運算伺服器（Zero Server Compute Cost），靜態主機搭配 Service Worker 離線快取，分發成本趨近於零。
+  3. **挑戰與取捨**：瀏覽器資源受限（記憶體峰值、單執行緒限制、各家編碼器支援不一）。我們透過 Web Worker 隔離運算、短交易防爆防崩潰，以及嚴格的有界記憶體管理（如 Safari 300 秒音訊限制）克服裝置端瓶頸。
+
+#### Q2：前端要如何保證兩支不同幀率、時間長度的影片在畫面合成與播放時絕對同步？
+- **白話回答**：
+  我們不用計時器土法煉鋼去各自播放兩支影片，而是建立單一的「指揮官時鐘」與數學公式，每一影格都嚴格根據公式算出兩片各自應該停在哪一毫秒，再畫到畫布上。
+- **架構深層要點**：
+  1. **數學時間契約**：定義示範時間 $t_{\text{ref}} = A + r \times t$ 與自拍時間 $t_{\text{self}} = t + \delta$。
+  2. **前景繪圖時脈**：利用 `requestAnimationFrame` 配合 30fps 預算控制器（Paint Budget），確保整格邊界不被浮點往返影響，遇到掉幀時「只畫當下一格，不補畫追趕」以維持相位。
+  3. **音訊防漂移**：Web Audio API 直接掛載示範原片音軌，採自然變調（隨速度變速），排除瀏覽器音高維持演算法造成的時間漂移與聲音相位延遲。
+
+#### Q3：在前端網頁中執行深度學習模型（MediaPipe 人物偵測）如何保證 UI 不卡頓（60fps）？
+- **白話回答**：
+  把吃力的運算交給後台專屬的臨時工（Web Worker），算完之後立刻讓它下班並釋放記憶體，主畫面只負責漂漂亮亮地播放影片。
+- **架構深層要點**：
+  1. **執行緒解耦**：UI 主執行緒負責 DOM 與 Canvas，WASM 推論模型與張量計算全數移至 Web Worker，透過非同步 `postMessage` 傳遞輕量座標（Bounding Box）。
+  2. **記憶體生命週期管理**：分析結束後立即呼叫 `Worker.terminate()`，回收數十 MB 的 WASM 模型堆疊，防止與後續的 MediaRecorder 編碼記憶體產生競爭峰值。
+  3. **平滑化演算法**：在 Worker 內部對座標進行平滑濾波，輸出平滑鏡頭軌跡，使主執行緒的裁切畫面如專業攝影師鏡頭般平順。
+
+#### Q4：IndexedDB 大容量二進位資料讀寫，如何避免瀏覽器突然崩潰或關閉時造成資料庫損壞？
+- **白話回答**：
+  就像會計記帳一樣，寫帳冊時先寫在草稿紙（Staging），全部算完核對無誤後才正式入帳（Ready）。如果算到一半跳電，帳冊不會壞，下次開機還能把草稿紙找回來。
+- **架構深層要點**：
+  1. **短交易原則**：分離二進位大型 Chunk 寫入與 JSON 中繼資料更新，杜絕長交易因事件延遲而遭瀏覽器強制 abort。
+  2. **未完成狀態容錯（Crash Recovery State Machine）**：Chunk 寫入期間標記為 `staging`；遭遇非預期中斷時轉為 `failed` / `recoverable` 狀態，重開機時主動提示救援下載或安全清理，維持資料庫的 ACID 與冪等性。
