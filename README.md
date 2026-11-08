@@ -41,7 +41,7 @@ Coverage 是最近一次 **main 完整成功量測**的行數／函式／分支�
 | 文件 | 回答的問題 |
 | --- | --- |
 | [產品規劃](docs/PRODUCT_PLAN.md) | 使用者是誰、P0 範圍、畫面與完整練習流程 |
-| [技術決策](TECHNICAL.md) | 為何優先 Web、框架比較、資料與媒體架構 |
+| [技術決策與架構圖解](TECHNICAL.md) | 為何優先 Web、框架比較、資料與媒體架構、面試與核心流程 Mermaid 圖 |
 | [錄影與 VS 規格](docs/RECORD_COMPARE.md) | 如何邊播邊錄、對齊、合成；何時轉向 iOS |
 | [資料與交換格式](docs/DATA_FORMAT.md) | 筆記、影片、練習 take、備份與跨裝置傳送 |
 | [驗收計畫](docs/ACCEPTANCE.md) | 真機、同步誤差、資料遺失、離線與匯出如何驗證 |

@@ -46,6 +46,41 @@
 
 ### 3.2 比較與合成
 
+#### 3.2.1 影音同步與 VS 匯出管線圖（面試與系統設計核心）
+
+白話：把示範片與練習片當作兩台同步播放的錄影機，照著使用者調整好的時間差距，同時把畫面一格一格畫在一張大畫布上，並將老師原片的聲音接上輸出線路（自拍聲音靜音避免回音），最後透過瀏覽器虛擬錄影機錄成單一 VS 影片檔。
+
+技術：兩個原生 `<video>` 元素依照時間映射公式對齊播放時間，前景利用計時器（rAF / rVFC）將影像畫到 HTML5 Canvas（1280×720，支援左右等比並排或半透明疊影），透過 `canvas.captureStream(30)` 產出即時視訊軌；示範音訊透過 Web Audio API `AudioContext.createMediaElementSource()` 提取並連接至 `createMediaStreamDestination()`，自拍音訊預設不混入以防喇叭回音；兩軌合併進 `MediaRecorder` 串流編碼，分段收集 Blob chunks，匯出單一離線可用影片。
+
+```mermaid
+flowchart TD
+    subgraph Inputs ["來源與時間配方"]
+        RefVid["示範影片 (Reference Video)<br/>起點 A, 播放速度 r"]
+        SelfVid["自拍/練習影片 (Self Video)<br/>起點 C, 偏移量 δ"]
+        Formula["時間映射契約<br/>t_ref = A + r * t<br/>t_self = t + δ"]
+    end
+
+    subgraph AudioSync ["音訊路由處理 (Web Audio API)"]
+        RefVid -->|"示範音訊"| AudioCtx["AudioContext (手勢恢復)"]
+        AudioCtx -->|"隨速度 r 自然變調"| DestNode["MediaStreamDestination<br/>(只採示範聲，不收環境雜音)"]
+        SelfVid -.->|"自拍音軌靜音"| Muted["靜音/不混入輸出"]
+    end
+
+    subgraph VideoSync ["畫面合成處理 (HTML5 Canvas)"]
+        RefVid -->|"等比 fit / 獨立鏡像"| Canvas["Canvas 畫布 (1280x720)<br/>左右並排中線靠齊 或 半透明疊影"]
+        SelfVid -->|"等比 fit / 獨立鏡像"| Canvas
+        Timer["前景計時器 (rAF / rVFC)<br/>目標 30fps"] --> Canvas
+    end
+
+    subgraph Encoding ["編碼與成檔 (MediaRecorder)"]
+        Canvas -->|"captureStream(30fps)"| Stream["MediaStream (合成視訊軌)"]
+        DestNode -->|"音訊軌 (示範聲)"| Stream
+        Stream --> Recorder["MediaRecorder<br/>(MP4/WebM 有界偵測)"]
+        Recorder -->|"dataavailable chunks"| Chunks["Blob 記憶體分段"]
+        Chunks --> Output["單一 VS 影片檔<br/>(離線下載 / 系統分享)"]
+    end
+```
+
 人物跟隨另提供每側獨立結果（#170）：分析目前共同區間所對應的原片範圍後，製作該側原速、帶該側原音的裁切影片，透過各自原生播放器預覽、定位及下載；預覽與下載使用相同 bytes。輸出比例依該側選框、長邊最多 1280 與偶數邊長，不強制塞進 VS 的 1280×720。這是單側匯出入口，不改下列共同時間映射、VS 老師供聲、兩種佈局或原有品質門檻。先前結果會在取消／失敗時保留，新結果成功才替換該側下載。
 
 左右並排預設展開，仍可手動收起。左右影片朝共同中線靠齊，將版面額外產生的水平黑邊留在外側；維持全畫面等比 fit，鏡像不改靠齊方向，預覽與新匯出一致。影片本身已包含的黑邊或背景不自動裁除。
