@@ -101,7 +101,7 @@ nav a { color: #c5ced0; padding: 10px 4px; min-height: 46px; }
 
 /* ponytail: 單一頁面標記暫藏次要工具；保留 DOM 與資料，之後恢復不用重接媒體流程。 */
 /* biome-ignore lint/complexity/noImportantStyles: 暫藏入口也必須離開鍵盤與讀屏順序，不能被 actions 等 display 覆蓋。 */
-body[data-comparison-only] [data-deferred], body[data-comparison-only] #stop:not([data-stoppable]) { display: none !important; }
+body[data-comparison-only]:not([data-preparation-mode]) [data-deferred], body[data-comparison-only][data-preparation-mode] [data-deferred]:not(#practice):not(#library-panel), body[data-comparison-only] #stop:not([data-stoppable]) { display: none !important; }
 /* 保存未確認時原片下載是救援入口，不能跟一般介面簡化一起藏掉。 */
 /* biome-ignore lint/complexity/noImportantStyles: 救援原片必須覆蓋一般暫藏規則；原本 hidden 的缺片仍維持隱藏。 */
 body[data-comparison-only] #storage-recovery:not([hidden]) ~ #save-result [data-deferred="original"]:not([hidden]) { display: inline-flex !important; }
@@ -117,3 +117,15 @@ body[data-comparison-only]:not(:has(#self-selection[data-source], #storage-recov
 body[data-comparison-only]:not(:has(#reference-selection[data-source])) .segment-settings { display: none !important; }
 /* 放在共用播放器之後，避免較窄的預覽上限被其他播放器規則蓋過。 */
 #cloud-media-preview video, #cloud-share-preview { width: 100%; max-height: 240px; }
+
+/* 準備模式只開單片練習與資料入口；比較仍走原入口，避免互相改寫時間配方。 */
+body[data-preparation-mode] :is(#self-picker, #self-selection, #select-self-video, #copy-self) { display: none; }
+#preparation-panel .check-label { flex-direction: row; align-items: center; }
+#preparation-panel input[type=checkbox] { min-width: 24px; min-height: 24px; flex-shrink: 0; }
+#preparation-panel select, #preparation-panel input, #preparation-panel textarea { max-width: 100%; min-width: 0; }
+#preparation-step { color: #b9f2c8; font-size: 1.3rem; }
+
+/* 單片準備不讓空的右側與跟隨製片工具擠走選段；原比較模式保留兩側。 */
+body[data-preparation-mode] #controls :is(.video-card:has(#self), .follow-tools, .follow-result) { display: none; }
+body[data-preparation-mode] #controls > .section-intro { display: none; }
+body[data-preparation-mode] #controls .players { grid-template-columns: 1fr; }

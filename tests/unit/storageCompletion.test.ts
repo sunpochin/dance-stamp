@@ -252,7 +252,7 @@ test('v1／v2 短日期匯入保留本機時間，零餘裕 UTF-8 筆記保存�
 
 test('error 後即使取消也沒有 abort/complete：結束等待但只回報保存狀態未確認', async () => {
   const { db, storage, next, assetId } = await fixture('error-stuck'), before = structuredClone(db.record), controller = new AbortController()
-  const saving = outcome(storage.writeLibrary(next, 1, { id: assetId, blob: new Blob(['new']) }, controller.signal))
+  const saving = storage.writeLibrary(next, 1, { id: assetId, blob: new Blob(['new']) }, controller.signal).catch(error => error)
   await Bun.sleep(10)
   const queued = outcome(storage.writeLibrary(next, 1, { id: assetId, blob: new Blob(['queued']) }))
   db.holdReads = true
@@ -349,7 +349,7 @@ test('產品操作在未知保存後退出忙碌：保留原片／VS URL，可�
   const originals = new Map(urls), reference = { pause() {}, controls: true, getAttribute: () => 'blob:synthetic-reference' }, self = { pause() {}, controls: true, getAttribute: () => 'blob:synthetic-self' }
   node('media-dialog').open = true; node('relink-file').value = 'synthetic candidate'
   const document = { body: {}, documentElement: {}, activeElement: null as any, createElement: () => node('new-download') }; document.activeElement = document.body
-  const context: any = { ...storage, writeLibrary: storage.writeLibrary, validateBackup, structuredClone, crypto, Blob, Error, AbortController, document, reference, self,
+  const context: any = { preparation: { updateControls() {} }, ...storage, writeLibrary: storage.writeLibrary, validateBackup, structuredClone, crypto, Blob, Error, AbortController, document, reference, self,
     $: node, status: (text: string) => { node('status').textContent = text }, releaseCamera() {}, stopPractice() {}, applyPracticeSettings() {}, drawPractice() {}, updateOverlayControls() {}, updateStopControl() {}, updateSourceTimelines() {}, renderLibrary() {}, report() {}, focusControl() {},
     ready: Promise.resolve(), comparisonSave: Promise.resolve(), state: structuredClone(db.record), active: null, operationFocus: null, operationTrigger: null, diagnostics: {}, monitor: null, audio: null,
     // 載入狀態也讀取待重連 ID；補足真實頁面初值，保留既有未確認保存斷言。
@@ -406,7 +406,7 @@ test('佇列等待期間轉為未確認，真正「準備下一段」控制器�
     }
     const original = new Blob(['synthetic self']), urls = new Map([['self', 'blob:synthetic-self']])
     let confirmations = 0, sourceChanges = 0
-    const context: any = { storageUnconfirmed: storage.storageUnconfirmed, storageUnconfirmedMessage: storage.storageUnconfirmedMessage,
+    const context: any = { preparation: { updateControls() {} }, storageUnconfirmed: storage.storageUnconfirmed, storageUnconfirmedMessage: storage.storageUnconfirmedMessage,
       $: node, active: null, document: { activeElement: null, body: {}, documentElement: {} },
       ready: gate === 'ready' ? saving : Promise.resolve(), comparisonSave: gate === 'comparisonSave' ? saving : Promise.resolve(),
       AbortController, Error, operationTrigger: null, operationFocus: null, diagnostics: {}, monitor: null, audio: null,
@@ -430,5 +430,19 @@ test('佇列等待期間轉為未確認，真正「準備下一段」控制器�
     expect(context.active).toBeNull()
     expect(node('controls').attributes.get('aria-busy')).toBe('false')
     expect(context.diagnostics.lastError).toBe('storage-unconfirmed')
+  }
+})
+
+test('準備進度與收尾走同一交易；quota／取消／競寫保留舊筆記與原片，成功後可重開', async () => {
+  for (const mode of ['complete', 'error-abort', 'pending'] as const) {
+    const { db, storage, next, assetId } = await fixture(mode), controller = new AbortController(), before = structuredClone(db.record)
+    next.preparations.push({ id: crypto.randomUUID(), videoId: next.videos[0].id, title: '合成起步', reason: '合成理由', targetStartMs: 0, targetEndMs: 15000, starterStartMs: 1000, starterEndMs: 2000, rate: 0.75, mirror: false, context: 'out', place: '合成地點', step: 2, phase: 'preparing', revision: 1, createdAt: '2026-11-05T00:00:00Z' })
+    const saving = storage.writeLibrary(next, 1, { id: assetId, blob: new Blob(['new']) }, controller.signal).catch(error => error)
+    if (mode === 'pending') { await Bun.sleep(5); controller.abort() }
+    const result = await saving
+    if (mode === 'complete') {
+      expect(result.revision).toBe(2); expect((await storage.readLibrary()).data.preparations).toEqual(next.preparations)
+      await expect(storage.writeLibrary(next, 1)).rejects.toThrow()
+    } else { expect(result).toBeInstanceOf(Error); expect(db.record).toEqual(before); expect(await db.media.get(assetId)!.text()).toBe('old') }
   }
 })
