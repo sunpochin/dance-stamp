@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, posix, resolve } from 'node:path'
 import { publicProblems } from './publicSafety'
-import { webFiles, notices, binaryAssetHashes } from './web-assets'
+import { webFiles, notices, binaryAssetHashes, mediabunnyAssetHashes } from './web-assets'
 
 export const packageInputs = [
   ...[...webFiles, ...notices, '_headers'].map(file => `dist/web/${file}`),
@@ -46,7 +46,7 @@ export const packageInputs = [
   'docs/evidence/issue-15-hosted-preview.md',
   // 授權隨獨立下載包提供，不依賴開發者的其他 checkout。
   'vendor/agent-work-methods/LICENSE', 'vendor/agent-work-methods/NOTICE.md', 'docs/ai/work-methods-lock.json',
-  'vendor/harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'vendor/mediapipe/LICENSE', 'docs/ai/harness-import.json',
+  'vendor/harness/LICENSE', 'vendor/reviewlatch/LICENSE', 'vendor/reviewlatch/NOTICE.md', 'vendor/reviewlatch/manifest.json', 'vendor/mediapipe/LICENSE', 'vendor/mediabunny/LICENSE', 'docs/ai/harness-import.json',
 ].sort()
 const packagePaths = [...packageInputs, 'release.json', 'SHA256SUMS'].sort()
 const hash = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
@@ -75,6 +75,8 @@ export function readAllowed(root: string, allowed: string[], complete = true): M
 export function sealPackage(payload: Map<string, Uint8Array>, metadata: { version: string; sourceRevision: string; trackedChanges: boolean }) {
   if (!samePaths(payload.keys(), packageInputs) || !/^[a-f0-9]{16}$/.test(metadata.version) || !/^[a-f0-9]{40}$/.test(metadata.sourceRevision)) throw new Error('下載包來源或白名單不完整')
   for (const [name, bytes] of payload) {
+    const fixedMedia = name.startsWith('dist/web/') ? mediabunnyAssetHashes[name.slice('dist/web/'.length)] : undefined
+    if (fixedMedia && hash(bytes) !== fixedMedia) throw new Error('下載包媒體引擎來源指紋不符')
     const binary = name.startsWith('dist/web/') ? binaryAssetHashes[name.slice('dist/web/'.length)] : undefined
     // 只允許官方固定 bytes；未知檔案依舊逐字掃描，不能用副檔名繞過公開檢查。
     if (binary) { if (hash(bytes) !== binary) throw new Error('下載包二進位來源指紋不符') }

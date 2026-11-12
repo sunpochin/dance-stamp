@@ -11,6 +11,15 @@ export const visionAssets: Record<string, string> = {
   'vision-simd.wasm': 'node_modules/@mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm',
   'person-model.tflite': 'vendor/mediapipe/efficientdet-lite0.tflite',
 }
+// MPL bundle 原封同源提供；授權與 preferred TS source 位置見 notice，不自造還原格式或連 CDN。
+export const mediabunnyAssets: Record<string, string> = {
+  'mediabunny.js': 'node_modules/mediabunny/dist/bundles/mediabunny.mjs',
+  'mediabunny-license.txt': 'vendor/mediabunny/LICENSE',
+}
+export const mediabunnyAssetHashes: Record<string, string> = {
+  'mediabunny.js': '65a111aadcb9a8b45e585f128d11daf3c972289bf6c58b2e795ba6073ee13363',
+  'mediabunny-license.txt': '3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04',
+}
 // 二進位不能當文字做秘密掃描；兩種 runtime 與模型都固定指紋，不因加速放寬完整性。
 export const binaryAssetHashes: Record<string, string> = {
   'vision-wasm.wasm': 'ed5e5e5812490bd90d6a440290845ff9e4c516f696847a28a0c0e0573470d469',
@@ -18,11 +27,11 @@ export const binaryAssetHashes: Record<string, string> = {
   'person-model.tflite': '0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb',
 }
 export function webAssetBytes(root: string, file: string) {
-  const bytes = readFileSync(visionAssets[file] ? resolve(root, visionAssets[file]) : resolve(root, 'web', file))
+  const bytes = readFileSync((visionAssets[file] || mediabunnyAssets[file]) ? resolve(root, visionAssets[file] || mediabunnyAssets[file]) : resolve(root, 'web', file))
   // Emscripten 的虛擬家目錄不是使用者路徑；兩處同改為公開範例，保留原公開掃描強度。
   return ['vision-wasm.js', 'vision-simd.js'].includes(file) ? new TextEncoder().encode(bytes.toString().replaceAll(JSON.stringify(['', 'home', 'web_user'].join('/')), '"/home/example"')) : bytes
 }
-export const webFiles = ['index.html', 'metronome.html', 'metronome.css', 'metronome.js', 'tempo.js', 'tempo-worklet.js', 'style.css', 'main.js', 'google-drive.js', 'cloud-auth.js', 'cloud-ui.js', 'cloud-snapshot.js', 'cloud-practice-ui.js', 'cloud-sharing.js', 'cloud-share-ui.js', 'timeline.js', 'comparison-renderer.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets)]
+export const webFiles = ['index.html', 'metronome.html', 'metronome.css', 'metronome.js', 'tempo.js', 'tempo-worklet.js', 'style.css', 'main.js', 'google-drive.js', 'cloud-auth.js', 'cloud-ui.js', 'cloud-snapshot.js', 'cloud-practice-ui.js', 'cloud-sharing.js', 'cloud-share-ui.js', 'timeline.js', 'comparison-renderer.js', 'pts-plan.js', 'pts-audio.js', 'pts-input.js', 'pts-lifecycle.js', 'export-pts-core.js', 'export-pts-worker.js', 'export-pts.js', 'local-audio.js', 'beats.js', 'recorder.js', 'library.js', 'storage.js', 'offline.js', 'sw.js', 'follow.js', 'follow-ui.js', 'follow-metrics.js', 'follow-export.js', 'person-worker.js', ...Object.keys(visionAssets), ...Object.keys(mediabunnyAssets)]
 export const notices = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 export function webNotice(file: string, source: string) {
   // 授權 Markdown 副本位於 dist/web；根文件保留原連結，副本須回到同一包根目錄找實際檔案。
